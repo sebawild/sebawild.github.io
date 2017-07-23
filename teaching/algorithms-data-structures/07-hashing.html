@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Lektion 7: Hashing</title>
+  <meta name="description" content="	In dieser Lektion behandeln wir Hashtabellen,	die zweite wichtige Datenstruktur neben Suchbäumen um Symbol Tables	zu implementieren.			Dynamische Abbildunge...">
+
+  <link rel="stylesheet" href="/fonts/pagella/stylesheet.css" type="text/css" charset="utf-8" />
+  <link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css" type="text/css" charset="utf-8" />
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="https://wild-inter.net/teaching/algorithms-data-structures/07-hashing">
+  <link rel="alternate" type="application/rss+xml" title="Sebastian Wild's Site" href="https://wild-inter.net/feed.xml">
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Sebastian</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#46433A" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#46433A" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#46433A" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+      <div class="trigger">
+        
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+          <a class="page-link" href="/research">Research</a>
+          
+        
+          
+          <a class="page-link" href="/teaching/">Teaching</a>
+          
+        
+          
+          <a class="page-link" href="/posts/">Blog</a>
+          
+        
+          
+          <a class="page-link" href="/about">About</a>
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <link rel="stylesheet" href="lessons.css">
+<script src="lightweight-embed.js"></script>
+
+<article class="post">
+	<div class="post-back">
+		<small>
+			<p><a href="/teaching/algorithms-data-structures/#flipped-lectures">⬑ Liste aller flipped lectures.</a>
+			&nbsp;&mdash;&nbsp; Algorithmen und Datenstrukturen</p>
+		</small>
+	</div>
+
+	<h1 class="post-title"><p>Lektion 7: Hashing</p>
+</h1>
+
+	<div class="page-content">
+      <div class="wrapper">
+        <img src="lesson-07.svg" class="float-right"/>
+<p>
+	In dieser Lektion behandeln wir Hashtabellen,
+	die zweite wichtige Datenstruktur neben Suchbäumen um Symbol Tables
+	zu implementieren.
+</p>
+<p>
+	<a href="https://de.wikipedia.org/wiki/Assoziatives_Datenfeld">
+		Dynamische Abbildungen</a>,
+	auch (dynamic) maps (z.B. <tt>java.util.Map</tt>),
+	dictionaries (Wörterbücher), symbol tables (ST),
+	associative array (assoziatives Feld)
+	oder key-value stores genannt,
+	sind die vielseitigste und wohl meistverwendete Waffe
+	eines (guten) Programmierers.
+	Einige Programmiersprachen (z.B. Python) verwenden assoziative Arrays
+	sogar als eingebauten Datentyp.
+</p>
+<p>
+	Wenn die zusätzlichen Operationen von geordneten Symbol Tables nicht
+	benötigt werden, sind Hashing-basierte ST in der Praxis unschlagbar,
+	sofern man die hier besprochenen Fallstricke umgeht.
+	Sie erlauben dann in typischen Anwendungsdaten get und put in
+	<em>konstanter</em> Zeit auszuführen, unabhängig von der Größe der
+	ST.
+</p>
+
+<h3>Lernziele</h3>
+<ul>
+	<li>Funktionsweise und Performancecharakteristika
+		von Hashtabellen kennen,</li>
+	<li>Hashfunktionen für eigene Datentypen entsprechend aktueller
+		best practices implementieren.</li>
+</ul>
+
+
+
+
+<h3>Fragensammlung für die Q&amp;A Session</h3>
+<p>
+	Tragt hier Fragen ein, die während der Vorbereitung aufkamen,
+	und die ihr gerne klären möchtet.
+	Bewertet außerdem die existierenden Fragen.
+</p>
+<p>
+	<iframe src="https://piratenpad.de/p/ADS-fragen-hashing?showControls=true&showChat=false&showLineNumbers=true&useMonospaceFont=false" class="piratenpad"></iframe>
+</p>
+<!--
+<p>
+	<iframe src="https://kavula.fachschaft.informatik.uni-kl.de/p/text?showControls=true&showChat=false&showLineNumbers=true&useMonospaceFont=false" class="piratenpad"></iframe>
+</p>
+-->
+<details>
+<summary>
+	<strong>Hausordnung</strong>
+</summary>
+<small>
+<ul>
+    <li>Es ist explizit erlaubt/erwünscht, Fragen aus den
+		<em>Aufgaben zur Vorbereitung</em> unter den Videos
+		zu übernehmen, wenn ihr diese der Q&amp;A Session besprechen wollt.</li>
+	<li>Auch wenn ihr gerade keine eigene Frage stellen möchtet,
+		sind die Fragen der anderen oft hilfreiche Denkanstöße auch für euch.
+		Deshalb, und um Fragen für die Q&amp;A Sessions zu priorisieren,
+		könnt ihr Fragen <b>bewerten</b>.
+		<br/>
+		Tragt dazu bei einer Frage entweder ein (zusätzliches) »+« ein,
+		wenn ihr diese Frage interessant findet, oder ein (zusätzliches) »-«,
+		wenn ihr sie nicht hilfreich findet (z.B. weil die Antwort direkt im
+		Video gegeben wird).
+		Listet zur besseren Übersicht zuerst alle »+«, dann alle »-«, jeweils in 5er Gruppen.
+		</li>
+    <li>Bevor ihr eine neue Frage eintragt, schaut ob eine existierende Frage
+		eurer sehr nahe kommt;
+		wenn ja, schreibt eure Frage als alternative Formulierung zu dieser Frage dazu.</li>
+    <li>Wenn ihr der Meinung seid, ihr könnt eine Frage in wenigen Worten beantworten,
+		so ergänzt eure Antwort unterhalb der Frage.
+		Auch diese Antworten könnt ihr bewerten, wenn ihr sie hilfreich findet,
+		oder Erwiderungen ergänzen, wenn ihr sie für falsch haltet.
+	</li>
+    <li>Seid konstruktiv.</li>
+</ul>
+</small>
+</details>
+
+
+<h2>Material</h2>
+<p>
+	Die Videos entstammen dem Coursera MOOC
+	<em>Algorithms Part I</em>
+	von Robert Sedgewick und Kevin Wayne.
+<p/>
+
+<h3>1 &ndash; Hash Functions</h3>
+<div class="youtube"><div class="youtube-player" data-id="EWX8bVSlgx0"></div></div>
+<p>
+	In diesem Video beschreibt Sedgewick die Kernidee von Hashtabellen.
+	Er diskutiert das Problem von »Kollisionen«, die in folgenden Videos angegangen werden.
+	Danach beschreibt Sedgewick, wie Hashfunktionen in Java verwendet werden,
+	und wie man zuverlässige Hashfunktionen für eigene Typen entwickelt.
+	Schließlich wird die idealistische Annahme uniformer Hashwerte
+	(uniform hashing assumption) formuliert, unter der man Hashing
+	mathematisch analysieren kann.
+</p>
+<p>Aufgaben zur Vorbereitung:</p>
+<ol>
+	<li>Was tut eine Hashfunktion?</li>
+	<li>Was ist eine Kollision? Warum müssen wir diese (irgendwie) auflösen/behandeln?</li>
+	<li>Was ist in Java bzgl. <tt>equals</tt> und <tt>hashCode</tt> zu beachten?</li>
+	<li>Wie sieht Sedgewicks Standardrezept für eigene Hashfunktionen aus?</li>
+	<li>Was ist <em>modular hashing?</em> Wozu braucht man das in Java?</li>
+	<li>Was besagt die <em>uniform hashing assumption?</em></li>
+</ol>
+
+
+<h3>2 &ndash; Separate Chaining</h3>
+<div class="youtube"><div class="youtube-player" data-id="B7O-Mj3IxYw"></div></div>
+<p>
+	In diesem Video wird die Verwendung von <em>separate chaining</em>
+	für die Auflösung von Kollisionen besprochen.
+</p>
+<p>Aufgaben zur Vorbereitung:</p>
+<ol>
+	<li>Wie wird bei separate chaining mit Kollisionen umgegangen?</li>
+	<li>Wie funktioniert put?</li>
+	<li>Wie funktioniert get?</li>
+	<li>Was bestimmt die Laufzeit von get und put?</li>
+	<li>Was ist laut Sedgewick die typische Listenlänge?</li>
+	<li>Was ist ein typischer Wert für M (in Abhängigkeit von N)?</li>
+</ol>
+
+<h3>3 &ndash; Hash Tables vs. Balanced Search Trees</h3>
+<div class="youtube"><div class="youtube-player" data-id="lGT7bjc7Tdc" data-opts="start=522"></div></div>
+<p class="hinweis-box">
+	<em><strong>Wichtig:</strong>
+		Wir verwenden von diesem Video nur den letzten Teil ab Minute 8:42.
+		Die Themen davor sind optional.
+	</em>
+</p>
+<p>
+	Sedgewick zieht in diesem Video sein Fazit zu ST Implementierungen
+	und gibt Hinweise, was Vor- und Nachteile von Hashtabellen sind.
+</p>
+<p>Aufgaben zur Vorbereitung:</p>
+<ol>
+	<li>Was sind laut Sedgewick die Vorteile von Hashtabellen?</li>
+	<li>Was sind laut Sedgewick die Vorteile von balancierten Suchbäumen?</li>
+</ol>
+
+
+<div class="small" style="padding-top:10ex;">
+	<h2 id="optional">Optionale Themen</h2>
+	<p>
+		Hier sind einige Videos mit weiterführenden Inhalten und hübschen Anwendungen
+		gesammelt.
+		<strong>Diese sind <em>nicht</em> Teil
+			(des Klausur-relevanten Stoffes von) von A&amp;DS.</strong>
+		Sie sind hier gesammelt, weil
+		in den Videos oben teilweise Bezug auf diese Themen genommen wird,
+		und ich Interessierten die Videos nicht vorenthalten möchte.
+	</p>
+
+	<h3>Open Adressing and Linear Probing</h3>
+	<div class="youtube"><div class="youtube-player" data-id="EFdYMu2MsYo"></div></div>
+	<p>
+		Eine zweite Möglichkeit der Kollisionsbeseitigung sind
+		<em>open addressing</em> Verfahren, bei denen nach einer festen Regel
+		andere Hashadressen ausprobiert werden, falls der Eintrag der Hashtabelle
+		für einen Schlüssel schon vergeben ist.
+		Die einfachste solche Regel heißt <em>linear probing</em>: Wir
+		gehen einfach zur nächstgrößeren Adresse weiter, bis wir eine freie
+		Zelle finden.
+		Diese Video zeigt eine Implementierung von linear probing,
+		und diskutiert die Performancecharakteristika dieser Methode.
+	</p>
+
+</div>
+
+      </div>
+    </div>
+
+</article>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Sebastian Wild</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li>
+				<a href="mailto:sebawild@gmail.com" title="Contact me">sebawild at gmail</a>,
+				<a href="http://pgp.mit.edu:11371/pks/lookup?op=get&search=0x38600ABC14973198">PGP Key</a>
+			</li>
+          <li>
+				<a href="mailto:wild@cs.uni-kl.de" title="Contact me">wild at cs.uni-kl.de</a>,
+				<a href="http://pgp.mit.edu:11371/pks/lookup?op=get&search=0x34EE39A78B149255">PGP Key</a>
+          </li>
+          <li><a href="http://wwwagak.cs.uni-kl.de/home/staff/sebastian-wild">Website at TU KL</a></li>
+          <li><a href="http://orcid.org/0000-0002-6061-9177">ORCID ID: 0000-0002-6061-9177</a></li>
+          <li><a href="https://scholar.google.de/citations?user=aMyZiK0AAAAJ">Google Scholar Profile</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <ul class="social-media-list">
+          
+
+          
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>
+			Website of <a href=/about>Sebastian Wild</a>.
+			
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

@@ -6,13 +6,13 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Ingenious mechanical explanations of math facts</title>
-  <meta name="description" content="Creative mechanical devices can demonstrate abstract facts in a mostmemorable way.">
+  <title>Install pdf2htmlEX on recent Ubuntu</title>
+  <meta name="description" content="Because of unresolved dependencies, installing pdf2htmlEX becamechallenging in recent Ubuntu.">
 
   <link rel="stylesheet" href="/fonts/pagella/stylesheet.css" type="text/css" charset="utf-8" />
   <link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css" type="text/css" charset="utf-8" />
   <link rel="stylesheet" href="/css/main.css">
-  <link rel="canonical" href="https://wild-inter.net/posts/bean-machine">
+  <link rel="canonical" href="https://wild-inter.net/posts/pdf2htmlEX-on-docker">
   <link rel="alternate" type="application/rss+xml" title="Sebastian Wild's Site" href="https://wild-inter.net/feed.xml">
 </head>
 
@@ -80,43 +80,76 @@
 
   <header class="post-header">
     <p class="post-meta">
-		<time datetime="2018-03-23T00:00:00-04:00" itemprop="datePublished">
-			23 Mar 2018
+		<time datetime="2019-01-01T00:00:00-05:00" itemprop="datePublished">
+			1 Jan 2019
 		</time>
 		
 	</p>
 		 
 			
-				<a href="/posts/by-categories/#math">
+				<a href="/posts/by-categories/#linux">
 				<p class="post-categories">
-					math
+					linux
 				</p>
 				</a>
 			
 		
-    <h1 class="post-title" itemprop="name headline">Ingenious mechanical explanations of math facts</h1>
+    <h1 class="post-title" itemprop="name headline">Install pdf2htmlEX on recent Ubuntu</h1>
   </header>
 
   <div class="post-content" itemprop="articleBody">
-    <p>Creative mechanical devices can demonstrate abstract facts in a most
-memorable way.</p>
+    <p>Because of unresolved dependencies, installing pdf2htmlEX became
+challenging in recent Ubuntu.</p>
 
-<p>Paraphrasing <a href="https://en.wikiquote.org/wiki/John_von_Neumann">John von Neumann</a>,
-math is not understood, but we get used to it.
-That seems sadly true for some aspects of math, but we should not let this quote become
-a justification for not looking for better ways to internalize and explain mathematical
-concepts.</p>
+<p>I use pdf2htmlEX to make <a href="pdf2htmlex">pdfs nicely readable in the browser</a>.
+pdf2htmlEX relies on a custom version of the poppler library, and
+support for more recent versions of poppler has not been built into it yet.
+Since no new maintainer has been found, people started to look for alternatives
+to keep using pdf2htmlEX productively, without being forced to stay on
+old libraries.
+Docker containers are solution for precisely such use cases.</p>
 
-<p>One such way that has always been particularly appealing to myself
-are mechanical devices that make abstract processes visible.</p>
+<p>I here describe the steps that it took me to get pdf2htmlEX running on
+Ubuntu 18.04.1 LTS; I was fine with a certain overhead (in time and space)
+for running it, but I wanted direct command-line interaction on individual
+files. Since docker containers are isolated from the host system, this requires
+some extra steps.</p>
 
-<h2 id="the-bean-machinepebbles-into-bins">The Bean Machine—pebbles into bins</h2>
+<p>First install docker; I used the snap version, so I ran:</p>
 
-<p>The <a href="https://en.wikipedia.org/wiki/Bean_machine">bean machine</a> or
-<a href="https://en.wikipedia.org/wiki/Francis_Galton">Galton</a> machine
-illustrates the Binomial distribution in a very hands-on way.
-Watch the <a href="https://en.wikipedia.org/wiki/File:Galton_box.webm">video on Wikipedia</a>;
-that says more than any explanation I could give here.</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>snap install docker
+</code></pre></div></div>
+
+<p>Next, I pulled the prepackaged docker container by
+<a href="https://hub.docker.com/r/bwits/pdf2htmlex">bwits</a>:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sudo docker pull bwits/pdf2htmlex
+</code></pre></div></div>
+
+<p>For running pdf2htmlEX conveniently and (somewhat) securely,
+you should be able to run docker as user;
+this is not possible directly since docker uses Unix sockets owned by root
+for communicating with containers.
+But if you create a group <code class="highlighter-rouge">docker</code> and add yourself to it,
+the socket will be <a href="https://docs.docker.com/install/linux/linux-postinstall/#manage-docker-as-a-non-root-user">owned by that group</a> instead.
+So:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sudo groupadd docker
+sudo usermod -aG docker $USER
+</code></pre></div></div>
+
+<p>You probably have to reboot (log out and restart the docker daemon) before
+this takes effect, you can test it with <code class="highlighter-rouge">docker run hello-world</code>.</p>
+
+<p>If everything worked out, we can now run pdf2htmlEX as</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run -ti --rm -v `pwd`:/pdf bwits/pdf2htmlex pdf2htmlEX [args] file.pdf
+</code></pre></div></div>
+
+<p>to convert <code class="highlighter-rouge">file.pdf</code> in the current working directory.
+Note that the application inside the container only gets access to the
+the folder you map to <code class="highlighter-rouge">/pdf</code> using the <code class="highlighter-rouge">-v</code> option,
+i.e., in the above command the current directory.</p>
 
   </div>
 

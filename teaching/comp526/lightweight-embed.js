@@ -17,6 +17,15 @@ document.addEventListener("DOMContentLoaded",
 			div.onclick = labnolIframe;
 			v[n].appendChild(div);
 		}
+		v = document.getElementsByClassName("stream-player");
+		for (n = 0; n < v.length; n++) {
+			var iframe = document.createElement("iframe");
+			var embed = "https://stream.liv.ac.uk/s/ID";
+			iframe.setAttribute("src", embed.replace("ID", v[n].dataset.id));
+			iframe.setAttribute("frameborder", "0");
+			iframe.setAttribute("allowfullscreen", "1");
+			v[n].appendChild(iframe);
+		}
 	});
 
 function labnolThumb(id) {

@@ -6,9 +6,119 @@
 </description>
     <link>https://www.wild-inter.net/</link>
     <atom:link href="https://www.wild-inter.net/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Fri, 21 Oct 2022 21:13:20 +0100</pubDate>
-    <lastBuildDate>Fri, 21 Oct 2022 21:13:20 +0100</lastBuildDate>
+    <pubDate>Mon, 24 Oct 2022 22:22:45 +0100</pubDate>
+    <lastBuildDate>Mon, 24 Oct 2022 22:22:45 +0100</lastBuildDate>
     <generator>Jekyll v4.2.1</generator>
+    
+      <item>
+        <title>Amortized analysis of resizing-array stacks</title>
+        <description>&lt;p&gt;A rigorous proof that a stack implemented with doubling arrays has constant amortized time operations;
+written up here since it does not seem to appear in any of the standard algorithms books.&lt;/p&gt;
+
+&lt;script type=&quot;text/x-mathjax-config&quot;&gt;
+	var font = &quot;Neo-Euler&quot;;
+	MathJax.Hub.Config({
+		tex2jax: {
+			inlineMath: [['$','$']],
+			displayMath: [['\\[','\\]']],
+			processEscapes: true,
+		},
+		&quot;SVG&quot;:{ 
+			font:font
+		},
+		&quot;HTML-CSS&quot;: {
+			webFont: font,
+			imageFont: font,
+			preferredFont: font,
+			availableFonts: [],
+			scale: 85,
+			mtextFontInherit: true
+		}
+	});
+&lt;/script&gt;
+
+&lt;script type=&quot;text/javascript&quot; src=&quot;https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&quot;&gt;&lt;/script&gt;
+
+&lt;p&gt;A well-known, fundamental data structure is the implementation of a stack 
+using resizing arrays (a.k.a. doubling arrays), where we maintain an array of
+$C$ items for the $n$ elements of a stack, and whenever the array becomes full, 
+we double its size, and whenever the array becomes less that one quarter full,
+we halve its size.
+This maintains the invariant that $\frac14 C \le n \le C$.&lt;/p&gt;
+
+&lt;p&gt;A folklore analysis shows that this achieves constant amortized cost for all
+stack operations, despite the occasional expensive resizing operations.&lt;/p&gt;
+
+&lt;p&gt;This analysis is not a particularly hard or surprising proof by any means, but it makes a great first nontrivial example
+of amortized analysis, and hence I wanted to show it in my &lt;a href=&quot;/teaching/comp526&quot;&gt;&lt;em&gt;Efficient Algorithms (COMP526)&lt;/em&gt;&lt;/a&gt; lectures;
+see &lt;a href=&quot;/teaching/comp526/02-fundamental-ds&quot;&gt;&lt;em&gt;Unit 2 – Fundamental Data Structures&lt;/em&gt;&lt;/a&gt; for the full context.&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;The goal is to show that while any individual push/pop in a resizing-array based stack might be expensive ($\Omega(n)$ cost), any &lt;em&gt;sequence&lt;/em&gt; of operations is necessarily much cheaper, namely $O(1)$ time per operation &lt;strong&gt;on average&lt;/strong&gt;.
+As the dominant operation, we count array accesses, i.e., any read or write access to an array.&lt;/p&gt;
+
+&lt;h2 id=&quot;part-1-amortized-costs-for-all-operations&quot;&gt;Part 1: Amortized costs for all operations&lt;/h2&gt;
+&lt;p&gt;Basically, each operation has two types of costs for the amortized analysis: &lt;strong&gt;actual costs&lt;/strong&gt; (# array accesses) and a &lt;strong&gt;change in potential/credits&lt;/strong&gt;.
+We define the potential $\Phi = \min\lbrace n-\frac14C,\;C-n\rbrace$,
+and the amortized cost $a_i$ of an operation is the actual cost plus $-4$ times the change in potential.
+We have to analyze both costs separately.&lt;/p&gt;
+
+&lt;h3 id=&quot;actual-costs&quot;&gt;Actual costs:&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;cheap push/pop: exactly 1 array access to write/read the topmost element.&lt;/li&gt;
+  &lt;li&gt;copying push: currently there are $n$ elements on the stack, these have to be read from the old array ($n$ accesses) and written to the new array ($n$ accesses); also one more element has to be added (like in cheap push). In total that is $2n+1$ actual cost.&lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;copying pop: actually exactly the same: there are $n$ elements on the stack, these have to be read from the old array ($n$ accesses) and written to the new array ($n$ accesses); also one element has to be read to be returned. In total that is $2n+1$ actual cost.&lt;/p&gt;
+
+    &lt;p&gt;(One could avoid this very last extra read by not copying the element that we pop right after anyways; but typical implementations do not do this for convenience. It would clearly not save much either way.)&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;credits--potential-change&quot;&gt;Credits / Potential change&lt;/h3&gt;
+&lt;p&gt;The credits is the &lt;em&gt;change&lt;/em&gt; in potential $\Phi = \min\lbrace n-\frac14C,\;C-n\rbrace$.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;cheap push: $n$ gets one bigger, but $C$ is unchanged. If $C-n &amp;lt; n-\frac14 C$, then $\Phi$ drops by one (“we lose one credit”).&lt;/li&gt;
+  &lt;li&gt;cheap pop: $n$ gets one smaller, but $C$ is unchanged. If $n-\frac14 C&amp;lt;C-n$, then $\Phi$ drops by one (“we lose one credit”).&lt;/li&gt;
+  &lt;li&gt;copying push: We must have had $n=C$ (i.e. $\Phi_{i-1}=0$) before this push, and we will now set $C=2n$ before the push. Then, the push increments $n$. That means the new potential $\Phi_i=(n+1)-\frac14\cdot2n=\frac12n+1$.  We have earned $\frac12n+1$ credits.&lt;/li&gt;
+  &lt;li&gt;copying pop: We must have had $n=\frac14C$ (i.e. $\Phi_{i-1}=0$) before this push, and we will now make $C=2n$ before the pop; the pop itself then decrements $n$. So $\Phi_i=(n-1)-\frac14\cdot 2n =  \frac12n-1$, and we have earned $\frac12n-1$ credits.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;adding-up&quot;&gt;Adding up&lt;/h3&gt;
+&lt;p&gt;Adding up actual cost and $-4(\Phi_i-\Phi_{i-1})$ shows that in each case the amortized costs are at most 5.&lt;/p&gt;
+
+&lt;h2 id=&quot;part-2-from-amortized-to-total-actual-costs&quot;&gt;Part 2: From amortized to total actual costs&lt;/h2&gt;
+
+&lt;p&gt;The second part is indeed the same for &lt;em&gt;all&lt;/em&gt; amortized analyses: The total actual cost over a &lt;em&gt;sequence&lt;/em&gt; of $m$ operations is essentially bounded by the sum of their amortized costs, plus initial/final potential; this is shown using a telescoping-sum argument:&lt;/p&gt;
+
+\[5m 
+\ge \sum_{i=1}^m a_i 
+= \sum_{i=1}^m c_i - 
+4 \underbrace{\sum_{i=1}^m(\Phi_i - \Phi_{i-1})}_{=\Phi_m - \Phi_0}\]
+
+&lt;p&gt;Rearranging gives&lt;/p&gt;
+
+\[\sum_{i=1}^m c_i \le 5m + 4\Phi_m-4\Phi_0\]
+
+&lt;p&gt;Now, we can also show using the invariant $\frac14 C \le n \le n$, i.e.,
+$n\le C \le 4n$, that $0\le \Phi\le \frac35n$:
+Since $\Phi$ is piecewise linear, it suffices to consider the endpoints of the 
+linear segments, i.e., $C = 4n$, $C = n$ and $n-\frac14 C = C-n$, i.e., 
+$C = \frac85 n$; at these points $\Phi$ has values $0$, $0$, and $\frac35 n$, respectively.&lt;/p&gt;
+
+&lt;p&gt;Hence $\displaystyle\sum_{i=1}^m c_i \le 4\Phi_m -4\Phi_0 \le 5m + 2.4n \in \Theta(m+n)$.&lt;/p&gt;
+</description>
+        <pubDate>Thu, 20 Oct 2022 00:00:00 +0100</pubDate>
+        <link>https://www.wild-inter.net/posts/amortized-analysis-resizing-arrays</link>
+        <guid isPermaLink="true">https://www.wild-inter.net/posts/amortized-analysis-resizing-arrays</guid>
+        
+        
+        <category>algorithms</category>
+        
+        <category>teaching</category>
+        
+      </item>
     
       <item>
         <title>Increase the number of recent folders in Thunderbird</title>
@@ -681,142 +791,6 @@ out next time and update this post afterwards.&lt;/p&gt;
         
         
         <category>web</category>
-        
-      </item>
-    
-      <item>
-        <title>MathJax in Jekyll</title>
-        <description>&lt;p&gt;I describe how I include MathJax using Euler fonts.&lt;/p&gt;
-
-&lt;script type=&quot;text/x-mathjax-config&quot;&gt;
-	var font = &quot;Neo-Euler&quot;;
-	MathJax.Hub.Config({
-		tex2jax: {
-			inlineMath: [['$','$']],
-			displayMath: [['\\[','\\]']],
-			processEscapes: true,
-		},
-		&quot;SVG&quot;:{ 
-			font:font
-		},
-		&quot;HTML-CSS&quot;: {
-			webFont: font,
-			imageFont: font,
-			preferredFont: font,
-			availableFonts: [],
-			scale: 85,
-			mtextFontInherit: true
-		}
-	});
-&lt;/script&gt;
-
-&lt;script type=&quot;text/javascript&quot; src=&quot;https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&quot;&gt;&lt;/script&gt;
-
-&lt;h1 id=&quot;non-standard-fonts&quot;&gt;Non-Standard Fonts&lt;/h1&gt;
-
-&lt;p&gt;I follow the instructions in &lt;a href=&quot;http://gastonsanchez.com/opinion/2014/02/16/Mathjax-with-jekyll/&quot;&gt;this blog&lt;/a&gt;
-on getting MathJax support in Markdown using Jekyll.
-However, to better match the Palatino text font,
-I use the &lt;em&gt;Euler Math&lt;/em&gt; font, which MathJax can be configured to use.
-A nice place to try out the different available fonts is
-&lt;a href=&quot;http://checkmyworking.com/misc/MathJax-play-area/&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;I decided to include the mathjax scripts only on those pages,
-where it is actually used, so I created a new &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;_include&lt;/code&gt; file
-&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;mathjax.html&lt;/code&gt; with the usual MathJax contents:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;script type=&quot;text/x-mathjax-config&quot;&amp;gt;
-var font = &quot;Neo-Euler&quot;;
-MathJax.Hub.Config({
-	tex2jax: {
-		inlineMath: [['$','$']],
-		displayMath: [['\\[','\\]']],
-		processEscapes: true,
-	},
-	&quot;SVG&quot;:{ 
-		font:font
-	},
-	&quot;HTML-CSS&quot;: {
-		webFont: font,
-		imageFont: font,
-		preferredFont: font,
-		availableFonts: [],
-		scale: 85,
-		mtextFontInherit: true
-	}
-}); &amp;lt;/script&amp;gt; &amp;lt;script type=&quot;text/javascript&quot; src=&quot;https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&quot;&amp;gt;&amp;lt;/script&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;By starting a new page with  &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;{% include mathjax.html %}&lt;/code&gt;, 
-MathJax support is enabled—and it works out of the box: $\sqrt x$.&lt;/p&gt;
-
-&lt;div class=&quot;digression&quot;&gt;
-&lt;div class=&quot;digression-title&quot;&gt;Showing liquid tags.&lt;/div&gt;
-To show liquid tags literally (i.e. not expanded by jekyll),
-you can use the raw-tag of liquid.
-&lt;/div&gt;
-
-&lt;p&gt;By default, double dollars are used to delimit math,
-but it can also be configured
-to work with single dollars $\sum_{i=1}^n i^2 = \frac{n(n+1)(2n+1)}{6}$.&lt;/p&gt;
-
-&lt;h1 id=&quot;using-macros&quot;&gt;Using macros&lt;/h1&gt;
-
-&lt;p&gt;Using macros with MathJax is possible, but the support is limited;
-&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\newcommand&lt;/code&gt; with optional parameters does not seem to work.
-In Jekyll, one runs into trouble with opening braces followed by % parts
-since these are interpreted as
-liquid tag opening.&lt;/p&gt;
-
-&lt;p&gt;However, basic macros do work. One can define a macro in one part
-and use it later on that page.
-It is best practice to put definitions in a separate &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;display:none&lt;/code&gt;
-div to not influence the layout.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;div style=&quot;display:none&quot;&amp;gt;
-$
-\newcommand\testmacro[2]{\mathbf{F\alpha}(#1)^{#2}}
-$
-&amp;lt;/div&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;div style=&quot;display:none&quot;&gt;
-$
-\newcommand\testmacro[2]{\mathbf{F\alpha}(#1)^{#2}}
-$
-&lt;/div&gt;
-
-&lt;p&gt;Then we can use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;$\testmacro{17}{\text{hallo}}$&lt;/code&gt; to get
-$\testmacro{17}{\text{hallo}}$.&lt;/p&gt;
-
-&lt;h1 id=&quot;font-trouble&quot;&gt;Font Trouble&lt;/h1&gt;
-
-&lt;p&gt;Not all fonts work as they should with Euler math;
-switching to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\mathrm&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\mathit&lt;/code&gt; does not work:
-$\mathrm{mathrm}$ and $\mathit{mathit}$ both use the ordinary Euler
-font intended for single-letter variables—this is ugly.&lt;/p&gt;
-
-&lt;p&gt;With the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;mtextFontInherit&lt;/code&gt; inherit option, we can at least use
-&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\text&lt;/code&gt; to get multi-letter variables in roman font
-$x+2\cdot\text{slope}$, but they do not seem to inherit further
-attributes like &lt;em&gt;italic text $\text{math}$.&lt;/em&gt;&lt;/p&gt;
-
-&lt;h1 id=&quot;further-resources&quot;&gt;Further Resources&lt;/h1&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;A &lt;a href=&quot;http://www.onemathematicalcat.org/MathJaxDocumentation/TeXSyntax.htm&quot;&gt;comprehensive list&lt;/a&gt;
-of commands/macros that MathJax knows.&lt;/li&gt;
-  &lt;li&gt;A few common &lt;a href=&quot;https://www.tuhh.de/MathJax/test/examples.html&quot;&gt;usage examples&lt;/a&gt;.&lt;/li&gt;
-&lt;/ul&gt;
-</description>
-        <pubDate>Fri, 20 May 2016 00:00:00 +0100</pubDate>
-        <link>https://www.wild-inter.net/posts/mathjax-in-jekyll</link>
-        <guid isPermaLink="true">https://www.wild-inter.net/posts/mathjax-in-jekyll</guid>
-        
-        
-        <category>web</category>
-        
-        <category>latex</category>
         
       </item>
     

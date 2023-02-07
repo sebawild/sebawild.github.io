@@ -6,9 +6,115 @@
 </description>
     <link>https://www.wild-inter.net/</link>
     <atom:link href="https://www.wild-inter.net/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 18 Jan 2023 22:24:57 +0000</pubDate>
-    <lastBuildDate>Wed, 18 Jan 2023 22:24:57 +0000</lastBuildDate>
+    <pubDate>Tue, 07 Feb 2023 09:26:51 +0000</pubDate>
+    <lastBuildDate>Tue, 07 Feb 2023 09:26:51 +0000</lastBuildDate>
     <generator>Jekyll v4.2.1</generator>
+    
+      <item>
+        <title>Build CPython from source and install packages</title>
+        <description>&lt;p&gt;For experimenting with novel CPython features, you can quickly set up an isolated environment.
+This post shows you how to do that.&lt;/p&gt;
+
+&lt;p&gt;I did this on Ubuntu 20.04 LTS
+with standard build tools installed, but&lt;/p&gt;
+
+&lt;h2 id=&quot;compile-python&quot;&gt;Compile python&lt;/h2&gt;
+
+&lt;p&gt;Download latest CPython sources&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;git clone git@github.com:python/cpython.git
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Change to a stable branch instead of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;main&lt;/code&gt; (so that we don’t have to build all libraries from source); here we’re using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;3.11&lt;/code&gt;, the latest stable branch:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;git checkout 3.11
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;To run the build, use the following (standard) commands.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;configure --enable-optimizations
+make
+make test
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;--enable-optimizations&lt;/code&gt; does some instrumentation first, runs a demo workload, and then compiles again using deemed best compiler options.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;make test&lt;/code&gt; may not be necessary, but probably not a bad idea.
+For me, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;test_ssl&lt;/code&gt; fails, but I’ll ignore that for now.&lt;/p&gt;
+
+&lt;p&gt;Note: If you want several builds to compare, you need to have a full copy of the source (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;cpython&lt;/code&gt; root) folder; you can build in a subfolder, but that doesn’t change that all &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;python&lt;/code&gt;s share the Lib folder and hence only the latest compile works correctly.
+This seems to remain the case even with a venv that isolates the installed packages. You cannot run a Python version if you change the git checkout to a different version; the build still uses the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Lib&lt;/code&gt; subfolder from the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;cpython&lt;/code&gt; repo.&lt;/p&gt;
+
+&lt;h2 id=&quot;pip-bootstrap&quot;&gt;pip bootstrap&lt;/h2&gt;
+
+&lt;p&gt;&lt;strong&gt;The better option: Create a virtual environment, &lt;a href=&quot;#create-a-venv&quot;&gt;see below&lt;/a&gt;.&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;So far, the compilation generated a naked &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;python&lt;/code&gt; executable that is just the Python interpreter.
+For almost anything interesting, we will have to install packages, and the most convenient way for that is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pip&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;Python already comes with a bootstrap module to do that (https://pip.pypa.io/en/stable/installation/):&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;./python -m ensurepip --upgrade
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;That’s it! Now you can run&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;./python -m pip install numpy pandas
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;etc. to install packages.
+These all get installed into the system wide folder
+as&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;./python -m pip show pandas
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;reveals.&lt;/p&gt;
+
+&lt;h3 id=&quot;create-a-venv&quot;&gt;Create a venv&lt;/h3&gt;
+
+&lt;p&gt;A &lt;a href=&quot;https://packaging.python.org/en/latest/tutorials/installing-packages/#creating-virtual-environments&quot;&gt;virtual environment&lt;/a&gt; is a folder with all Python needs, isolated from other installations.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;./python -m venv my-python
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;generates a virtual environment in the subfolder&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;source my-python/bin/activate
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;make this the &lt;em&gt;active&lt;/em&gt; venv for the current running shell.
+Check &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;python --version&lt;/code&gt; to see if it worked.&lt;/p&gt;
+
+&lt;p&gt;From now on, you can use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;python&lt;/code&gt; instead of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;./python&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pip&lt;/code&gt; directly instead of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;./python -m pip&lt;/code&gt; etc.&lt;/p&gt;
+
+&lt;p&gt;Moreover, a call to&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;python -m pip show pandas
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;reveals that these are now local to your project (the venv &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;my-python&lt;/code&gt; really), and that is much better isolation.&lt;/p&gt;
+
+&lt;h3 id=&quot;why-a-stable-branch&quot;&gt;Why a stable branch?&lt;/h3&gt;
+
+&lt;p&gt;CPython is reasonably easy and quick to compile, so why not simply work with the current &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;main&lt;/code&gt; branch?
+The main reason (no pun intended) is to easily be able to install any Python packages with pip without much hassle.
+For major releases (like 3.11), PyPi has precompiled “wheels” of many popular packages and so installing them does not need all their build dependencies installed and is very quick.&lt;/p&gt;
+
+&lt;p&gt;Since Python version jumps often affect the C API, many libraries also lag a bit behind CPython main and will not easily be usable with the development branch.&lt;/p&gt;
+</description>
+        <pubDate>Tue, 07 Feb 2023 00:00:00 +0000</pubDate>
+        <link>https://www.wild-inter.net/posts/python-virtualenv</link>
+        <guid isPermaLink="true">https://www.wild-inter.net/posts/python-virtualenv</guid>
+        
+        
+        <category>algorithms</category>
+        
+        <category>teaching</category>
+        
+        <category>web</category>
+        
+      </item>
     
       <item>
         <title>Powersort in official Python 3.11 release</title>
@@ -777,56 +883,6 @@ so reducing the resolution is a good idea here.&lt;/p&gt;
         
         
         <category>web</category>
-        
-      </item>
-    
-      <item>
-        <title>Git for Computer Scientists</title>
-        <description>&lt;p&gt;A memorizable description of git commands.&lt;/p&gt;
-
-&lt;p&gt;If you ever worked with a version-control system, 
-you will probably get nervous about any file not under the shelter
-of the perpetual possibility to undo changes.
-I have been using &lt;em&gt;git&lt;/em&gt; for quite some time now,
-mostly for my solitary work (dissertation, papers, some code).
-Since it is decentralized, it is easy to backup, 
-and I am quite happy with it.&lt;/p&gt;
-
-&lt;p&gt;One feature of git, however, I carefully avoided is &lt;em&gt;branching.&lt;/em&gt;
-Of course, I tried it once when I read the git manual,
-and I can work with existing branches, but I always felt a bit 
-insecure of what the commands I typed were really doing.&lt;/p&gt;
-
-&lt;p&gt;I have some hope that this will change now.
-There is a nice post titled
-&lt;a href=&quot;http://eagain.net/articles/git-for-computer-scientists/&quot;&gt;&lt;em&gt;Git for computer scientists&lt;/em&gt;&lt;/a&gt;
-that explains concisely and
-(for me) memorizably how git branches work:
-namely, in terms of the underlying data structures.
-I can only recommend investing 15 calm minutes in reading the article.&lt;/p&gt;
-
-&lt;p&gt;Unfortunately, the article stops short when it comes to the 
-meaning of git’s various commands.
-I’m missing a concise specification in terms of git’s data structures,
-so I’ll start my own here.
-(I do not attempt to make it comprehensive, but rather memorizably concise).&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git branch &amp;lt;name&amp;gt;&lt;/code&gt;&lt;br /&gt;
-Create a new named &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ref&lt;/code&gt; pointing at the commit currently checked out in working area.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;A thorough understanding of (an abstract view of) the inner workings
-makes me feel comfortable to make more use of one of git’s 
-most celebrated features.&lt;/p&gt;
-
-</description>
-        <pubDate>Mon, 27 Jun 2016 00:00:00 +0100</pubDate>
-        <link>https://www.wild-inter.net/posts/git-for-computer-scientists</link>
-        <guid isPermaLink="true">https://www.wild-inter.net/posts/git-for-computer-scientists</guid>
-        
-        
-        <category>programming</category>
         
       </item>
     

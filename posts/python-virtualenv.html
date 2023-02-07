@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Build CPython from source and install packages</title>
+  <meta name="description" content="For experimenting with novel CPython features, you can quickly set up an isolated environment.This post shows you how to do that.">
+
+  <link rel="stylesheet" href="/fonts/pagella/stylesheet.css" type="text/css" charset="utf-8" />
+  <link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css" type="text/css" charset="utf-8" />
+  <link rel="stylesheet" href="/fonts/fontawesome/fontawesome-all.min.css" type="text/css" charset="utf-8" />
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="https://www.wild-inter.net/posts/python-virtualenv">
+  <link rel="alternate" type="application/rss+xml" title="Sebastian Wild's Site" href="https://www.wild-inter.net/feed.xml">
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Sebastian</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#46433A" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#46433A" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#46433A" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+      <div class="trigger">
+        
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+          <a class="page-link" href="/research/">Research</a>
+          
+        
+          
+          <a class="page-link" href="/teaching/">Teaching</a>
+          
+        
+          
+          <a class="page-link" href="/posts/">Blog</a>
+          
+        
+          
+          <a class="page-link" href="/about/">About</a>
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <p class="post-meta">
+		<time datetime="2023-02-07T00:00:00+00:00" itemprop="datePublished">
+			7 Feb 2023
+		</time>
+		
+	</p>
+		 
+			
+				<a href="/posts/by-categories/#algorithms">
+				<p class="post-categories">
+					algorithms
+				</p>
+				</a>
+			
+				<a href="/posts/by-categories/#teaching">
+				<p class="post-categories">
+					teaching
+				</p>
+				</a>
+			
+				<a href="/posts/by-categories/#web">
+				<p class="post-categories">
+					web
+				</p>
+				</a>
+			
+		
+    <h1 class="post-title" itemprop="name headline">Build CPython from source and install packages</h1>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>For experimenting with novel CPython features, you can quickly set up an isolated environment.
+This post shows you how to do that.</p>
+
+<p>I did this on Ubuntu 20.04 LTS
+with standard build tools installed, but</p>
+
+<h2 id="compile-python">Compile python</h2>
+
+<p>Download latest CPython sources</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git clone git@github.com:python/cpython.git
+</code></pre></div></div>
+
+<p>Change to a stable branch instead of <code class="language-plaintext highlighter-rouge">main</code> (so that we don’t have to build all libraries from source); here we’re using <code class="language-plaintext highlighter-rouge">3.11</code>, the latest stable branch:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git checkout 3.11
+</code></pre></div></div>
+
+<p>To run the build, use the following (standard) commands.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>configure --enable-optimizations
+make
+make test
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">--enable-optimizations</code> does some instrumentation first, runs a demo workload, and then compiles again using deemed best compiler options.</p>
+
+<p><code class="language-plaintext highlighter-rouge">make test</code> may not be necessary, but probably not a bad idea.
+For me, <code class="language-plaintext highlighter-rouge">test_ssl</code> fails, but I’ll ignore that for now.</p>
+
+<p>Note: If you want several builds to compare, you need to have a full copy of the source (<code class="language-plaintext highlighter-rouge">cpython</code> root) folder; you can build in a subfolder, but that doesn’t change that all <code class="language-plaintext highlighter-rouge">python</code>s share the Lib folder and hence only the latest compile works correctly.
+This seems to remain the case even with a venv that isolates the installed packages. You cannot run a Python version if you change the git checkout to a different version; the build still uses the <code class="language-plaintext highlighter-rouge">Lib</code> subfolder from the <code class="language-plaintext highlighter-rouge">cpython</code> repo.</p>
+
+<h2 id="pip-bootstrap">pip bootstrap</h2>
+
+<p><strong>The better option: Create a virtual environment, <a href="#create-a-venv">see below</a>.</strong></p>
+
+<p>So far, the compilation generated a naked <code class="language-plaintext highlighter-rouge">python</code> executable that is just the Python interpreter.
+For almost anything interesting, we will have to install packages, and the most convenient way for that is <code class="language-plaintext highlighter-rouge">pip</code>.</p>
+
+<p>Python already comes with a bootstrap module to do that (https://pip.pypa.io/en/stable/installation/):</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./python -m ensurepip --upgrade
+</code></pre></div></div>
+
+<p>That’s it! Now you can run</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./python -m pip install numpy pandas
+</code></pre></div></div>
+
+<p>etc. to install packages.
+These all get installed into the system wide folder
+as</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./python -m pip show pandas
+</code></pre></div></div>
+
+<p>reveals.</p>
+
+<h3 id="create-a-venv">Create a venv</h3>
+
+<p>A <a href="https://packaging.python.org/en/latest/tutorials/installing-packages/#creating-virtual-environments">virtual environment</a> is a folder with all Python needs, isolated from other installations.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./python -m venv my-python
+</code></pre></div></div>
+
+<p>generates a virtual environment in the subfolder</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>source my-python/bin/activate
+</code></pre></div></div>
+
+<p>make this the <em>active</em> venv for the current running shell.
+Check <code class="language-plaintext highlighter-rouge">python --version</code> to see if it worked.</p>
+
+<p>From now on, you can use <code class="language-plaintext highlighter-rouge">python</code> instead of <code class="language-plaintext highlighter-rouge">./python</code> and <code class="language-plaintext highlighter-rouge">pip</code> directly instead of <code class="language-plaintext highlighter-rouge">./python -m pip</code> etc.</p>
+
+<p>Moreover, a call to</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python -m pip show pandas
+</code></pre></div></div>
+
+<p>reveals that these are now local to your project (the venv <code class="language-plaintext highlighter-rouge">my-python</code> really), and that is much better isolation.</p>
+
+<h3 id="why-a-stable-branch">Why a stable branch?</h3>
+
+<p>CPython is reasonably easy and quick to compile, so why not simply work with the current <code class="language-plaintext highlighter-rouge">main</code> branch?
+The main reason (no pun intended) is to easily be able to install any Python packages with pip without much hassle.
+For major releases (like 3.11), PyPi has precompiled “wheels” of many popular packages and so installing them does not need all their build dependencies installed and is very quick.</p>
+
+<p>Since Python version jumps often affect the C API, many libraries also lag a bit behind CPython main and will not easily be usable with the development branch.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Sebastian Wild</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <p>Contact:</p>
+        <ul class="social-media-list">
+          <li><a href="mailto:%73%65%62%61%77%69%6C%64@%67%6D%61%69%6C.%63%6F%6D" title="Contact me">sebawild at gmail</a> ⋅
+            <a href="http://pgp.mit.edu:11371/pks/lookup?op=get&amp;search=0x38600ABC14973198">PGP</a></li>
+          <li><a href="mailto:%77%69%6C%64@%6C%69%76.%61%63.%75%6B" title="Contact me">wild at liv.ac.uk</a> ⋅
+            <a href="http://pgp.mit.edu:11371/pks/lookup?op=get&amp;search=0x34EE39A78B149255">PGP</a></li>
+
+              <p>  </p>
+          <li><del><a href="mailto:%77%69%6C%64@%75%77%61%74%65%72%6C%6F%6F.%63%61" title="Contact me">wild at uwaterloo.ca</a></del> ⋅
+            <a href="http://pgp.mit.edu:11371/pks/lookup?op=get&amp;search=0x34EE39A78B149255">PGP</a></li>
+          <li><del><a href="mailto:%77%69%6C%64@%63%73.%75%6E%69-%6B%6C.%64%65" title="Contact me">wild at cs.uni-kl.de</a></del></li>
+          <p>  </p>
+          <li><a href="https://www.liverpool.ac.uk/computer-science/staff/sebastian-wild">Website at UoL</a></li>
+          <li><a href="https://www.csc.liv.ac.uk/~swild">intranet site at UoL</a></li>
+          <li><a href="https://tcs.csc.liv.ac.uk">TCS @ Liverpool</a></li>
+          <li><a href="http://wwwagak.cs.uni-kl.de/home/staff/sebastian-wild">(Old) website TU KL</a></li>
+
+          
+
+          
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <p>Elsewhere:</p>
+        <ul class="contact-list">
+          <li><a href="https://github.com/sebawild">GitHub profile</a></li>
+          <li><a href="https://www.linkedin.com/in/sebastian-wild-liverpool/">LinkedIn profile</a></li>
+          <p>  </p>
+          <li><a href="http://orcid.org/0000-0002-6061-9177">ORCID: 0000-0002-6061-9177</a></li>
+          <li><a href="https://scholar.google.de/citations?user=aMyZiK0AAAAJ">Google Scholar profile</a></li>
+          <li><a href="http://dblp.uni-trier.de/pers/hd/w/Wild:Sebastian">DBLP publication list</a></li>
+          <li><a href="https://www.semanticscholar.org/author/3124206">Semantic Scholar Author Page</a></li>
+          <li><a href="http://arxiv.org/a/wild_s_2">arXiv Author ID</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>Quick links:</p>
+        <ul style="margin-top: -1.5ex;">
+          <li><a href="/publications">my publications</a></li>
+          <li><a href="https://disk.wild-inter.net:5001/fbsharing/J0v0S8yF">my library</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

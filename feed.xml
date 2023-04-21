@@ -1,14 +1,101 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Sebastian Wild's Site</title>
+    <title>Sebastian Wild&apos;s Site</title>
     <description>Website of Sebastian Wild, algorithms researcher
 </description>
     <link>https://www.wild-inter.net/</link>
     <atom:link href="https://www.wild-inter.net/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Fri, 24 Mar 2023 23:23:56 +0000</pubDate>
-    <lastBuildDate>Fri, 24 Mar 2023 23:23:56 +0000</lastBuildDate>
+    <pubDate>Fri, 21 Apr 2023 14:59:34 -0600</pubDate>
+    <lastBuildDate>Fri, 21 Apr 2023 14:59:34 -0600</lastBuildDate>
     <generator>Jekyll v4.2.1</generator>
+    
+      <item>
+        <title>How to contribute your inputs to the adaptive sorting benchmark</title>
+        <description>&lt;p&gt;If you consider contributing sorted lists from your own Python application to our
+benchmark for adaptive sorting, the steps below show you how to do collect this data.
+Note: Our instrumentation stores a list of integers with equivalent comparison-behavior
+to all lists sorted when running Python code through our custom CPython.&lt;/p&gt;
+
+&lt;h3 id=&quot;background&quot;&gt;Background&lt;/h3&gt;
+
+&lt;p&gt;The goal of the benchmark is to collect real-world data from Python applications
+to better understand the effectiveness of adaptive features in the list sort functions.
+If sorted lists were completely random data, we would never see (significant) improvements
+from these, but data hardly is very random.&lt;br /&gt;
+How much pre-sortedness is there in your use case?  Let’s find out!&lt;/p&gt;
+
+&lt;h3 id=&quot;step-1-build-instrumented-cpython&quot;&gt;Step 1: Build instrumented CPython&lt;/h3&gt;
+
+&lt;p&gt;Clone the instrumented branch of CPython; currently we have support for 3.11 or 3.10.
+(If we dearly need another version, &lt;a href=&quot;mailto:sebawild@gmail.com&quot;&gt;drop me a line&lt;/a&gt; and we can add it.)&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;git clone https://github.com/sebawild/cpython --branch 3.11-instrumented --single-branch cpython-sorting
+cd cpython-sorting
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The steps below assume linux and a set up development environment; 
+check the &lt;a href=&quot;https://devguide.python.org/getting-started/setup-building/#setup&quot;&gt;official instructions&lt;/a&gt;).
+For a core installation only standard C build tools are needed, plus OpenSSL headers.
+(On Ubuntu, you get the latter via &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sudo apt-get install libssl-dev&lt;/code&gt;).&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;./configure --enable-optimizations &amp;amp;&amp;amp; make -j
+make test 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;step-2-set-up-your-project&quot;&gt;Step 2: Set up your project&lt;/h3&gt;
+
+&lt;p&gt;First, we create a venv (a virtual environment to keep installed package local).
+Inside &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;cpython-sorting&lt;/code&gt;, call&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;./python -m venv sorting-python
+source sorting-python/bin/activate
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;to create and activate the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sorting-python&lt;/code&gt; venv.
+Now you can use pip in the usual way to install any needed packages.&lt;/p&gt;
+
+&lt;h3 id=&quot;step-3-run-your-application-and-submit-arraystxt&quot;&gt;Step 3: Run your application and submit &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;arrays.txt&lt;/code&gt;&lt;/h3&gt;
+
+&lt;p&gt;You run your application as normal: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;python your-awesome-script.py&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;To collect the benchmark data, first delete &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;arrays.txt&lt;/code&gt; (results are otherwise appended)
+and run your application.
+Then store &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;arrays.txt&lt;/code&gt; and &lt;a href=&quot;mailto:sebawild@gmail.com&quot;&gt;send it over&lt;/a&gt;,
+with a quick description of your application.&lt;/p&gt;
+
+&lt;p&gt;Afterwards &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;arrays.txt&lt;/code&gt; will contain all sorted lists (and some stats).
+Note that even during the process of starting python, a few dozen calls to list sort
+are made (mostly on tiny lists); for the benchmark, we are mostly interested in
+big lists.&lt;/p&gt;
+
+&lt;p&gt;A rudimentary script to read an &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;arrays.txt&lt;/code&gt; file and compute some presortedness
+metrics is implemented in &lt;a href=&quot;https://github.com/sebawild/cpython/blob/3.11-instrumented/run_information.py&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;run-information.py&lt;/code&gt;&lt;/a&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;limitations&quot;&gt;Limitations&lt;/h4&gt;
+
+&lt;p&gt;The instrumentation is a quick hack at this point, not production-ready code.
+It is hence best to run code via our python in a sandbox environment.&lt;/p&gt;
+
+&lt;p&gt;Known limitations:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The output &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;arrays.txt&lt;/code&gt; is appended each time you run &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;python&lt;/code&gt; and it could grow large.&lt;/li&gt;
+  &lt;li&gt;Our instrumentation is not ready for multi-threading.
+T* he instrumentation may crash python in obscure scenarios such as comparison functions
+that modify the sorted list.&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+        <pubDate>Fri, 21 Apr 2023 00:00:00 -0600</pubDate>
+        <link>https://www.wild-inter.net/posts/pycon23-sorting-benchmark</link>
+        <guid isPermaLink="true">https://www.wild-inter.net/posts/pycon23-sorting-benchmark</guid>
+        
+        
+        <category>algorithms</category>
+        
+        <category>programming</category>
+        
+      </item>
     
       <item>
         <title>Build CPython from source and install packages</title>
@@ -104,7 +191,7 @@ For major releases (like 3.11), PyPi has precompiled “wheels” of many popula
 
 &lt;p&gt;Since Python version jumps often affect the C API, many libraries also lag a bit behind CPython main and will not easily be usable with the development branch.&lt;/p&gt;
 </description>
-        <pubDate>Tue, 07 Feb 2023 00:00:00 +0000</pubDate>
+        <pubDate>Tue, 07 Feb 2023 00:00:00 -0700</pubDate>
         <link>https://www.wild-inter.net/posts/python-virtualenv</link>
         <guid isPermaLink="true">https://www.wild-inter.net/posts/python-virtualenv</guid>
         
@@ -158,7 +245,7 @@ Further coverage:
 
 --&gt;
 </description>
-        <pubDate>Mon, 24 Oct 2022 00:00:00 +0100</pubDate>
+        <pubDate>Mon, 24 Oct 2022 00:00:00 -0600</pubDate>
         <link>https://www.wild-inter.net/posts/powersort-in-python-3.11</link>
         <guid isPermaLink="true">https://www.wild-inter.net/posts/powersort-in-python-3.11</guid>
         
@@ -180,8 +267,8 @@ written up here since it does not seem to appear in any of the standard algorith
 	var font = &quot;Neo-Euler&quot;;
 	MathJax.Hub.Config({
 		tex2jax: {
-			inlineMath: [['$','$']],
-			displayMath: [['\\[','\\]']],
+			inlineMath: [[&apos;$&apos;,&apos;$&apos;]],
+			displayMath: [[&apos;\\[&apos;,&apos;\\]&apos;]],
 			processEscapes: true,
 		},
 		&quot;SVG&quot;:{ 
@@ -270,7 +357,7 @@ $C = \frac85 n$; at these points $\Phi$ has values $0$, $0$, and $\frac35 n$, re
 
 &lt;p&gt;Hence $\displaystyle\sum_{i=1}^m c_i \le 4\Phi_m -4\Phi_0 \le 5m + 2.4n \in \Theta(m+n)$.&lt;/p&gt;
 </description>
-        <pubDate>Thu, 20 Oct 2022 00:00:00 +0100</pubDate>
+        <pubDate>Thu, 20 Oct 2022 00:00:00 -0600</pubDate>
         <link>https://www.wild-inter.net/posts/amortized-analysis-resizing-arrays</link>
         <guid isPermaLink="true">https://www.wild-inter.net/posts/amortized-analysis-resizing-arrays</guid>
         
@@ -294,7 +381,7 @@ but in the latest version of Thunderbird (91 at the time of writing), it is easy
 
 &lt;p&gt;Simply open the “Config Editor” in the preferences, and change the key &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;mail.folder_widget.max_recent&lt;/code&gt;	to your preferred value; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;40&lt;/code&gt; for me.&lt;/p&gt;
 </description>
-        <pubDate>Thu, 27 Jan 2022 00:00:00 +0000</pubDate>
+        <pubDate>Thu, 27 Jan 2022 00:00:00 -0700</pubDate>
         <link>https://www.wild-inter.net/posts/number-recent-folders-thunderbird</link>
         <guid isPermaLink="true">https://www.wild-inter.net/posts/number-recent-folders-thunderbird</guid>
         
@@ -453,7 +540,7 @@ and “I need a break” (or so) that students could continuously push
 So far, I have not found a service for that.&lt;/p&gt;
 
 </description>
-        <pubDate>Tue, 17 Mar 2020 00:00:00 +0000</pubDate>
+        <pubDate>Tue, 17 Mar 2020 00:00:00 -0600</pubDate>
         <link>https://www.wild-inter.net/posts/youtube-livestream-lectures</link>
         <guid isPermaLink="true">https://www.wild-inter.net/posts/youtube-livestream-lectures</guid>
         
@@ -532,7 +619,7 @@ Note that the application inside the container only gets access to the
 the folder you map to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/pdf&lt;/code&gt; using the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;-v&lt;/code&gt; option,
 i.e., in the above command the current directory.&lt;/p&gt;
 </description>
-        <pubDate>Tue, 01 Jan 2019 00:00:00 +0000</pubDate>
+        <pubDate>Tue, 01 Jan 2019 00:00:00 -0700</pubDate>
         <link>https://www.wild-inter.net/posts/pdf2htmlEX-on-docker</link>
         <guid isPermaLink="true">https://www.wild-inter.net/posts/pdf2htmlEX-on-docker</guid>
         
@@ -585,7 +672,7 @@ bib entry looks as if the printed issue appeared earlier.
 This is confusing, I would rather use only the final printed information,
 and ended up manually adapting the bib files.&lt;/p&gt;
 </description>
-        <pubDate>Fri, 13 Jul 2018 00:00:00 +0100</pubDate>
+        <pubDate>Fri, 13 Jul 2018 00:00:00 -0600</pubDate>
         <link>https://www.wild-inter.net/posts/why-dois-rule</link>
         <guid isPermaLink="true">https://www.wild-inter.net/posts/why-dois-rule</guid>
         
@@ -788,7 +875,7 @@ Might be improved with manual hinting of the fonts.&lt;/li&gt;
   &lt;li&gt;UI is still rudimentary&lt;/li&gt;
 &lt;/ul&gt;
 </description>
-        <pubDate>Sun, 13 May 2018 00:00:00 +0100</pubDate>
+        <pubDate>Sun, 13 May 2018 00:00:00 -0600</pubDate>
         <link>https://www.wild-inter.net/posts/pdf2htmlex</link>
         <guid isPermaLink="true">https://www.wild-inter.net/posts/pdf2htmlex</guid>
         
@@ -819,71 +906,12 @@ illustrates the Binomial distribution in a very hands-on way.
 Watch the &lt;a href=&quot;https://en.wikipedia.org/wiki/File:Galton_box.webm&quot;&gt;video on Wikipedia&lt;/a&gt;;
 that says more than any explanation I could give here.&lt;/p&gt;
 </description>
-        <pubDate>Fri, 23 Mar 2018 00:00:00 +0000</pubDate>
+        <pubDate>Fri, 23 Mar 2018 00:00:00 -0600</pubDate>
         <link>https://www.wild-inter.net/posts/bean-machine</link>
         <guid isPermaLink="true">https://www.wild-inter.net/posts/bean-machine</guid>
         
         
         <category>math</category>
-        
-      </item>
-    
-      <item>
-        <title>Quick animations from slides for youtube</title>
-        <description>&lt;p&gt;Quick animations from slides for youtube.&lt;/p&gt;
-
-&lt;p&gt;Some things are better shown in motion. Full stop.
-In a paper, you can only present still images, but linking
-a youtube video with a supplemental animation is certainly
-an acceptable option nowadays.&lt;/p&gt;
-
-&lt;p&gt;So I created a quick and dirty animation from slides I had prepared
-already a while ago.
-The result is puristic (no audio comment, no fine tuning),
-but I managed to get it in less than 40 min effort,
-including some trial and error and uploads.&lt;/p&gt;
-
-&lt;p&gt;So here’s the three simple steps to create a quick-and-dirty animation from
-you existing (pdf) slides.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;pdftk slides.pdf burst
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;To split into pages.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;for x in pg*pdf
-do
-    convert -density 400 $x &quot;${x%pdf}png&quot;
-done
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Create raster images using imagemagick; density adjusts the resolution.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;mencoder mf://*.png -mf fps=1:type=png -ovc copy -oac copy -o output.avi
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Create video with one slide per second; adjust fps if not appropriate&lt;/p&gt;
-
-&lt;p&gt;Check out my
-&lt;a href=&quot;https://www.youtube.com/watch?v=yi6syj9nksk&quot;&gt;result on youtube&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;For embedding the animation in a website, a gif image might be more
-handy; that is just another command away:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;convert -geometry 40% -delay 100 -loop 0 pg*png output.gif
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Here, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;-loop 0&lt;/code&gt; means infinitly repeat loop, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;-delay 100&lt;/code&gt; is a 1 second delay
-(as we used it for the video above). The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;-geometry 40%&lt;/code&gt; is optional,
-but for most applications, the gif should be a substantially smaller file,
-so reducing the resolution is a good idea here.&lt;/p&gt;
-</description>
-        <pubDate>Wed, 05 Apr 2017 00:00:00 +0100</pubDate>
-        <link>https://www.wild-inter.net/posts/youtube-slide-animation</link>
-        <guid isPermaLink="true">https://www.wild-inter.net/posts/youtube-slide-animation</guid>
-        
-        
-        <category>web</category>
         
       </item>
     

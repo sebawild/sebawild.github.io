@@ -1,19 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>van Emde Boas Layout — Concrete Mapping (intro)</title>
 <style>
   :root{
-    --bg:#f1e9d2; --panel:#f6efe0; --panel-line:#e2d6b5;
-    --controls:#e8ddbe; --controls-line:#dcd0b0;
-    --ink:#4a3f35; --ink-soft:#726253; --label:#8c7b70;
-    --btn:#faf6eb; --btn-line:#bcaf92; --active:#ff0000; --barHi:#670c07;
+    --bg:#f1eed9; --panel:#f8f6ec; --panel-line:#cdc9bb;
+    --controls:#e7e3ca; --controls-line:#cdc9bb;
+    --ink:#46433a; --ink-soft:#6b675c; --label:#8b8779;
+    --btn:#f8f6ec; --btn-line:#aeaa9e; --active:#cc2f22; --barHi:#902015;
   }
   *{box-sizing:border-box}
   body{background:var(--bg);color:var(--ink-soft);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-family:var(--wi-font-body)"Segoe UI",Roboto,sans-serif;
     display:flex;flex-direction:column;align-items:center;min-height:100vh;margin:0;padding:24px 20px 48px}
   h1{font-size:1.6rem;font-weight:500;letter-spacing:.5px;color:var(--ink);margin:0 0 4px}
   .subtitle{font-size:.9rem;color:var(--label);margin:0 0 22px;letter-spacing:.3px;max-width:860px;text-align:center;line-height:1.5}
@@ -35,22 +39,31 @@
   .answer-sub{font-size:.78rem;color:var(--label);margin-top:2px}
   .controls{display:flex;gap:20px;margin-top:18px;align-items:center;justify-content:center;flex-wrap:wrap;
     background:var(--controls);padding:14px 22px;border-radius:6px;border:1px solid var(--controls-line)}
-  .group{display:flex;align-items:center;gap:8px;font-size:.85rem;color:#5c4f43}
+  .group{display:flex;align-items:center;gap:8px;font-size:.85rem;color:#46433a}
   .group label{font-weight:500}
   select,input[type="number"]{background:var(--btn);color:var(--ink);border:1px solid var(--btn-line);border-radius:4px;
     padding:7px 9px;font-size:.88rem;font-family:inherit}
   input[type="number"]{width:64px}
   button{background:var(--btn);color:var(--ink);border:1px solid var(--btn-line);padding:8px 16px;
     font-size:.9rem;border-radius:4px;cursor:pointer;font-weight:500;transition:background .2s,border-color .2s}
-  button:hover:not(:disabled){background:#fff;border-color:#9a8c6f}
+  button:hover:not(:disabled){background:#fbfaf4;border-color:#8d897c}
   button:disabled{opacity:.4;cursor:not-allowed}
-  input[type="range"]{accent-color:#e60000;cursor:pointer;width:120px}
+  input[type="range"]{accent-color:#cc2f22;cursor:pointer;width:120px}
   .sep{width:1px;align-self:stretch;background:var(--controls-line)}
   .playback button{padding:8px 12px}
   .stepcount{font-size:.82rem;color:var(--label);font-variant-numeric:tabular-nums;min-width:92px;text-align:center}
   .val{min-width:120px;font-variant-numeric:tabular-nums;font-size:.82rem;color:var(--ink-soft)}
   .hint{font-size:.78rem;color:var(--label);max-width:1000px;margin:16px auto 0;text-align:center;line-height:1.55}
   .hint b{color:var(--ink-soft)}
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
+  font-family: var(--wi-font-head);
+  letter-spacing: .05em;
+}
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
 </style>
 </head>
 <body>
@@ -62,9 +75,9 @@
   </div>
 
   <div class="legend">
-    <span><span class="swatch" style="background:#c98a5e"></span> a recursive vEB subtree (tree triangle = array segment)</span>
-    <span><span class="swatch" style="border:2px solid #ff0000;background:#f1e9d2"></span> node currently visited</span>
-    <span><span class="swatch" style="background:rgba(255,0,0,.16);border:1px solid #ff0000"></span> block loaded this step</span>
+    <span><span class="swatch" style="background:#c08777"></span> a recursive vEB subtree (tree triangle = array segment)</span>
+    <span><span class="swatch" style="border:2px solid #cc2f22;background:#f1eed9"></span> node currently visited</span>
+    <span><span class="swatch" style="background:rgba(204,47,34,.16);border:1px solid #cc2f22"></span> block loaded this step</span>
   </div>
 
   <div class="readout">
@@ -128,10 +141,10 @@ const SVGNS='http://www.w3.org/2000/svg';
 const svg=document.getElementById('view');
 function el(tag,a){const e=document.createElementNS(SVGNS,tag);for(const k in a)e.setAttribute(k,a[k]);return e;}
 
-const PIECE_COLORS=['#c98a5e','#8a9a5b','#6d8b9e','#b57b8a','#9b8bbf','#c2a25a','#7fa88f',
-  '#b0765f','#5f8b7e','#a98fb0','#c79a6b','#7d94a8','#a8895f','#93a06d'];
-const C={line:'#d9cba6', ink:'#4a3f35', inkSoft:'#726253', label:'#8c7b70',
-  active:'#ff0000', barHi:'#670c07', bg:'#f1e9d2'};
+const PIECE_COLORS=['#c08777','#8a9a5b','#7d8f9b','#b57b8a','#9c8fa8','#c2a25a','#7fa88f',
+  '#b0765f','#5f8b7e','#a992a5','#c79a6b','#8a99a5','#a8895f','#93a06d'];
+const C={line:'#d9d3a6', ink:'#46433a', inkSoft:'#6b675c', label:'#8b8779',
+  active:'#cc2f22', barHi:'#902015', bg:'#f1eed9'};
 
 /* geometry */
 const VW=1120, MX=40, TREE_TOP=48;
@@ -256,7 +269,7 @@ function render(state){
     const col=pieceColor(M.pieceId[i]), isA=(i===activeNode), onP=pathNodes.has(i);
     svg.appendChild(el('circle',{cx:nodeX(i),cy:nodeY(i),r:M.nodeR,
       fill:col,'fill-opacity':isA?.95:(onP?.8:.6),
-      stroke:isA?C.active:'rgba(74,63,53,.4)','stroke-width':isA?2.5:(lab?1:0.5)}));
+      stroke:isA?C.active:'rgba(70,67,58,.4)','stroke-width':isA?2.5:(lab?1:0.5)}));
     if(lab){const tx=el('text',{x:nodeX(i),y:nodeY(i)+M.nodeFont/3,'text-anchor':'middle','font-size':M.nodeFont,'font-weight':600,fill:C.ink});
       tx.textContent=M.rank[i]; svg.appendChild(tx);}
   }
@@ -271,13 +284,13 @@ function render(state){
   const nBlocks=Math.ceil(M.N/M.B);
   loadedBlocks.forEach(b=>{ const x0=cellX(b*M.B),x1=cellX(Math.min((b+1)*M.B,M.N)), isA=(b===activeBlock);
     svg.appendChild(el('rect',{x:x0-1,y:ARR_TOP-3,width:(x1-x0)+2,height:ARR_H+6,rx:3,
-      fill:'rgba(255,0,0,.13)',stroke:C.active,'stroke-width':isA?2:1,'stroke-dasharray':isA?'':'2 2'}));
+      fill:'rgba(204,47,34,.13)',stroke:C.active,'stroke-width':isA?2:1,'stroke-dasharray':isA?'':'2 2'}));
   });
   // individual cells + labels (only when small)
   if(lab){
     for(let p=0;p<M.N;p++){ const idx=M.order[p], isA=(idx===activeNode);
       svg.appendChild(el('rect',{x:cellX(p)+1,y:ARR_TOP,width:aw-2,height:ARR_H,rx:2,
-        fill:'none',stroke:isA?C.active:'rgba(74,63,53,.22)','stroke-width':isA?3:0.5}));
+        fill:'none',stroke:isA?C.active:'rgba(70,67,58,.22)','stroke-width':isA?3:0.5}));
       const tx=el('text',{x:cellX(p)+aw/2,y:ARR_TOP+ARR_H/2+M.cellFont/3,'text-anchor':'middle','font-size':M.cellFont,'font-weight':600,fill:C.ink});
       tx.textContent=M.rank[idx]; svg.appendChild(tx);
       const it=el('text',{x:cellX(p)+aw/2,y:ARR_TOP+ARR_H+11,'text-anchor':'middle','font-size':M.slotFont,fill:C.label});

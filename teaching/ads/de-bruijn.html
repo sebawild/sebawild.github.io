@@ -1,19 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>From Strings to Structure — de Bruijn Graphs</title>
 <style>
     :root {
-        --bg:#f1e9d2; --panel:#f6efe0; --panel-2:#faf6eb; --controls:#e8ddbe;
-        --line-soft:#e2d6b5; --line:#bcaf92; --line-2:#dcd0b0;
-        --ink:#4a3f35; --ink-soft:#726253; --ink-faint:#8c7b70;
-        --bar-lo:#e2b3a3; --bar-hi:#670c07; --red:#e60000; --red-br:#ff0000; --teal:#1f7a8c;
+        --bg:#f1eed9; --panel:#f8f6ec; --panel-2:#f8f6ec; --controls:#e7e3ca;
+        --line-soft:#cdc9bb; --line:#aeaa9e; --line-2:#cdc9bb;
+        --ink:#46433a; --ink-soft:#6b675c; --ink-faint:#8b8779;
+        --bar-lo:#e5c0b4; --bar-hi:#902015; --red:#cc2f22; --red-br:#cc2f22; --teal:#2a6a63;
     }
     * { box-sizing:border-box; }
     body { background:var(--bg); color:var(--ink-soft);
-        font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+        font-family:var(--wi-font-body)"Segoe UI",Roboto,sans-serif;
         display:flex; flex-direction:column; align-items:center; min-height:100vh; margin:0; padding:28px 20px 48px; }
     h1 { font-size:1.6rem; font-weight:500; margin:0 0 4px; letter-spacing:.5px; color:var(--ink); text-align:center; }
     .subtitle { font-size:.92rem; color:var(--ink-faint); margin-bottom:22px; text-align:center; max-width:720px; }
@@ -27,19 +31,19 @@
     .badge { font-size:.78rem; font-weight:600; padding:6px 12px; border-radius:999px; background:var(--panel);
         border:1px solid var(--line-2); color:var(--ink-faint); white-space:nowrap; }
     .badge b { color:var(--bar-hi); }
-    .badge .amb { color:#a85a07; } .badge .uniq { color:#4e7a4f; }
+    .badge .amb { color:#90591f; } .badge .uniq { color:#4e7a4f; }
     svg.stage { display:block; width:100%; height:auto; background:var(--bg); }
 
     .stage-foot { padding:14px 20px 16px; border-top:1px solid var(--line-soft); background:var(--panel-2);
         display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; }
     .caption { font-size:.92rem; line-height:1.5; color:var(--ink-soft); max-width:620px; }
     .caption b { color:var(--ink); font-weight:600; }
-    .caption .err { color:#a32116; font-weight:600; }
+    .caption .err { color:#972b22; font-weight:600; }
     .readout { font-size:.72rem; color:var(--ink-faint); text-transform:uppercase; letter-spacing:1px; font-weight:700; margin-bottom:5px; display:flex; align-items:center; gap:6px; }
     .swatch { width:9px; height:9px; border-radius:50%; display:inline-block; }
     .recon-row { margin-bottom:10px; }
     .seq-tiles { display:flex; gap:3px; flex-wrap:wrap; }
-    .seq-tiles .tile { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.9rem; font-weight:700; color:#fff;
+    .seq-tiles .tile { font-family:var(--wi-font-mono); font-size:.9rem; font-weight:700; color:#fbfaf4;
         width:22px; height:26px; display:flex; align-items:center; justify-content:center; border-radius:3px;
         background:var(--line); opacity:0; transition:opacity .2s; }
     .seq-tiles .tile.show { opacity:1; }
@@ -56,37 +60,46 @@
     .btn-group { display:flex; gap:10px; }
     button { background:var(--panel-2); color:var(--ink); border:1px solid var(--line); padding:8px 16px;
         font-size:.9rem; border-radius:4px; cursor:pointer; transition:background .2s,border-color .2s; font-weight:500; }
-    button:hover:not(:disabled) { background:#fff; border-color:#9a8c6f; }
+    button:hover:not(:disabled) { background:#fbfaf4; border-color:#8d897c; }
     button:disabled { opacity:.4; cursor:not-allowed; }
-    button.primary { background:var(--bar-hi); color:#f6efe0; border-color:var(--bar-hi); }
-    button.primary:hover:not(:disabled) { background:#560a06; border-color:#560a06; }
+    button.primary { background:var(--bar-hi); color:#f8f6ec; border-color:var(--bar-hi); }
+    button.primary:hover:not(:disabled) { background:#500f0c; border-color:#500f0c; }
 
     .seq-picker { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
     .seq-picker .lbl { font-size:.82rem; color:var(--ink-soft); }
-    .chip { font-family:ui-monospace,Menlo,monospace; font-size:.8rem; padding:6px 11px; border-radius:4px;
+    .chip { font-family:var(--wi-font-mono); font-size:.8rem; padding:6px 11px; border-radius:4px;
         border:1px solid var(--line); background:var(--panel-2); cursor:pointer; color:var(--ink); }
-    .chip.active { background:var(--bar-hi); color:#f6efe0; border-color:var(--bar-hi); }
-    .chip:hover:not(.active) { background:#fff; }
-    input[type="text"] { font-family:ui-monospace,Menlo,monospace; font-size:.8rem; padding:6px 9px; width:140px;
+    .chip.active { background:var(--bar-hi); color:#f8f6ec; border-color:var(--bar-hi); }
+    .chip:hover:not(.active) { background:#fbfaf4; }
+    input[type="text"] { font-family:var(--wi-font-mono); font-size:.8rem; padding:6px 9px; width:140px;
         border:1px solid var(--line); border-radius:4px; background:var(--panel-2); color:var(--ink); text-transform:uppercase; }
     input[type="text"]:focus { outline:2px solid var(--red); }
-    .slider-group { display:flex; align-items:center; gap:8px; font-size:.85rem; color:#5c4f43; }
+    .slider-group { display:flex; align-items:center; gap:8px; font-size:.85rem; color:#46433a; }
     .slider-group .val { font-variant-numeric:tabular-nums; min-width:14px; font-weight:600; color:var(--ink); }
     input[type="range"] { accent-color:var(--red); cursor:pointer; }
 
     .e-path { fill:none; stroke:var(--line); stroke-width:2.5; transition:stroke .2s,stroke-width .2s; }
-    .e-label { font-family:ui-monospace,Menlo,monospace; font-size:12px; font-weight:700; fill:var(--ink-soft);
+    .e-label { font-family:var(--wi-font-mono); font-size:12px; font-weight:700; fill:var(--ink-soft);
         text-anchor:middle; paint-order:stroke; stroke:var(--bg); stroke-width:4px; }
     .node-c { fill:var(--panel-2); stroke:var(--bar-hi); stroke-width:2.5; transition:stroke .25s,stroke-width .2s,fill .2s; }
-    .node-c.live { stroke:var(--red-br); stroke-width:4; fill:#fff; }
+    .node-c.live { stroke:var(--red-br); stroke-width:4; fill:#fbfaf4; }
     .node-c.dup { stroke:var(--line); }
-    .node-t { font-family:ui-monospace,Menlo,monospace; font-weight:700; fill:var(--ink); text-anchor:middle; dominant-baseline:central; }
-    .read-card text { font-family:ui-monospace,Menlo,monospace; font-weight:700; }
+    .node-t { font-family:var(--wi-font-mono); font-weight:700; fill:var(--ink); text-anchor:middle; dominant-baseline:central; }
+    .read-card text { font-family:var(--wi-font-mono); font-weight:700; }
     .fade-in { animation:fadeIn .4s ease both; }
     @keyframes fadeIn { from{opacity:0} to{opacity:1} }
-    .mono { font-family:ui-monospace,Menlo,monospace; }
+    .mono { font-family:var(--wi-font-mono); }
     @media (prefers-reduced-motion:reduce){ * { animation:none!important; transition:none!important; } }
     @media (max-width:640px){ .stage-foot{flex-direction:column} h1{font-size:1.3rem} }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
+  font-family: var(--wi-font-head);
+  letter-spacing: .05em;
+}
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
 </style>
 </head>
 <body>
@@ -151,7 +164,7 @@
 
 <script>
 /* ===================== MODEL ===================== */
-const RED='#e60000', TEAL='#1f7a8c';
+const RED='#cc2f22', TEAL='#2a6a63';
 let seq='GATTACAGCATGGCTAAC', kForce=null, M=null, step=0;
 const TOTAL_STEPS=5;
 const STEP_INFO=[
@@ -294,7 +307,7 @@ function renderSeq(){
   for(let i=0;i<s.length;i++){
     const g=el('g',{transform:`translate(${sx+i*(tw+gap)},${VH/2})`,class:'fade-in'},layers.cards); g.style.animationDelay=(i*0.03)+'s';
     el('rect',{x:-tw/2,y:-21,width:tw,height:42,rx:4,fill:gradFor(i,s.length),stroke:'rgba(0,0,0,.05)'},g);
-    const t=el('text',{x:0,y:0,'text-anchor':'middle','dominant-baseline':'central',class:'mono','font-size':17,'font-weight':700,fill:'#fff'},g); t.textContent=s[i];
+    const t=el('text',{x:0,y:0,'text-anchor':'middle','dominant-baseline':'central',class:'mono','font-size':17,'font-weight':700,fill:'#fbfaf4'},g); t.textContent=s[i];
   }
   setCaption(`Our toy genome: <b class="mono">${s}</b>. A real one is the same idea at three&nbsp;billion letters
     &mdash; and no machine reads it end&#8209;to&#8209;end. We only ever get fragments.`);
@@ -419,7 +432,7 @@ function tracePath(order,color,tiles,onDone){
   layers.edges.querySelectorAll('[data-eid]').forEach(p=>paths[p.getAttribute('data-eid')]=p);
   layers.labels.querySelectorAll('[data-lid]').forEach(p=>labels[p.getAttribute('data-lid')]=p);
   layers.nodes.querySelectorAll('[data-node]').forEach(c=>nodes[c.getAttribute('data-node')]=c);
-  const dot=el('circle',{r:8,fill:color,stroke:'#fff','stroke-width':2,opacity:0,filter:'drop-shadow(0 0 4px rgba(0,0,0,.35))'},layers.trace);
+  const dot=el('circle',{r:8,fill:color,stroke:'#fbfaf4','stroke-width':2,opacity:0,filter:'drop-shadow(0 0 4px rgba(0,0,0,.35))'},layers.trace);
   if(!order.length){ if(onDone)onDone(); return; }
   const start=M.edges[order[0]].from;
   for(let i=0;i<start.length&&i<tiles.length;i++) tiles[i].classList.add('show');

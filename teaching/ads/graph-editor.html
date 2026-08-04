@@ -1,37 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Graph Editor — drag &amp; drop</title>
 <style>
     :root {
-        --bg: #f1e9d2;
-        --panel: #f6efe0;
-        --panel-border: #e2d6b5;
-        --controls-bg: #e8ddbe;
-        --controls-border: #dcd0b0;
-        --ink: #726253;
-        --ink-strong: #4a3f35;
-        --title-muted: #8c7b70;
-        --btn: #faf6eb;
-        --btn-border: #bcaf92;
-        --btn-border-hover: #9a8c6f;
-        --node-cream: #f6efe0;
-        --node-cream-border: #bcaf92;
-        --accent: #670c07;
-        --accent2: #1f6f6a;
-        --edge: #948567;
+        --bg: #f1eed9;
+        --panel: #f8f6ec;
+        --panel-border: #cdc9bb;
+        --controls-bg: #e7e3ca;
+        --controls-border: #cdc9bb;
+        --ink: #6b675c;
+        --ink-strong: #46433a;
+        --title-muted: #8b8779;
+        --btn: #f8f6ec;
+        --btn-border: #aeaa9e;
+        --btn-border-hover: #8d897c;
+        --node-cream: #f8f6ec;
+        --node-cream-border: #aeaa9e;
+        --accent: #902015;
+        --accent2: #2a6a63;
+        --edge: #8d897c;
     }
     * { box-sizing: border-box; }
     body {
         background-color: var(--bg); color: var(--ink);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-family: var(--wi-font-body)"Segoe UI", Roboto, sans-serif;
         margin: 0; padding: 22px 26px 40px; min-height: 100vh;
     }
     h1 { font-size: 1.6rem; font-weight: 600; margin: 0 0 4px; letter-spacing: 0.3px; color: var(--ink-strong); }
     .subtitle { font-size: 0.92rem; color: var(--title-muted); margin: 0 0 20px; max-width: 980px; line-height: 1.5; }
-    .subtitle code { background: #efe6cd; padding: 1px 6px; border-radius: 3px; }
+    .subtitle code { background: #e7e3ca; padding: 1px 6px; border-radius: 3px; }
 
     .controls {
         display: flex; flex-wrap: wrap; gap: 20px; align-items: center;
@@ -45,13 +49,13 @@
         padding: 8px 16px; font-size: 0.9rem; border-radius: 4px; cursor: pointer;
         transition: background 0.15s, border-color 0.15s; font-weight: 500; font-family: inherit;
     }
-    button:hover:not(:disabled), select:hover { background-color: #fff; border-color: var(--btn-border-hover); }
+    button:hover:not(:disabled), select:hover { background-color: #fbfaf4; border-color: var(--btn-border-hover); }
     select { cursor: pointer; }
     .switch { position: relative; display: inline-block; width: 42px; height: 23px; }
     .switch input { opacity: 0; width: 0; height: 0; }
-    .switch .track { position: absolute; cursor: pointer; inset: 0; background: #cdbf9d; border: 1px solid #b3a589; border-radius: 23px; transition: .2s; }
-    .switch .track:before { content: ""; position: absolute; height: 17px; width: 17px; left: 3px; top: 2px; background: #faf6eb; border-radius: 50%; transition: .2s; }
-    .switch input:checked + .track { background: var(--accent2); border-color: #0f4750; }
+    .switch .track { position: absolute; cursor: pointer; inset: 0; background: #cdc9bb; border: 1px solid #aeaa9e; border-radius: 23px; transition: .2s; }
+    .switch .track:before { content: ""; position: absolute; height: 17px; width: 17px; left: 3px; top: 2px; background: #f8f6ec; border-radius: 50%; transition: .2s; }
+    .switch input:checked + .track { background: var(--accent2); border-color: #1d5049; }
     .switch input:checked + .track:before { transform: translateX(19px); }
 
     .stage { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(320px,1fr); gap: 20px; align-items: start; }
@@ -64,27 +68,36 @@
     canvas#graph { display: block; background-color: var(--bg); width: 100%; height: 100%; cursor: crosshair; }
     #weightInput {
         position: absolute; display: none; width: 64px; padding: 3px 6px; font-size: 0.85rem;
-        border: 2px solid var(--accent2); border-radius: 4px; background: #fff; color: var(--ink-strong);
-        font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; text-align: center; z-index: 5;
+        border: 2px solid var(--accent2); border-radius: 4px; background: #fbfaf4; color: var(--ink-strong);
+        font-family: "SF Mono", var(--wi-font-mono); text-align: center; z-index: 5;
         transform: translate(-50%, -50%);
     }
 
     .legend { display: flex; flex-wrap: wrap; gap: 12px 18px; font-size: 0.79rem; color: var(--ink); align-items: center; margin-top: 12px; }
     .legend .item { display: flex; align-items: center; gap: 6px; }
-    .legend kbd { background: #efe6cd; border: 1px solid #ccbb95; border-radius: 3px; padding: 1px 6px; font-family: inherit; font-size: 0.76rem; color: var(--ink-strong); }
+    .legend kbd { background: #e7e3ca; border: 1px solid #ccbb95; border-radius: 3px; padding: 1px 6px; font-family: inherit; font-size: 0.76rem; color: var(--ink-strong); }
 
     .side { display: flex; flex-direction: column; gap: 14px; }
     textarea#graphText {
-        font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 0.82rem;
-        background: #efe6cd; color: var(--ink-strong); border: 1px solid var(--panel-border);
+        font-family: "SF Mono", var(--wi-font-mono); font-size: 0.82rem;
+        background: #e7e3ca; color: var(--ink-strong); border: 1px solid var(--panel-border);
         border-radius: 5px; padding: 10px; width: 100%; height: 320px; resize: vertical;
     }
     .taRow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-    .err { color: #9a3b2f; font-weight: 600; font-size: 0.82rem; min-height: 18px; margin-top: 6px; }
+    .err { color: #6d180f; font-weight: 600; font-size: 0.82rem; min-height: 18px; margin-top: 6px; }
     .stat { font-size: 0.8rem; color: var(--title-muted); margin-top: 4px; }
     .editor-help { font-size: 0.82rem; color: var(--ink); line-height: 1.55; }
-    .editor-help code { background: #efe6cd; padding: 1px 5px; border-radius: 3px; }
+    .editor-help code { background: #e7e3ca; padding: 1px 5px; border-radius: 3px; }
     .editor-help b { color: var(--ink-strong); }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
+  font-family: var(--wi-font-head);
+  letter-spacing: .05em;
+}
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
 </style>
 </head>
 <body>
@@ -807,10 +820,10 @@ function drawWeightLabel(x, y, text, hi) {
     ctx.font = '700 11px -apple-system, "Segoe UI", Roboto, sans-serif';
     const w = ctx.measureText(text).width, pad = 4;
     roundRect(x-w/2-pad, y-8, w+2*pad, 16, 4);
-    ctx.fillStyle = hi ? '#fff' : 'rgba(246,239,224,0.95)';
-    ctx.strokeStyle = hi ? '#1f6f6a' : '#bcaf92'; ctx.lineWidth = 1;
+    ctx.fillStyle = hi ? '#fbfaf4' : 'rgba(248,246,236,0.95)';
+    ctx.strokeStyle = hi ? '#2a6a63' : '#aeaa9e'; ctx.lineWidth = 1;
     ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#4a3f35'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#46433a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(text, x, y+0.5);
 }
 function drawArrow(x, y, angle, size, color) {
@@ -841,8 +854,8 @@ function drawTinyRingLabel(x, y, text) {
     ctx.font = '600 10px -apple-system, "Segoe UI", Roboto, sans-serif';
     const w = ctx.measureText(text).width, pad = 3;
     roundRect(x-w/2-pad, y-7, w+2*pad, 14, 3);
-    ctx.fillStyle = 'rgba(241,233,210,0.9)'; ctx.fill();
-    ctx.fillStyle = 'rgba(74,63,53,0.7)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(241,238,217,0.9)'; ctx.fill();
+    ctx.fillStyle = 'rgba(70,67,58,0.7)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(text, x, y);
 }
 function render() {
@@ -852,7 +865,7 @@ function render() {
     ctx.clearRect(0, 0, cw, ch);
 
     if (snapGrid && !springMode) {
-        ctx.strokeStyle = 'rgba(74,63,53,0.10)'; ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(70,67,58,0.10)'; ctx.lineWidth = 1;
         ctx.beginPath();
         for (let x = gridSize; x < cw; x += gridSize) { ctx.moveTo(x+0.5, 0); ctx.lineTo(x+0.5, ch); }
         for (let y = gridSize; y < ch; y += gridSize) { ctx.moveTo(0, y+0.5); ctx.lineTo(cw, y+0.5); }
@@ -867,11 +880,11 @@ function render() {
             const R = springRof(d);
             if (R < 2) return;
             ctx.beginPath(); ctx.arc(centerX, centerY, R, 0, Math.PI*2);
-            ctx.strokeStyle = 'rgba(74,63,53,0.16)'; ctx.lineWidth = 1; ctx.setLineDash([3,4]); ctx.stroke(); ctx.setLineDash([]);
+            ctx.strokeStyle = 'rgba(70,67,58,0.16)'; ctx.lineWidth = 1; ctx.setLineDash([3,4]); ctx.stroke(); ctx.setLineDash([]);
             drawTinyRingLabel(centerX, centerY-R, fmtWeight(d));
         });
         ctx.beginPath(); ctx.arc(centerX, centerY, R_inf, 0, Math.PI*2);
-        ctx.strokeStyle = 'rgba(140,124,112,0.5)'; ctx.lineWidth = 1.2; ctx.setLineDash([2,5]); ctx.stroke(); ctx.setLineDash([]);
+        ctx.strokeStyle = 'rgba(139,135,121,0.5)'; ctx.lineWidth = 1.2; ctx.setLineDash([2,5]); ctx.stroke(); ctx.setLineDash([]);
         drawTinyRingLabel(centerX, centerY-R_inf, '∞');
     }
 
@@ -881,13 +894,13 @@ function render() {
         if (e.u === e.v) continue;
         const A = screenOf(e.u), B = screenOf(e.v);
         const isSel = selectedEdge === i;
-        drawEdgeLine(i, A, B, isSel ? '#1f6f6a' : '#948567', isSel ? 3.2 : 1.8);
+        drawEdgeLine(i, A, B, isSel ? '#2a6a63' : '#8d897c', isSel ? 3.2 : 1.8);
         if (weighted) { const mid = edgeMidpoint(i); drawWeightLabel(mid.x, mid.y, fmtWeight(e.weight), isSel); }
     }
     // rubber-band while shift-dragging a new edge
     if (dragMode === 'edge') {
         const A = screenOf(dragNode);
-        ctx.strokeStyle = '#c98a1b'; ctx.lineWidth = 2; ctx.setLineDash([6,5]);
+        ctx.strokeStyle = '#b07d18'; ctx.lineWidth = 2; ctx.setLineDash([6,5]);
         ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(dragCursor.x, dragCursor.y); ctx.stroke();
         ctx.setLineDash([]);
     }
@@ -898,12 +911,12 @@ function render() {
     for (let i = 0; i < V; i++) {
         const s = screenOf(i);
         ctx.beginPath(); ctx.arc(s.x, s.y, radius, 0, Math.PI*2);
-        ctx.fillStyle = '#f6efe0'; ctx.fill();
+        ctx.fillStyle = '#f8f6ec'; ctx.fill();
         const isSpringSource = springMode && i === springSource;
         ctx.lineWidth = selectedNode === i ? 4 : (isSpringSource ? 3 : 2);
-        ctx.strokeStyle = selectedNode === i ? '#ff0000' : (isSpringSource ? '#1f6f6a' : '#bcaf92');
+        ctx.strokeStyle = selectedNode === i ? '#cc2f22' : (isSpringSource ? '#2a6a63' : '#aeaa9e');
         ctx.stroke();
-        ctx.fillStyle = '#4a3f35';
+        ctx.fillStyle = '#46433a';
         ctx.fillText(String(i), s.x, s.y+1);
     }
     document.getElementById('statLine').textContent = `${V} vertices, ${E.length} edge${E.length===1?'':'s'}`;

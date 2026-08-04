@@ -1,72 +1,85 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Road Networks as Graphs — Live OSM + Routing</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
   html, body { margin: 0; height: 100%;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: #726253; }
-  #map { position: absolute; inset: 0; background: #f1e9d2; }
+    font-family: var(--wi-font-body)"Segoe UI", Roboto, sans-serif;
+    color: #6b675c; }
+  #map { position: absolute; inset: 0; background: #f1eed9; }
 
   #veil {
-    position: absolute; inset: 0; background: #f1e9d2;
+    position: absolute; inset: 0; background: #f1eed9;
     opacity: 0; pointer-events: none; z-index: 400;
     transition: opacity 0.1s linear;
   }
   #graph { position: absolute; inset: 0; z-index: 401; pointer-events: none; }
   #graph line { stroke: #9a8466; stroke-width: 2; stroke-linecap: round; stroke-opacity: 0.8; }
-  #graph line.hi { stroke: #1b6ca8; stroke-width: 5; stroke-linecap: round; stroke-opacity: 0.95; }
+  #graph line.hi { stroke: #3f6b86; stroke-width: 5; stroke-linecap: round; stroke-opacity: 0.95; }
   #graph circle { pointer-events: none; }
   #graph.interactive circle { pointer-events: all; cursor: pointer; }
 
   #panel {
     position: absolute; top: 14px; left: 14px; z-index: 500;
-    background: #f6efe0; padding: 16px;
-    border: 1px solid #e2d6b5; border-radius: 6px;
+    background: #f8f6ec; padding: 16px;
+    border: 1px solid #cdc9bb; border-radius: 6px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     width: 250px;
   }
   #panel h1 {
     font-size: 0.95rem; font-weight: 600; margin: 0 0 12px;
-    text-transform: uppercase; letter-spacing: 1px; color: #8c7b70;
+    text-transform: uppercase; letter-spacing: 1px; color: #8b8779;
   }
   button {
     display: block; width: 100%; margin: 7px 0;
-    background-color: #faf6eb; color: #4a3f35;
-    border: 1px solid #bcaf92; padding: 8px 14px;
+    background-color: #f8f6ec; color: #46433a;
+    border: 1px solid #aeaa9e; padding: 8px 14px;
     font-size: 0.88rem; border-radius: 4px; cursor: pointer;
     font-weight: 500; transition: background 0.2s, border-color 0.2s;
   }
-  button:hover:not(:disabled) { background: #ffffff; border-color: #9a8c6f; }
+  button:hover:not(:disabled) { background: #fbfaf4; border-color: #8d897c; }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
-  #convert { background: #670c07; color: #f6efe0; border-color: #4a0904; }
-  #convert:hover:not(:disabled) { background: #7d160f; border-color: #4a0904; }
+  #convert { background: #902015; color: #f8f6ec; border-color: #450e09; }
+  #convert:hover:not(:disabled) { background: #761c16; border-color: #450e09; }
   .row { display: flex; gap: 8px; }
   .row button { margin: 7px 0; }
 
-  .divider { border: none; border-top: 1px solid #e2d6b5; margin: 14px 0 4px; }
+  .divider { border: none; border-top: 1px solid #cdc9bb; margin: 14px 0 4px; }
   .section-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.8px; color: #a99a7a; margin: 8px 0 2px; }
 
-  label { display: block; margin: 12px 0 5px; font-size: 0.82rem; color: #5c4f43; }
-  input[type=range] { width: 100%; accent-color: #e60000; cursor: pointer; }
-  input[type=checkbox] { accent-color: #670c07; cursor: pointer; vertical-align: -1px; }
+  label { display: block; margin: 12px 0 5px; font-size: 0.82rem; color: #46433a; }
+  input[type=range] { width: 100%; accent-color: #cc2f22; cursor: pointer; }
+  input[type=checkbox] { accent-color: #902015; cursor: pointer; vertical-align: -1px; }
 
-  .chk { display: flex; align-items: center; gap: 7px; font-size: 0.82rem; color: #5c4f43; margin-top: 10px; }
+  .chk { display: flex; align-items: center; gap: 7px; font-size: 0.82rem; color: #46433a; margin-top: 10px; }
   .chk input { width: auto; }
-  #status { margin-top: 12px; font-size: 0.78rem; color: #8c7b70; min-height: 15px; }
-  .stats { font-size: 0.82rem; color: #5c4f43; margin-top: 6px; }
-  .stats b { color: #4a3f35; font-weight: 600; }
+  #status { margin-top: 12px; font-size: 0.78rem; color: #8b8779; min-height: 15px; }
+  .stats { font-size: 0.82rem; color: #46433a; margin-top: 6px; }
+  .stats b { color: #46433a; font-weight: 600; }
 
-  .legend { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: #8c7b70; margin-top: 12px; }
+  .legend { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: #8b8779; margin-top: 12px; }
   .legend .ramp {
-    flex: 1; height: 11px; border-radius: 3px; border: 1px solid #d8caa6;
-    background: linear-gradient(to right, #e2b3a3, #670c07);
+    flex: 1; height: 11px; border-radius: 3px; border: 1px solid #d8d2a6;
+    background: linear-gradient(to right, #e5c0b4, #902015);
   }
-  .route-hint { font-size: 0.72rem; color: #8c7b70; margin-top: 10px; line-height: 1.4; }
+  .route-hint { font-size: 0.72rem; color: #8b8779; margin-top: 10px; line-height: 1.4; }
   .swatch { display:inline-block; width:9px; height:9px; border-radius:50%; vertical-align:-1px; margin-right:2px; }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
+  font-family: var(--wi-font-head);
+  letter-spacing: .05em;
+}
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
 </style>
 </head>
 <body>
@@ -105,7 +118,7 @@
   <div class="route-hint">
     In Graph view, click a
     <span class="swatch" style="background:#2e7d32"></span>start and a
-    <span class="swatch" style="background:#c1121f"></span>target vertex to route.
+    <span class="swatch" style="background:#a92a33"></span>target vertex to route.
   </div>
 </div>
 
@@ -126,8 +139,8 @@ const downloadBtn = document.getElementById('downloadJson');
 const degEl = document.getElementById('deg');
 const fileInput = document.getElementById('fileInput');
 
-const COLOR_VERT_START = '#e2b3a3';
-const COLOR_VERT_END   = '#670c07';
+const COLOR_VERT_START = '#e5c0b4';
+const COLOR_VERT_END   = '#902015';
 
 // Overpass endpoints that send permissive CORS headers; tried in order.
 const OVERPASS_ENDPOINTS = [
@@ -178,7 +191,7 @@ map.on('mousemove', e => {
   if (!selecting || !dragStart) return;
   const b = L.latLngBounds(dragStart, e.latlng);
   if (rect) rect.setBounds(b);
-  else rect = L.rectangle(b, { color:'#ff0000', weight:1.6, dashArray:'5 4', fillOpacity:0.05 }).addTo(map);
+  else rect = L.rectangle(b, { color:'#cc2f22', weight:1.6, dashArray:'5 4', fillOpacity:0.05 }).addTo(map);
 });
 map.on('mouseup', e => {
   if (!selecting || !dragStart) return;
@@ -193,7 +206,7 @@ map.on('mouseup', e => {
 document.getElementById('useView').onclick = () => {
   selectedBounds = map.getBounds();
   if (rect) { map.removeLayer(rect); rect = null; }
-  rect = L.rectangle(selectedBounds, { color:'#ff0000', weight:1.6, dashArray:'5 4', fillOpacity:0.04 }).addTo(map);
+  rect = L.rectangle(selectedBounds, { color:'#cc2f22', weight:1.6, dashArray:'5 4', fillOpacity:0.04 }).addTo(map);
   convertBtn.disabled = false;
   setStatus('Using current view. Convert live, or download its JSON.');
 };
@@ -458,10 +471,10 @@ function renderGraph() {
   for (let i = 0; i < V.length; i++) {
     const p = P[i], v = V[i];
     const f = Math.min((v.deg - 1) / 4, 1);
-    const fill = byDeg ? lerpColor(COLOR_VERT_START, COLOR_VERT_END, f) : '#9a2c1c';
+    const fill = byDeg ? lerpColor(COLOR_VERT_START, COLOR_VERT_END, f) : '#953021';
     const r = byDeg ? (3.5 + f * 5) : 4.5;
     const onPath = pathVerts.has(i);
-    const stroke = onPath ? '#1b6ca8' : '#43110b';
+    const stroke = onPath ? '#3f6b86' : '#43110b';
     const sw = onPath ? 2 : 1.3;
     dots += `<circle data-i="${i}" cx="${p.x}" cy="${p.y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
   }
@@ -470,10 +483,10 @@ function renderGraph() {
     if (idx == null) return '';
     const p = P[idx];
     return `<circle cx="${p.x}" cy="${p.y}" r="9" fill="${color}" stroke="#3a2a20" stroke-width="1.5" pointer-events="none"/>` +
-           `<text x="${p.x}" y="${p.y + 3.5}" text-anchor="middle" font-size="10" font-weight="700" fill="#fff" pointer-events="none">${label}</text>`;
+           `<text x="${p.x}" y="${p.y + 3.5}" text-anchor="middle" font-size="10" font-weight="700" fill="#fbfaf4" pointer-events="none">${label}</text>`;
   }
   marks += marker(startIdx, 'S', '#2e7d32');
-  marks += marker(targetIdx, 'T', '#c1121f');
+  marks += marker(targetIdx, 'T', '#a92a33');
 
   svg.innerHTML = normal + hi + dots + marks;
 }

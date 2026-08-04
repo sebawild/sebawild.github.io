@@ -1,32 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Breadth-First Search — Animated</title>
 <style>
     :root {
-        --bg: #f1e9d2;
-        --panel: #f6efe0;
-        --panel-border: #e2d6b5;
-        --controls-bg: #e8ddbe;
-        --controls-border: #dcd0b0;
-        --ink: #726253;
-        --ink-strong: #4a3f35;
-        --title-muted: #8c7b70;
-        --btn: #faf6eb;
-        --btn-border: #bcaf92;
-        --btn-border-hover: #9a8c6f;
+        --bg: #f1eed9;
+        --panel: #f8f6ec;
+        --panel-border: #cdc9bb;
+        --controls-bg: #e7e3ca;
+        --controls-border: #cdc9bb;
+        --ink: #6b675c;
+        --ink-strong: #46433a;
+        --title-muted: #8b8779;
+        --btn: #f8f6ec;
+        --btn-border: #aeaa9e;
+        --btn-border-hover: #8d897c;
 
-        --node-cream: #f6efe0;
-        --node-cream-border: #bcaf92;
-        --d-start: #e2b3a3;   /* near layer */
-        --d-end: #670c07;     /* far layer */
-        --active: #ff0000;    /* current vertex (being dequeued) */
-        --examine: #c98a1b;   /* iterator currently looking at this edge */
-        --queue-border: #1f6f6a; /* teal — in the queue / frontier */
-        --edge: #b3a589;
-        --tree-edge: #670c07;
+        --node-cream: #f8f6ec;
+        --node-cream-border: #aeaa9e;
+        --d-start: #e5c0b4;   /* near layer */
+        --d-end: #902015;     /* far layer */
+        --active: #cc2f22;    /* current vertex (being dequeued) */
+        --examine: #b07d18;   /* iterator currently looking at this edge */
+        --queue-border: #2a6a63; /* teal — in the queue / frontier */
+        --edge: #aeaa9e;
+        --tree-edge: #902015;
     }
 
     * { box-sizing: border-box; }
@@ -34,13 +38,13 @@
     body {
         background-color: var(--bg);
         color: var(--ink);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-family: var(--wi-font-body)"Segoe UI", Roboto, sans-serif;
         margin: 0; padding: 22px 26px 40px; min-height: 100vh;
     }
 
     h1 { font-size: 1.6rem; font-weight: 600; margin: 0 0 4px; letter-spacing: 0.3px; color: var(--ink-strong); }
     .subtitle { font-size: 0.92rem; color: var(--title-muted); margin: 0 0 20px; }
-    .subtitle code { background: #efe6cd; padding: 1px 6px; border-radius: 3px; }
+    .subtitle code { background: #e7e3ca; padding: 1px 6px; border-radius: 3px; }
 
     .controls {
         display: flex; flex-wrap: wrap; gap: 22px; align-items: center;
@@ -56,13 +60,13 @@
         padding: 8px 16px; font-size: 0.9rem; border-radius: 4px; cursor: pointer;
         transition: background 0.15s, border-color 0.15s; font-weight: 500; font-family: inherit;
     }
-    button:hover:not(:disabled), select:hover { background-color: #fff; border-color: var(--btn-border-hover); }
+    button:hover:not(:disabled), select:hover { background-color: #fbfaf4; border-color: var(--btn-border-hover); }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
-    button.primary { background-color: #efd9c8; border-color: #c08b6f; }
-    button.primary:hover:not(:disabled) { background-color: #f3e2d4; }
+    button.primary { background-color: #f0d9cd; border-color: #c08777; }
+    button.primary:hover:not(:disabled) { background-color: #fbfaf4; }
     select { cursor: pointer; padding-right: 10px; }
 
-    input[type="range"] { accent-color: #e60000; cursor: pointer; vertical-align: middle; }
+    input[type="range"] { accent-color: #cc2f22; cursor: pointer; vertical-align: middle; }
     .slider-group span { min-width: 42px; }
 
     .stage { display: grid; grid-template-columns: minmax(0,1.55fr) minmax(330px,1fr); gap: 20px; align-items: start; }
@@ -74,7 +78,7 @@
 
     .side { display: flex; flex-direction: column; gap: 18px; }
 
-    .status { background: #efe6cd; border: 1px solid var(--panel-border); border-radius: 5px; padding: 11px 14px; font-size: 0.95rem; color: var(--ink-strong); min-height: 46px; display: flex; align-items: center; }
+    .status { background: #e7e3ca; border: 1px solid var(--panel-border); border-radius: 5px; padding: 11px 14px; font-size: 0.95rem; color: var(--ink-strong); min-height: 46px; display: flex; align-items: center; }
     .status .stepcount { color: var(--title-muted); font-size: 0.8rem; margin-left: auto; padding-left: 12px; white-space: nowrap; }
 
     /* queue */
@@ -87,7 +91,7 @@
         display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.95rem;
         border: 2px solid var(--queue-border);
     }
-    .q-node.front { border-color: var(--active); border-width: 3px; box-shadow: 0 0 0 3px rgba(255,0,0,0.12); }
+    .q-node.front { border-color: var(--active); border-width: 3px; box-shadow: 0 0 0 3px rgba(204,47,34,0.12); }
     .queue-tip { font-size: 0.78rem; color: var(--title-muted); margin-top: 8px; }
     .queue-tip b { color: var(--queue-border); }
 
@@ -101,7 +105,7 @@
 
     /* adjacency */
     .adj { font-size: 0.9rem; }
-    .adj-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px dashed #e6dabb; }
+    .adj-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px dashed #e7e3ca; }
     .adj-row:last-child { border-bottom: none; }
     .adj-row.processing { background: #f3e7d2; border-radius: 4px; }
     .adj-key { width: 34px; min-width: 34px; height: 28px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: 700; background: var(--node-cream); border: 1px solid var(--node-cream-border); color: var(--ink-strong); }
@@ -109,37 +113,46 @@
     .adj-row.processing .adj-key { border: 2px solid var(--active); }
     .adj-arrow { color: var(--title-muted); }
     .adj-cells { display: flex; gap: 5px; flex-wrap: wrap; }
-    .adj-cell { min-width: 24px; padding: 2px 6px; border-radius: 3px; text-align: center; background: #efe6cd; border: 1px solid #ddd0b1; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .adj-cell { min-width: 24px; padding: 2px 6px; border-radius: 3px; text-align: center; background: #e7e3ca; border: 1px solid #cdc9bb; color: var(--ink); font-variant-numeric: tabular-nums; }
     .adj-cell.consumed { opacity: 0.38; text-decoration: line-through; }
-    .adj-cell.cursor { background: #fff; border: 2px solid var(--examine); color: var(--ink-strong); font-weight: 700; }
+    .adj-cell.cursor { background: #fbfaf4; border: 2px solid var(--examine); color: var(--ink-strong); font-weight: 700; }
     .adj-empty { color: var(--title-muted); font-style: italic; }
 
     .legend { display: flex; flex-wrap: wrap; gap: 14px 20px; font-size: 0.8rem; color: var(--ink); align-items: center; }
     .legend .item { display: flex; align-items: center; gap: 7px; }
     .swatch { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid; }
-    .grad { width: 120px; height: 14px; border-radius: 7px; border: 1px solid rgba(0,0,0,.15); background: linear-gradient(90deg, #e2b3a3, #670c07); }
+    .grad { width: 120px; height: 14px; border-radius: 7px; border: 1px solid rgba(0,0,0,.15); background: linear-gradient(90deg, #e5c0b4, #902015); }
     .sw-cream { background: var(--node-cream); border-color: var(--node-cream-border); }
-    .sw-queue { background: #f6efe0; border-color: var(--queue-border); border-width: 2.5px; }
-    .sw-curr  { background: #d98a76; border-color: var(--active); border-width: 2.5px; }
-    .sw-water { background: linear-gradient(135deg,#8fd3da,#15616d); border-color: #0f4750; }
-    .sw-buoy  { position: relative; background: #d98a76; border-color: #15616d; border-width: 2.5px; }
+    .sw-queue { background: #f8f6ec; border-color: var(--queue-border); border-width: 2.5px; }
+    .sw-curr  { background: #c08777; border-color: var(--active); border-width: 2.5px; }
+    .sw-water { background: linear-gradient(135deg,#8fd3da,#2a6a63); border-color: #1d5049; }
+    .sw-buoy  { position: relative; background: #c08777; border-color: #2a6a63; border-width: 2.5px; }
     .sw-buoy::after { content: ""; position: absolute; left: 1px; right: 1px; bottom: -4px; height: 6px; border-radius: 50%; background: #2f9aa6; opacity: .8; }
 
     /* mode toggle switch */
     .switch { position: relative; display: inline-block; width: 42px; height: 23px; }
     .switch input { opacity: 0; width: 0; height: 0; }
-    .switch .track { position: absolute; cursor: pointer; inset: 0; background: #cdbf9d; border: 1px solid #b3a589; border-radius: 23px; transition: .2s; }
-    .switch .track:before { content: ""; position: absolute; height: 17px; width: 17px; left: 3px; top: 2px; background: #faf6eb; border-radius: 50%; transition: .2s; }
-    .switch input:checked + .track { background: #15616d; border-color: #0f4750; }
+    .switch .track { position: absolute; cursor: pointer; inset: 0; background: #cdc9bb; border: 1px solid #aeaa9e; border-radius: 23px; transition: .2s; }
+    .switch .track:before { content: ""; position: absolute; height: 17px; width: 17px; left: 3px; top: 2px; background: #f8f6ec; border-radius: 50%; transition: .2s; }
+    .switch input:checked + .track { background: #2a6a63; border-color: #1d5049; }
     .switch input:checked + .track:before { transform: translateX(19px); }
 
     details.editor { margin-top: 22px; }
     details.editor summary { cursor: pointer; font-size: 0.85rem; color: var(--title-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; }
     .editor-body { margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
-    textarea { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 0.85rem; background: var(--panel); color: var(--ink-strong); border: 1px solid var(--panel-border); border-radius: 5px; padding: 10px; width: 230px; height: 230px; resize: vertical; }
+    textarea { font-family: "SF Mono", var(--wi-font-mono); font-size: 0.85rem; background: var(--panel); color: var(--ink-strong); border: 1px solid var(--panel-border); border-radius: 5px; padding: 10px; width: 230px; height: 230px; resize: vertical; }
     .editor-help { font-size: 0.82rem; color: var(--ink); max-width: 420px; line-height: 1.5; }
-    .editor-help code { background: #efe6cd; padding: 1px 5px; border-radius: 3px; }
-    .err { color: #9a3b2f; font-weight: 600; font-size: 0.82rem; min-height: 18px; }
+    .editor-help code { background: #e7e3ca; padding: 1px 5px; border-radius: 3px; }
+    .err { color: #6d180f; font-weight: 600; font-size: 0.82rem; min-height: 18px; }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
+  font-family: var(--wi-font-head);
+  letter-spacing: .05em;
+}
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
 </style>
 </head>
 <body>
@@ -162,7 +175,7 @@
         <button id="playBtn" onclick="togglePlay()">Play</button>
         <button id="resetBtn" onclick="resetRun()">Reset</button>
     </div>
-    <div class="slider-group" style="display:flex;align-items:center;gap:8px;font-size:.85rem;color:#5c4f43">
+    <div class="slider-group" style="display:flex;align-items:center;gap:8px;font-size:.85rem;color:#46433a">
         <label style="font-size:.82rem;letter-spacing:.6px;text-transform:uppercase;font-weight:600;color:var(--ink-strong)">Delay</label>
         <input type="range" id="speedSlider" min="40" max="1400" value="650" oninput="updateSpeed(this.value)">
         <span id="speedVal">650ms</span>
@@ -478,7 +491,7 @@ function lerpColor(c1, c2, t) {
 }
 function distColor(d) {
     const t = maxDist <= 0 ? 0 : Math.min(1, d / maxDist);
-    return lerpColor('#e2b3a3', '#670c07', t);
+    return lerpColor('#e5c0b4', '#902015', t);
 }
 function waterColor(d) {
     const t = maxDist <= 0 ? 0 : Math.min(1, d / maxDist);
@@ -487,7 +500,7 @@ function waterColor(d) {
 function ndist(a, b) { return Math.hypot(pos[a].x - pos[b].x, pos[a].y - pos[b].y); }
 function textOn(rgb) {
     const lum = (0.299*rgb.r + 0.587*rgb.g + 0.114*rgb.b);
-    return lum < 130 ? '#f1e9d2' : '#4a3f35';
+    return lum < 130 ? '#f1eed9' : '#46433a';
 }
 
 /* ============================ BFS step generator ============================ */
@@ -560,7 +573,7 @@ function render() {
 
     // base edges
     const seen = new Set();
-    ctx.lineWidth = 1.6; ctx.strokeStyle = '#b3a589';
+    ctx.lineWidth = 1.6; ctx.strokeStyle = '#aeaa9e';
     for (let v = 0; v < V; v++) for (const w of adj[v]) {
         if (v === w) continue;
         const key = v < w ? v+'_'+w : w+'_'+v; if (seen.has(key)) continue; seen.add(key);
@@ -568,16 +581,16 @@ function render() {
     }
     // BFS tree edges
     if (state && state.edgeTo) {
-        ctx.lineWidth = 3; ctx.strokeStyle = '#670c07';
+        ctx.lineWidth = 3; ctx.strokeStyle = '#902015';
         for (let w = 0; w < V; w++) { const v = state.edgeTo[w]; if (v >= 0) { ctx.beginPath(); ctx.moveTo(px[v].x, px[v].y); ctx.lineTo(px[w].x, px[w].y); ctx.stroke(); } }
     }
     // examined edge
     if (state && state.examV !== undefined) {
-        ctx.lineWidth = 3.5; ctx.strokeStyle = '#c98a1b'; ctx.setLineDash([7,5]);
+        ctx.lineWidth = 3.5; ctx.strokeStyle = '#b07d18'; ctx.setLineDash([7,5]);
         ctx.beginPath(); ctx.moveTo(px[state.examV].x, px[state.examV].y); ctx.lineTo(px[state.examW].x, px[state.examW].y); ctx.stroke(); ctx.setLineDash([]);
     }
     if (state && state.skipW !== undefined) {
-        ctx.lineWidth = 2.5; ctx.strokeStyle = '#c98a1b'; ctx.setLineDash([3,4]);
+        ctx.lineWidth = 2.5; ctx.strokeStyle = '#b07d18'; ctx.setLineDash([3,4]);
         ctx.beginPath(); ctx.moveTo(px[state.skipFrom].x, px[state.skipFrom].y); ctx.lineTo(px[state.skipW].x, px[state.skipW].y); ctx.stroke(); ctx.setLineDash([]);
     }
 
@@ -586,18 +599,18 @@ function render() {
     ctx.font = `700 ${Math.round(radius*0.92)}px -apple-system, "Segoe UI", Roboto, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     for (let v = 0; v < V; v++) {
-        let fill = '#f6efe0', border = '#bcaf92', text = '#726253';
+        let fill = '#f8f6ec', border = '#aeaa9e', text = '#6b675c';
         if (state && state.marked && state.marked[v]) {
             const rgb = distColor(state.distTo[v]);
-            fill = rgb.css; text = textOn(rgb); border = 'rgba(67,39,31,0.65)';
+            fill = rgb.css; text = textOn(rgb); border = 'rgba(109,24,15,0.65)';
         }
         ctx.beginPath(); ctx.arc(px[v].x, px[v].y, radius, 0, Math.PI*2); ctx.fillStyle = fill; ctx.fill();
 
         const isCurrent = state && state.current === v;
         const isQueued = inQueue.has(v);
-        if (isCurrent) { ctx.lineWidth = 4; ctx.strokeStyle = '#ff0000'; }
-        else if (state && state.examW === v) { ctx.lineWidth = 3; ctx.strokeStyle = '#c98a1b'; }
-        else if (isQueued) { ctx.lineWidth = 3; ctx.strokeStyle = '#1f6f6a'; }
+        if (isCurrent) { ctx.lineWidth = 4; ctx.strokeStyle = '#cc2f22'; }
+        else if (state && state.examW === v) { ctx.lineWidth = 3; ctx.strokeStyle = '#b07d18'; }
+        else if (isQueued) { ctx.lineWidth = 3; ctx.strokeStyle = '#2a6a63'; }
         else { ctx.lineWidth = 2; ctx.strokeStyle = border; }
         ctx.stroke();
 
@@ -622,7 +635,7 @@ function renderSidePanels(state) {
         const node = document.createElement('div');
         node.className = 'q-node' + (i === 0 ? ' front' : '');
         const rgb = distColor(state.distTo[v]); node.style.background = rgb.css; node.style.color = textOn(rgb);
-        if (i !== 0) node.style.borderColor = '#1f6f6a';
+        if (i !== 0) node.style.borderColor = '#2a6a63';
         node.textContent = v; qv.appendChild(node);
     });
 
@@ -700,7 +713,7 @@ function drawWaterAt(t) {
 
     // dry edges (everything starts as a dry channel)
     const seen = new Set();
-    ctx.lineWidth = 1.6; ctx.strokeStyle = '#b3a589';
+    ctx.lineWidth = 1.6; ctx.strokeStyle = '#aeaa9e';
     for (let v = 0; v < V; v++) for (const w of adj[v]) {
         if (v === w) continue;
         const key = v < w ? v+'_'+w : w+'_'+v; if (seen.has(key)) continue; seen.add(key);
@@ -737,10 +750,10 @@ function drawWaterAt(t) {
         if (wdist[v] === Infinity || t < wdist[v]) {
             // dry / not yet reached
             ctx.beginPath(); ctx.arc(x, px[v].y, radius, 0, Math.PI*2);
-            ctx.fillStyle = '#f6efe0'; ctx.fill();
+            ctx.fillStyle = '#f8f6ec'; ctx.fill();
             ctx.lineWidth = (v === startVertex) ? 3 : 2;
-            ctx.strokeStyle = (v === startVertex) ? '#1f6f6a' : '#bcaf92'; ctx.stroke();
-            ctx.fillStyle = '#726253'; ctx.fillText(String(v), x, px[v].y + 1);
+            ctx.strokeStyle = (v === startVertex) ? '#2a6a63' : '#aeaa9e'; ctx.stroke();
+            ctx.fillStyle = '#6b675c'; ctx.fillText(String(v), x, px[v].y + 1);
             continue;
         }
         const phase = t - wdist[v];                       // 0 at the moment the wave hits
@@ -751,7 +764,7 @@ function drawWaterAt(t) {
         if (phase < 0.6) {
             const rr = radius * (1 + phase*2.2), a = 0.5 * (1 - phase/0.6);
             ctx.beginPath(); ctx.arc(x, px[v].y, rr, 0, Math.PI*2);
-            ctx.lineWidth = 3; ctx.strokeStyle = `rgba(31,111,106,${a.toFixed(3)})`; ctx.stroke();
+            ctx.lineWidth = 3; ctx.strokeStyle = `rgba(42,106,99,${a.toFixed(3)})`; ctx.stroke();
         }
 
         const rgb = distColor(wdist[v]);
@@ -760,7 +773,7 @@ function drawWaterAt(t) {
         ctx.beginPath(); ctx.arc(x, y - radius*0.32, radius*0.5, Math.PI*1.08, Math.PI*1.92);
         ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.stroke();
         ctx.lineWidth = (v === startVertex) ? 3.5 : 2.5;
-        ctx.strokeStyle = (v === startVertex) ? '#ff0000' : '#15616d';
+        ctx.strokeStyle = (v === startVertex) ? '#cc2f22' : '#2a6a63';
         ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI*2); ctx.stroke();
         ctx.fillStyle = textOn(rgb); ctx.fillText(String(v), x, y + 1);
     }
@@ -787,7 +800,7 @@ function renderWaterPanels(t) {
     else active.sort((a,b)=>wdist[a]-wdist[b]).forEach(v => {
         const node = document.createElement('div'); node.className = 'q-node';
         const rgb = distColor(wdist[v]); node.style.background = rgb.css; node.style.color = textOn(rgb);
-        node.style.borderColor = '#15616d'; node.textContent = v; qv.appendChild(node);
+        node.style.borderColor = '#2a6a63'; node.textContent = v; qv.appendChild(node);
     });
 
     // distance layers — same panel, with the frontier layer outlined
@@ -803,7 +816,7 @@ function renderWaterPanels(t) {
         byLayer.get(d).forEach(v => {
             const chip = document.createElement('div'); chip.className = 'layer-chip';
             const rgb = distColor(d); chip.style.background = rgb.css; chip.style.color = textOn(rgb);
-            if (d === frontier && t < waterMaxTau) { chip.style.borderColor = '#1f6f6a'; chip.style.borderWidth = '2.5px'; }
+            if (d === frontier && t < waterMaxTau) { chip.style.borderColor = '#2a6a63'; chip.style.borderWidth = '2.5px'; }
             chip.textContent = v; chips.appendChild(chip);
         });
         row.appendChild(chips); lv.appendChild(row);
@@ -815,7 +828,7 @@ function renderWaterPanels(t) {
         const reached = wdist[v] !== Infinity && t >= wdist[v];
         const row = document.createElement('div'); row.className = 'adj-row' + (reached ? ' queued' : '');
         const key = document.createElement('div'); key.className = 'adj-key'; key.textContent = v;
-        if (reached) { const rgb = distColor(wdist[v]); key.style.background = rgb.css; key.style.color = textOn(rgb); key.style.borderColor = '#15616d'; }
+        if (reached) { const rgb = distColor(wdist[v]); key.style.background = rgb.css; key.style.color = textOn(rgb); key.style.borderColor = '#2a6a63'; }
         row.appendChild(key);
         const arrow = document.createElement('span'); arrow.className = 'adj-arrow'; arrow.textContent = '→'; row.appendChild(arrow);
         const cells = document.createElement('div'); cells.className = 'adj-cells';

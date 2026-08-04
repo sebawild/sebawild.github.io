@@ -1,46 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Directed DFS — Edge Types</title>
 <style>
     :root {
-        --bg: #f1e9d2;
-        --panel: #f6efe0;
-        --panel-border: #e2d6b5;
-        --controls-bg: #e8ddbe;
-        --controls-border: #dcd0b0;
-        --ink: #726253;
-        --ink-strong: #4a3f35;
-        --title-muted: #8c7b70;
-        --title-red: #7c1212;
-        --btn: #faf6eb;
-        --btn-border: #bcaf92;
-        --btn-border-hover: #9a8c6f;
+        --bg: #f1eed9;
+        --panel: #f8f6ec;
+        --panel-border: #cdc9bb;
+        --controls-bg: #e7e3ca;
+        --controls-border: #cdc9bb;
+        --ink: #6b675c;
+        --ink-strong: #46433a;
+        --title-muted: #8b8779;
+        --title-red: #902015;
+        --btn: #f8f6ec;
+        --btn-border: #aeaa9e;
+        --btn-border-hover: #8d897c;
 
         /* vertex states: unseen / active / done = gray / red / green */
-        --unseen: #c2c2c2;      --unseen-bd: #8f8f8f;   --unseen-tx: #3a3a3a;
-        --active: #e23b3b;      --active-bd: #9d1818;
-        --done:   #3aa64a;      --done-bd:   #1d7a2c;
+        --unseen: #b6b1a1;      --unseen-bd: #8d897c;   --unseen-tx: #38362e;
+        --active: #cc2f22;      --active-bd: #6d180f;
+        --done:   #5c9150;      --done-bd:   #4a7c3f;
 
         /* edge types */
-        --tree:    #1b1b1b;
-        --back:    #d11f1f;
-        --forward: #2f9e2f;
-        --cross:   #9b2d9b;
-        --edge-unseen: #c3b89f;
+        --tree:    #38362e;
+        --back:    #cc2f22;
+        --forward: #4a7c3f;
+        --cross:   #7d3a72;
+        --edge-unseen: #cdc9bb;
     }
 
     * { box-sizing: border-box; }
     body {
         background-color: var(--bg); color: var(--ink);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-family: var(--wi-font-body)"Segoe UI", Roboto, sans-serif;
         margin: 0; padding: 22px 26px 40px; min-height: 100vh;
     }
     h1 { font-size: 1.6rem; font-weight: 700; margin: 0 0 4px; letter-spacing: 0.3px; color: var(--title-red); }
     .subtitle { font-size: 0.92rem; color: var(--title-muted); margin: 0 0 20px; max-width: 70ch; line-height: 1.5; }
-    .subtitle code { background: #efe6cd; padding: 1px 6px; border-radius: 3px; }
+    .subtitle code { background: #e7e3ca; padding: 1px 6px; border-radius: 3px; }
 
     .controls {
         display: flex; flex-wrap: wrap; gap: 22px; align-items: center;
@@ -56,13 +60,13 @@
         padding: 8px 16px; font-size: 0.9rem; border-radius: 4px; cursor: pointer;
         transition: background 0.15s, border-color 0.15s; font-weight: 500; font-family: inherit;
     }
-    button:hover:not(:disabled), select:hover { background-color: #fff; border-color: var(--btn-border-hover); }
+    button:hover:not(:disabled), select:hover { background-color: #fbfaf4; border-color: var(--btn-border-hover); }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
-    button.primary { background-color: #efd9c8; border-color: #c08b6f; }
-    button.primary:hover:not(:disabled) { background-color: #f3e2d4; }
+    button.primary { background-color: #f0d9cd; border-color: #c08777; }
+    button.primary:hover:not(:disabled) { background-color: #fbfaf4; }
     select { cursor: pointer; padding-right: 10px; }
-    input[type="range"] { accent-color: #e60000; cursor: pointer; vertical-align: middle; }
-    .slider-group { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #5c4f43; }
+    input[type="range"] { accent-color: #cc2f22; cursor: pointer; vertical-align: middle; }
+    .slider-group { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #46433a; }
     .slider-group span { min-width: 42px; }
 
     .stage { display: grid; grid-template-columns: minmax(0,1.55fr) minmax(330px,1fr); gap: 20px; align-items: start; }
@@ -72,34 +76,34 @@
     .sim-box + .sim-box { margin-top: 18px; }
     .sim-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--title-muted); margin: 0 0 12px; font-weight: 700; }
     canvas#graph { display: block; background-color: var(--bg); width: 100%; height: 430px; border-radius: 4px; }
-    canvas#timeline { display: block; background-color: #efe6cd; width: 100%; height: 206px; border-radius: 4px; }
+    canvas#timeline { display: block; background-color: #e7e3ca; width: 100%; height: 206px; border-radius: 4px; }
     .tl-caption { margin-top: 10px; font-size: 0.84rem; line-height: 1.5; color: var(--ink); display: flex; flex-wrap: wrap; gap: 6px 22px; }
     .tl-caption .grp { display: flex; align-items: center; gap: 7px; }
     .tl-caption .ttl { font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; }
     .tl-caption .pre .ttl { color: var(--active-bd); }
     .tl-caption .post .ttl { color: var(--done-bd); }
-    .tl-caption .seqnums { font-family: ui-monospace, Menlo, monospace; font-weight: 600; color: var(--ink-strong); letter-spacing: 1px; }
+    .tl-caption .seqnums { font-family: var(--wi-font-mono); font-weight: 600; color: var(--ink-strong); letter-spacing: 1px; }
     .tl-caption .none { color: var(--title-muted); font-style: italic; }
 
     .side { display: flex; flex-direction: column; gap: 18px; }
-    .status { background: #efe6cd; border: 1px solid var(--panel-border); border-radius: 5px; padding: 11px 14px; font-size: 0.95rem; color: var(--ink-strong); min-height: 46px; display: flex; align-items: center; }
+    .status { background: #e7e3ca; border: 1px solid var(--panel-border); border-radius: 5px; padding: 11px 14px; font-size: 0.95rem; color: var(--ink-strong); min-height: 46px; display: flex; align-items: center; }
     .status .stepcount { color: var(--title-muted); font-size: 0.8rem; margin-left: auto; padding-left: 12px; white-space: nowrap; }
 
     /* active-path stack */
     .thread { display: flex; align-items: center; flex-wrap: wrap; gap: 0; min-height: 40px; }
     .thread .empty { color: var(--title-muted); font-style: italic; font-size: 0.9rem; }
-    .thread-node { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.95rem; background: var(--active); border: 2px solid var(--active-bd); color: #fff; }
-    .thread-node.top { box-shadow: 0 0 0 3px rgba(226,59,59,0.22); }
+    .thread-node { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.95rem; background: var(--active); border: 2px solid var(--active-bd); color: #fbfaf4; }
+    .thread-node.top { box-shadow: 0 0 0 3px rgba(204,47,34,0.22); }
     .thread-link { width: 22px; height: 3px; background: var(--active-bd); }
     .thread-tip { font-size: 0.78rem; color: var(--title-muted); margin-top: 8px; }
 
     /* edge classification */
-    .cls-row { display: flex; align-items: flex-start; gap: 9px; padding: 6px 0; border-bottom: 1px dashed #e6dabb; }
+    .cls-row { display: flex; align-items: flex-start; gap: 9px; padding: 6px 0; border-bottom: 1px dashed #e7e3ca; }
     .cls-row:last-child { border-bottom: none; }
     .cls-tag { min-width: 86px; display: flex; align-items: center; gap: 7px; font-size: 0.82rem; font-weight: 700; color: var(--ink-strong); }
     .cls-line { width: 24px; height: 0; border-top-width: 3px; border-top-style: solid; }
     .cls-chips { display: flex; gap: 5px; flex-wrap: wrap; }
-    .cls-chip { font-size: 0.8rem; font-weight: 600; padding: 2px 7px; border-radius: 999px; color: #fff; font-variant-numeric: tabular-nums; }
+    .cls-chip { font-size: 0.8rem; font-weight: 600; padding: 2px 7px; border-radius: 999px; color: #fbfaf4; font-variant-numeric: tabular-nums; }
     .cls-none { color: var(--title-muted); font-style: italic; font-size: 0.82rem; }
     .cls-count { color: var(--title-muted); font-weight: 600; font-size: 0.74rem; margin-left: 2px; }
 
@@ -109,8 +113,8 @@
     .result.dag .verdict { color: var(--done-bd); }
     .result.cyclic .verdict { color: var(--back); }
     .seq { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
-    .seq .s-node { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; color: #fff; background: var(--done); border: 2px solid var(--done-bd); }
-    .seq .s-node.cyc { background: var(--back); border-color: #8c1212; }
+    .seq .s-node { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; color: #fbfaf4; background: var(--done); border: 2px solid var(--done-bd); }
+    .seq .s-node.cyc { background: var(--back); border-color: #831b1b; }
     .seq .s-arrow { color: var(--title-muted); font-size: 0.8rem; }
 
     .legend { display: flex; flex-wrap: wrap; gap: 12px 18px; font-size: 0.8rem; color: var(--ink); margin-top: 12px; }
@@ -128,10 +132,19 @@
     details.editor { margin-top: 22px; }
     details.editor summary { cursor: pointer; font-size: 0.85rem; color: var(--title-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; }
     .editor-body { margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
-    textarea { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 0.85rem; background: var(--panel); color: var(--ink-strong); border: 1px solid var(--panel-border); border-radius: 5px; padding: 10px; width: 230px; height: 220px; resize: vertical; }
+    textarea { font-family: "SF Mono", var(--wi-font-mono); font-size: 0.85rem; background: var(--panel); color: var(--ink-strong); border: 1px solid var(--panel-border); border-radius: 5px; padding: 10px; width: 230px; height: 220px; resize: vertical; }
     .editor-help { font-size: 0.82rem; color: var(--ink); max-width: 430px; line-height: 1.5; }
-    .editor-help code { background: #efe6cd; padding: 1px 5px; border-radius: 3px; }
-    .err { color: #9a3b2f; font-weight: 600; font-size: 0.82rem; min-height: 18px; }
+    .editor-help code { background: #e7e3ca; padding: 1px 5px; border-radius: 3px; }
+    .err { color: #6d180f; font-weight: 600; font-size: 0.82rem; min-height: 18px; }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
+  font-family: var(--wi-font-head);
+  letter-spacing: .05em;
+}
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
 </style>
 </head>
 <body>
@@ -296,10 +309,10 @@ const tl = document.getElementById('timeline');
 const tlx = tl.getContext('2d');
 
 const TYPE = {
-    tree:    { c: '#1b1b1b', dash: [],          label: 'tree' },
-    back:    { c: '#d11f1f', dash: [8, 6],       label: 'back' },
-    forward: { c: '#2f9e2f', dash: [1.5, 5],     label: 'forward' },
-    cross:   { c: '#9b2d9b', dash: [7, 4, 2, 4], label: 'cross' }
+    tree:    { c: '#38362e', dash: [],          label: 'tree' },
+    back:    { c: '#cc2f22', dash: [8, 6],       label: 'back' },
+    forward: { c: '#4a7c3f', dash: [1.5, 5],     label: 'forward' },
+    cross:   { c: '#7d3a72', dash: [7, 4, 2, 4], label: 'cross' }
 };
 
 /* ============================ optional fixed-layout coordinates ============================ */
@@ -566,9 +579,9 @@ function drawArrow(A, B, opts) {
 }
 
 function nodeFill(color, v, state) {
-    if (color === 2) return { fill: '#3aa64a', bd: '#1d7a2c', tx: '#ffffff' };
-    if (color === 1) return { fill: '#e23b3b', bd: '#9d1818', tx: '#ffffff' };
-    return { fill: '#c2c2c2', bd: '#8f8f8f', tx: '#3a3a3a' };
+    if (color === 2) return { fill: '#5c9150', bd: '#4a7c3f', tx: '#fbfaf4' };
+    if (color === 1) return { fill: '#cc2f22', bd: '#6d180f', tx: '#fbfaf4' };
+    return { fill: '#b6b1a1', bd: '#8d897c', tx: '#38362e' };
 }
 
 function render() {
@@ -596,7 +609,7 @@ function render() {
             const ty = TYPE[t];
             drawArrow(px[v], px[w], { color: ty.c, width: isExam ? 4 : 2.4, dash: ty.dash.slice(), bowVec });
         } else {
-            drawArrow(px[v], px[w], { color: isExam ? '#e8a33a' : '#c3b89f', width: isExam ? 3.4 : 1.6, dash: [], bowVec });
+            drawArrow(px[v], px[w], { color: isExam ? '#d29e50' : '#cdc9bb', width: isExam ? 3.4 : 1.6, dash: [], bowVec });
         }
     }
 
@@ -607,17 +620,17 @@ function render() {
         ctx.beginPath(); ctx.arc(px[v].x, px[v].y, radius, 0, Math.PI*2);
         ctx.fillStyle = c.fill; ctx.fill();
         const isCurrent = state && state.current === v;
-        ctx.lineWidth = isCurrent ? 4 : 2; ctx.strokeStyle = isCurrent ? '#1b1b1b' : c.bd; ctx.stroke();
+        ctx.lineWidth = isCurrent ? 4 : 2; ctx.strokeStyle = isCurrent ? '#38362e' : c.bd; ctx.stroke();
         ctx.fillStyle = c.tx; ctx.font = `700 ${Math.round(radius*0.95)}px -apple-system, "Segoe UI", Roboto, sans-serif`;
         ctx.fillText(String(v), px[v].x, px[v].y + 1);
         // discover/finish pill under the node
         if (disc[v] > 0) {
             const label = `${disc[v]}/${fin[v] > 0 ? fin[v] : '·'}`;
-            ctx.font = `600 ${Math.max(10, Math.round(radius*0.62))}px ui-monospace, Menlo, monospace`;
+            ctx.font = `600 ${Math.max(10, Math.round(radius*0.62))}px var(--wi-font-mono)`;
             const tw = ctx.measureText(label).width;
             const py = px[v].y + radius + 11;
             ctx.fillStyle = 'rgba(247,239,224,0.92)';
-            ctx.strokeStyle = '#d8c9a8'; ctx.lineWidth = 1;
+            ctx.strokeStyle = '#d8d2a8'; ctx.lineWidth = 1;
             const pad = 4;
             roundRect(px[v].x - tw/2 - pad, py - 8, tw + pad*2, 16, 4); ctx.fill(); ctx.stroke();
             ctx.fillStyle = '#6b5a49'; ctx.textBaseline = 'middle';
@@ -657,7 +670,7 @@ function renderTimeline(state) {
     const x = c => padL + (c / maxT) * (W - padL - padR);
 
     // vertical gridlines + tick numbers
-    tlx.font = '600 10px ui-monospace, Menlo, monospace'; tlx.textBaseline = 'middle'; tlx.textAlign = 'center';
+    tlx.font = '600 10px var(--wi-font-mono)'; tlx.textBaseline = 'middle'; tlx.textAlign = 'center';
     for (let c = 1; c <= maxT; c++) {
         const xx = x(c);
         tlx.strokeStyle = '#e3d5b2'; tlx.lineWidth = 1;
@@ -671,8 +684,8 @@ function renderTimeline(state) {
 
     // lane labels at the left margin
     tlx.textAlign = 'left'; tlx.font = '700 9px -apple-system, "Segoe UI", sans-serif';
-    tlx.fillStyle = '#9d1818'; tlx.fillText('ENTER', 2, yPre);
-    tlx.fillStyle = '#1d7a2c'; tlx.fillText('LEAVE', 2, yPost);
+    tlx.fillStyle = '#6d180f'; tlx.fillText('ENTER', 2, yPre);
+    tlx.fillStyle = '#4a7c3f'; tlx.fillText('LEAVE', 2, yPost);
 
     if (!state) { setCaption(null); return; }
     const disc = state.disc, fin = state.fin, depth = state.depth, clock = state.clock;
@@ -690,10 +703,10 @@ function renderTimeline(state) {
         const x1 = open ? x(Math.max(clock, disc[v])) : x(fin[v]);
         const yTop = axisY - (depth[v] + 1) * rowH + (rowH - barH) / 2;
         const w = Math.max(barH * 0.9, x1 - x0);
-        tlx.fillStyle = open ? '#e23b3b' : '#3aa64a';
-        tlx.strokeStyle = open ? '#9d1818' : '#1d7a2c'; tlx.lineWidth = 1.5;
+        tlx.fillStyle = open ? '#cc2f22' : '#5c9150';
+        tlx.strokeStyle = open ? '#6d180f' : '#4a7c3f'; tlx.lineWidth = 1.5;
         roundRectX(tlx, x0, yTop, w, barH, 3); tlx.fill(); tlx.stroke();
-        tlx.fillStyle = '#fff'; tlx.font = `700 ${Math.round(barH*0.62)}px -apple-system, "Segoe UI", sans-serif`;
+        tlx.fillStyle = '#fbfaf4'; tlx.font = `700 ${Math.round(barH*0.62)}px -apple-system, "Segoe UI", sans-serif`;
         tlx.textAlign = 'center'; tlx.textBaseline = 'middle';
         if (w > barH * 0.8) tlx.fillText(String(v), (x0 + x0 + w) / 2, yTop + barH / 2 + 0.5);
 
@@ -702,9 +715,9 @@ function renderTimeline(state) {
         tlx.strokeStyle = 'rgba(157,24,24,0.45)';
         tlx.beginPath(); tlx.moveTo(x0, yTop + barH); tlx.lineTo(x0, yPre - 6); tlx.stroke();
         // ENTER marker (preorder): red triangle pointing up + vertex id
-        markerTriangle(x(disc[v]), yPre - 5, '#e23b3b', '#9d1818');
+        markerTriangle(x(disc[v]), yPre - 5, '#cc2f22', '#6d180f');
         tlx.setLineDash([]);
-        tlx.fillStyle = '#9d1818'; tlx.font = '700 11px -apple-system, "Segoe UI", sans-serif';
+        tlx.fillStyle = '#6d180f'; tlx.font = '700 11px -apple-system, "Segoe UI", sans-serif';
         tlx.textAlign = 'center'; tlx.textBaseline = 'middle';
         tlx.fillText(String(v), x(disc[v]), yPre + 7);
 
@@ -714,8 +727,8 @@ function renderTimeline(state) {
             tlx.strokeStyle = 'rgba(29,122,44,0.5)';
             tlx.beginPath(); tlx.moveTo(x1, yTop + barH); tlx.lineTo(x1, yPost - 6); tlx.stroke();
             tlx.setLineDash([]);
-            markerTriangle(x(fin[v]), yPost - 5, '#3aa64a', '#1d7a2c');
-            tlx.fillStyle = '#1d7a2c'; tlx.font = '700 11px -apple-system, "Segoe UI", sans-serif';
+            markerTriangle(x(fin[v]), yPost - 5, '#5c9150', '#4a7c3f');
+            tlx.fillStyle = '#4a7c3f'; tlx.font = '700 11px -apple-system, "Segoe UI", sans-serif';
             tlx.textAlign = 'center'; tlx.textBaseline = 'middle';
             tlx.fillText(String(v), x(fin[v]), yPost + 7);
         }
@@ -785,7 +798,7 @@ function renderPanels(state) {
         else here.forEach(e => {
             const chip = document.createElement('span'); chip.className = 'cls-chip';
             chip.style.background = ty.c; chip.textContent = `${e.v}→${e.w}`;
-            if (examKey === e.v + '>' + e.w) chip.style.outline = '2px solid #e8a33a';
+            if (examKey === e.v + '>' + e.w) chip.style.outline = '2px solid #d29e50';
             chips.appendChild(chip);
         });
         const cnt = document.createElement('span'); cnt.className = 'cls-count'; cnt.textContent = here.length ? `(${here.length})` : '';

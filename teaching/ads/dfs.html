@@ -1,33 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Depth-First Search — Animated</title>
 <style>
     :root {
-        --bg: #f1e9d2;
-        --panel: #f6efe0;
-        --panel-border: #e2d6b5;
-        --controls-bg: #e8ddbe;
-        --controls-border: #dcd0b0;
-        --ink: #726253;
-        --ink-strong: #4a3f35;
-        --title-muted: #8c7b70;
-        --btn: #faf6eb;
-        --btn-border: #bcaf92;
-        --btn-border-hover: #9a8c6f;
+        --bg: #f1eed9;
+        --panel: #f8f6ec;
+        --panel-border: #cdc9bb;
+        --controls-bg: #e7e3ca;
+        --controls-border: #cdc9bb;
+        --ink: #6b675c;
+        --ink-strong: #46433a;
+        --title-muted: #8b8779;
+        --btn: #f8f6ec;
+        --btn-border: #aeaa9e;
+        --btn-border-hover: #8d897c;
 
-        --node-cream: #f6efe0;
-        --node-cream-border: #bcaf92;
-        --stack-fill: #e2b3a3;   /* light pink — on the stack / on the thread */
-        --stack-border: #9a3b2f;
-        --done-fill: #670c07;    /* deep burgundy — finished */
-        --done-border: #43271f;
-        --active: #ff0000;       /* current vertex / Ariadne thread */
-        --examine: #c98a1b;      /* iterator currently looking at this edge */
-        --edge: #b3a589;
-        --tree-edge: #670c07;
+        --node-cream: #f8f6ec;
+        --node-cream-border: #aeaa9e;
+        --stack-fill: #e5c0b4;   /* light pink — on the stack / on the thread */
+        --stack-border: #6d180f;
+        --done-fill: #902015;    /* deep burgundy — finished */
+        --done-border: #6d180f;
+        --active: #cc2f22;       /* current vertex / Ariadne thread */
+        --examine: #b07d18;      /* iterator currently looking at this edge */
+        --edge: #aeaa9e;
+        --tree-edge: #902015;
     }
 
     * { box-sizing: border-box; }
@@ -35,7 +39,7 @@
     body {
         background-color: var(--bg);
         color: var(--ink);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-family: var(--wi-font-body)"Segoe UI", Roboto, sans-serif;
         margin: 0;
         padding: 22px 26px 40px;
         min-height: 100vh;
@@ -53,7 +57,7 @@
         color: var(--title-muted);
         margin: 0 0 20px;
     }
-    .subtitle code { background: #efe6cd; padding: 1px 6px; border-radius: 3px; }
+    .subtitle code { background: #e7e3ca; padding: 1px 6px; border-radius: 3px; }
 
     /* ---- controls ---- */
     .controls {
@@ -86,14 +90,14 @@
         font-weight: 500;
         font-family: inherit;
     }
-    button:hover:not(:disabled), select:hover { background-color: #fff; border-color: var(--btn-border-hover); }
+    button:hover:not(:disabled), select:hover { background-color: #fbfaf4; border-color: var(--btn-border-hover); }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
-    button.primary { background-color: #efd9c8; border-color: #c08b6f; }
-    button.primary:hover:not(:disabled) { background-color: #f3e2d4; }
+    button.primary { background-color: #f0d9cd; border-color: #c08777; }
+    button.primary:hover:not(:disabled) { background-color: #fbfaf4; }
     select { cursor: pointer; padding-right: 10px; }
 
-    input[type="range"] { accent-color: #e60000; cursor: pointer; vertical-align: middle; }
-    .slider-group { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #5c4f43; }
+    input[type="range"] { accent-color: #cc2f22; cursor: pointer; vertical-align: middle; }
+    .slider-group { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #46433a; }
     .slider-group span { min-width: 42px; }
 
     /* ---- main layout ---- */
@@ -117,7 +121,7 @@
 
     /* status line */
     .status {
-        background: #efe6cd; border: 1px solid var(--panel-border); border-radius: 5px;
+        background: #e7e3ca; border: 1px solid var(--panel-border); border-radius: 5px;
         padding: 11px 14px; font-size: 0.95rem; color: var(--ink-strong); min-height: 46px;
         display: flex; align-items: center;
     }
@@ -132,14 +136,14 @@
         font-weight: 700; font-size: 0.95rem;
         background: var(--stack-fill); border: 2px solid var(--stack-border); color: var(--ink-strong);
     }
-    .thread-node.top { border-color: var(--active); border-width: 3px; box-shadow: 0 0 0 3px rgba(255,0,0,0.12); }
+    .thread-node.top { border-color: var(--active); border-width: 3px; box-shadow: 0 0 0 3px rgba(204,47,34,0.12); }
     .thread-link { width: 26px; height: 3px; background: var(--active); position: relative; }
     .thread-tip { font-size: 0.78rem; color: var(--title-muted); margin-top: 8px; }
     .thread-tip b { color: var(--stack-border); }
 
     /* adjacency list */
     .adj { font-size: 0.9rem; }
-    .adj-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px dashed #e6dabb; }
+    .adj-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px dashed #e7e3ca; }
     .adj-row:last-child { border-bottom: none; }
     .adj-row.onstack { background: #f3e7d2; border-radius: 4px; }
     .adj-key {
@@ -154,10 +158,10 @@
     .adj-cells { display: flex; gap: 5px; flex-wrap: wrap; }
     .adj-cell {
         min-width: 24px; padding: 2px 6px; border-radius: 3px; text-align: center;
-        background: #efe6cd; border: 1px solid #ddd0b1; color: var(--ink); font-variant-numeric: tabular-nums;
+        background: #e7e3ca; border: 1px solid #cdc9bb; color: var(--ink); font-variant-numeric: tabular-nums;
     }
     .adj-cell.consumed { opacity: 0.38; text-decoration: line-through; }
-    .adj-cell.cursor { background: #fff; border: 2px solid var(--examine); color: var(--ink-strong); font-weight: 700; }
+    .adj-cell.cursor { background: #fbfaf4; border: 2px solid var(--examine); color: var(--ink-strong); font-weight: 700; }
     .adj-cell.took { background: var(--stack-fill); border-color: var(--stack-border); }
     .adj-empty { color: var(--title-muted); font-style: italic; }
 
@@ -175,25 +179,34 @@
     /* mode toggle switch */
     .switch { position: relative; display: inline-block; width: 42px; height: 23px; }
     .switch input { opacity: 0; width: 0; height: 0; }
-    .switch .track { position: absolute; cursor: pointer; inset: 0; background: #cdbf9d; border: 1px solid #b3a589; border-radius: 23px; transition: .2s; }
-    .switch .track:before { content: ""; position: absolute; height: 17px; width: 17px; left: 3px; top: 2px; background: #faf6eb; border-radius: 50%; transition: .2s; }
-    .switch input:checked + .track { background: #9a3b2f; border-color: #7c2f25; }
+    .switch .track { position: absolute; cursor: pointer; inset: 0; background: #cdc9bb; border: 1px solid #aeaa9e; border-radius: 23px; transition: .2s; }
+    .switch .track:before { content: ""; position: absolute; height: 17px; width: 17px; left: 3px; top: 2px; background: #f8f6ec; border-radius: 50%; transition: .2s; }
+    .switch input:checked + .track { background: #6d180f; border-color: #7c2f25; }
     .switch input:checked + .track:before { transform: translateX(19px); }
-    .sw-agent { position: relative; background: #3b342e !important; border-color: #f1e9d2 !important; }
-    .sw-agent::after { content: ""; position: absolute; inset: 5px; border-radius: 50%; background: #ff0000; }
+    .sw-agent { position: relative; background: #3b342e !important; border-color: #f1eed9 !important; }
+    .sw-agent::after { content: ""; position: absolute; inset: 5px; border-radius: 50%; background: #cc2f22; }
 
     /* editor */
     details.editor { margin-top: 22px; }
     details.editor summary { cursor: pointer; font-size: 0.85rem; color: var(--title-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; }
     .editor-body { margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
     textarea {
-        font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 0.85rem;
+        font-family: "SF Mono", var(--wi-font-mono); font-size: 0.85rem;
         background: var(--panel); color: var(--ink-strong); border: 1px solid var(--panel-border);
         border-radius: 5px; padding: 10px; width: 230px; height: 230px; resize: vertical;
     }
     .editor-help { font-size: 0.82rem; color: var(--ink); max-width: 420px; line-height: 1.5; }
-    .editor-help code { background: #efe6cd; padding: 1px 5px; border-radius: 3px; }
-    .err { color: #9a3b2f; font-weight: 600; font-size: 0.82rem; min-height: 18px; }
+    .editor-help code { background: #e7e3ca; padding: 1px 5px; border-radius: 3px; }
+    .err { color: #6d180f; font-weight: 600; font-size: 0.82rem; min-height: 18px; }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
+  font-family: var(--wi-font-head);
+  letter-spacing: .05em;
+}
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
 </style>
 </head>
 <body>
@@ -642,9 +655,9 @@ function fitCanvas() {
 
 function nodeColors(state, v) {
     if (!state) return { fill: 'var', };
-    if (state.finished && state.finished[v]) return { fill: '#670c07', border: '#43271f', text: '#f1e9d2' };
-    if (state.marked && state.marked[v])     return { fill: '#e2b3a3', border: '#9a3b2f', text: '#4a3f35' };
-    return { fill: '#f6efe0', border: '#bcaf92', text: '#726253' };
+    if (state.finished && state.finished[v]) return { fill: '#902015', border: '#6d180f', text: '#f1eed9' };
+    if (state.marked && state.marked[v])     return { fill: '#e5c0b4', border: '#6d180f', text: '#46433a' };
+    return { fill: '#f8f6ec', border: '#aeaa9e', text: '#6b675c' };
 }
 
 /* explored non-tree edges (back edges) — dusty teal-slate, short-dashed, clearly
@@ -672,7 +685,7 @@ function render() {
     // --- edges (base) ---
     const seen = new Set();
     ctx.lineWidth = 1.6;
-    ctx.strokeStyle = '#b3a589';
+    ctx.strokeStyle = '#aeaa9e';
     for (let v = 0; v < V; v++) for (const w of adj[v]) {
         if (v === w) continue;
         const key = v < w ? v + '_' + w : w + '_' + v;
@@ -687,7 +700,7 @@ function render() {
 
     // --- DFS tree edges ---
     if (state && state.edgeTo) {
-        ctx.lineWidth = 3; ctx.strokeStyle = '#670c07';
+        ctx.lineWidth = 3; ctx.strokeStyle = '#902015';
         for (let w = 0; w < V; w++) {
             const v = state.edgeTo[w];
             if (v >= 0) { ctx.beginPath(); ctx.moveTo(px[v].x, px[v].y); ctx.lineTo(px[w].x, px[w].y); ctx.stroke(); }
@@ -696,7 +709,7 @@ function render() {
 
     // --- Ariadne thread (consecutive stack vertices) ---
     if (state && state.stack && state.stack.length > 1) {
-        ctx.lineWidth = 3.5; ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 3.5; ctx.strokeStyle = '#cc2f22';
         ctx.beginPath();
         for (let i = 0; i < state.stack.length; i++) {
             const v = state.stack[i].v;
@@ -707,13 +720,13 @@ function render() {
 
     // --- examined edge highlight ---
     if (state && state.examV !== undefined) {
-        ctx.lineWidth = 3.5; ctx.strokeStyle = '#c98a1b';
+        ctx.lineWidth = 3.5; ctx.strokeStyle = '#b07d18';
         ctx.setLineDash([7, 5]);
         ctx.beginPath(); ctx.moveTo(px[state.examV].x, px[state.examV].y); ctx.lineTo(px[state.examW].x, px[state.examW].y); ctx.stroke();
         ctx.setLineDash([]);
     }
     if (state && state.skipW !== undefined) {
-        ctx.lineWidth = state.isBack ? 3.5 : 2.5; ctx.strokeStyle = state.isBack ? BACK_EDGE_COLOR : '#c98a1b';
+        ctx.lineWidth = state.isBack ? 3.5 : 2.5; ctx.strokeStyle = state.isBack ? BACK_EDGE_COLOR : '#b07d18';
         ctx.setLineDash([3, 4]);
         ctx.beginPath(); ctx.moveTo(px[state.skipFrom].x, px[state.skipFrom].y); ctx.lineTo(px[state.skipW].x, px[state.skipW].y); ctx.stroke();
         ctx.setLineDash([]);
@@ -728,8 +741,8 @@ function render() {
         ctx.fillStyle = c.fill; ctx.fill();
         const isCurrent = state && state.current === v;
         const isExam = state && (state.examW === v || state.flash === v);
-        if (isCurrent) { ctx.lineWidth = 4; ctx.strokeStyle = '#ff0000'; }
-        else if (isExam && state.examW === v) { ctx.lineWidth = 3; ctx.strokeStyle = '#c98a1b'; }
+        if (isCurrent) { ctx.lineWidth = 4; ctx.strokeStyle = '#cc2f22'; }
+        else if (isExam && state.examW === v) { ctx.lineWidth = 3; ctx.strokeStyle = '#b07d18'; }
         else { ctx.lineWidth = 2; ctx.strokeStyle = c.border; }
         ctx.stroke();
         ctx.fillStyle = c.text;
@@ -868,15 +881,15 @@ function drawAgentToken(x, y, heading = 0, moving = false) {
 
     // body
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = '#3b342e'; ctx.fill();
-    ctx.lineWidth = 2.5; ctx.strokeStyle = '#f1e9d2'; ctx.stroke();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = '#f1eed9'; ctx.stroke();
 
     // lantern dot on the leading edge
     ctx.beginPath(); ctx.arc(lx, ly, Math.max(2, r * 0.26), 0, Math.PI * 2);
-    ctx.fillStyle = '#ffce6a'; ctx.fill();
-    ctx.lineWidth = 1; ctx.strokeStyle = '#b8862f'; ctx.stroke();
+    ctx.fillStyle = '#e7c682'; ctx.fill();
+    ctx.lineWidth = 1; ctx.strokeStyle = '#b68631'; ctx.stroke();
 
     // red thread-spool core (where Ariadne's thread is tied)
-    ctx.beginPath(); ctx.arc(x, y, Math.max(2.5, r * 0.34), 0, Math.PI * 2); ctx.fillStyle = '#ff0000'; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, Math.max(2.5, r * 0.34), 0, Math.PI * 2); ctx.fillStyle = '#cc2f22'; ctx.fill();
 }
 
 /* a chalk ✕ marking that a passage entrance has been examined from this side */
@@ -929,7 +942,7 @@ function drawAgentAt(t) {
     // ---- maze geometry ----
     const corridorW = Math.max(10, Math.min(30, radius * 0.95));
     const roomR = Math.max(corridorW * 0.92, radius * 0.86);
-    const ROCK = '#2b2017', WALL = '#160d06', FLOOR = '#efe6cd';
+    const ROCK = '#2b2017', WALL = '#160d06', FLOOR = '#e7e3ca';
 
     // rock backdrop
     ctx.fillStyle = ROCK; ctx.fillRect(0, 0, cw, ch);
@@ -961,7 +974,7 @@ function drawAgentAt(t) {
         ctx.beginPath(); ctx.moveTo(threadPts[0].x, threadPts[0].y);
         for (let k = 1; k < threadPts.length; k++) ctx.lineTo(threadPts[k].x, threadPts[k].y);
         ctx.stroke();
-        ctx.lineWidth = 3.4; ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 3.4; ctx.strokeStyle = '#cc2f22';
         ctx.beginPath(); ctx.moveTo(threadPts[0].x, threadPts[0].y);
         for (let k = 1; k < threadPts.length; k++) ctx.lineTo(threadPts[k].x, threadPts[k].y);
         ctx.stroke();
@@ -972,8 +985,8 @@ function drawAgentAt(t) {
     const arriving = (kind === 'fwd' && frac > 0.8) ? s.treeEdge[1] : null;
     for (let v = 0; v < V; v++) {
         let fill = '#f3ead6';
-        if (finished[v]) fill = '#670c07';
-        else if (marked[v] || v === arriving) fill = '#e2b3a3';
+        if (finished[v]) fill = '#902015';
+        else if (marked[v] || v === arriving) fill = '#e5c0b4';
         ctx.beginPath(); ctx.arc(px[v].x, px[v].y, roomR, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill();
     }
 
@@ -1010,11 +1023,11 @@ function drawAgentAt(t) {
     for (let v = 0; v < V; v++) {
         if (v === arriving) {
             const ap = (frac - 0.8) / 0.2;
-            ctx.lineWidth = 3; ctx.strokeStyle = `rgba(255,0,0,${(0.55 * (1 - ap)).toFixed(3)})`;
+            ctx.lineWidth = 3; ctx.strokeStyle = `rgba(204,47,34,${(0.55 * (1 - ap)).toFixed(3)})`;
             ctx.beginPath(); ctx.arc(px[v].x, px[v].y, roomR + 2 + ap * 6, 0, Math.PI * 2); ctx.stroke();
         }
-        if (v === examW) { ctx.lineWidth = 3; ctx.strokeStyle = '#c98a1b'; ctx.beginPath(); ctx.arc(px[v].x, px[v].y, roomR, 0, Math.PI * 2); ctx.stroke(); }
-        const text = finished[v] ? '#f1e9d2' : (marked[v] || v === arriving) ? '#4a3f35' : '#726253';
+        if (v === examW) { ctx.lineWidth = 3; ctx.strokeStyle = '#b07d18'; ctx.beginPath(); ctx.arc(px[v].x, px[v].y, roomR, 0, Math.PI * 2); ctx.stroke(); }
+        const text = finished[v] ? '#f1eed9' : (marked[v] || v === arriving) ? '#46433a' : '#6b675c';
         ctx.fillStyle = text; ctx.fillText(String(v), px[v].x, px[v].y + 1);
     }
 

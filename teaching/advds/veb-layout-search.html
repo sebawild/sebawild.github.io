@@ -1,19 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>van Emde Boas Layout — Search Analysis</title>
 <style>
   :root{
-    --bg:#f1e9d2; --panel:#f6efe0; --panel-line:#e2d6b5;
-    --controls:#e8ddbe; --controls-line:#dcd0b0;
-    --ink:#4a3f35; --ink-soft:#726253; --label:#8c7b70;
-    --btn:#faf6eb; --btn-line:#bcaf92; --active:#ff0000; --barHi:#670c07;
+    --bg:#f1eed9; --panel:#f8f6ec; --panel-line:#cdc9bb;
+    --controls:#e7e3ca; --controls-line:#cdc9bb;
+    --ink:#46433a; --ink-soft:#6b675c; --label:#8b8779;
+    --btn:#f8f6ec; --btn-line:#aeaa9e; --active:#cc2f22; --barHi:#902015;
   }
   *{box-sizing:border-box}
   body{background:var(--bg);color:var(--ink-soft);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-family:var(--wi-font-body)"Segoe UI",Roboto,sans-serif;
     display:flex;flex-direction:column;align-items:center;min-height:100vh;margin:0;padding:24px 20px 48px}
   h1{font-size:1.6rem;font-weight:500;letter-spacing:.5px;color:var(--ink);margin:0 0 4px}
   .subtitle{font-size:.9rem;color:var(--label);margin:0 0 22px;letter-spacing:.3px;max-width:920px;text-align:center;line-height:1.5}
@@ -36,21 +40,30 @@
   .cmp b{color:var(--ink)} .cmp .naive{color:#a06a4e}
   .controls{display:flex;gap:20px;margin-top:18px;align-items:center;justify-content:center;flex-wrap:wrap;
     background:var(--controls);padding:14px 22px;border-radius:6px;border:1px solid var(--controls-line)}
-  .group{display:flex;align-items:center;gap:8px;font-size:.85rem;color:#5c4f43}
+  .group{display:flex;align-items:center;gap:8px;font-size:.85rem;color:#46433a}
   .group label{font-weight:500}
   input[type="number"]{background:var(--btn);color:var(--ink);border:1px solid var(--btn-line);
     border-radius:4px;padding:7px 9px;font-size:.88rem;font-family:inherit;width:78px}
   button{background:var(--btn);color:var(--ink);border:1px solid var(--btn-line);padding:8px 14px;
     font-size:.88rem;border-radius:4px;cursor:pointer;font-weight:500;transition:background .2s,border-color .2s}
-  button:hover:not(:disabled){background:#fff;border-color:#9a8c6f}
+  button:hover:not(:disabled){background:#fbfaf4;border-color:#8d897c}
   button:disabled{opacity:.4;cursor:not-allowed}
-  input[type="range"]{accent-color:#e60000;cursor:pointer;width:130px}
+  input[type="range"]{accent-color:#cc2f22;cursor:pointer;width:130px}
   .sep{width:1px;align-self:stretch;background:var(--controls-line)}
   .playback button{padding:8px 12px}
   .stepcount{font-size:.82rem;color:var(--label);font-variant-numeric:tabular-nums;min-width:96px;text-align:center}
   .val{min-width:118px;font-variant-numeric:tabular-nums;font-size:.82rem;color:var(--ink-soft)}
   .hint{font-size:.78rem;color:var(--label);max-width:1020px;margin:16px auto 0;text-align:center;line-height:1.55}
   .hint b{color:var(--ink-soft)}
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
+  font-family: var(--wi-font-head);
+  letter-spacing: .05em;
+}
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
 </style>
 </head>
 <body>
@@ -62,9 +75,9 @@
   </div>
 
   <div class="legend">
-    <span><span class="swatch" style="background:#8aa0ae"></span> B-piece: a height-<i>k</i> recursive subtree = one block</span>
-    <span><span class="swatch" style="background:#c98a5e"></span> B-piece on the search path (a block loaded)</span>
-    <span><span class="swatch" style="background:#ff0000"></span> search path / node visited</span>
+    <span><span class="swatch" style="background:#96a3ab"></span> B-piece: a height-<i>k</i> recursive subtree = one block</span>
+    <span><span class="swatch" style="background:#c08777"></span> B-piece on the search path (a block loaded)</span>
+    <span><span class="swatch" style="background:#cc2f22"></span> search path / node visited</span>
   </div>
 
   <div class="readout">
@@ -117,8 +130,8 @@
 const SVGNS='http://www.w3.org/2000/svg';
 const svg=document.getElementById('view');
 function el(tag,a){const e=document.createElementNS(SVGNS,tag);for(const k in a)e.setAttribute(k,a[k]);return e;}
-const C={line:'#d9cba6',grid:'#e6d9b8',ink:'#4a3f35',inkSoft:'#726253',label:'#8c7b70',
-  active:'#ff0000',barHi:'#670c07',piece:'#8aa0ae',pieceB:'#c98a5e',bg:'#f1e9d2'};
+const C={line:'#d9d3a6',grid:'#e6d9b8',ink:'#46433a',inkSoft:'#6b675c',label:'#8b8779',
+  active:'#cc2f22',barHi:'#902015',piece:'#96a3ab',pieceB:'#c08777',bg:'#f1eed9'};
 const VW=1120, MX=48, W=VW-2*MX;
 const TA0=74, TA1=252, SY=308, SH=30, ZY=420, ZH=34;
 const TILE_CAP=1200;
@@ -197,12 +210,12 @@ function render(state){
 
   /* Panel A: triangle with B-piece tiling */
   pt(MX,56,`SEARCH TREE — N=${M.N.toLocaleString()} keys · shaded at the height-${M.k} (lg B) recursion level`);
-  svg.appendChild(el('path',{d:`M ${VW/2} ${TA0} L ${MX} ${TA1} L ${VW-MX} ${TA1} Z`,fill:'#efe6cd',stroke:C.line,'stroke-width':1}));
+  svg.appendChild(el('path',{d:`M ${VW/2} ${TA0} L ${MX} ${TA1} L ${VW-MX} ${TA1} Z`,fill:'#e7e3ca',stroke:C.line,'stroke-width':1}));
   if(M.tile){
     pieces.forEach((pc,idx)=>{
       const T=pieceTri(pc);
       svg.appendChild(el('path',{d:`M ${T.apexX} ${T.apexY} L ${T.xL} ${T.baseY} L ${T.xR} ${T.baseY} Z`,
-        fill:C.piece,'fill-opacity':idx%2?0.30:0.18,stroke:'#fff','stroke-width':0.4}));
+        fill:C.piece,'fill-opacity':idx%2?0.30:0.18,stroke:'#fbfaf4','stroke-width':0.4}));
     });
   } else {
     const note=el('text',{x:VW/2,y:(TA0+TA1)/2,'text-anchor':'middle','font-size':11,fill:C.label});
@@ -222,7 +235,7 @@ function render(state){
     let dp='';pn.forEach((i,z)=>{dp+=(z?'L':'M')+` ${nx(i)} ${ny(Math.floor(Math.log2(i)))} `;});
     svg.appendChild(el('path',{d:dp,fill:'none',stroke:C.active,'stroke-width':2.6,opacity:.95}));
     pn.forEach(i=>{const a=(i===activeNode);
-      svg.appendChild(el('circle',{cx:nx(i),cy:ny(Math.floor(Math.log2(i))),r:a?5.5:3,fill:a?C.active:'#fff',stroke:C.active,'stroke-width':a?2.5:1.6}));});
+      svg.appendChild(el('circle',{cx:nx(i),cy:ny(Math.floor(Math.log2(i))),r:a?5.5:3,fill:a?C.active:'#fbfaf4',stroke:C.active,'stroke-width':a?2.5:1.6}));});
   }
   const an=el('text',{x:VW-MX,y:TA1+13,'text-anchor':'end','font-size':9.5,fill:C.label});
   an.textContent=`${pieces.length.toLocaleString()} B-pieces total · path crosses ${loadedBlocks.size||'…'}`; svg.appendChild(an);
@@ -247,8 +260,8 @@ function render(state){
     const blk=curFrame.block, start=blk*B, m=B, cw=W/m;
     for(let z=0;z<m;z++){ const gp=start+z, visited=(gp===curFrame.pos);
       svg.appendChild(el('rect',{x:MX+z*cw,y:ZY,width:cw-(cw>3?1:0),height:ZH,
-        fill:visited?C.pieceB:'#e7ddc8','fill-opacity':visited?0.9:1,
-        stroke:visited?C.active:'rgba(74,63,53,.18)','stroke-width':visited?2.5:0.5}));}
+        fill:visited?C.pieceB:'#e7e3c8','fill-opacity':visited?0.9:1,
+        stroke:visited?C.active:'rgba(70,67,58,.18)','stroke-width':visited?2.5:0.5}));}
     const zl=el('text',{x:MX,y:ZY+ZH+18,'font-size':10,fill:C.label});
     zl.textContent=`block #${blk}: cells [${start.toLocaleString()}, ${(start+m).toLocaleString()}) — one I/O reads the whole height-${M.k} subtree. (For a general B a chunk straddles ≤ 2 blocks.)`;
     svg.appendChild(zl);

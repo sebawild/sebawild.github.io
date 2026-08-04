@@ -1,38 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Strong Components — Kosaraju–Sharir</title>
 <style>
     :root {
-        --bg: #f1e9d2; --panel: #f6efe0; --panel-border: #e2d6b5;
-        --controls-bg: #e8ddbe; --controls-border: #dcd0b0;
-        --ink: #726253; --ink-strong: #4a3f35; --title-muted: #8c7b70; --title-red: #7c1212;
-        --btn: #faf6eb; --btn-border: #bcaf92; --btn-border-hover: #9a8c6f;
-        --unseen: #c2c2c2; --unseen-bd: #8f8f8f; --unseen-tx: #3a3a3a;
-        --active: #e23b3b; --active-bd: #9d1818;
-        --done: #3aa64a; --done-bd: #1d7a2c;
-        --edge-unseen: #c3b89f; --tree: #1b1b1b; --examine: #e8a33a;
+        --bg: #f1eed9; --panel: #f8f6ec; --panel-border: #cdc9bb;
+        --controls-bg: #e7e3ca; --controls-border: #cdc9bb;
+        --ink: #6b675c; --ink-strong: #46433a; --title-muted: #8b8779; --title-red: #902015;
+        --btn: #f8f6ec; --btn-border: #aeaa9e; --btn-border-hover: #8d897c;
+        --unseen: #b6b1a1; --unseen-bd: #8d897c; --unseen-tx: #38362e;
+        --active: #cc2f22; --active-bd: #6d180f;
+        --done: #5c9150; --done-bd: #4a7c3f;
+        --edge-unseen: #cdc9bb; --tree: #38362e; --examine: #d29e50;
     }
     * { box-sizing: border-box; }
-    body { background-color: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 22px 26px 40px; min-height: 100vh; }
+    body { background-color: var(--bg); color: var(--ink); font-family: var(--wi-font-body)"Segoe UI", Roboto, sans-serif; margin: 0; padding: 22px 26px 40px; min-height: 100vh; }
     h1 { font-size: 1.6rem; font-weight: 700; margin: 0 0 4px; letter-spacing: 0.3px; color: var(--title-red); }
     .subtitle { font-size: 0.92rem; color: var(--title-muted); margin: 0 0 20px; max-width: 72ch; line-height: 1.5; }
-    .subtitle code { background: #efe6cd; padding: 1px 6px; border-radius: 3px; }
+    .subtitle code { background: #e7e3ca; padding: 1px 6px; border-radius: 3px; }
 
     .controls { display: flex; flex-wrap: wrap; gap: 22px; align-items: center; background-color: var(--controls-bg); padding: 14px 22px; border-radius: 6px; border: 1px solid var(--controls-border); margin-bottom: 22px; }
     .ctl-group { display: flex; align-items: center; gap: 9px; }
     .ctl-group label { font-size: 0.82rem; color: var(--ink-strong); font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; }
     .btn-group { display: flex; gap: 8px; }
     button, select { background-color: var(--btn); color: var(--ink-strong); border: 1px solid var(--btn-border); padding: 8px 16px; font-size: 0.9rem; border-radius: 4px; cursor: pointer; transition: background 0.15s, border-color 0.15s; font-weight: 500; font-family: inherit; }
-    button:hover:not(:disabled), select:hover { background-color: #fff; border-color: var(--btn-border-hover); }
+    button:hover:not(:disabled), select:hover { background-color: #fbfaf4; border-color: var(--btn-border-hover); }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
-    button.primary { background-color: #efd9c8; border-color: #c08b6f; }
-    button.primary:hover:not(:disabled) { background-color: #f3e2d4; }
+    button.primary { background-color: #f0d9cd; border-color: #c08777; }
+    button.primary:hover:not(:disabled) { background-color: #fbfaf4; }
     select { cursor: pointer; padding-right: 10px; }
-    input[type="range"] { accent-color: #e60000; cursor: pointer; vertical-align: middle; }
-    .slider-group { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #5c4f43; }
+    input[type="range"] { accent-color: #cc2f22; cursor: pointer; vertical-align: middle; }
+    .slider-group { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #46433a; }
     .slider-group span { min-width: 42px; }
 
     .stage { display: grid; grid-template-columns: minmax(0,1.55fr) minmax(330px,1fr); gap: 20px; align-items: start; }
@@ -45,17 +49,17 @@
 
     /* phase stepper */
     .phases { display: flex; gap: 10px; }
-    .phase-pill { flex: 1; border: 1px solid var(--panel-border); border-radius: 6px; padding: 9px 11px; background: #efe6cd; opacity: 0.55; transition: 0.2s; }
-    .phase-pill.on { opacity: 1; border-color: #c08b6f; background: #f3e2d4; }
+    .phase-pill { flex: 1; border: 1px solid var(--panel-border); border-radius: 6px; padding: 9px 11px; background: #e7e3ca; opacity: 0.55; transition: 0.2s; }
+    .phase-pill.on { opacity: 1; border-color: #c08777; background: #fbfaf4; }
     .phase-pill .pn { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 700; color: var(--title-muted); }
     .phase-pill .pd { font-size: 0.84rem; color: var(--ink-strong); margin-top: 2px; line-height: 1.35; }
 
-    .status { background: #efe6cd; border: 1px solid var(--panel-border); border-radius: 5px; padding: 11px 14px; font-size: 0.95rem; color: var(--ink-strong); min-height: 46px; display: flex; align-items: center; }
+    .status { background: #e7e3ca; border: 1px solid var(--panel-border); border-radius: 5px; padding: 11px 14px; font-size: 0.95rem; color: var(--ink-strong); min-height: 46px; display: flex; align-items: center; }
     .status .stepcount { color: var(--title-muted); font-size: 0.8rem; margin-left: auto; padding-left: 12px; white-space: nowrap; }
 
     .chips { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; min-height: 34px; }
-    .chip { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; color: #fff; background: #b9ad92; border: 1.5px solid #9a8c6f; font-variant-numeric: tabular-nums; }
-    .chip.ghost { background: #efe6cd; color: var(--ink); border-color: #d8c9a8; }
+    .chip { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; color: #fbfaf4; background: #b9ad92; border: 1.5px solid #8d897c; font-variant-numeric: tabular-nums; }
+    .chip.ghost { background: #e7e3ca; color: var(--ink); border-color: #d8d2a8; }
     .chip.cursor { outline: 3px solid var(--examine); outline-offset: 1px; }
     .chip.skip { opacity: 0.5; }
     .chips .empty { color: var(--title-muted); font-style: italic; font-size: 0.9rem; }
@@ -63,16 +67,16 @@
 
     .thread { display: flex; align-items: center; flex-wrap: wrap; gap: 0; min-height: 38px; }
     .thread .empty { color: var(--title-muted); font-style: italic; font-size: 0.9rem; }
-    .thread-node { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.92rem; background: var(--active); border: 2px solid var(--active-bd); color: #fff; }
-    .thread-node.top { box-shadow: 0 0 0 3px rgba(226,59,59,0.22); }
+    .thread-node { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.92rem; background: var(--active); border: 2px solid var(--active-bd); color: #fbfaf4; }
+    .thread-node.top { box-shadow: 0 0 0 3px rgba(204,47,34,0.22); }
     .thread-link { width: 20px; height: 3px; background: var(--active-bd); }
 
-    .comp-row { display: flex; align-items: center; gap: 9px; padding: 6px 0; border-bottom: 1px dashed #e6dabb; }
+    .comp-row { display: flex; align-items: center; gap: 9px; padding: 6px 0; border-bottom: 1px dashed #e7e3ca; }
     .comp-row:last-child { border-bottom: none; }
     .comp-dot { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,0.25); flex: none; }
     .comp-label { font-size: 0.8rem; font-weight: 700; color: var(--ink-strong); min-width: 34px; }
     .comp-members { display: flex; gap: 4px; flex-wrap: wrap; }
-    .comp-members .m { font-size: 0.8rem; font-weight: 600; padding: 1px 7px; border-radius: 999px; color: #fff; }
+    .comp-members .m { font-size: 0.8rem; font-weight: 600; padding: 1px 7px; border-radius: 999px; color: #fbfaf4; }
     .comp-none { color: var(--title-muted); font-style: italic; font-size: 0.84rem; }
 
     .legend { display: flex; flex-wrap: wrap; gap: 12px 18px; font-size: 0.8rem; color: var(--ink); margin-top: 12px; }
@@ -86,10 +90,19 @@
     details.editor { margin-top: 22px; }
     details.editor summary { cursor: pointer; font-size: 0.85rem; color: var(--title-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; }
     .editor-body { margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
-    textarea { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 0.85rem; background: var(--panel); color: var(--ink-strong); border: 1px solid var(--panel-border); border-radius: 5px; padding: 10px; width: 230px; height: 230px; resize: vertical; }
+    textarea { font-family: "SF Mono", var(--wi-font-mono); font-size: 0.85rem; background: var(--panel); color: var(--ink-strong); border: 1px solid var(--panel-border); border-radius: 5px; padding: 10px; width: 230px; height: 230px; resize: vertical; }
     .editor-help { font-size: 0.82rem; color: var(--ink); max-width: 430px; line-height: 1.5; }
-    .editor-help code { background: #efe6cd; padding: 1px 5px; border-radius: 3px; }
-    .err { color: #9a3b2f; font-weight: 600; font-size: 0.82rem; min-height: 18px; }
+    .editor-help code { background: #e7e3ca; padding: 1px 5px; border-radius: 3px; }
+    .err { color: #6d180f; font-weight: 600; font-size: 0.82rem; min-height: 18px; }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
+  font-family: var(--wi-font-head);
+  letter-spacing: .05em;
+}
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
 </style>
 </head>
 <body>
@@ -124,8 +137,8 @@
                 <div class="item"><span class="swatch sw-unseen"></span>unseen</div>
                 <div class="item"><span class="swatch sw-active"></span>active (on stack)</div>
                 <div class="item"><span class="swatch sw-done"></span>finished</div>
-                <div class="item"><span class="e-line" style="border-top-color:#1b1b1b"></span>G tree edge</div>
-                <div class="item"><span class="e-line" style="border-top-color:#1d3f63"></span>Gᴿ tree edge</div>
+                <div class="item"><span class="e-line" style="border-top-color:#38362e"></span>G tree edge</div>
+                <div class="item"><span class="e-line" style="border-top-color:#3d5468"></span>Gᴿ tree edge</div>
             </div>
         </div>
     </div>
@@ -247,7 +260,7 @@ const PRESETS = {
 };
 
 /* component palette */
-const COLORS = ['#c0392b','#2e86c1','#27ae60','#8e44ad','#d68910','#16a085','#c2185b','#566573','#2c3e50','#a04000'];
+const COLORS = ['#b93f32','#4c7f9b','#2baa61','#7d3a72','#b68230','#21957e','#ae2c5f','#5d6570','#3d4a52','#85451b'];
 const compColor = id => COLORS[id % COLORS.length];
 
 /* ============================ state ============================ */
@@ -538,8 +551,8 @@ function render() {
     const curEdge = state && state.treeEdge ? state.treeEdge[0] + '>' + state.treeEdge[1] : null;
 
     // Gᴿ gets a cool slate-blue palette so it reads as visually distinct from G's warm tan/black
-    const UNSEEN_G = '#c3b89f', UNSEEN_R = '#9ab2d6';
-    const TREE_G   = '#1b1b1b', TREE_R   = '#1d3f63';
+    const UNSEEN_G = '#cdc9bb', UNSEEN_R = '#b1bdc9';
+    const TREE_G   = '#38362e', TREE_R   = '#3d5468';
 
     // edges of the currently shown graph
     for (let u = 0; u < V; u++) for (const w of A[u]) {
@@ -553,23 +566,23 @@ function render() {
             width = 2.8;
             color = (phase === 2 && comp[w] >= 0) ? compColor(comp[w]) : (onReverse ? TREE_R : TREE_G);
         }
-        if (isCur) { width = 4; color = '#e8a33a'; }
+        if (isCur) { width = 4; color = '#d29e50'; }
         drawArrow(px[u], px[w], { color, width, dash: [], bowVec });
     }
 
     // vertices
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     for (let v = 0; v < V; v++) {
-        let fill, bd, tx = '#fff';
+        let fill, bd, tx = '#fbfaf4';
         if (phase === 2 && comp[v] >= 0) { fill = compColor(comp[v]); bd = 'rgba(0,0,0,0.32)'; }
-        else if (mark[v] === 2) { fill = '#3aa64a'; bd = '#1d7a2c'; }
-        else if (mark[v] === 1) { fill = '#e23b3b'; bd = '#9d1818'; }
-        else { fill = '#c2c2c2'; bd = '#8f8f8f'; tx = '#3a3a3a'; }
+        else if (mark[v] === 2) { fill = '#5c9150'; bd = '#4a7c3f'; }
+        else if (mark[v] === 1) { fill = '#cc2f22'; bd = '#6d180f'; }
+        else { fill = '#b6b1a1'; bd = '#8d897c'; tx = '#38362e'; }
         ctx.beginPath(); ctx.arc(px[v].x, px[v].y, radius, 0, Math.PI*2); ctx.fillStyle = fill; ctx.fill();
         const isCurrent = state && state.current === v;
         const isActive = mark[v] === 1;
-        if (isCurrent) { ctx.lineWidth = 4; ctx.strokeStyle = '#1b1b1b'; }
-        else if (isActive) { ctx.lineWidth = 3; ctx.strokeStyle = '#9d1818'; }
+        if (isCurrent) { ctx.lineWidth = 4; ctx.strokeStyle = '#38362e'; }
+        else if (isActive) { ctx.lineWidth = 3; ctx.strokeStyle = '#6d180f'; }
         else { ctx.lineWidth = 2; ctx.strokeStyle = bd; }
         ctx.stroke();
         ctx.fillStyle = tx; ctx.font = `700 ${Math.round(radius*0.95)}px -apple-system, "Segoe UI", Roboto, sans-serif`;
@@ -578,9 +591,9 @@ function render() {
 
     // badges: a strong callout on the explicit flip step, a quiet reminder the rest of phase 1
     if (state && state.flipStep) {
-        drawBadge('⟲ edges reversed — u→v becomes v→u', '#1d3f63', '#bfd2ec', 14, 12);
+        drawBadge('⟲ edges reversed — u→v becomes v→u', '#3d5468', '#cdd7e0', 14, 12);
     } else if (onReverse) {
-        drawBadge('working on Gᴿ (reversed)', '#1d3f63', '#bfd2ec', 14, 12, true);
+        drawBadge('working on Gᴿ (reversed)', '#3d5468', '#cdd7e0', 14, 12, true);
     }
 
     renderPanels(state);

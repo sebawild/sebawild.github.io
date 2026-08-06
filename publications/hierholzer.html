@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Space-Efficient Hierholzer — step-by-step</title>
+<style>
+:root{
+  --parch:#f7f0dd;
+  --panel:#fdfaf0;
+  --panel-2:#f2e9d2;
+  --rule:#ddcfa8;
+  --rule-soft:#e8dcbe;
+  --ink:#332f28;
+  --ink-2:#544c3f;
+  --soft:#857858;
+  --red:#871512;
+  --red-soft:#f3e0dc;
+  --green:#2c6a26;
+  --sky:#4b86b4;
+  --sky-soft:#dfeaf4;
+  --gold:#a8873c;
+  --gold-soft:#f0e5c4;
+  --unused:#a99b80;
+  --serif:"Palatino Linotype","Book Antiqua",Palatino,"URW Palladio L",Georgia,"Times New Roman",serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--parch);color:var(--ink);font-family:var(--serif);
+  font-size:16px;line-height:1.5;padding:26px 20px 60px;
+}
+.wrap{max-width:1280px;margin:0 auto}
+
+header.mast{border-bottom:2px solid var(--red);padding-bottom:10px;margin-bottom:6px}
+header.mast h1{font-size:2.05rem;line-height:1.15;font-weight:700;color:var(--red);margin:0 0 4px;letter-spacing:-.01em}
+header.mast .sub{font-size:1.02rem;color:var(--ink-2);margin:0}
+header.mast .cite{font-size:.86rem;color:var(--soft);margin:6px 0 0;font-style:italic}
+header.mast a{color:var(--red);text-decoration:none;border-bottom:1px solid rgba(135,21,18,.3)}
+header.mast a:hover{border-bottom-color:var(--red)}
+
+.panel{background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:14px 16px;box-shadow:0 1px 3px rgba(90,70,40,.07)}
+.panel > h2{
+  font-size:.72rem;text-transform:uppercase;letter-spacing:.13em;font-weight:700;
+  color:var(--soft);margin:0 0 10px;border-bottom:1px solid var(--rule-soft);padding-bottom:5px;
+}
+.panel > h2 .hint{text-transform:none;letter-spacing:0;font-weight:400;font-style:italic;color:var(--unused);margin-left:8px;font-size:.95em}
+
+.controls{
+  display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;
+  background:var(--panel-2);border:1px solid var(--rule);border-radius:3px;
+  padding:9px 12px;margin:14px 0 10px;
+}
+button,select,input[type=text],input[type=number]{
+  font-family:var(--serif);font-size:.92rem;color:var(--ink);
+  background:var(--panel);border:1px solid #c3b48e;border-radius:3px;
+  padding:5px 11px;cursor:pointer;transition:background .15s,border-color .15s,color .15s;
+}
+button:hover:not(:disabled),select:hover{background:#fff;border-color:var(--soft)}
+button:disabled{opacity:.38;cursor:default}
+button.primary{background:var(--red);color:#fdf6e8;border-color:var(--red)}
+button.primary:hover:not(:disabled){background:#a01c18;border-color:#a01c18}
+button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--sky);outline-offset:2px}
+.ctl-lbl{font-size:.78rem;text-transform:uppercase;letter-spacing:.1em;color:var(--soft);font-weight:700}
+.divider{width:1px;height:22px;background:var(--rule);margin:0 3px}
+input[type=range]{accent-color:var(--red);width:104px;cursor:pointer;padding:0}
+.stepcount{font-size:.85rem;color:var(--soft);font-variant-numeric:tabular-nums;min-width:108px}
+.chk{display:inline-flex;align-items:center;gap:5px;font-size:.85rem;color:var(--ink-2);cursor:pointer;user-select:none}
+.chk input{accent-color:var(--red);cursor:pointer}
+
+.status{
+  border-left:3px solid var(--red);background:var(--panel);
+  border-top:1px solid var(--rule-soft);border-right:1px solid var(--rule-soft);border-bottom:1px solid var(--rule-soft);
+  padding:9px 14px;margin-bottom:14px;min-height:56px;
+}
+.status .regs{font-size:.8rem;color:var(--soft);margin-bottom:3px;font-variant-numeric:tabular-nums}
+.status .regs b{color:var(--ink);font-weight:700}
+.status .narr{font-size:1rem;color:var(--ink)}
+.status .narr .V{color:var(--red);font-weight:700}
+.status .narr .num{font-variant-numeric:tabular-nums}
+.tagRed{color:var(--red);font-weight:700}
+.tagGreen{color:var(--green);font-weight:700}
+.tagSky{color:var(--sky);font-weight:700}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.32fr) minmax(0,1fr);gap:14px;align-items:start}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+
+svg#graph{display:block;width:100%;height:auto;max-height:56vh;min-height:230px;overflow:visible}
+.epath,.ehalo{transition:stroke .22s,stroke-width .22s,stroke-opacity .22s,stroke-dasharray .22s}
+.earrow{transition:fill .22s}
+.vdisc{stroke:#4a4136;stroke-width:1.7;transition:fill .22s}
+.vring{stroke:#4a4136;stroke-width:1.5;transition:stroke-opacity .22s}
+.vlabel{font-family:var(--serif);font-size:14px;fill:var(--ink);pointer-events:none}
+.vstart{font-family:var(--serif);font-size:11px;font-style:italic;fill:var(--red);stroke:#f7f0dd;stroke-width:3.2px;paint-order:stroke;stroke-linejoin:round}
+.ebadge circle{fill:#fdfaf0;stroke:#871512;stroke-width:1.2}
+.ebadge text{font-family:var(--serif);fill:#871512;font-weight:700}
+.ebadge{transition:opacity .25s}
+.gwrap{background:var(--parch);border:1px solid var(--rule-soft);border-radius:2px;padding:6px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:10px;font-size:.8rem;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend svg{display:block}
+
+.code{border-top:1.6px solid var(--ink);border-bottom:1.6px solid var(--ink);padding:6px 0;margin:0}
+.cl{display:grid;grid-template-columns:1.9em 1fr;font-size:.88rem;line-height:1.62;
+    padding:0 8px 0 0;border-left:3px solid transparent;transition:background .18s,border-color .18s}
+.cl .no{color:var(--unused);font-size:.74rem;text-align:right;padding-right:7px;
+        font-variant-numeric:tabular-nums;user-select:none;padding-top:.22em}
+.cl.hot{background:var(--red-soft);border-left-color:var(--red)}
+.cl.hot .no{color:var(--red)}
+.cl b{font-weight:700}
+.cl i{font-style:italic}
+.cl .cm{color:var(--soft);font-style:italic;font-size:.94em}
+.cl .txt{white-space:pre-wrap}
+
+.arrays{overflow-x:auto}
+table.st{border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.88rem}
+table.st th,table.st td{border:1px solid var(--rule-soft);padding:2px 0;text-align:center;min-width:2.15em;height:1.85em;transition:background .2s,color .2s}
+table.st th.rowh{text-align:right;padding:2px 9px 2px 4px;border:none;color:var(--ink-2);font-weight:400;font-style:italic;white-space:nowrap;min-width:0}
+table.st tr.hdr th{border:none;border-bottom:1.4px solid var(--ink);color:var(--soft);font-weight:700;font-style:normal}
+table.st tr.deg td{color:var(--unused);border-color:transparent;font-size:.82rem}
+table.st tr.deg th.rowh{color:var(--unused);font-size:.82rem}
+table.st td.cur{background:var(--gold-soft)}
+table.st td.one{color:var(--green);font-weight:700}
+table.st td.zero{color:var(--unused)}
+table.st td.bset{color:var(--red);font-weight:700}
+table.st td.flash{background:var(--red);color:#fdf6e8;font-weight:700}
+table.st .vcol.curv{color:var(--red);font-weight:700}
+
+.adjscroll{max-height:330px;overflow:auto;padding-right:4px}
+.arow{display:grid;grid-template-columns:2.9em 1fr;align-items:start;gap:6px;padding:5px 4px 13px;border-bottom:1px dotted var(--rule-soft);position:relative}
+.arow:last-child{border-bottom:none}
+.arow.curV{background:linear-gradient(90deg,var(--gold-soft),rgba(240,229,196,0))}
+.arow .vlab{font-size:.95rem;font-weight:700;text-align:right;padding-top:4px;color:var(--ink-2)}
+.arow.curV .vlab{color:var(--red)}
+.lists{display:flex;flex-wrap:wrap;gap:4px 18px;align-items:flex-start;position:relative}
+.lst{display:flex;align-items:center;gap:0;padding-bottom:11px}
+.lst .lname{font-size:.78rem;color:var(--sky);font-style:italic;margin-right:6px;white-space:nowrap}
+.lst.out .lname{color:var(--ink-2)}
+.cell{
+  position:relative;min-width:2.1em;height:1.75em;display:flex;align-items:center;justify-content:center;
+  border:1.3px solid var(--sky);background:var(--sky-soft);color:var(--ink);
+  font-size:.85rem;border-radius:2px;padding:0 4px;font-variant-numeric:tabular-nums;
+  transition:background .2s,border-color .2s,color .2s,opacity .2s;
+}
+.lst.out .cell{border-color:var(--ink-2);background:var(--panel-2)}
+.cell.used{opacity:.4}
+.cell.used::after{content:"";position:absolute;left:8%;right:8%;top:50%;height:1px;background:currentColor;opacity:.75}
+.cell.cur{border-color:var(--red);border-width:2px;background:var(--red-soft);color:var(--red);font-weight:700;opacity:1}
+.cell.cur::after{display:none}
+.cell.reserved{border-color:var(--red);border-style:dashed;background:var(--red-soft);opacity:1;color:var(--red);font-weight:700}
+.cell.reserved::after{display:none}
+.cell .rmark{position:absolute;top:-8px;right:-6px;font-size:.6rem;color:var(--red);font-weight:700;background:var(--panel);padding:0 1px;line-height:1}
+.link{color:var(--sky);font-size:.8rem;padding:0 3px;user-select:none}
+.lst.out .link{color:var(--unused)}
+.nil{color:var(--unused);font-size:.85rem;padding-left:3px;font-style:italic}
+.caret{
+  position:absolute;top:0;left:0;width:0;height:0;
+  border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:7px solid var(--red);
+  transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .2s;pointer-events:none;
+}
+.caret.dim{opacity:.3;border-bottom-color:var(--soft)}
+.emptylst{font-size:.8rem;color:var(--unused);font-style:italic}
+
+.tour{display:flex;flex-wrap:wrap;align-items:center;gap:2px 0;font-size:1rem;min-height:2em}
+.tour .tv{display:inline-flex;align-items:center;justify-content:center;min-width:1.9em;height:1.9em;
+  border:1.4px solid var(--ink-2);border-radius:50%;background:var(--panel-2);font-size:.88rem;font-variant-numeric:tabular-nums}
+.tour .tv.first{border-color:var(--red);color:var(--red);font-weight:700}
+.tour .tv.last{border-color:var(--red);border-width:2px;background:var(--red-soft);color:var(--red);font-weight:700}
+.tour .tarr{position:relative;display:inline-flex;flex-direction:column;align-items:center;color:var(--ink-2);padding:0 1px}
+.tour .tarr .n{font-size:.63rem;color:var(--red);line-height:1;font-variant-numeric:tabular-nums}
+.tour .tarr .a{font-size:.9rem;line-height:1;letter-spacing:-.15em}
+.tour .pending{color:var(--unused);font-style:italic;font-size:.85rem;margin-left:8px;align-self:center}
+
+details.pnl{background:var(--panel);border:1px solid var(--rule);border-radius:3px;margin-top:14px}
+details.pnl > summary{cursor:pointer;padding:10px 16px;font-size:.72rem;text-transform:uppercase;letter-spacing:.13em;
+  font-weight:700;color:var(--soft);list-style:none;user-select:none}
+details.pnl > summary::-webkit-details-marker{display:none}
+details.pnl > summary::before{content:"▸ ";color:var(--rule);font-size:.9em}
+details.pnl[open] > summary::before{content:"▾ "}
+details.pnl[open] > summary{border-bottom:1px solid var(--rule-soft)}
+.dbody{padding:14px 16px}
+textarea{width:100%;min-height:170px;font-family:var(--mono);font-size:.8rem;line-height:1.5;
+  background:#fffdf6;color:var(--ink);border:1px solid var(--rule);border-radius:3px;padding:9px 11px;resize:vertical}
+textarea:focus{outline:2px solid var(--sky);outline-offset:-1px;border-color:var(--sky)}
+.note{font-size:.85rem;color:var(--ink-2);margin:0 0 10px}
+.note code{font-family:var(--mono);font-size:.85em;background:var(--panel-2);padding:1px 5px;border-radius:2px}
+.err{color:var(--red);font-size:.87rem;margin-top:9px;min-height:1.2em}
+.err.ok{color:var(--green)}
+.formrow{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin-bottom:10px}
+
+#testout{font-family:var(--mono);font-size:.76rem;line-height:1.65;white-space:pre-wrap;margin-top:12px;
+  background:#fffdf6;border:1px solid var(--rule-soft);border-radius:3px;padding:11px 13px;max-height:360px;overflow:auto;color:var(--ink-2)}
+.pass{color:var(--green);font-weight:700}
+.fail{color:var(--red);font-weight:700}
+.thead{color:var(--ink);font-weight:700}
+
+@media (max-width:900px){
+  .grid{grid-template-columns:minmax(0,1fr)}
+  body{padding:18px 12px 40px}
+  header.mast h1{font-size:1.6rem}
+}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.001ms!important;animation-duration:.001ms!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="mast">
+  <h1>Space-Efficient Hierholzer</h1>
+  <p class="sub">Eulerian cycles in <i>O</i>(<i>m</i>) time and <i>O</i>(<i>n</i>&#8201;lg&#8201;<i>m</i>) bits of working space — a step-by-step walkthrough.</p>
+  <p class="cite">Ziad Ismaili Alaoui, Detlef Plump, Sebastian Wild. <i>SOSA 2026</i>. <a href="https://www.wild-inter.net/publications/ismaili-alaoui-plump-wild-2026">paper</a> · <a href="https://arxiv.org/abs/2508.05251">arXiv:2508.05251</a></p>
+</header>
+
+<div class="controls">
+  <button id="b-first" title="First step (Home)">&#9198;</button>
+  <button id="b-prev" title="Previous step (←)">&#9204;</button>
+  <button id="b-play" class="primary" title="Play / pause (Space)">&#9205; Play</button>
+  <button id="b-next" title="Next step (→)">&#9205;</button>
+  <button id="b-last" title="Last step (End)">&#9197;</button>
+  <span class="stepcount" id="stepcount">step 0 / 0</span>
+  <input type="range" id="scrub" min="0" max="0" value="0" title="Scrub through the run">
+  <div class="divider"></div>
+  <span class="ctl-lbl">Speed</span>
+  <input type="range" id="speed" min="1" max="10" value="5" title="Animation speed">
+  <div class="divider"></div>
+  <label class="chk" title="Show one snapshot per loop iteration, as in Figure 3 of the paper"><input type="checkbox" id="compact"> one step per iteration</label>
+  <div class="divider"></div>
+  <span class="ctl-lbl">Start</span>
+  <select id="startv" title="Starting vertex v₀"></select>
+  <button id="b-reset" title="Restart the run">Restart</button>
+</div>
+
+<div class="status">
+  <div class="regs" id="regs"></div>
+  <div class="narr" id="narr">Pick a graph below, or step through the example from the paper.</div>
+</div>
+
+<div class="grid">
+  <div class="col">
+    <div class="panel">
+      <h2>Graph <span class="hint">— conceptual edge colouring; the current vertex has a double border</span></h2>
+      <div class="gwrap"><svg id="graph" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="panel">
+      <h2>Eulerian cycle written so far <span class="hint">— edges leave the algorithm in this order</span></h2>
+      <div class="tour" id="tour"></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="panel">
+      <h2>Algorithm <span class="hint">— Space-Efficient-Hierholzer</span></h2>
+      <div class="code" id="code"></div>
+    </div>
+    <div class="panel">
+      <h2>Working memory <span class="hint">— four <i>O</i>(lg&#8201;<i>m</i>)-bit words per vertex</span></h2>
+      <div class="arrays" id="arrays"></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" style="margin-top:14px">
+  <h2>Adjacency lists and their iterators <span class="hint">— one cursor per vertex sweeps <span style="color:#4b86b4">&#915;<sup>&#8722;</sup></span> and then &#915;<sup>+</sup>; <i>next</i>[<i>u</i>] is its position</span></h2>
+  <div class="adjscroll" id="adj"></div>
+</div>
+
+<details class="pnl" id="inpanel">
+  <summary>Graph input &amp; examples</summary>
+  <div class="dbody">
+    <div class="formrow">
+      <span class="ctl-lbl">Examples</span>
+      <select id="presets"></select>
+      <button id="b-loadpreset">Load</button>
+      <div class="divider"></div>
+      <span class="ctl-lbl">Random</span>
+      <input type="number" id="rn" min="2" max="40" value="7" style="width:4.2em" title="number of vertices">
+      <input type="number" id="rc" min="0" max="12" value="2" style="width:4.2em" title="extra random cycles">
+      <button id="b-random">New random graph</button>
+    </div>
+    <p class="note">Paste a graph in the <code>algs4</code> format produced by the graph editor — <code>V</code> and <code>E</code>, then one <code>u v</code> line per directed edge, optionally followed by <code>V</code> lines of <code>x y</code> coordinates. CS&nbsp;Academy <code>&lt;Graph nodes={…} edges={…} /&gt;</code> markup is accepted too. Vertices are 0-based on input; the graph must be Eulerian (strongly connected, and <i>d</i><sup>+</sup>(<i>v</i>)&nbsp;=&nbsp;<i>d</i><sup>&#8722;</sup>(<i>v</i>) everywhere).</p>
+    <textarea id="gtext" spellcheck="false"></textarea>
+    <div class="formrow" style="margin-top:10px;margin-bottom:0">
+      <button class="primary" id="b-load">Load graph</button>
+      <button id="b-dump">Copy current graph to the box</button>
+      <div class="divider"></div>
+      <label class="chk"><input type="checkbox" id="onebased" checked> label vertices 1…<i>n</i></label>
+      <div class="divider"></div>
+      <span class="ctl-lbl">Neighbour order</span>
+      <select id="order">
+        <option value="given">as listed in the input</option>
+        <option value="sorted">sorted by neighbour</option>
+      </select>
+    </div>
+    <div class="err" id="gerr"></div>
+  </div>
+</details>
+
+<details class="pnl">
+  <summary>Self-tests</summary>
+  <div class="dbody">
+    <p class="note">Checks the simulation against the worked example in the paper (Figure&nbsp;3) and against the defining properties of an Eulerian cycle on randomly generated graphs.</p>
+    <button class="primary" id="b-tests">Run tests</button>
+    <div id="testout">Not run yet.</div>
+  </div>
+</details>
+
+</div>
+<script>
+/* ══════════════════════════════════════════════════════════════════════
+   Space-Efficient Hierholzer — interactive walkthrough
+   Ismaili Alaoui, Plump & Wild, SOSA 2026 (arXiv:2508.05251)
+
+   Sections
+     1. Graph model and input formats
+     2. The algorithm, recorded frame by frame
+     3. Geometry and static rendering
+     4. Painting one frame
+     5. Navigation, examples and wiring
+     6. Self-tests
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════════
+   1.  Graph model and input formats
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* A graph is a flat edge list plus, for every vertex, the ordered list of
+   edge indices leaving it and entering it. Those two orders *are* Γ⁺(u,·)
+   and Γ⁻(u,·): the algorithm never looks at anything else, so the drawing
+   of the adjacency lists is a faithful picture of what it reads. */
+function buildGraph(n, edgeList, order, pos) {
+    const edges = edgeList.map(e => ({ u: e.u, v: e.v }));
+    const outAdj = Array.from({ length: n }, () => []);
+    const inAdj = Array.from({ length: n }, () => []);
+    edges.forEach((e, i) => { outAdj[e.u].push(i); inAdj[e.v].push(i); });
+    if (order === 'sorted') {
+        for (let v = 0; v < n; v++) {
+            outAdj[v].sort((a, b) => edges[a].v - edges[b].v || a - b);
+            inAdj[v].sort((a, b) => edges[a].u - edges[b].u || a - b);
+        }
+    }
+    return { n, edges, outAdj, inAdj, pos: pos || null };
+}
+const dOut = (G, v) => G.outAdj[v].length;
+const dIn = (G, v) => G.inAdj[v].length;
+
+/* Eulerian ⇔ balanced degrees + strongly connected on the non-isolated part. */
+function eulerianDefect(G) {
+    const n = G.n, bad = [];
+    for (let v = 0; v < n; v++) if (dIn(G, v) !== dOut(G, v)) bad.push(v);
+    if (bad.length) return { ok: false, kind: 'degree', bad };
+    const live = [];
+    for (let v = 0; v < n; v++) if (dOut(G, v) > 0) live.push(v);
+    if (!live.length) return { ok: false, kind: 'empty', bad: [] };
+    const reach = (adj, s) => {
+        const seen = new Set([s]), st = [s];
+        while (st.length) {
+            const x = st.pop();
+            for (const ei of adj[x]) {
+                const y = adj === G.outAdj ? G.edges[ei].v : G.edges[ei].u;
+                if (!seen.has(y)) { seen.add(y); st.push(y); }
+            }
+        }
+        return seen;
+    };
+    const fwd = reach(G.outAdj, live[0]), bwd = reach(G.inAdj, live[0]);
+    const un = live.filter(v => !fwd.has(v) || !bwd.has(v));
+    if (un.length) return { ok: false, kind: 'connected', bad: un };
+    return { ok: true, live };
+}
+
+/* ── algs4 format, exactly as the graph editor emits it ──────────────── */
+function tokenizeLines(text) {
+    return text.split('\n').map(l => l.trim().split(/\s+/).filter(s => s.length)).filter(t => t.length);
+}
+function parseAlgs4(text) {
+    const lines = tokenizeLines(text);
+    if (!lines.length) throw new Error('The box is empty.');
+    let v, e, li;
+    if (lines[0].length >= 2) { v = +lines[0][0]; e = +lines[0][1]; li = 1; }
+    else if (lines.length >= 2) { v = +lines[0][0]; e = +lines[1][0]; li = 2; }
+    else throw new Error('Expected the number of edges on the second line.');
+    if (!Number.isInteger(v) || v < 1) throw new Error('V must be a positive integer.');
+    if (!Number.isInteger(e) || e < 0) throw new Error('E must be a non-negative integer.');
+    const edges = [];
+    for (let k = 0; k < e; k++) {
+        if (li >= lines.length) throw new Error(`Expected ${e} edge lines, found ${k}.`);
+        const t = lines[li++];
+        const a = parseInt(t[0], 10), b = parseInt(t[1], 10);
+        if (!Number.isFinite(a) || !Number.isFinite(b)) throw new Error(`Edge ${k + 1}: expected two vertex numbers.`);
+        if (a < 0 || a >= v || b < 0 || b >= v) throw new Error(`Edge ${k + 1}: vertex outside 0…${v - 1}.`);
+        edges.push({ u: a, v: b });
+    }
+    let pos = null;
+    const rest = lines.length - li;
+    if (rest > 0) {
+        if (rest !== v) throw new Error(`After the edges, expected either nothing or exactly ${v} coordinate lines, found ${rest}.`);
+        const raw = [];
+        for (let i = 0; i < v; i++) {
+            const t = lines[li++], x = parseFloat(t[0]), y = parseFloat(t[1]);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error(`Vertex ${i}: expected "x y".`);
+            raw.push({ x, y });
+        }
+        pos = normalizePositions(raw);
+    }
+    return { n: v, edges, pos };
+}
+function normalizePositions(raw) {
+    if (!raw.length) return [];
+    let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+    for (const p of raw) { mnx = Math.min(mnx, p.x); mny = Math.min(mny, p.y); mxx = Math.max(mxx, p.x); mxy = Math.max(mxy, p.y); }
+    const w = Math.max(mxx - mnx, 1e-6), h = Math.max(mxy - mny, 1e-6);
+    const pad = .08, avail = 1 - 2 * pad, s = avail / Math.max(w, h);
+    const offX = pad + (avail - w * s) / 2, offY = pad + (avail - h * s) / 2;
+    return raw.map(p => ({ x: offX + (p.x - mnx) * s, y: offY + (p.y - mny) * s }));
+}
+function dumpAlgs4(G, withPos) {
+    const out = [String(G.n), String(G.edges.length)];
+    for (const e of G.edges) out.push(`${e.u} ${e.v}`);
+    if (withPos && G.pos) for (const p of G.pos) out.push(`${round3(p.x)} ${round3(p.y)}`);
+    return out.join('\n');
+}
+const round3 = x => Math.round(x * 1000) / 1000;
+
+/* ── CS Academy markup, the editor's other output mode ───────────────── */
+function looksLikeCSA(t) { return /<\s*Graph\b|nodes\s*=\s*\{/.test(t); }
+function extractBalanced(text, key) {
+    const tag = key + '={', i = text.indexOf(tag);
+    if (i < 0) return null;
+    let j = i + tag.length;
+    while (j < text.length && /\s/.test(text[j])) j++;
+    if (text[j] !== '[') return null;
+    let depth = 0, k = j;
+    for (; k < text.length; k++) {
+        if (text[k] === '[') depth++;
+        else if (text[k] === ']') { depth--; if (!depth) { k++; break; } }
+    }
+    if (depth !== 0) throw new Error(`Unbalanced brackets in ${key}={…}.`);
+    return text.slice(j, k);
+}
+function parseCSA(text) {
+    const ns = extractBalanced(text, 'nodes'), es = extractBalanced(text, 'edges');
+    if (!ns || !es) throw new Error('Could not find nodes={[…]} and edges={[…]} in the markup.');
+    const safe = src => {
+        if (!/^[\s\[\]{}",':.\-+0-9a-zA-Z_]*$/.test(src)) throw new Error('Unexpected characters in the markup.');
+        return Function('"use strict"; return (' + src + ');')();
+    };
+    const nodes = safe(ns), eds = safe(es);
+    if (!Array.isArray(nodes) || !Array.isArray(eds)) throw new Error('nodes / edges are not arrays.');
+    const idx = new Map();
+    nodes.forEach((nd, i) => idx.set(nd.label, i));
+    const pos = normalizePositions(nodes.map(nd => {
+        const c = nd.center || nd;
+        return { x: Number.isFinite(c.x) ? c.x : 0, y: Number.isFinite(c.y) ? c.y : 0 };
+    }));
+    const edges = eds.map(e => {
+        const u = idx.has(e.source) ? idx.get(e.source) : e.source;
+        const v = idx.has(e.target) ? idx.get(e.target) : e.target;
+        if (!Number.isFinite(u) || !Number.isFinite(v) || u < 0 || v < 0 || u >= nodes.length || v >= nodes.length)
+            throw new Error('An edge refers to an unknown node label.');
+        return { u, v };
+    });
+    return { n: nodes.length, edges, pos };
+}
+function parseGraphText(text) { return looksLikeCSA(text) ? parseCSA(text) : parseAlgs4(text); }
+
+/* ── random Eulerian multigraphs ─────────────────────────────────────── */
+function mulberry32(a) {
+    return function () {
+        a |= 0; a = a + 0x6D2B79F5 | 0;
+        let t = Math.imul(a ^ a >>> 15, 1 | a);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+}
+/* A union of directed cycles is automatically degree-balanced; starting from
+   one Hamiltonian cycle also makes it strongly connected. */
+function randomEulerian(n, extra, seed) {
+    const rnd = mulberry32(seed);
+    const shuffled = () => {
+        const a = []; for (let i = 0; i < n; i++) a.push(i);
+        for (let i = n - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1));[a[i], a[j]] = [a[j], a[i]]; }
+        return a;
+    };
+    const perm = shuffled(), edges = [];
+    for (let i = 0; i < n; i++) edges.push({ u: perm[i], v: perm[(i + 1) % n] });
+    for (let k = 0; k < extra; k++) {
+        const len = (n > 1 && rnd() < .12) ? 1 : 2 + Math.floor(rnd() * Math.min(n - 1, 3));
+        const cyc = shuffled().slice(0, Math.max(1, Math.min(n, len)));
+        for (let i = 0; i < cyc.length; i++) edges.push({ u: cyc[i], v: cyc[(i + 1) % cyc.length] });
+    }
+    edges.sort((a, b) => a.u - b.u || a.v - b.v);
+    return { n, edges, pos: null };
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   2.  The algorithm, recorded frame by frame
+
+   Every frame is a complete snapshot: the four arrays, the counter c, the
+   current vertex, the conceptual colour of every edge and the output
+   numbers. Nothing is reconstructed while painting, so scrubbing backwards
+   is exact.
+   ══════════════════════════════════════════════════════════════════════ */
+const BLACK = 'black', RED = 'red', GREEN = 'green', OUT = 'out';
+
+function generateFrames(G, v0) {
+    const n = G.n, m = G.edges.length;
+    const next = new Array(n).fill(0), visited = new Array(n).fill(0),
+        skipped = new Array(n).fill(0), B = new Array(n).fill(-1);
+    const colour = new Array(m).fill(BLACK), num = new Array(m).fill(0);
+    const reserved = new Array(n).fill(-1);      // the out-edge held back for last
+    let c = 0, u = v0, i = 0, tourV = [v0];
+    const frames = [];
+
+    const snap = (lines, desc, extra) => {
+        frames.push(Object.assign({
+            lines, desc,
+            next: next.slice(), visited: visited.slice(), skipped: skipped.slice(), B: B.slice(),
+            colour: colour.slice(), num: num.slice(), reserved: reserved.slice(),
+            c, u, i, tour: tourV.slice(),
+            focus: null, dir: null, flash: [], major: false, done: false
+        }, extra || {}));
+    };
+
+    visited[u] = 1;
+    snap([1, 2, 3, 4, 5],
+        `Start at <span class="V">${L(v0)}</span>. All four arrays are zero, no edge has been written yet.`,
+        { major: true, flash: [['visited', u]] });
+
+    let guard = 0;
+    while (c < m) {
+        if (++guard > 8 * m + 64) { snap([], 'The run did not terminate — the graph is probably not Eulerian.', { major: true, done: true }); break; }
+        const uPrev = u;
+        next[u]++; i = next[u];
+        snap([7, 8],
+            `Advance the cursor of <span class="V">${L(u)}</span>: <i>next</i>[${L(u)}] = <span class="num">${i}</span>.`,
+            { flash: [['next', u]] });
+
+        if (i <= dIn(G, u)) {
+            /* ── reverse traversal ─────────────────────────────────── */
+            const e = G.inAdj[u][i - 1], v = G.edges[e].u;
+            snap([9, 10],
+                `<span class="num">${i}</span> &le; <i>d</i><sup>&minus;</sup>(${L(u)}) = <span class="num">${dIn(G, u)}</span>, so this is the <span class="tagSky">reverse traversal</span>: read the ${ord(i)} incoming edge, <span class="V">${L(v)}</span>&thinsp;&rarr;&thinsp;<span class="V">${L(u)}</span>.`,
+                { focus: e, dir: 'rev' });
+
+            if (visited[v] === 0) {
+                if (v !== v0) B[v] = u;
+                visited[v] = 1; colour[e] = RED;
+                snap(v !== v0 ? [11, 12, 13, 15] : [11, 12, 15],
+                    `<span class="V">${L(v)}</span> is reached for the first time, so ${L(v)}&thinsp;&rarr;&thinsp;${L(u)} becomes <span class="tagRed">Red</span>` +
+                    (v !== v0 ? ` and <i>B</i>[${L(v)}] = ${L(u)} records it.` : ` &mdash; but <i>v</i><sub>0</sub> keeps <i>B</i> = 0, it has no Red edge.`),
+                    { focus: e, dir: 'rev', flash: v !== v0 ? [['B', v], ['visited', v]] : [['visited', v]] });
+            } else {
+                colour[e] = GREEN;
+                snap([11, 16],
+                    `<span class="V">${L(v)}</span> has been reached before, so ${L(v)}&thinsp;&rarr;&thinsp;${L(u)} becomes <span class="tagGreen">Green</span>. Nothing is stored.`,
+                    { focus: e, dir: 'rev' });
+            }
+            const col = colour[e] === RED ? '<span class="tagRed">Red</span>' : '<span class="tagGreen">Green</span>';
+            u = v;
+            snap([17],
+                `<span class="tagSky">Reverse step</span>: from <span class="V">${L(uPrev)}</span> walk backwards along the now ${col} edge ${L(v)}&thinsp;&rarr;&thinsp;${L(uPrev)}. The current vertex is <span class="V">${L(v)}</span>.`,
+                { focus: e, dir: 'rev', major: true, from: uPrev });
+
+        } else {
+            /* ── backtracking ──────────────────────────────────────── */
+            i = next[u] - dIn(G, u);
+            snap([9, 18, 19],
+                `<i>next</i>[${L(u)}] = <span class="num">${next[u]}</span> &gt; <i>d</i><sup>&minus;</sup>(${L(u)}) = <span class="num">${dIn(G, u)}</span>: every incoming edge of <span class="V">${L(u)}</span> has been used, so we <b>backtrack</b> along outgoing edge <span class="num">${i}</span>.`,
+                { focus: null });
+
+            const cand = i <= dOut(G, u) ? G.outAdj[u][i - 1] : -1;
+            if (cand >= 0 && G.edges[cand].v === B[u] && skipped[u] === 0) {
+                skipped[u] = 1; reserved[u] = cand; next[u]++; i++;
+                snap([20, 21, 22, 23],
+                    `Outgoing edge <span class="num">${i - 1}</span> of <span class="V">${L(u)}</span> leads to <i>B</i>[${L(u)}] = ${L(B[u])}: that is the <span class="tagRed">Red</span> edge. Reserve it for last and move on to edge <span class="num">${i}</span>.`,
+                    { focus: cand, flash: [['skipped', u], ['next', u]] });
+            } else if (cand >= 0) {
+                snap([20],
+                    B[u] < 0
+                        ? `<span class="V">${L(u)}</span> is <i>v</i><sub>0</sub> and has no Red edge, so nothing is reserved.`
+                        : `Outgoing edge <span class="num">${i}</span> leads to ${L(G.edges[cand].v)} &ne; <i>B</i>[${L(u)}] = ${L(B[u])}` +
+                        (skipped[u] ? `, and the Red edge is already reserved.` : `, so it is not the Red edge.`),
+                    { focus: cand });
+            }
+
+            let e, v;
+            if (i > dOut(G, u)) {
+                e = reserved[u]; v = B[u];
+                if (e < 0) { snap([], 'Ran out of outgoing edges — the graph is not Eulerian.', { major: true, done: true }); break; }
+                snap([25, 26],
+                    `Every other outgoing edge of <span class="V">${L(u)}</span> is spent, so the reserved <span class="tagRed">Red</span> edge to <i>B</i>[${L(u)}] = <span class="V">${L(v)}</span> is taken now.`,
+                    { focus: e, dir: 'fwd' });
+            } else {
+                e = G.outAdj[u][i - 1]; v = G.edges[e].v;
+                snap([25, 27, 28],
+                    `<span class="num">${i}</span> &le; <i>d</i><sup>+</sup>(${L(u)}) = <span class="num">${dOut(G, u)}</span>: backtrack along &Gamma;<sup>+</sup>(${L(u)},&#8201;${i}) = <span class="V">${L(v)}</span>.`,
+                    { focus: e, dir: 'fwd' });
+            }
+
+            colour[e] = OUT; c++; num[e] = c; tourV.push(v);
+            snap([30, 31],
+                `<b>Write</b> edge <span class="num">${c}</span> of the Eulerian cycle: <span class="V">${L(u)}</span>&thinsp;&rarr;&thinsp;<span class="V">${L(v)}</span>. &nbsp;<i>c</i> = <span class="num">${c}</span> of ${m}.`,
+                { focus: e, dir: 'fwd' });
+            u = v;
+            snap([32],
+                `<b>Backtrack</b> from <span class="V">${L(uPrev)}</span> to <span class="V">${L(v)}</span> and write ${L(uPrev)}&thinsp;&rarr;&thinsp;${L(v)} as edge <span class="num">${c}</span> of ${m} of the Eulerian cycle.`,
+                { focus: e, dir: 'fwd', major: true, from: uPrev });
+        }
+    }
+    if (c >= m) snap([6, 34],
+        `<i>c</i> = <i>m</i> = <span class="num">${m}</span>. The written edges form an Eulerian cycle, produced in order and without ever storing more than four numbers per vertex.`,
+        { major: true, done: true, focus: null });
+    return frames;
+}
+const ord = i => i + (i === 1 ? 'st' : i === 2 ? 'nd' : i === 3 ? 'rd' : 'th');
+
+/* ══════════════════════════════════════════════════════════════════════
+   3.  Geometry and static rendering
+   ══════════════════════════════════════════════════════════════════════ */
+const SVGNS = 'http://www.w3.org/2000/svg';
+const el = t => document.createElementNS(SVGNS, t);
+const $ = id => document.getElementById(id);
+
+const SQ = 700, PAD = 46, R = 17, MARGIN = 30;
+
+let G = null, v0 = 0, frames = [], view = [], idx = 0, labelBase = 1, nbOrder = 'given';
+let ref = { edge: [], vert: [], cell: [], caret: [], row: [], arr: {}, code: [] };
+let P = [];                                   // pixel positions
+
+function L(v) { return v < 0 ? '&mdash;' : String(v + labelBase); }
+function Lp(v) { return v < 0 ? '–' : String(v + labelBase); }
+
+/* Positions are laid out inside a square so that supplied coordinates keep
+   their aspect ratio; the view box is cropped to the drawing afterwards. */
+function layoutPositions(G) {
+    const out = [];
+    if (G.pos && G.pos.length === G.n) {
+        for (const p of G.pos) out.push({ x: PAD + p.x * (SQ - 2 * PAD), y: PAD + p.y * (SQ - 2 * PAD) });
+    } else {
+        const cx = SQ / 2, cy = SQ / 2, rad = SQ / 2 - PAD;
+        for (let i = 0; i < G.n; i++) {
+            const a = -Math.PI / 2 + 2 * Math.PI * i / G.n;
+            out.push({ x: cx + rad * Math.cos(a), y: cy + rad * Math.sin(a) });
+        }
+    }
+    return out;
+}
+
+/* Parallel and antiparallel edges are bowed apart symmetrically; the offsets
+   are assigned in the canonical direction (low id → high id) so that u→v and
+   v→u land on opposite sides instead of on top of each other. */
+function edgePaths(G, P) {
+    const groups = new Map(), loops = new Map(), d = [], hull = [];
+    G.edges.forEach((e, i) => {
+        if (e.u === e.v) { if (!loops.has(e.u)) loops.set(e.u, []); loops.get(e.u).push(i); }
+        else {
+            const k = Math.min(e.u, e.v) + '_' + Math.max(e.u, e.v);
+            if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i);
+        }
+    });
+    const cx = P.reduce((s, p) => s + p.x, 0) / Math.max(1, P.length);
+    const cy = P.reduce((s, p) => s + p.y, 0) / Math.max(1, P.length);
+
+    for (const [, list] of groups) {
+        const k = list.length;
+        list.forEach((ei, j) => {
+            const e = G.edges[ei];
+            const lo = Math.min(e.u, e.v), hi = Math.max(e.u, e.v);
+            const A = P[lo], Bp = P[hi];
+            const dx = Bp.x - A.x, dy = Bp.y - A.y, len = Math.hypot(dx, dy) || 1;
+            const px = -dy / len, py = dx / len;
+            const spread = Math.min(34, Math.max(20, len * .17));
+            const off = (j - (k - 1) / 2) * spread;
+            const mx = (A.x + Bp.x) / 2, my = (A.y + Bp.y) / 2;
+            const C = { x: mx + px * 2 * off, y: my + py * 2 * off };
+            hull.push(C);
+            const S = P[e.u], E = P[e.v];
+            d[ei] = `M ${f(S.x)} ${f(S.y)} Q ${f(C.x)} ${f(C.y)} ${f(E.x)} ${f(E.y)}`;
+        });
+    }
+    for (const [v, list] of loops) {
+        const p = P[v];
+        let base = Math.atan2(p.y - cy, p.x - cx);
+        if (!isFinite(base) || (Math.abs(p.x - cx) < 1e-6 && Math.abs(p.y - cy) < 1e-6)) base = -Math.PI / 2;
+        list.forEach((ei, j) => {
+            const a = base + (j - (list.length - 1) / 2) * 1.05;
+            const w = .44, reach = R + 46;
+            const S = { x: p.x + R * Math.cos(a - w), y: p.y + R * Math.sin(a - w) };
+            const E = { x: p.x + R * Math.cos(a + w), y: p.y + R * Math.sin(a + w) };
+            const C1 = { x: p.x + reach * Math.cos(a - w * 1.7), y: p.y + reach * Math.sin(a - w * 1.7) };
+            const C2 = { x: p.x + reach * Math.cos(a + w * 1.7), y: p.y + reach * Math.sin(a + w * 1.7) };
+            hull.push(C1, C2);
+            d[ei] = `M ${f(S.x)} ${f(S.y)} C ${f(C1.x)} ${f(C1.y)} ${f(C2.x)} ${f(C2.y)} ${f(E.x)} ${f(E.y)}`;
+        });
+    }
+    return { d, hull };
+}
+const f = x => Math.round(x * 100) / 100;
+
+/* Where the stroke leaves the source disc and meets the target disc; measured
+   on the live path element, so quadratic and cubic segments are handled alike. */
+function trimLengths(path, e) {
+    const total = path.getTotalLength();
+    const at = l => path.getPointAtLength(Math.max(0, Math.min(total, l)));
+    const far = (l, c) => { const q = at(l); return Math.hypot(q.x - c.x, q.y - c.y) > R + 1.5; };
+    let l0 = 0, l1 = total;
+    if (!far(0, P[e.u])) { let lo = 0, hi = total; for (let k = 0; k < 22; k++) { const mid = (lo + hi) / 2; if (far(mid, P[e.u])) hi = mid; else lo = mid; } l0 = hi; }
+    if (!far(total, P[e.v])) { let lo = 0, hi = total; for (let k = 0; k < 22; k++) { const mid = (lo + hi) / 2; if (far(total - mid, P[e.v])) hi = mid; else lo = mid; } l1 = total - hi; }
+    if (l1 - l0 < 6) { l0 = Math.max(0, total / 2 - 3); l1 = Math.min(total, total / 2 + 3); }
+    return { total, l0, l1 };
+}
+
+function buildGraphSVG() {
+    const svg = $('graph');
+    svg.innerHTML = '';
+    P = layoutPositions(G);
+    const { d: ds, hull } = edgePaths(G, P);
+
+    /* crop the view box to what is actually drawn, so a wide graph does not
+       float in a tall empty canvas and a self-loop is never clipped */
+    let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+    for (const q of P) { mnx = Math.min(mnx, q.x - R); mny = Math.min(mny, q.y - R); mxx = Math.max(mxx, q.x + R); mxy = Math.max(mxy, q.y + R + 12); }
+    for (const q of hull) { mnx = Math.min(mnx, q.x); mny = Math.min(mny, q.y); mxx = Math.max(mxx, q.x); mxy = Math.max(mxy, q.y); }
+    let bw = mxx - mnx + 2 * MARGIN, bh = mxy - mny + 2 * MARGIN;
+    let bx = mnx - MARGIN, by = mny - MARGIN;
+    if (bw < 300) { bx -= (300 - bw) / 2; bw = 300; }
+    if (bh < 190) { by -= (190 - bh) / 2; bh = 190; }
+    svg.setAttribute('viewBox', `${f(bx)} ${f(by)} ${f(bw)} ${f(bh)}`);
+
+    const gHalo = el('g'), gEdge = el('g'), gArrow = el('g'), gBadge = el('g'), gNode = el('g'), gTok = el('g');
+    gTok.setAttribute('id', 'g-token');
+    [gHalo, gEdge, gArrow, gBadge, gNode, gTok].forEach(g => svg.appendChild(g));
+
+    ref.edge = G.edges.map((e, i) => {
+        const halo = el('path'), path = el('path'), arrow = el('polygon');
+        halo.setAttribute('d', ds[i]); halo.setAttribute('fill', 'none');
+        halo.setAttribute('class', 'ehalo'); halo.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('d', ds[i]); path.setAttribute('fill', 'none');
+        path.setAttribute('class', 'epath'); path.setAttribute('stroke-linecap', 'round');
+        arrow.setAttribute('class', 'earrow');
+        gHalo.appendChild(halo); gEdge.appendChild(path); gArrow.appendChild(arrow);
+
+        const bg = el('g'); bg.setAttribute('class', 'ebadge');
+        const bc = el('circle'); bc.setAttribute('r', 9.5);
+        const bt = el('text'); bt.setAttribute('text-anchor', 'middle'); bt.setAttribute('dominant-baseline', 'central');
+        bt.setAttribute('dy', '.5'); bt.setAttribute('font-size', '10.5');
+        bg.appendChild(bc); bg.appendChild(bt); gBadge.appendChild(bg);
+        return { halo, path, arrow, badge: bg, badgeText: bt, d: ds[i] };
+    });
+
+    ref.vert = [];
+    for (let v = 0; v < G.n; v++) {
+        const g = el('g'), ring = el('circle'), c = el('circle'), t = el('text');
+        ring.setAttribute('cx', P[v].x); ring.setAttribute('cy', P[v].y); ring.setAttribute('r', R + 3.6);
+        ring.setAttribute('fill', 'none'); ring.setAttribute('class', 'vring');
+        c.setAttribute('cx', P[v].x); c.setAttribute('cy', P[v].y); c.setAttribute('r', R);
+        c.setAttribute('class', 'vdisc');
+        t.setAttribute('x', P[v].x); t.setAttribute('y', P[v].y);
+        t.setAttribute('text-anchor', 'middle'); t.setAttribute('dominant-baseline', 'central');
+        t.setAttribute('dy', '.5'); t.setAttribute('class', 'vlabel');
+        t.textContent = Lp(v);
+        g.appendChild(ring); g.appendChild(c); g.appendChild(t);
+        const st = el('text');
+        st.setAttribute('x', P[v].x); st.setAttribute('y', P[v].y + R + 14);
+        st.setAttribute('text-anchor', 'middle'); st.setAttribute('class', 'vstart');
+        st.textContent = '';
+        g.appendChild(st);
+        gNode.appendChild(g);
+        ref.vert.push({ g, ring, disc: c, text: t, start: st });
+    }
+
+    /* geometry that needs the live DOM */
+    ref.edge.forEach((r, i) => {
+        const e = G.edges[i];
+        const tl = trimLengths(r.path, e);
+        r.len = tl;
+        const pEnd = r.path.getPointAtLength(tl.l1);
+        const pBack = r.path.getPointAtLength(Math.max(tl.l0, tl.l1 - 6));
+        const ang = Math.atan2(pEnd.y - pBack.y, pEnd.x - pBack.x);
+        const aw = 4.6, alen = 10.5;
+        const pts = [
+            [pEnd.x, pEnd.y],
+            [pEnd.x - alen * Math.cos(ang) + aw * Math.sin(ang), pEnd.y - alen * Math.sin(ang) - aw * Math.cos(ang)],
+            [pEnd.x - alen * Math.cos(ang) - aw * Math.sin(ang), pEnd.y - alen * Math.sin(ang) + aw * Math.cos(ang)]
+        ];
+        r.arrow.setAttribute('points', pts.map(p => `${f(p[0])},${f(p[1])}`).join(' '));
+        const bl = tl.l0 + (tl.l1 - tl.l0) * .38;
+        const mid = r.path.getPointAtLength(bl);
+        const m2 = r.path.getPointAtLength(Math.min(tl.l1, bl + 5));
+        const na = Math.atan2(m2.y - mid.y, m2.x - mid.x) - Math.PI / 2;
+        r.badge.setAttribute('transform', `translate(${f(mid.x + 13 * Math.cos(na))},${f(mid.y + 13 * Math.sin(na))})`);
+    });
+}
+
+/* ── adjacency lists ─────────────────────────────────────────────────── */
+function buildAdj() {
+    const host = $('adj');
+    host.innerHTML = '';
+    ref.cell = G.edges.map(() => ({}));
+    ref.caret = []; ref.row = [];
+    for (let v = 0; v < G.n; v++) {
+        const row = document.createElement('div');
+        row.className = 'arow';
+        const lab = document.createElement('div');
+        lab.className = 'vlab'; lab.textContent = Lp(v);
+        const lists = document.createElement('div');
+        lists.className = 'lists';
+
+        const mk = (kind, name, arr, dirTo) => {
+            const box = document.createElement('div');
+            box.className = 'lst ' + kind;
+            const nm = document.createElement('span');
+            nm.className = 'lname'; nm.innerHTML = name;
+            box.appendChild(nm);
+            if (!arr.length) {
+                const em = document.createElement('span');
+                em.className = 'emptylst'; em.textContent = '∅';
+                box.appendChild(em);
+            }
+            arr.forEach((ei, j) => {
+                if (j) { const lk = document.createElement('span'); lk.className = 'link'; lk.innerHTML = '&rarr;'; box.appendChild(lk); }
+                const cell = document.createElement('span');
+                cell.className = 'cell';
+                const other = dirTo ? G.edges[ei].v : G.edges[ei].u;
+                cell.textContent = Lp(other);
+                cell.title = `${kind === 'in' ? 'Γ⁻' : 'Γ⁺'}(${Lp(v)}, ${j + 1}) — edge ${Lp(G.edges[ei].u)}→${Lp(G.edges[ei].v)}`;
+                const rm = document.createElement('span');
+                rm.className = 'rmark'; rm.textContent = ''; cell.appendChild(rm);
+                box.appendChild(cell);
+                ref.cell[ei][kind] = { el: cell, mark: rm, v, j };
+            });
+            if (arr.length) { const nil = document.createElement('span'); nil.className = 'nil'; nil.innerHTML = '&rarr;&#8869;'; box.appendChild(nil); }
+            return { box, nm };
+        };
+        const inL = mk('in', 'Γ<sup>−</sup>', G.inAdj[v], false);
+        const outL = mk('out', 'Γ<sup>+</sup>', G.outAdj[v], true);
+        lists.appendChild(inL.box); lists.appendChild(outL.box);
+        const caret = document.createElement('div');
+        caret.className = 'caret';
+        lists.appendChild(caret);
+        row.appendChild(lab); row.appendChild(lists);
+        host.appendChild(row);
+        ref.caret.push({ el: caret, inHead: inL.nm, outHead: outL.nm });
+        ref.row.push(row);
+    }
+}
+
+/* ── working-memory table ────────────────────────────────────────────── */
+function buildArrays() {
+    const host = $('arrays');
+    host.innerHTML = '';
+    const tbl = document.createElement('table');
+    tbl.className = 'st';
+    const mkRow = (cls, label) => {
+        const tr = document.createElement('tr');
+        if (cls) tr.className = cls;
+        const th = document.createElement('th');
+        th.className = 'rowh'; th.innerHTML = label; tr.appendChild(th);
+        const out = [];
+        for (let v = 0; v < G.n; v++) {
+            const td = document.createElement(cls === 'hdr' ? 'th' : 'td');
+            if (cls === 'hdr') td.className = 'vcol';
+            tr.appendChild(td); out.push(td);
+        }
+        tbl.appendChild(tr); return out;
+    };
+    ref.arr = {
+        hdr: mkRow('hdr', 'vertex'),
+        din: mkRow('deg', '<i>d</i><sup>−</sup>'),
+        dout: mkRow('deg', '<i>d</i><sup>+</sup>'),
+        next: mkRow('', '<i>next</i>'),
+        visited: mkRow('', '<i>visited</i>'),
+        skipped: mkRow('', '<i>skipped</i>'),
+        B: mkRow('', '<i>B</i>')
+    };
+    for (let v = 0; v < G.n; v++) {
+        ref.arr.hdr[v].textContent = Lp(v);
+        ref.arr.din[v].textContent = dIn(G, v);
+        ref.arr.dout[v].textContent = dOut(G, v);
+    }
+    host.appendChild(tbl);
+}
+
+/* ── pseudocode ──────────────────────────────────────────────────────── */
+const CODE = [
+    [1, 0, '<i>next</i>[1..<i>n</i>], <i>visited</i>[1..<i>n</i>], <i>skipped</i>[1..<i>n</i>], <i>B</i>[1..<i>n</i>] &larr; [0]<sup><i>n</i></sup>'],
+    [2, 0, '<i>c</i> &larr; 0'],
+    [3, 0, '<i>v</i><sub>0</sub> &larr; <i>k</i> &isin; [<i>n</i>]<span class="cm">   // any start vertex</span>'],
+    [4, 0, '<i>u</i> &larr; <i>v</i><sub>0</sub>'],
+    [5, 0, '<i>visited</i>[<i>u</i>] &larr; 1'],
+    [6, 0, '<b>while</b> <i>c</i> &lt; <i>m</i> <b>do</b>'],
+    [7, 1, '<i>next</i>[<i>u</i>] &larr; <i>next</i>[<i>u</i>] + 1'],
+    [8, 1, '<i>i</i> &larr; <i>next</i>[<i>u</i>]'],
+    [9, 1, '<b>if</b> <i>i</i> &le; <i>d</i><sup>&minus;</sup>(<i>u</i>) <b>then</b><span class="cm">   // reverse traversal</span>'],
+    [10, 2, '<i>v</i> &larr; &Gamma;<sup>&minus;</sup>(<i>u</i>, <i>i</i>)'],
+    [11, 2, '<b>if</b> <i>visited</i>[<i>v</i>] = 0 <b>then</b>'],
+    [12, 3, '<b>if</b> <i>v</i> &ne; <i>v</i><sub>0</sub> <b>then</b>'],
+    [13, 4, '<i>B</i>[<i>v</i>] &larr; <i>u</i><span class="cm">   // colour vu Red</span>'],
+    [14, 3, '<b>end if</b>'],
+    [15, 3, '<i>visited</i>[<i>v</i>] &larr; 1'],
+    [16, 2, '<b>end if</b><span class="cm">   // else vu is Green</span>'],
+    [17, 2, '<i>u</i> &larr; <i>v</i>'],
+    [18, 1, '<b>else</b><span class="cm">   // backtracking</span>'],
+    [19, 2, '<i>i</i> &larr; <i>next</i>[<i>u</i>] &minus; <i>d</i><sup>&minus;</sup>(<i>u</i>)'],
+    [20, 2, '<b>if</b> &Gamma;<sup>+</sup>(<i>u</i>, <i>i</i>) = <i>B</i>[<i>u</i>] <b>and</b> <i>skipped</i>[<i>u</i>] = 0 <b>then</b>'],
+    [21, 3, '<i>skipped</i>[<i>u</i>] &larr; 1<span class="cm">   // save the Red edge for last</span>'],
+    [22, 3, '<i>next</i>[<i>u</i>] &larr; <i>next</i>[<i>u</i>] + 1'],
+    [23, 3, '<i>i</i> &larr; <i>i</i> + 1'],
+    [24, 2, '<b>end if</b>'],
+    [25, 2, '<b>if</b> <i>i</i> &gt; <i>d</i><sup>+</sup>(<i>u</i>) <b>then</b>'],
+    [26, 3, '<i>v</i> &larr; <i>B</i>[<i>u</i>]'],
+    [27, 2, '<b>else</b>'],
+    [28, 3, '<i>v</i> &larr; &Gamma;<sup>+</sup>(<i>u</i>, <i>i</i>)'],
+    [29, 2, '<b>end if</b>'],
+    [30, 2, '<b>write</b>(<i>uv</i>)'],
+    [31, 2, '<i>c</i> &larr; <i>c</i> + 1'],
+    [32, 2, '<i>u</i> &larr; <i>v</i>'],
+    [33, 1, '<b>end if</b>'],
+    [34, 0, '<b>end while</b>']
+];
+function buildCode() {
+    const host = $('code');
+    host.innerHTML = '';
+    ref.code = {};
+    for (const [no, ind, html] of CODE) {
+        const d = document.createElement('div');
+        d.className = 'cl';
+        d.innerHTML = `<span class="no">${no}</span><span class="txt">${'    '.repeat(ind)}${html}</span>`;
+        host.appendChild(d);
+        ref.code[no] = d;
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   4.  Painting one frame
+   ══════════════════════════════════════════════════════════════════════ */
+const STYLE = {
+    black: { stroke: '#a99b80', w: 2, dash: '' },
+    red: { stroke: '#871512', w: 3, dash: '' },
+    green: { stroke: '#2c6a26', w: 3, dash: '' },
+    out: { stroke: '#4a4136', w: 2.6, dash: '7 4' }
+};
+
+function paint(animate) {
+    if (!view.length) return;
+    const F = view[idx];
+
+    for (const k in ref.code) ref.code[k].classList.remove('hot');
+    for (const n of F.lines) if (ref.code[n]) ref.code[n].classList.add('hot');
+
+    const dm = dIn(G, F.u), dp = dOut(G, F.u);
+    $('regs').innerHTML =
+        `<b>c</b> = ${F.c} / ${G.edges.length} &nbsp;·&nbsp; <b>u</b> = ${Lp(F.u)} &nbsp;·&nbsp; ` +
+        `<i>next</i>[${Lp(F.u)}] = <b>${F.next[F.u]}</b> &nbsp;·&nbsp; ` +
+        `<i>d</i><sup>−</sup>(${Lp(F.u)}) = ${dm}, <i>d</i><sup>+</sup>(${Lp(F.u)}) = ${dp} &nbsp;·&nbsp; ` +
+        `<i>B</i>[${Lp(F.u)}] = ${F.B[F.u] < 0 ? '0' : Lp(F.B[F.u])} &nbsp;·&nbsp; <i>skipped</i>[${Lp(F.u)}] = ${F.skipped[F.u]}`;
+    $('narr').innerHTML = F.desc;
+
+    /* graph */
+    ref.edge.forEach((r, i) => {
+        const st = STYLE[F.colour[i]];
+        r.path.setAttribute('stroke', st.stroke);
+        r.path.setAttribute('stroke-width', st.w);
+        r.path.setAttribute('stroke-dasharray', st.dash);
+        r.arrow.setAttribute('fill', st.stroke);
+        if (F.focus === i) {
+            r.halo.setAttribute('stroke', F.dir === 'rev' ? '#4b86b4' : '#a8873c');
+            r.halo.setAttribute('stroke-width', 11);
+            r.halo.setAttribute('stroke-opacity', .34);
+        } else if (F.colour[i] === OUT) {
+            r.halo.setAttribute('stroke', '#f7f0dd');
+            r.halo.setAttribute('stroke-width', 7);
+            r.halo.setAttribute('stroke-opacity', 1);
+        } else r.halo.setAttribute('stroke-opacity', 0);
+        if (F.num[i]) { r.badge.setAttribute('opacity', 1); r.badgeText.textContent = F.num[i]; }
+        else r.badge.setAttribute('opacity', 0);
+    });
+    for (let v = 0; v < G.n; v++) {
+        const r = ref.vert[v];
+        r.disc.setAttribute('fill', F.visited[v] ? '#efe2bd' : '#fdfaf0');
+        r.ring.setAttribute('stroke-opacity', v === F.u ? 1 : 0);
+        r.start.textContent = v === v0 ? 'v₀' : '';
+    }
+
+    /* working memory */
+    for (let v = 0; v < G.n; v++) {
+        const A = ref.arr;
+        A.hdr[v].className = 'vcol' + (v === F.u ? ' curv' : '');
+        A.next[v].textContent = F.next[v];
+        A.next[v].className = v === F.u ? 'cur' : '';
+        A.visited[v].textContent = F.visited[v];
+        A.visited[v].className = (F.visited[v] ? 'one' : 'zero') + (v === F.u ? ' cur' : '');
+        A.skipped[v].textContent = F.skipped[v];
+        A.skipped[v].className = (F.skipped[v] ? 'one' : 'zero') + (v === F.u ? ' cur' : '');
+        A.B[v].textContent = F.B[v] < 0 ? '0' : Lp(F.B[v]);
+        A.B[v].className = (F.B[v] < 0 ? 'zero' : 'bset') + (v === F.u ? ' cur' : '');
+    }
+    for (const [name, v] of F.flash) if (ref.arr[name]) ref.arr[name][v].classList.add('flash');
+
+    /* adjacency lists */
+    for (let v = 0; v < G.n; v++) {
+        ref.row[v].classList.toggle('curV', v === F.u);
+        const dm2 = dIn(G, v), inUsed = Math.min(F.next[v], dm2), outUsed = Math.max(0, F.next[v] - dm2);
+        G.inAdj[v].forEach((ei, j) => {
+            const cur = F.focus === ei && F.dir === 'rev' && v === F.u;
+            ref.cell[ei].in.el.className = 'cell' + (j + 1 <= inUsed ? ' used' : '') + (cur ? ' cur' : '');
+            ref.cell[ei].in.mark.textContent = '';
+        });
+        G.outAdj[v].forEach((ei, j) => {
+            const isRes = F.reserved[v] === ei && F.colour[ei] !== OUT;
+            const cur = F.focus === ei && F.dir === 'fwd' && v === F.u;
+            ref.cell[ei].out.el.className = 'cell' + (isRes ? ' reserved' : (j + 1 <= outUsed ? ' used' : '')) + (cur ? ' cur' : '');
+            ref.cell[ei].out.mark.textContent = isRes ? 'R' : '';
+        });
+        placeCaret(v, F);
+    }
+
+    /* Eulerian cycle written so far */
+    const tour = $('tour');
+    tour.innerHTML = '';
+    F.tour.forEach((v, k) => {
+        if (k) {
+            const a = document.createElement('span');
+            a.className = 'tarr';
+            a.innerHTML = `<span class="n">${k}</span><span class="a">&mdash;&rarr;</span>`;
+            tour.appendChild(a);
+        }
+        const s = document.createElement('span');
+        s.className = 'tv' + (k === 0 ? ' first' : '') + (k === F.tour.length - 1 && k > 0 ? ' last' : '');
+        s.textContent = Lp(v);
+        tour.appendChild(s);
+    });
+    if (F.c < G.edges.length) {
+        const p = document.createElement('span');
+        p.className = 'pending';
+        p.textContent = `${G.edges.length - F.c} edge${G.edges.length - F.c === 1 ? '' : 's'} still to come`;
+        tour.appendChild(p);
+    }
+
+    $('stepcount').textContent = `step ${idx + 1} / ${view.length}`;
+    $('scrub').max = Math.max(0, view.length - 1);
+    $('scrub').value = idx;
+    $('b-first').disabled = $('b-prev').disabled = idx <= 0;
+    $('b-next').disabled = $('b-last').disabled = idx >= view.length - 1;
+
+    if (animate && F.focus !== null && F.major) runToken(F.focus, F.dir);
+    else clearToken();
+}
+
+function placeCaret(v, F) {
+    const c = ref.caret[v], dm = dIn(G, v), p = F.next[v];
+    let target = null;
+    if (p === 0) target = G.inAdj[v].length ? c.inHead : c.outHead;
+    else if (p <= dm) target = ref.cell[G.inAdj[v][p - 1]].in.el;
+    else {
+        const q = p - dm;
+        if (q <= dOut(G, v)) target = ref.cell[G.outAdj[v][q - 1]].out.el;
+        else if (dOut(G, v)) target = ref.cell[G.outAdj[v][dOut(G, v) - 1]].out.el;
+        else target = c.outHead;
+    }
+    if (!target) return;
+    const x = target.offsetLeft + target.offsetWidth / 2 - 5;
+    const y = target.offsetTop + target.offsetHeight + 1;
+    c.el.style.transform = `translate(${x}px, ${y}px)`;
+    c.el.classList.toggle('dim', v !== F.u);
+}
+
+let tokenAnim = null;
+function clearToken() {
+    if (tokenAnim) { cancelAnimationFrame(tokenAnim); tokenAnim = null; }
+    const g = $('g-token'); if (g) g.innerHTML = '';
+}
+function runToken(ei, dir) {
+    clearToken();
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const r = ref.edge[ei], g = $('g-token');
+    if (!r || !g) return;
+    const { l0, l1 } = r.len;
+    const dot = el('circle');
+    dot.setAttribute('r', 5.2);
+    dot.setAttribute('fill', dir === 'rev' ? '#4b86b4' : '#a8873c');
+    dot.setAttribute('stroke', '#fdfaf0');
+    dot.setAttribute('stroke-width', 1.4);
+    g.appendChild(dot);
+    const dur = Math.max(140, 460 / speedFactor());
+    const t0 = performance.now();
+    (function step(now) {
+        const t = Math.min(1, (now - t0) / dur);
+        const e = t < .5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+        const len = dir === 'rev' ? l1 + (l0 - l1) * e : l0 + (l1 - l0) * e;
+        const p = r.path.getPointAtLength(len);
+        dot.setAttribute('cx', p.x); dot.setAttribute('cy', p.y);
+        dot.setAttribute('opacity', t > .85 ? (1 - t) / .15 : 1);
+        if (t < 1) tokenAnim = requestAnimationFrame(step);
+        else { g.innerHTML = ''; tokenAnim = null; }
+    })(t0);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   5.  Navigation, examples and wiring
+   ══════════════════════════════════════════════════════════════════════ */
+function speedFactor() {
+    const s = +$('speed').value;
+    return s <= 5 ? .3 + (s - 1) * .175 : 1 + (s - 5) * .5;
+}
+
+function rebuildView(anchorRaw) {
+    const compact = $('compact').checked;
+    frames.forEach((f, i) => f.raw = i);
+    view = compact ? frames.filter(f => f.major) : frames.slice();
+    if (!view.length) view = frames.slice();
+    if (anchorRaw == null) { idx = 0; return; }
+    let k = 0;
+    for (let i = 0; i < view.length; i++) if (view[i].raw <= anchorRaw) k = i;
+    idx = k;
+}
+function goTo(i, animate) {
+    if (!view.length) return;
+    idx = Math.max(0, Math.min(view.length - 1, i));
+    paint(animate !== false);
+}
+function stepNext() { if (idx < view.length - 1) goTo(idx + 1); else stopPlay(); }
+function stepPrev() { if (idx > 0) goTo(idx - 1); }
+
+let playTimer = null;
+function startPlay() {
+    if (idx >= view.length - 1) idx = 0;
+    $('b-play').innerHTML = '&#9208; Pause';
+    const tick = () => {
+        if (idx >= view.length - 1) { stopPlay(); return; }
+        stepNext();
+        playTimer = setTimeout(tick, Math.max(220, 880 / speedFactor()));
+    };
+    playTimer = setTimeout(tick, 60);
+}
+function stopPlay() {
+    if (playTimer) clearTimeout(playTimer);
+    playTimer = null;
+    $('b-play').innerHTML = '&#9205; Play';
+}
+function togglePlay() { playTimer ? stopPlay() : startPlay(); }
+
+function regenerate(anchorRaw) {
+    frames = generateFrames(G, v0);
+    rebuildView(anchorRaw);
+    paint(false);
+}
+
+function fillStartSelect() {
+    const sel = $('startv');
+    sel.innerHTML = '';
+    for (let v = 0; v < G.n; v++) {
+        if (!dOut(G, v)) continue;
+        const o = document.createElement('option');
+        o.value = v; o.textContent = Lp(v);
+        sel.appendChild(o);
+    }
+    sel.value = String(v0);
+}
+
+function describeDefect(g, def) {
+    if (def.kind === 'empty') return 'This graph has no edges.';
+    if (def.kind === 'degree') {
+        const list = def.bad.slice(0, 6).map(v => `${v + labelBase} (d⁻ = ${dIn(g, v)}, d⁺ = ${dOut(g, v)})`).join(', ');
+        return `Not Eulerian: in-degree ≠ out-degree at ${def.bad.length === 1 ? 'one vertex' : def.bad.length + ' vertices'} — ${list}${def.bad.length > 6 ? ', …' : ''}.`;
+    }
+    return `Not Eulerian: the edges do not form one strongly connected component. Vertices ${def.bad.slice(0, 8).map(v => v + labelBase).join(', ')}${def.bad.length > 8 ? ', …' : ''} are unreachable from, or cannot reach, the rest.`;
+}
+
+function setGraph(spec, keepStart) {
+    const g = buildGraph(spec.n, spec.edges, nbOrder, spec.pos);
+    const def = eulerianDefect(g);
+    if (!def.ok) { setErr(describeDefect(g, def), false); return false; }
+    G = g;
+    v0 = (keepStart && v0 < G.n && dOut(G, v0) > 0) ? v0 : def.live[0];
+    buildGraphSVG(); buildAdj(); buildArrays();
+    fillStartSelect();
+    regenerate(null);
+    setErr(`Loaded: ${G.n} vertices, ${G.edges.length} edges.`, true);
+    return true;
+}
+function setErr(msg, ok) {
+    const e = $('gerr');
+    e.textContent = msg || '';
+    e.className = 'err' + (ok ? ' ok' : '');
+}
+
+const PRESETS = [
+    {
+        name: 'Worked example from the paper (Figure 3)',
+        text: `6 8
+0 1
+1 2
+1 4
+2 3
+3 4
+4 1
+4 5
+5 0
+0 0
+1.5 0
+3 0
+3 1.5
+1.5 1.5
+0 1.5`
+    },
+    {
+        name: 'Bow tie — two triangles sharing a vertex',
+        text: `5 6
+0 1
+1 2
+2 0
+2 3
+3 4
+4 2
+0 0
+1 0.9
+2 1.8
+3 0.9
+4 1.8`
+    },
+    {
+        name: 'Multigraph — parallel edges',
+        text: `3 6
+0 1
+0 1
+1 0
+1 0
+1 2
+2 1`
+    },
+    {
+        name: 'de Bruijn graph B(2,3) — has self-loops',
+        text: `4 8
+0 0
+0 1
+1 2
+1 3
+2 0
+2 1
+3 2
+3 3`
+    },
+    {
+        name: 'Complete digraph on 4 vertices',
+        text: `4 12
+0 1
+0 2
+0 3
+1 0
+1 2
+1 3
+2 0
+2 1
+2 3
+3 0
+3 1
+3 2`
+    },
+    {
+        name: 'Figure eight — two cycles through one vertex',
+        text: `7 8
+0 1
+1 2
+2 3
+3 0
+0 4
+4 5
+5 6
+6 0`
+    }
+];
+
+function fillPresets() {
+    const sel = $('presets');
+    PRESETS.forEach((p, i) => {
+        const o = document.createElement('option');
+        o.value = i; o.textContent = p.name;
+        sel.appendChild(o);
+    });
+}
+
+function loadFromText(text) {
+    try { return setGraph(parseGraphText(text), false); }
+    catch (err) { setErr(err.message, false); return false; }
+}
+
+function wire() {
+    $('b-next').onclick = () => { stopPlay(); stepNext(); };
+    $('b-prev').onclick = () => { stopPlay(); stepPrev(); };
+    $('b-first').onclick = () => { stopPlay(); goTo(0); };
+    $('b-last').onclick = () => { stopPlay(); goTo(view.length - 1); };
+    $('b-play').onclick = togglePlay;
+    $('b-reset').onclick = () => { stopPlay(); goTo(0); };
+    $('scrub').oninput = e => { stopPlay(); goTo(+e.target.value, false); };
+    $('speed').oninput = () => { if (playTimer) { stopPlay(); startPlay(); } };
+    $('compact').onchange = () => {
+        const anchor = view.length ? view[idx].raw : 0;
+        stopPlay(); rebuildView(anchor); paint(false);
+    };
+    $('startv').onchange = e => { stopPlay(); v0 = +e.target.value; regenerate(null); };
+    $('onebased').onchange = e => {
+        labelBase = e.target.checked ? 1 : 0;
+        const anchor = view.length ? view[idx].raw : 0;
+        buildGraphSVG(); buildAdj(); buildArrays(); fillStartSelect();
+        regenerate(anchor);
+    };
+    $('order').onchange = e => {
+        nbOrder = e.target.value;
+        const spec = { n: G.n, edges: G.edges.map(x => ({ u: x.u, v: x.v })), pos: G.pos };
+        stopPlay(); setGraph(spec, true);
+    };
+    $('b-load').onclick = () => { stopPlay(); loadFromText($('gtext').value); };
+    $('b-loadpreset').onclick = () => {
+        const p = PRESETS[+$('presets').value];
+        $('gtext').value = p.text;
+        stopPlay(); loadFromText(p.text);
+    };
+    $('b-dump').onclick = () => { $('gtext').value = dumpAlgs4(G, true); setErr('Current graph written to the box.', true); };
+    $('b-random').onclick = () => {
+        const n = Math.max(2, Math.min(40, +$('rn').value || 7));
+        const c = Math.max(0, Math.min(12, +$('rc').value || 0));
+        const spec = randomEulerian(n, c, (Math.random() * 1e9) | 0);
+        $('gtext').value = dumpAlgs4({ n: spec.n, edges: spec.edges, pos: null }, false);
+        stopPlay(); setGraph(spec, false);
+    };
+    $('b-tests').onclick = runTests;
+
+    document.addEventListener('keydown', e => {
+        if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+        if (e.key === 'ArrowRight') { stopPlay(); stepNext(); e.preventDefault(); }
+        else if (e.key === 'ArrowLeft') { stopPlay(); stepPrev(); e.preventDefault(); }
+        else if (e.key === ' ') { if (e.target.tagName === 'BUTTON') return; togglePlay(); e.preventDefault(); }
+        else if (e.key === 'Home') { stopPlay(); goTo(0); e.preventDefault(); }
+        else if (e.key === 'End') { stopPlay(); goTo(view.length - 1); e.preventDefault(); }
+    });
+    window.addEventListener('resize', () => { if (view.length) for (let v = 0; v < G.n; v++) placeCaret(v, view[idx]); });
+
+    $('legend').innerHTML = [
+        legendSwatch('#a99b80', 2, '', 'Black — not yet traversed'),
+        legendSwatch('#871512', 3, '', 'Red — first visit; recorded in <i>B</i>'),
+        legendSwatch('#2c6a26', 3, '', 'Green — target already reached'),
+        legendSwatch('#4a4136', 2.6, '7 4', 'Dashed &amp; numbered — written to the output'),
+        `<span><svg width="26" height="12"><circle cx="13" cy="6" r="4.6" fill="#4b86b4"/></svg> walking backwards along an edge</span>`,
+        `<span><svg width="26" height="12"><circle cx="13" cy="6" r="4.6" fill="#a8873c"/></svg> backtracking &amp; writing</span>`
+    ].join('');
+}
+function legendSwatch(col, w, dash, label) {
+    return `<span><svg width="30" height="12"><line x1="1" y1="6" x2="29" y2="6" stroke="${col}" stroke-width="${w}" stroke-dasharray="${dash}" stroke-linecap="round"/></svg> ${label}</span>`;
+}
+
+fillPresets();
+buildCode();
+wire();
+$('gtext').value = PRESETS[0].text;
+loadFromText(PRESETS[0].text);
+
+/* ══════════════════════════════════════════════════════════════════════
+   6.  Self-tests
+
+   The recorded frames are the single source of truth: the tests read the
+   last frame's arrays and colours, so a bug in the recording is a bug the
+   tests will see.
+   ══════════════════════════════════════════════════════════════════════ */
+let _out = [], _pass = 0, _fail = 0;
+function T(name, fn) {
+    let ok = false, msg = '';
+    try { const r = fn(); ok = r === true; if (!ok && typeof r === 'string') msg = ' — ' + r; }
+    catch (e) { ok = false; msg = ' — ' + e.message; }
+    if (ok) { _pass++; _out.push(`<span class="pass">✓ pass</span>  ${name}`); }
+    else { _fail++; _out.push(`<span class="fail">✗ FAIL</span>  ${name}${msg}`); }
+}
+function SEC(t) { _out.push(`\n<span class="thead">── ${t} ──</span>`); }
+
+function writtenEdges(g, fs) {
+    const last = fs[fs.length - 1], order = [];
+    last.num.forEach((k, ei) => { if (k) order[k - 1] = ei; });
+    return order;
+}
+function isEulerianCycle(g, fs, start) {
+    const order = writtenEdges(g, fs);
+    if (order.length !== g.edges.length) return `wrote ${order.length} of ${g.edges.length} edges`;
+    const seen = new Set();
+    for (const ei of order) {
+        if (ei === undefined) return 'gap in the output numbering';
+        if (seen.has(ei)) return 'an edge was written twice';
+        seen.add(ei);
+    }
+    for (let k = 0; k < order.length; k++) {
+        const a = g.edges[order[k]], b = g.edges[order[(k + 1) % order.length]];
+        if (a.v !== b.u) return `edges ${k + 1} and ${k + 2} do not meet`;
+    }
+    if (g.edges[order[0]].u !== start) return 'the cycle does not start at v₀';
+    return true;
+}
+function randomSpec(seed) {
+    const rnd = mulberry32(seed);
+    const n = 3 + Math.floor(rnd() * 8);
+    return randomEulerian(n, Math.floor(rnd() * 5), (rnd() * 1e9) | 0);
+}
+
+function runTests() {
+    _out = []; _pass = 0; _fail = 0;
+    const savedG = G, savedV0 = v0, savedFrames = frames, savedIdx = idx, savedBase = labelBase;
+
+    SEC('The worked example from the paper (Figure 3)');
+    const paper = buildGraph(6, parseAlgs4(PRESETS[0].text).edges, 'given', null);
+    const pf = generateFrames(paper, 0);
+    T('the run terminates and writes all 8 edges', () => {
+        const r = isEulerianCycle(paper, pf, 0); return r === true ? true : r;
+    });
+    T('the Eulerian cycle is 1 → 2 → 3 → 4 → 5 → 2 → 5 → 6 → 1', () => {
+        const seq = pf[pf.length - 1].tour.map(v => v + 1).join(' ');
+        return seq === '1 2 3 4 5 2 5 6 1' ? true : 'got ' + seq;
+    });
+    T('the edge 5 → 2 is written before 2 → 5 (Green edges are backtracked first)', () => {
+        const o = writtenEdges(paper, pf).map(ei => `${paper.edges[ei].u + 1}${paper.edges[ei].v + 1}`);
+        return o.indexOf('52') < o.indexOf('25') ? true : o.join(',');
+    });
+    T('B = [0, 5, 4, 5, 6, 1] at the end — one Red edge per vertex ≠ v₀', () => {
+        const B = pf[pf.length - 1].B.map(x => x < 0 ? 0 : x + 1).join(' ');
+        return B === '0 5 4 5 6 1' ? true : 'got ' + B;
+    });
+    T('every vertex ends with next[v] = d(v) + 1, except v₀ with next = d(v₀)', () => {
+        const last = pf[pf.length - 1];
+        for (let v = 0; v < paper.n; v++) {
+            const want = dIn(paper, v) + dOut(paper, v) + (v === 0 ? 0 : 1);
+            if (last.next[v] !== want) return `next[${v + 1}] = ${last.next[v]}, expected ${want}`;
+        }
+        return true;
+    });
+
+    SEC('Random Eulerian multigraphs');
+    T('200 random graphs each yield a genuine Eulerian cycle', () => {
+        for (let s = 0; s < 200; s++) {
+            const sp = randomSpec(s + 1);
+            const g = buildGraph(sp.n, sp.edges, s % 2 ? 'sorted' : 'given', null);
+            const r = isEulerianCycle(g, generateFrames(g, s % g.n), s % g.n);
+            if (r !== true) return `seed ${s}: ${r}`;
+        }
+        return true;
+    });
+    T('every written edge was Red or Green at the moment it was written', () => {
+        for (let s = 0; s < 120; s++) {
+            const sp = randomSpec(s + 500);
+            const g = buildGraph(sp.n, sp.edges, 'given', null);
+            const fs = generateFrames(g, 0);
+            for (let k = 1; k < fs.length; k++)
+                for (let ei = 0; ei < g.edges.length; ei++)
+                    if (fs[k].colour[ei] === OUT && fs[k - 1].colour[ei] === BLACK)
+                        return `seed ${s}: a Black edge was written`;
+        }
+        return true;
+    });
+    T('the four arrays stay inside their promised ranges', () => {
+        for (let s = 0; s < 120; s++) {
+            const sp = randomSpec(s + 900);
+            const g = buildGraph(sp.n, sp.edges, 'given', null);
+            for (const F of generateFrames(g, 0)) for (let v = 0; v < g.n; v++) {
+                if (F.next[v] > dIn(g, v) + dOut(g, v) + 1) return `seed ${s}: next[${v}] too large`;
+                if (F.visited[v] > 1 || F.skipped[v] > 1) return `seed ${s}: a bit array holds ${F.visited[v]}/${F.skipped[v]}`;
+                if (F.B[v] >= g.n) return `seed ${s}: B out of range`;
+            }
+        }
+        return true;
+    });
+    T('visited and skipped never turn back to 0; c never decreases', () => {
+        for (let s = 0; s < 60; s++) {
+            const sp = randomSpec(s + 1300);
+            const g = buildGraph(sp.n, sp.edges, 'given', null);
+            const fs = generateFrames(g, 0);
+            for (let k = 1; k < fs.length; k++) {
+                if (fs[k].c < fs[k - 1].c) return 'c decreased';
+                for (let v = 0; v < g.n; v++) {
+                    if (fs[k].visited[v] < fs[k - 1].visited[v]) return 'visited reset';
+                    if (fs[k].skipped[v] < fs[k - 1].skipped[v]) return 'skipped reset';
+                }
+            }
+        }
+        return true;
+    });
+    T('any starting vertex gives a valid cycle', () => {
+        for (let s = 0; s < 40; s++) {
+            const sp = randomSpec(s + 2000);
+            const g = buildGraph(sp.n, sp.edges, 'given', null);
+            for (let start = 0; start < g.n; start++) {
+                if (!dOut(g, start)) continue;
+                const r = isEulerianCycle(g, generateFrames(g, start), start);
+                if (r !== true) return `seed ${s}, start ${start}: ${r}`;
+            }
+        }
+        return true;
+    });
+
+    SEC('Self-loops and parallel edges');
+    T('de Bruijn B(2,3), which has two self-loops, works', () => {
+        const sp = parseAlgs4(PRESETS[3].text);
+        const g = buildGraph(sp.n, sp.edges, 'given', null);
+        const r = isEulerianCycle(g, generateFrames(g, 0), 0);
+        return r === true ? true : r;
+    });
+    T('a multigraph with four parallel edges works', () => {
+        const sp = parseAlgs4(PRESETS[2].text);
+        const g = buildGraph(sp.n, sp.edges, 'given', null);
+        const r = isEulerianCycle(g, generateFrames(g, 0), 0);
+        return r === true ? true : r;
+    });
+    T('the reserved (Red) out-edge is always the last one used at its vertex', () => {
+        for (let s = 0; s < 80; s++) {
+            const sp = randomSpec(s + 2600);
+            const g = buildGraph(sp.n, sp.edges, 'given', null);
+            const last = generateFrames(g, 0).slice(-1)[0];
+            for (let v = 0; v < g.n; v++) {
+                const res = last.reserved[v];
+                if (res < 0) continue;
+                for (const ei of g.outAdj[v])
+                    if (ei !== res && last.num[ei] > last.num[res]) return `seed ${s}: vertex ${v} used its Red edge too early`;
+            }
+        }
+        return true;
+    });
+
+    SEC('Frames and presentation');
+    T('every frame carries a complete snapshot of the four arrays', () => {
+        const sp = randomSpec(77);
+        const g = buildGraph(sp.n, sp.edges, 'given', null);
+        for (const F of generateFrames(g, 0))
+            if (F.next.length !== g.n || F.visited.length !== g.n || F.skipped.length !== g.n || F.B.length !== g.n) return 'wrong length';
+        return true;
+    });
+    T('every frame highlights only existing pseudocode lines', () => {
+        const nums = new Set(CODE.map(c => c[0]));
+        const sp = randomSpec(78);
+        const g = buildGraph(sp.n, sp.edges, 'given', null);
+        for (const F of generateFrames(g, 0)) for (const n of F.lines) if (!nums.has(n)) return 'line ' + n;
+        return true;
+    });
+    T('“one step per iteration” keeps exactly one frame per loop iteration', () => {
+        const majors = pf.filter(f => f.major).length;
+        let iters = 0;
+        for (const F of pf) if (F.lines.length === 2 && F.lines[0] === 7) iters++;
+        return majors === iters + 2 ? true : `${majors} major frames vs ${iters} iterations`;
+    });
+    T('the tour recorded in the frames matches the numbered edges', () => {
+        const order = writtenEdges(paper, pf), tour = pf[pf.length - 1].tour;
+        for (let k = 0; k < order.length; k++)
+            if (paper.edges[order[k]].u !== tour[k] || paper.edges[order[k]].v !== tour[k + 1]) return 'mismatch at ' + k;
+        return true;
+    });
+
+    SEC('Input formats');
+    T('algs4 text round-trips through the parser', () => {
+        const sp = randomEulerian(6, 2, 4242);
+        const back = parseAlgs4(dumpAlgs4({ n: sp.n, edges: sp.edges, pos: null }, false));
+        return back.n === sp.n && back.edges.length === sp.edges.length &&
+            back.edges.every((e, i) => e.u === sp.edges[i].u && e.v === sp.edges[i].v);
+    });
+    T('coordinates after the edge lines are read and normalised into [0,1]', () => {
+        const sp = parseAlgs4(PRESETS[0].text);
+        if (!sp.pos || sp.pos.length !== 6) return 'no coordinates';
+        return sp.pos.every(p => p.x >= -1e-9 && p.x <= 1 + 1e-9 && p.y >= -1e-9 && p.y <= 1 + 1e-9);
+    });
+    T('“V E” on one line and on two lines are both accepted', () => {
+        return parseAlgs4('2 2\n0 1\n1 0').edges.length === 2 && parseAlgs4('2\n2\n0 1\n1 0').edges.length === 2;
+    });
+    T('CS Academy markup is accepted', () => {
+        const t = '<Graph indexType="custom" height="200" width="300" directed={true} nodes={[{label:0,center:{x:10,y:10}},{label:1,center:{x:90,y:10}}]} edges={[{source:0,target:1},{source:1,target:0}]} />';
+        const sp = parseCSA(t);
+        return sp.n === 2 && sp.edges.length === 2 && sp.pos.length === 2;
+    });
+    T('a non-Eulerian graph is rejected with a reason', () => {
+        const d = eulerianDefect(buildGraph(3, [{ u: 0, v: 1 }, { u: 1, v: 2 }], 'given', null));
+        return d.ok === false && d.kind === 'degree';
+    });
+    T('a disconnected but balanced graph is rejected', () => {
+        const d = eulerianDefect(buildGraph(4, [{ u: 0, v: 1 }, { u: 1, v: 0 }, { u: 2, v: 3 }, { u: 3, v: 2 }], 'given', null));
+        return d.ok === false && d.kind === 'connected';
+    });
+    T('random graphs generated by the tool really are Eulerian', () => {
+        for (let s = 0; s < 60; s++) {
+            const sp = randomEulerian(2 + (s % 9), s % 5, s * 7717 + 3);
+            if (!eulerianDefect(buildGraph(sp.n, sp.edges, 'given', null)).ok) return 'seed ' + s;
+        }
+        return true;
+    });
+
+    G = savedG; v0 = savedV0; frames = savedFrames; idx = savedIdx; labelBase = savedBase;
+    $('testout').innerHTML =
+        `<span class="thead">${_pass + _fail} tests — ${_pass} passed, ${_fail} failed</span>\n` + _out.join('\n');
+}
+
+</script>
+</body>
+</html>

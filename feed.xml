@@ -6,9 +6,256 @@
 </description>
     <link>https://www.wild-inter.net/</link>
     <atom:link href="https://www.wild-inter.net/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 06 Aug 2026 14:19:50 +0200</pubDate>
-    <lastBuildDate>Thu, 06 Aug 2026 14:19:50 +0200</lastBuildDate>
+    <pubDate>Thu, 13 Aug 2026 11:42:41 +0200</pubDate>
+    <lastBuildDate>Thu, 13 Aug 2026 11:42:41 +0200</lastBuildDate>
     <generator>Jekyll v3.10.0</generator>
+    
+      <item>
+        <title>Top-down mergesort with sorted check has mergecost (H+3)n</title>
+        <description>&lt;p&gt;Simple proof that standard mergesort with a single extra comparison is run-adaptive
+in a rather strong sense.&lt;/p&gt;
+
+&lt;script type=&quot;text/x-mathjax-config&quot;&gt;
+	var font = &quot;Neo-Euler&quot;;
+	MathJax.Hub.Config({
+		tex2jax: {
+			inlineMath: [[&apos;$&apos;,&apos;$&apos;]],
+			displayMath: [[&apos;\\[&apos;,&apos;\\]&apos;]],
+			processEscapes: true,
+		},
+		&quot;SVG&quot;:{ 
+			font:font
+		},
+		&quot;HTML-CSS&quot;: {
+			webFont: font,
+			imageFont: font,
+			preferredFont: font,
+			availableFonts: [],
+			scale: 85,
+			mtextFontInherit: true
+		}
+	});
+&lt;/script&gt;
+
+&lt;script type=&quot;text/javascript&quot; src=&quot;https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&quot;&gt;&lt;/script&gt;
+
+&lt;p&gt;We consider standard top-down recursive mergesort, where we do a single comparison before
+calling merge, to check whether the two recursively sorted subproblems happen to already be
+correctly ordered. (If so, we can skip the merging step.) We show that for any input
+$A[0..n)$ consisting of $r$ &lt;em&gt;runs&lt;/em&gt; (maximal increasing contiguous subranges in $A$) of
+respective lengths $L_1,\ldots,L_r$, the mergecost $M$ (the sum of output sizes of all merges)
+satisfies $M \le (\mathcal{H}+3)n$ for
+$\mathcal{H} = \sum_{i=1}^r (L_i/n)\log_2(n/L_i)$ the runlength entropy.&lt;/p&gt;
+
+&lt;p&gt;Note that $\mathcal{H} n$ is a lower bound on the mergecost of any comparison-based sorting algorithm, so this shows that top-down mergesort with sorted check is run-adaptive in a rather strong sense. Moreover, the analysis is tight (in the sense that the constant 3 cannot be improved).&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;A &lt;a href=&quot;https://arxiv.org/abs/2608.08348&quot;&gt;PDF version&lt;/a&gt; of this note is available on arXiv.&lt;/li&gt;
+  &lt;li&gt;Moreover, an &lt;a href=&quot;https://power-sort.github.io/top-down-sorted-check&quot;&gt;interactive lab&lt;/a&gt; allows you to explore the recursion tree and charging scheme for any run-length profile, and to search for adversarial run-length profiles that push the mergecost to $(\mathcal{H}+3)n$.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;hr /&gt;
+
+&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Run-adaptive sorting allows substantial speedups on partially sorted data, and is widely used in
+standard library implementations, e.g., in Timsort &lt;a href=&quot;#pet02&quot;&gt;[Pet02]&lt;/a&gt; and
+Powersort &lt;a href=&quot;#mw18&quot;&gt;[MW18]&lt;/a&gt;. A simple counting argument shows that the mergecost of any
+comparison-based sorting algorithm is at least $\mathcal{H}n$ in the worst case over all inputs
+with run lengths $L_1,\ldots,L_r$, and methods such as Peeksort &lt;a href=&quot;#mw18&quot;&gt;[MW18]&lt;/a&gt;,
+Powersort &lt;a href=&quot;#mw18&quot;&gt;[MW18]&lt;/a&gt;, and Length-Adaptive Shiversort &lt;a href=&quot;#jug24&quot;&gt;[Jug24]&lt;/a&gt; guarantee a
+mergecost $M \le (\mathcal{H}+2)n$ (with the typical case being closer to the lower bound).&lt;/p&gt;
+
+&lt;p&gt;The above methods explicitly find the runs $R_1,\ldots,R_r$ in the input and then decide upon a
+clever order to merge them. In this note, we show the perhaps-folklore, but unpublished result
+that the following very simple algorithm achieves an only slightly weaker bound.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;procedure Mergesort(A[l..r)):
+    n := r - l
+    if n &amp;lt;= 1 return
+    m := l + floor(n/2)
+    Mergesort(A[l..m))
+    Mergesort(A[m..r))
+    if A[m-1] &amp;gt; A[m]
+        Merge(A[l..m), A[m..r), buf)
+        copy buf to A[l..r)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;We start by noting that $M$ can be written as&lt;/p&gt;
+
+\[M \;=\; \sum_{i=1}^{r} M(R_i),
+\qquad
+M(R_i) \;=\; \sum_{\substack{v\in T:\\ R_i \subsetneq v \,\vee\, v \mathbin{⧉} R_i}} \lvert v\cap R_i\rvert,
+\tag{1}\]
+
+&lt;p&gt;where $T$ is the recursion tree of standard mergesort, $v$ and $R_i$ are identified with their
+(integer) intervals of indices contained in their range, and the (nonstandard) notation
+$A \mathbin{⧉} B$ ($A$ “properly intersects” $B$) means that
+$A\cap B \ne \emptyset \wedge A \nsubseteq B \wedge A \nsupseteq B$, neither contained nor disjoint.&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;a href=&quot;/assets/sortedcheck-n100-r7-tree.svg&quot;&gt;
+    &lt;img src=&quot;/assets/sortedcheck-n100-r7-tree.svg&quot; alt=&quot;The recursion tree of mergesort on an input of size 100 with seven runs. Nodes that lie inside a single run are faded; the remaining nodes are filled and contribute their size to the mergecost.&quot; /&gt;
+  &lt;/a&gt;
+  &lt;figcaption&gt;
+    &lt;p&gt;&lt;strong&gt;Figure 1:&lt;/strong&gt; The recursion tree $T$ of mergesort on an input of size $n=100$ and run lengths
+  $(L_1,\ldots,L_7) = (15,28,1,3,17,27,9)$. Nodes $v \in T$ that do not contain a run boundary
+  are skipped (faded); only filled nodes contribute (their size) to the mergecost $M = 394$.&lt;/p&gt;
+  &lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Equation (1) gives a charging scheme for the mergecost: each run pays for &lt;em&gt;its contribution&lt;/em&gt; to
+the overall mergecost in the merges it participates in. Figure 2 gives an example.&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;a href=&quot;/assets/sortedcheck-n100-r7.svg&quot;&gt;
+    &lt;img src=&quot;/assets/sortedcheck-n100-r7.svg&quot; alt=&quot;The same recursion tree with each merged node split at run boundaries and coloured by the run it is charged to.&quot; /&gt;
+  &lt;/a&gt;
+  &lt;figcaption&gt;
+    &lt;p&gt;&lt;strong&gt;Figure 2:&lt;/strong&gt; The recursion tree from Figure 1 showing the charging scheme of the analysis.
+  Each run pays the colored parts in its vertical range.&lt;/p&gt;
+  &lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;A simple calculation shows that it suffices to prove that
+$M(R_i) \le L_i(\lg(n/L_i)+3)$, so in the following, we consider $M(R)$ for a single run of
+length $L$.&lt;/p&gt;
+
+&lt;h2 id=&quot;power-of-two-case&quot;&gt;Power of two case&lt;/h2&gt;
+
+&lt;p&gt;Without rounding, i.e., for $n$ a power of 2, the calculation is cleanest. We account for costs
+level by level. At depth $d$, a recursive subproblem has size $n/2^d$. We never need to charge
+$R$ more than $L = \lvert R\rvert$. At the same time, there can be at most 2 nodes $v\in T$
+(recursive calls) at depth $d$ that contribute to $M(R)$ (cf. Figure 2), so charging $R$ at most
+$2\cdot n/2^d$ for depth $d$ also suffices, and we may take the minimum of the two. Hence&lt;sup id=&quot;fnref:funnel&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:funnel&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+
+\[M(R)
+\;\le\; \sum_{d\ge0} \min\lbrace L,\; 2\cdot n/2^d \rbrace
+\;\overset{(*)}{\le}\; L\cdot \lg\frac{n}{L} + 3L
+\tag{2}\]
+
+&lt;p&gt;To see why inequality $(*)$ is true, set $G = \lfloor \lg(2n/L)\rfloor$ and
+$\theta = \lbrace \lg(2n/L)\rbrace = \lg(2n/L) - G \in [0,1)$.
+Then $2^\theta = 2n/(L2^G)$ and $2n/2^G = L2^\theta$. Now note that the minimum in the sum is
+$L$ iff $d \le G$; otherwise, for $d = G+k$, $k\ge1$, the minimum is
+$2n/2^d = (2n/2^G)\cdot 2^{-k} = L2^\theta\cdot 2^{-k}$. Thus&lt;/p&gt;
+
+\[\begin{aligned}
+M(R)
+&amp;amp;\;\le\; (G+1)\cdot L \;+\; L\cdot 2^\theta \sum_{k\ge1} 2^{-k}
+\;=\; L\cdot\bigl(G+1+2^\theta\bigr)
+\\[.5ex]
+&amp;amp;\;=\; L\cdot\left(\lg\frac{n}{L} + g(\theta)\right)
+\qquad\text{with}\quad g(\theta) = 2-\theta+2^\theta \in [2.9,\,3].
+\end{aligned}\]
+
+&lt;p&gt;The last step uses $G = \lg(n/L) + 1 - \theta$. Note that $g$ is convex with
+$g(0) = 3$ and $g(\theta) \to 3$ as $\theta \to 1$, so it attains its maximum $3$ at the ends of
+the interval, and its minimum $2.9139\ldots$ at $\theta = \lg(1/\ln 2) \approx 0.5288$.
+The constant 3 is thus a trade-off, not slack: a large $\theta$ costs one level at the full charge
+of $L$, but fattens the geometric tail by the factor $2^\theta$, and the two effects cancel to
+within $0.09$ across the whole range.&lt;/p&gt;
+
+&lt;h2 id=&quot;general-n&quot;&gt;General n&lt;/h2&gt;
+
+&lt;p&gt;For general $n$, some recursive call sizes must be rounded up, so we have to make the analysis a
+little tighter. We need two new, but simple ingredients; the first relies on a ceiling fact.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;strong&gt;Lemma 1 (Double Ceiling).&lt;/strong&gt;
+For positive integers $n,p,q$, we have $\lceil \lceil n/p\rceil / q\rceil = \lceil n/(pq)\rceil$.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;em&gt;Proof.&lt;/em&gt; $\lceil n/m\rceil = \min\lbrace k \in \mathbb{Z} : km \ge n\rbrace$, and for integers $k$
+and $n,p,q\in\mathbb{N}$ one has
+$kq \ge \lceil n/p\rceil \iff kq \ge n/p \iff kpq \ge n$. $\square$&lt;/p&gt;
+
+&lt;p&gt;The first new ingredient is a tight bound on the subproblem size for general $n$.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;strong&gt;Lemma 2 (Node Sizes).&lt;/strong&gt;
+Every node $v$ at depth $d$ satisfies $\lvert v\rvert \le \lceil n/2^d\rceil$.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;em&gt;Proof.&lt;/em&gt; Induction on $d$: the root ($d=0$) has size $n = \lceil n/2^0\rceil$. The child of a node
+of size $\le \lceil n/2^d\rceil$ has size at most
+$\lceil \lceil n/2^d\rceil/2\rceil = \lceil n/2^{d+1}\rceil$, using Lemma 1. $\square$&lt;/p&gt;
+
+&lt;p&gt;The second ingredient is that whenever $R \subsetneq v$ or
+$v \mathbin{⧉} R$ – that is, whenever $v$ contributes to $M(R)$
+– the node $v$ must contain at least one element &lt;em&gt;not&lt;/em&gt; in $R$, so&lt;/p&gt;
+
+\[\lvert v \cap R\rvert \;\le\; \lvert v\rvert - 1 \;\le\; \lceil n/2^d\rceil - 1 \;\le\; n/2^d .\]
+
+&lt;p&gt;We can thus still bound $M(R)$ by $\sum_{d\ge0}\min\lbrace L,\,2\cdot n/2^d\rbrace$ and obtain the
+bound (2) by the same calculation, which implies $M \le (\mathcal{H}+3)n$.&lt;/p&gt;
+
+&lt;p&gt;Note that the bound $M \le (\mathcal{H}+3)n$ is asymptotically tight: on input
+$(L_1,L_2,L_3) = (1,n-2,1)$, mergesort has $M = 3n - O(1)$, whereas
+$\mathcal{H} = O(\lg n/n)$.&lt;/p&gt;
+
+&lt;h2 id=&quot;try-it-yourself&quot;&gt;Try it yourself&lt;/h2&gt;
+
+&lt;p&gt;The interactive lab below draws the recursion tree and the charging scheme for any run-length
+profile (click on &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;charging colors&lt;/code&gt; for that). Drag the run boundaries in the strip at the bottom of the tree, or drag a run past its
+neighbour to swap the two; the whole tree is rebuilt on every change. Switching on
+&lt;em&gt;charging colors&lt;/em&gt; and hovering a colored part shows the level-by-level breakdown of the bound
+above for that run: the per-level charge against $\min\lbrace L, 2n/2^d\rbrace$, the closed form
+$(G+1)L + 2n/2^G$, and the resulting $L\lg(n/L)+3L$.&lt;/p&gt;
+
+&lt;p&gt;The second tab runs an adversarial search over run-length profiles, so you can try to push
+$(M - \mathcal{H}n)/n$ past 3 yourself. (Hill-climbing reliably rediscovers the
+$(1, n-2, 1)$ family and stalls just below 3.)&lt;/p&gt;
+
+&lt;iframe src=&quot;https://power-sort.github.io/top-down-sorted-check&quot; title=&quot;Sorted-check lab: interactive recursion tree, charging scheme, and adversarial search&quot; loading=&quot;lazy&quot; style=&quot;width:100%;height:82vh;min-height:640px;border:1px solid #ccc;border-radius:6px&quot;&gt;
+&lt;/iframe&gt;
+
+&lt;p&gt;
+&lt;a href=&quot;https://power-sort.github.io/top-down-sorted-check&quot; target=&quot;_blank&quot;&gt;
+  Open lab in new tab&lt;/a&gt;.
+&lt;/p&gt;
+
+&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
+
+&lt;p&gt;&lt;a name=&quot;bw23&quot;&gt;&lt;/a&gt;
+&lt;strong&gt;[BW23]&lt;/strong&gt; Gerth Stølting Brodal and Sebastian Wild.
+&lt;em&gt;&lt;a href=&quot;/publications/brodal-wild-2023&quot;&gt;Funnelselect: Cache-oblivious multiple selection&lt;/a&gt;.&lt;/em&gt;
+European Symposium on Algorithms (ESA), pages 25:1–25:17, 2023.&lt;/p&gt;
+
+&lt;p&gt;&lt;a name=&quot;jug24&quot;&gt;&lt;/a&gt;
+&lt;strong&gt;[Jug24]&lt;/strong&gt; Vincent Jugé.
+&lt;em&gt;&lt;a href=&quot;https://doi.org/10.1145/3664195&quot;&gt;Adaptive Shivers sort: An alternative sorting algorithm&lt;/a&gt;.&lt;/em&gt;
+ACM Transactions on Algorithms, 20(4):1–55, August 2024.&lt;/p&gt;
+
+&lt;p&gt;&lt;a name=&quot;mw18&quot;&gt;&lt;/a&gt;
+&lt;strong&gt;[MW18]&lt;/strong&gt; J. Ian Munro and Sebastian Wild.
+&lt;em&gt;&lt;a href=&quot;/publications/munro-wild-2018&quot;&gt;Nearly-optimal mergesorts: Fast, practical sorting methods that optimally adapt to existing runs&lt;/a&gt;.&lt;/em&gt;
+European Symposium on Algorithms (ESA), volume 112 of LIPIcs, pages 63:1–63:16, 2018.&lt;/p&gt;
+
+&lt;p&gt;&lt;a name=&quot;pet02&quot;&gt;&lt;/a&gt;
+&lt;strong&gt;[Pet02]&lt;/strong&gt; Tim Peters.
+&lt;em&gt;&lt;a href=&quot;http://hg.python.org/cpython/file/tip/Objects/listsort.txt&quot;&gt;Timsort [listsort.txt]&lt;/a&gt;&lt;/em&gt;, 2002.&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;div class=&quot;footnotes&quot; role=&quot;doc-endnotes&quot;&gt;
+  &lt;ol&gt;
+    &lt;li id=&quot;fn:funnel&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;The same calculation appears, e.g., in &lt;a href=&quot;#bw23&quot;&gt;[BW23, §3.3]&lt;/a&gt;. &lt;a href=&quot;#fnref:funnel&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/div&gt;
+</description>
+        <pubDate>Wed, 05 Aug 2026 00:00:00 +0200</pubDate>
+        <link>https://www.wild-inter.net/posts/mergesort-sorted-check</link>
+        <guid isPermaLink="true">https://www.wild-inter.net/posts/mergesort-sorted-check</guid>
+        
+        
+        <category>algorithms</category>
+        
+        <category>research</category>
+        
+      </item>
     
       <item>
         <title>GitHub Suspension</title>
@@ -828,89 +1075,6 @@ So far, I have not found a service for that.&lt;/p&gt;
         <category>teaching</category>
         
         <category>web</category>
-        
-        <category>linux</category>
-        
-      </item>
-    
-      <item>
-        <title>Install pdf2htmlEX on recent Ubuntu</title>
-        <description>&lt;p&gt;Because of unresolved dependencies, installing pdf2htmlEX became
-challenging in recent Ubuntu.&lt;/p&gt;
-
-&lt;h3 id=&quot;update-2024-11&quot;&gt;&lt;strong&gt;Update&lt;/strong&gt; [2024-11]&lt;/h3&gt;
-
-&lt;p&gt;For Ubuntu 24.04, the situation seems to again have changed.
-While the version from &lt;a href=&quot;https://pdf2htmlex.github.io/pdf2htmlEX/&quot;&gt;pdf2htmlex.github.io&lt;/a&gt; still works, it does fail to convert some PDFs for me.
-I have not yet found a solution for this, but I will update this post when I do.&lt;/p&gt;
-
-&lt;p&gt;The old docker built by bwits is still available and works fine, including all the other steps described below, so for now (and again, until the team at pdf2htmlex.github.io has an updated built), the docker container is the way to go.&lt;/p&gt;
-
-&lt;h3 id=&quot;update-2022-09&quot;&gt;&lt;strong&gt;Update&lt;/strong&gt; [2022-09]&lt;/h3&gt;
-
-&lt;p&gt;Much of the complication below can now be avoided! 
-A few developers – worthy of our collective Thanks! – revived
-pdf2htmlEX and ported it to new versions of poppler and fontforge.
-Their effort lives on &lt;a href=&quot;https://pdf2htmlex.github.io/pdf2htmlEX/&quot;&gt;pdf2htmlex.github.io&lt;/a&gt; and they offer
-various prepackaged &lt;a href=&quot;https://github.com/pdf2htmlEX/pdf2htmlEX/releases&quot;&gt;releases&lt;/a&gt;,
-including AppImages.&lt;/p&gt;
-
-&lt;h2 id=&quot;pdf2htmlex-in-docker&quot;&gt;pdf2htmlEX in docker&lt;/h2&gt;
-
-&lt;p&gt;I use pdf2htmlEX to make &lt;a href=&quot;pdf2htmlex&quot;&gt;pdfs nicely readable in the browser&lt;/a&gt;.
-pdf2htmlEX relies on a custom version of the poppler library, and
-support for more recent versions of poppler has not been built into it yet.
-Since no new maintainer has been found, people started to look for alternatives
-to keep using pdf2htmlEX productively, without being forced to stay on
-old libraries systemwide.
-Docker containers are a solution for precisely such use cases.&lt;/p&gt;
-
-&lt;p&gt;I here describe the steps that it took me to get pdf2htmlEX running on
-Ubuntu 18.04.1 LTS; I was fine with a certain overhead (in time and space)
-for running it, but I wanted direct command-line interaction on individual
-files. Since docker containers are isolated from the host system, this requires
-some extra steps.&lt;/p&gt;
-
-&lt;p&gt;First install docker; I used the snap version, so I ran:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;snap install docker
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Next, I pulled the prepackaged docker container by
-&lt;a href=&quot;https://hub.docker.com/r/bwits/pdf2htmlex&quot;&gt;bwits&lt;/a&gt;:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;sudo docker pull bwits/pdf2htmlex
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;For running pdf2htmlEX conveniently and (somewhat) securely,
-you should be able to run docker as user;
-this is not possible directly since docker uses Unix sockets owned by root
-for communicating with containers.
-But if you create a group &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;docker&lt;/code&gt; and add yourself to it,
-the socket will be &lt;a href=&quot;https://docs.docker.com/install/linux/linux-postinstall/#manage-docker-as-a-non-root-user&quot;&gt;owned by that group&lt;/a&gt; instead.
-So:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;sudo groupadd docker
-sudo usermod -aG docker $USER
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;You probably have to reboot (log out and restart the docker daemon) before
-this takes effect, you can test it with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;docker run hello-world&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;If everything worked out, we can now run pdf2htmlEX as&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;docker run -ti --rm -v `pwd`:/pdf bwits/pdf2htmlex pdf2htmlEX [args] file.pdf
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;to convert &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;file.pdf&lt;/code&gt; in the current working directory.
-Note that the application inside the container only gets access to the
-the folder you map to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/pdf&lt;/code&gt; using the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;-v&lt;/code&gt; option,
-i.e., in the above command the current directory.&lt;/p&gt;
-</description>
-        <pubDate>Tue, 01 Jan 2019 00:00:00 +0100</pubDate>
-        <link>https://www.wild-inter.net/posts/pdf2htmlEX-on-docker</link>
-        <guid isPermaLink="true">https://www.wild-inter.net/posts/pdf2htmlEX-on-docker</guid>
-        
         
         <category>linux</category>
         

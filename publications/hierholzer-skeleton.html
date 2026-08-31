@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Space-Efficient Hierholzer — Animated</title>
+<style>
+    :root {
+        --bg: #f1eed9;
+        --panel: #f8f6ec;
+        --panel-border: #cdc9bb;
+        --controls-bg: #e7e3ca;
+        --controls-border: #cdc9bb;
+        --ink: #6b675c;
+        --ink-strong: #46433a;
+        --title-muted: #8b8779;
+        --btn: #f8f6ec;
+        --btn-border: #aeaa9e;
+        --btn-border-hover: #8d897c;
+
+        --node-cream: #f8f6ec;
+        --node-cream-border: #aeaa9e;
+        --active: #cc2f22;        /* vertex currently being emitted */
+
+        /* algorithm colours — fixed throughout the page */
+        --edge:     #aeaa9e;      /* an edge of G not yet touched   */
+        --tree:     #6d180f;      /* spanning tree T (setup only)   */
+        --skeleton: #902015;      /* the skeleton S                 */
+        --skeleton-pale: #c08777; /* the part of S not yet written out */
+        --carry:    #1b6b45;      /* forests from the Forest Lemma: P, F_i / R */
+        --batch:    #b07d18;      /* the current batch N_i … N_j    */
+        --circuit:  #437089;      /* circuits C_k = H − R           */
+        --gi:       #8c407f;      /* the check-set G_i              */
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        background-color: var(--bg);
+        color: var(--ink);
+        font-family: var(--wi-font-body)"Segoe UI", Roboto, sans-serif;
+        margin: 0;
+        padding: 22px 26px 40px;
+        min-height: 100vh;
+    }
+
+    h1 { font-size: 1.6rem; font-weight: 600; margin: 0 0 4px; letter-spacing: 0.3px; color: var(--ink-strong); }
+    .subtitle { font-size: 0.92rem; color: var(--title-muted); margin: 0 0 20px; max-width: 90ch; line-height: 1.5; }
+    .subtitle code { background: #e7e3ca; padding: 1px 6px; border-radius: 3px; }
+
+    /* ---- controls ---- */
+    .controls {
+        display: flex; flex-wrap: wrap; gap: 20px; align-items: center;
+        background-color: var(--controls-bg); padding: 14px 22px;
+        border-radius: 6px; border: 1px solid var(--controls-border); margin-bottom: 14px;
+    }
+    .ctl-group { display: flex; align-items: center; gap: 9px; }
+    .ctl-group > label {
+        font-size: 0.82rem; color: var(--ink-strong); font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.6px;
+    }
+    .btn-group { display: flex; gap: 8px; }
+
+    button, select {
+        background-color: var(--btn); color: var(--ink-strong);
+        border: 1px solid var(--btn-border); padding: 8px 16px; font-size: 0.9rem;
+        border-radius: 4px; cursor: pointer; transition: background 0.15s, border-color 0.15s;
+        font-weight: 500; font-family: inherit;
+    }
+    button:hover:not(:disabled), select:hover { background-color: #fbfaf4; border-color: var(--btn-border-hover); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.primary { background-color: #f0d9cd; border-color: #c08777; }
+    button.primary:hover:not(:disabled) { background-color: #fbfaf4; }
+    select { cursor: pointer; padding-right: 10px; }
+
+    .seg { display: inline-flex; border: 1px solid var(--btn-border); border-radius: 4px; overflow: hidden; }
+    .seg button { border: none; border-radius: 0; padding: 8px 14px; background: var(--btn); font-size: 0.86rem; }
+    .seg button + button { border-left: 1px solid var(--btn-border); }
+    .seg button.on { background: #6d180f; color: #f8f6ec; }
+    .seg button.on:hover { background: #86342a; }
+
+    input[type="range"] { accent-color: #cc2f22; cursor: pointer; vertical-align: middle; }
+    .slider-group { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #46433a; }
+    .slider-group span { min-width: 46px; }
+
+    .toggles { display: flex; flex-wrap: wrap; gap: 9px 22px; align-items: center; }
+
+    .timeline {
+        display: flex; align-items: center; gap: 14px;
+        background-color: var(--controls-bg); padding: 10px 22px;
+        border-radius: 6px; border: 1px solid var(--controls-border); margin-bottom: 22px;
+    }
+    .timeline .cap {
+        font-size: 0.82rem; color: var(--ink-strong); font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.6px;
+    }
+    .timeline input[type="range"] { flex: 1; min-width: 120px; }
+    .timeline .tl-label { font-size: 0.82rem; color: var(--ink); min-width: 190px; font-variant-numeric: tabular-nums; }
+
+    input[type="number"] {
+        width: 62px; background: var(--btn); color: var(--ink-strong);
+        border: 1px solid var(--btn-border); border-radius: 4px; padding: 7px 8px;
+        font-size: 0.88rem; font-family: inherit;
+    }
+
+    #tooltip {
+        position: fixed; z-index: 20; pointer-events: none; display: none;
+        background: var(--ink-strong); color: var(--bg); font-size: 0.78rem; line-height: 1.35;
+        padding: 6px 9px; border-radius: 4px; max-width: 280px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.22);
+    }
+    #tooltip b { color: #ebc891; font-weight: 700; }
+    .chk { display: inline-flex; align-items: center; gap: 7px; font-size: 0.86rem; color: var(--ink-strong); cursor: pointer; }
+    .chk input { accent-color: #6d180f; cursor: pointer; }
+
+    /* ---- main layout ---- */
+    .stage { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(360px,1fr); gap: 20px; align-items: start; }
+    .main { display: flex; flex-direction: column; gap: 18px; }
+    @media (max-width: 1050px) { .stage { grid-template-columns: 1fr; } }
+
+    .sim-box {
+        background-color: var(--panel); border: 1px solid var(--panel-border);
+        border-radius: 6px; padding: 14px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .sim-title {
+        font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;
+        color: var(--title-muted); margin: 0 0 12px; font-weight: 700;
+        display: flex; align-items: baseline; gap: 10px;
+    }
+    .sim-title .note { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--ink); font-size: 0.82rem; }
+    canvas#graph { display: block; background-color: var(--bg); width: 100%; height: 540px; border-radius: 4px; cursor: crosshair; }
+
+    .side { display: flex; flex-direction: column; gap: 18px; }
+
+    .status {
+        background: #e7e3ca; border: 1px solid var(--panel-border); border-radius: 5px;
+        padding: 11px 14px; font-size: 0.92rem; color: var(--ink-strong); min-height: 72px;
+        line-height: 1.45;
+    }
+    .status .head { font-weight: 700; display: block; margin-bottom: 3px; }
+    .status .stepcount { color: var(--title-muted); font-size: 0.78rem; float: right; padding-left: 12px; }
+
+    /* pseudocode */
+    pre.code {
+        margin: 0; font-family: "SF Mono", var(--wi-font-mono);
+        font-size: 0.8rem; line-height: 1.62; color: var(--ink-strong); white-space: pre;
+        overflow-x: auto;
+    }
+    pre.code .ln { display: block; padding: 0 6px; border-radius: 3px; border-left: 3px solid transparent; }
+    pre.code .ln.hot { background: #f6e3bc; border-left-color: var(--batch); }
+    pre.code .cm { color: var(--title-muted); font-style: italic; }
+    pre.code .kw { color: #6d180f; font-weight: 600; }
+    pre.code .no { color: #c0b49a; user-select: none; }
+
+    /* output stream */
+    .stream { display: flex; flex-wrap: wrap; gap: 3px; max-height: 190px; overflow-y: auto; padding: 2px; align-content: flex-start; }
+    .tok {
+        min-width: 23px; padding: 2px 5px; border-radius: 3px; text-align: center;
+        font-size: 0.82rem; font-variant-numeric: tabular-nums; border: 1px solid;
+        cursor: pointer; transition: transform 0.08s;
+    }
+    .tok.hl { transform: translateY(-2px); box-shadow: 0 0 0 2px var(--ink-strong); }
+    .tok.dull { opacity: 0.25; }
+    .tok.w      { background: var(--skeleton); border-color: var(--skeleton); color: #f8f6ec; }
+    .tok.c      { background: var(--circuit);  border-color: var(--circuit);  color: #fbfaf4; }
+    .tok.wf     { background: transparent; border-color: var(--skeleton); color: var(--skeleton); opacity: 0.4; }
+    .tok.cf     { background: transparent; border-style: dashed; border-color: var(--circuit); color: var(--circuit); opacity: 0.65; font-size: 0.74rem; }
+    .tok.start  { background: var(--node-cream); border-color: var(--node-cream-border); color: var(--ink-strong); font-weight: 700; }
+    .tok.fresh  { box-shadow: 0 0 0 2px rgba(204,47,34,0.35); }
+    .stream-tip { font-size: 0.76rem; color: var(--title-muted); margin-top: 8px; line-height: 1.4; }
+
+    /* invariant + cost tables */
+    table.kv { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    table.kv td { padding: 3px 0; }
+    table.kv td.k { color: var(--title-muted); }
+    table.kv td.v { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-strong); font-weight: 600; }
+    .inv { font-size: 0.9rem; text-align: center; padding: 6px 0 2px; font-variant-numeric: tabular-nums; }
+    .inv .ok { color: var(--circuit); font-weight: 700; }
+    .inv .bad { color: #cc2f22; font-weight: 700; }
+    .inv .cc { color: var(--circuit); font-weight: 700; }
+    .inv .ff { color: var(--carry); font-weight: 700; }
+    .inv .gg { color: var(--gi); font-weight: 700; }
+    .inv-tip { font-size: 0.76rem; color: var(--title-muted); text-align: center; margin-top: 4px; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 0.78rem; color: var(--ink); }
+    .legend .item { display: flex; align-items: center; gap: 7px; }
+    .swatch { width: 18px; height: 0; border-top: 3px solid; }
+    .swatch.dot { width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid; border-top-width: 1.5px; }
+
+    /* editor */
+    details.editor { margin-top: 22px; }
+    details.editor summary { cursor: pointer; font-size: 0.85rem; color: var(--title-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; }
+    .editor-body { margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+    textarea {
+        font-family: "SF Mono", var(--wi-font-mono); font-size: 0.85rem;
+        background: var(--panel); color: var(--ink-strong); border: 1px solid var(--panel-border);
+        border-radius: 5px; padding: 10px; width: 250px; height: 250px; resize: vertical;
+    }
+    .editor-help { font-size: 0.82rem; color: var(--ink); max-width: 460px; line-height: 1.55; }
+    .editor-help code { background: #e7e3ca; padding: 1px 5px; border-radius: 3px; }
+    .err { color: #6d180f; font-weight: 600; font-size: 0.82rem; min-height: 18px; margin-top: 6px; }
+
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
+  font-family: var(--wi-font-head);
+  letter-spacing: .05em;
+}
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<h1>Space-Efficient Hierholzer</h1>
+<p class="subtitle">
+An Eulerian tour of an undirected multigraph, written out in traversal order using only
+<b>O(n) words</b> of working memory instead of O(m). A sparse spanning circuit — the
+<b>skeleton</b> S — is computed first and then walked step by step; along the way the remaining
+edges are processed in batches, and every batch leaves behind nothing but a <b>forest</b>.
+Reads the <code>Algs4 Graph</code> format (V, then E, then the edges).
+</p>
+
+<div class="controls">
+    <div class="ctl-group">
+        <label for="presetSel">Graph</label>
+        <select id="presetSel"></select>
+    </div>
+    <div class="ctl-group">
+        <label for="startSel">Start</label>
+        <select id="startSel"></select>
+    </div>
+    <div class="ctl-group">
+        <label>Variant</label>
+        <div class="seg">
+            <button id="varNaive" onclick="setVariant(false)">§3.2 one round per vertex</button>
+            <button id="varBatch" onclick="setVariant(true)">§3.3 batched</button>
+        </div>
+    </div>
+    <div class="btn-group">
+        <button id="backBtn" onclick="stepBack()">‹ Back</button>
+        <button id="stepBtn" class="primary" onclick="stepFwd()">Step ›</button>
+        <button id="playBtn" onclick="togglePlay()">Play</button>
+        <button id="resetBtn" onclick="resetRun()">Reset</button>
+    </div>
+    <div class="slider-group">
+        <label style="font-size:.82rem;letter-spacing:.6px;text-transform:uppercase;font-weight:600;color:var(--ink-strong)">Delay</label>
+        <input type="range" id="speedSlider" min="80" max="2200" value="900" oninput="updateSpeed(this.value)">
+        <span id="speedVal">900ms</span>
+    </div>
+    <div class="ctl-group">
+        <label>Random</label>
+        <input type="number" id="randN" min="2" max="60" value="14" title="number of vertices">
+        <span style="color:var(--title-muted)">V</span>
+        <input type="number" id="randM" min="2" max="1200" value="120" title="number of edges">
+        <span style="color:var(--title-muted)">E</span>
+        <button onclick="generateRandom()">Generate</button>
+    </div>
+</div>
+
+<div class="timeline">
+    <span class="cap">Step</span>
+    <input type="range" id="frameSlider" min="-1" max="0" value="-1" step="1" oninput="jumpTo(+this.value)">
+    <span class="tl-label" id="frameLabel">0 / 0</span>
+</div>
+
+<div class="stage">
+    <div class="main">
+        <div class="sim-box">
+            <div class="sim-title">Status</div>
+            <div class="status"><span class="stepcount" id="stepCount"></span><span class="head" id="statusHead"></span><span id="statusText">Press <b>&nbsp;Step&nbsp;</b> or <b>&nbsp;Play&nbsp;</b> to begin.</span></div>
+        </div>
+
+        <div class="sim-box">
+            <div class="sim-title">Graph <span class="note" id="graphNote"></span></div>
+            <canvas id="graph"></canvas>
+            <div class="legend" style="margin-top:12px">
+                <div class="item"><span class="swatch" style="border-color:var(--edge)"></span>edge of G</div>
+                <div class="item"><span class="swatch" style="border-color:var(--tree)"></span>spanning tree T</div>
+                <div class="item"><span class="swatch" style="border-color:var(--skeleton-pale)"></span>skeleton S, not yet written</div>
+                <div class="item"><span class="swatch" style="border-color:var(--skeleton)"></span>skeleton S, written out</div>
+                <div class="item"><span class="swatch" style="border-color:var(--carry)"></span>forest from the Forest Lemma (P, F<sub>i</sub>)</div>
+                <div class="item"><span class="swatch" style="border-color:var(--batch)"></span>batch N<sub>i</sub> … N<sub>j</sub></div>
+                <div class="item"><span class="swatch" style="border-color:hsl(202 72% 71%)"></span><span class="swatch" style="border-color:hsl(220 72% 55%)"></span><span class="swatch" style="border-color:hsl(233 72% 38%)"></span>circuits C<sub>k</sub>, one tone each (earlier = lighter)</div>
+                <div class="item"><span class="swatch" style="border-color:var(--gi);border-top-style:dashed"></span>G<sub>i</sub></div>
+                <div class="item"><span class="swatch dot" style="background:var(--node-cream);border-color:var(--node-cream-border)"></span>vertex</div>
+                <div class="item"><span class="swatch dot" style="background:transparent;border-color:var(--skeleton);border-style:dashed"></span>revisit copy</div>
+            </div>
+        </div>
+
+        <div class="sim-box">
+            <div class="sim-title">Output stream <span class="note">append-only — click to jump there, hover to light it up</span></div>
+            <div class="stream" id="streamView"></div>
+            <div class="stream-tip">
+                Solid = already written. Outlined <span style="color:var(--skeleton)">skeleton</span> = the rest of the
+                roadmap, already known; dashed <span style="color:var(--circuit)">⟨C<sub>k</sub>⟩</span> = a detour still to be computed.
+            </div>
+        </div>
+
+        <div class="sim-box">
+            <div class="sim-title">Drawing</div>
+            <div class="toggles">
+                <label class="chk"><input type="checkbox" id="expandedChk" onchange="render()"> expanded skeleton (revisits drawn as marked copies)</label>
+                <label class="chk"><input type="checkbox" id="collapseChk" onchange="render()"> collapse parallel edges into one with a counter</label>
+                <label class="chk"><input type="checkbox" id="giChk" onchange="render()"> show G<sub>i</sub></label>
+                <label class="chk"><input type="checkbox" id="arrowChk" checked onchange="render()"> arrows on the written tour</label>
+                <label class="chk"><input type="checkbox" id="walkChk" checked onchange="render()"> walk a token along each newly written piece</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="side">
+        <div class="sim-box">
+            <div class="sim-title">Algorithm</div>
+            <pre class="code" id="codeView"></pre>
+        </div>
+
+        <div class="sim-box">
+            <div class="sim-title">Invariant (1)</div>
+            <div class="inv" id="invView">—</div>
+            <div class="inv-tip">C<sub>1</sub> + ⋯ + C<sub>i</sub> + F<sub>i</sub> = G<sub>i</sub>, checked at every round boundary</div>
+        </div>
+
+        <div class="sim-box">
+            <div class="sim-title">Cost</div>
+            <table class="kv" id="costView"></table>
+        </div>
+    </div>
+</div>
+
+<div id="tooltip"></div>
+
+<details class="editor">
+    <summary>Edit / paste a graph</summary>
+    <div class="editor-body">
+        <textarea id="graphText" spellcheck="false"></textarea>
+        <div>
+            <button class="primary" onclick="loadFromText()">Load this graph</button>
+            <div class="err" id="parseErr"></div>
+            <div class="editor-help" style="margin-top:10px">
+                Format (Sedgewick &amp; Wayne <code>Graph</code>): first line is the number of vertices <code>V</code>,
+                second line the number of edges <code>E</code>, then <code>E</code> lines each holding an undirected
+                edge <code>v w</code>. Vertices are <code>0 … V−1</code>. Parallel edges and self-loops are allowed.
+                <br><br>
+                <b>Optional fixed layout:</b> after the edges, add exactly <code>V</code> more lines of <code>x y</code>
+                — one pair per vertex, in order — to pin down the drawing of the <i>input</i> graph. Once the skeleton
+                is computed the vertices are rearranged by first appearance on it, so these coordinates only affect the
+                setup phase.
+                <br><br>
+                <b>Generate</b> (top right) builds a random Eulerian multigraph with the requested number of
+                vertices and edges — a random Hamiltonian cycle with random circuits piled on top, which keeps every
+                degree even — and drops the result into this box, so you can keep or edit it.
+                <br><br>
+                <b>The graph must be Eulerian:</b> connected, with no isolated vertices, and every degree even
+                (a loop counts twice). Anything else is rejected with a message here.
+            </div>
+        </div>
+    </div>
+</details>
+
+<script>
+/* =====================================================================
+   PART 1 — the algorithm  (a direct transcription of the paper)
+   =====================================================================
+   Vertices are 1..n.  An edge object is  { u, v, members:[origEdgeId] }
+   with u <= v; `members.length` is the zig-zag multiplicity of §3.3, so
+   an ordinary edge has exactly one member and a virtual edge several.
+   Edge objects are compared by identity, which makes multiset
+   subtraction simply "drop these objects".
+   ===================================================================== */
+
+function mkEdge(u, v, members) { return { u: Math.min(u, v), v: Math.max(u, v), members }; }
+const mult   = e => e.members.length;
+const isLoop = e => e.u === e.v;
+const other  = (e, w) => (w === e.u ? e.v : e.u);
+
+const plus  = (A, B) => A.concat(B);
+const minus = (A, B) => { const S = new Set(B); return A.filter(e => !S.has(e)); };
+
+function degree(E, v) { let d = 0; for (const e of E) { if (e.u === v) d++; if (e.v === v) d++; } return d; }
+function isEven(E, n) { for (let v = 1; v <= n; v++) if (degree(E, v) % 2) return false; return true; }
+
+/* v -> [{ei, w}] ; a loop at v appears twice, exactly as in the input arrays */
+function incidences(E, n) {
+    const inc = []; for (let v = 0; v <= n; v++) inc.push([]);
+    E.forEach((e, ei) => { inc[e.u].push({ ei, w: e.v }); inc[e.v].push({ ei, w: e.u }); });
+    return inc;
+}
+
+function spanningForest(E, n) {
+    const inc = incidences(E, n);
+    const parentEdge = new Map(), preorder = [], seen = new Set(), tree = [];
+    for (let root = 1; root <= n; root++) {
+        if (seen.has(root) || inc[root].length === 0) continue;
+        seen.add(root); preorder.push(root);
+        const stack = [root];
+        while (stack.length) {
+            const v = stack.pop();
+            for (const { ei, w } of inc[v]) if (!seen.has(w)) {
+                seen.add(w); parentEdge.set(w, ei); tree.push(E[ei]); preorder.push(w); stack.push(w);
+            }
+        }
+    }
+    return { tree, parentEdge, preorder };
+}
+
+function spanningTree(E, n) {
+    const { tree, preorder } = spanningForest(E, n);
+    /* spanningForest covers every component, so it is the edge count that
+       tells us whether the graph was connected in the first place. */
+    if (preorder.length !== n || tree.length !== n - 1) throw new Error('the graph is not connected');
+    return tree;
+}
+
+/* Forest Lemma: a forest F ⊆ E with E − F even.  For each vertex in
+   postorder, the parity of the total degree of its subtree decides whether
+   its parent edge joins F. */
+function forestLemma(E, n) {
+    const { parentEdge, preorder } = spanningForest(E, n);
+    const sub = new Map();
+    for (const v of preorder) sub.set(v, degree(E, v));
+    const F = [];
+    for (let k = preorder.length - 1; k >= 0; k--) {
+        const v = preorder[k];
+        if (!parentEdge.has(v)) continue;               /* a root: even, by the Handshake lemma */
+        const e = E[parentEdge.get(v)], p = other(e, v);
+        sub.set(p, sub.get(p) + sub.get(v));
+        if (sub.get(v) % 2 === 1) F.push(e);
+    }
+    return F;
+}
+
+/* Hierholzer: an Eulerian tour of the connected even graph E as [{from,to,e}] */
+function eulerTour(E, n, start) {
+    const inc = incidences(E, n);
+    const used = new Array(E.length).fill(false);
+    const cur = new Array(n + 1).fill(0);
+    const stack = [{ v: start, ei: -1 }], popped = [];
+    while (stack.length) {
+        const v = stack[stack.length - 1].v;
+        while (cur[v] < inc[v].length && used[inc[v][cur[v]].ei]) cur[v]++;
+        if (cur[v] < inc[v].length) { const { ei, w } = inc[v][cur[v]]; used[ei] = true; stack.push({ v: w, ei }); }
+        else popped.push(stack.pop());
+    }
+    if (used.some(x => !x)) throw new Error('eulerTour: the graph is not connected');
+    popped.reverse();
+    const tour = [];
+    for (let k = 0; k + 1 < popped.length; k++)
+        tour.push({ from: popped[k].v, to: popped[k + 1].v, e: E[popped[k + 1].ei] });
+    return tour;
+}
+
+/* Partition an even graph into circuits, one per connected component. */
+function eulerCircuits(E, n) {
+    const inc = incidences(E, n), comp = new Map(), out = [];
+    for (let root = 1; root <= n; root++) {
+        if (comp.has(root) || inc[root].length === 0) continue;
+        comp.set(root, root);
+        const stack = [root];
+        while (stack.length) { const v = stack.pop(); for (const { w } of inc[v]) if (!comp.has(w)) { comp.set(w, root); stack.push(w); } }
+        out.push(eulerTour(E.filter(e => comp.get(e.u) === root), n, root));
+    }
+    return out;
+}
+
+function rotateCircuit(C, k) {
+    for (let p = 0; p < C.length; p++) if (C[p].from === k) return C.slice(p).concat(C.slice(0, p));
+    throw new Error('vertex ' + k + ' is not on the circuit');
+}
+
+/* Edges are stored with u <= v, so min(u,v) = e.u. */
+const N_of = (GS, i) => GS.filter(e => e.u === i);
+const G_of = (GS, i) => GS.filter(e => e.u <= i);
+
+/* Compression of N_k into virtual edges (§3.3, "Parallel Edges and Loops"):
+   odd multiplicity  -> one virtual edge for all copies;
+   even multiplicity -> keep one copy, one virtual edge for the rest.       */
+function compressNeighbourhood(Nk) {
+    const groups = new Map();
+    for (const e of Nk) {
+        const key = e.u + ':' + e.v;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(e.members[0]);
+    }
+    const out = [];
+    for (const [key, ids] of groups) {
+        const [u, v] = key.split(':').map(Number);
+        if (ids.length % 2 === 1) out.push(mkEdge(u, v, ids.slice()));
+        else { out.push(mkEdge(u, v, [ids[0]])); out.push(mkEdge(u, v, ids.slice(1))); }
+    }
+    return { edges: out, distinct: groups.size };
+}
+
+/* ---------------- setup phase (§3.1) ---------------- */
+function setupPhase(G, n, start) {
+    const T = spanningTree(G, n);
+    const P = forestLemma(minus(G, T), n);
+    const S0 = eulerTour(plus(T, P), n, start);
+
+    const order = [], seen = new Set();
+    for (const t of S0) if (!seen.has(t.from)) { seen.add(t.from); order.push(t.from); }
+    if (order.length !== n) throw new Error('the skeleton is not spanning');
+
+    const idx = new Map();
+    order.forEach((v, k) => idx.set(v, k + 1));                 /* v_i ↦ i */
+
+    const rel = e => mkEdge(idx.get(e.u), idx.get(e.v), e.members);
+    const Grel = G.map(rel);
+    const rl = new Map(); G.forEach((e, k) => rl.set(e, Grel[k]));
+    const S = S0.map(t => ({ from: idx.get(t.from), to: idx.get(t.to), e: rl.get(t.e) }));
+
+    const firstPos = new Map();
+    S.forEach((t, p) => { if (!firstPos.has(t.from)) firstPos.set(t.from, p); });
+    const W = new Map();
+    for (let i = 1; i <= n; i++) W.set(i, S.slice(firstPos.get(i), i < n ? firstPos.get(i + 1) : S.length));
+
+    return { G: Grel, S, W, order, idx, firstPos, T: T.map(e => rl.get(e)), P: P.map(e => rl.get(e)) };
+}
+
+/* ---------------- main phase, both variants, emitting a trace ---------------- */
+function expandTraversal(t, kind, k, sink) {
+    let a = t.from, b = t.to;
+    for (const id of t.e.members) { sink.push({ from: a, to: b, id, kind, k }); const s = a; a = b; b = s; }
+}
+
+function run(G, n, start, batched) {
+    const su = setupPhase(G, n, start);
+    const Sedges = su.S.map(t => t.e);
+    const GS = minus(su.G, Sedges);
+
+    const frames = [], output = [];
+    let time = 0;
+    /* working memory: the carry forest, the current batch, and the O(n) index
+       tables (v₁…vₙ, its inverse, and the count[1..n] array of §3.3).         */
+    const memNow = (R, B) => ({ R: R.length, B: B.length, tables: 3 * n, total: R.length + B.length + 3 * n });
+
+    const roleMap = sets => {
+        const m = new Map();
+        for (const [E, role] of sets) for (const e of E) for (const id of e.members) m.set(id, role);
+        return m;
+    };
+    const push = f => frames.push(Object.assign(
+        { layout: 'ordered', outputCount: output.length, gi: 0, fade: null, time, batch: null,
+          mem: { R: 0, B: 0, tables: 3 * n, total: 3 * n } }, f));
+
+    /* --- setup --- */
+    push({ layout: 'input', step: 'input', title: 'Input',
+        status: `An Eulerian multigraph G with n = ${n} vertices and m = ${G.length} edges: connected, and every degree even.`,
+        roles: new Map() });
+    time += G.length;
+    push({ layout: 'input', step: 'T', title: 'T ← SpanningTree(G)',
+        status: 'One DFS over the read-only adjacency arrays gives a spanning tree T. It has n−1 edges, so storing it costs O(n) words.',
+        roles: roleMap([[su.T, 'tree']]) });
+    time += G.length;
+    push({ layout: 'input', step: 'P', title: 'P ← ForestLemma(G − T)',
+        status: 'The Forest Lemma applied to G − T returns a forest P with (G − T) − P even. Since G is even, G − (T+P) is even as well.',
+        roles: roleMap([[su.T, 'tree'], [su.P, 'carry']]) });
+    push({ layout: 'input', step: 'TP', title: 'T + P is Eulerian',
+        status: `T + P is connected (it contains T) and even, hence Eulerian — and it has only ${su.T.length + su.P.length} ≤ 2n−2 edges.`,
+        roles: roleMap([[su.T, 'tree'], [su.P, 'carry']]),
+        fade: new Set([...su.T, ...su.P].flatMap(e => e.members)) });
+    push({ layout: 'input', step: 'S', title: 'S ← EulerTour(T + P)',
+        status: `Hierholzer on T + P yields the skeleton S: a spanning circuit with ${Sedges.length} ≤ 2n edges. Everything else is hung off it.`,
+        roles: roleMap([[Sedges, 'skeleton']]) });
+    push({ layout: 'ordered', step: 'relabel', title: 'Relabel v₁, …, vₙ',
+        status: 'Number the vertices by first appearance on S, so that v₁ = 1, …, vₙ = n, and split S into the walks W₁, …, Wₙ, where Wᵢ runs from i to i+1 (and Wₙ from n back to 1).',
+        roles: roleMap([[Sedges, 'skeleton']]) });
+
+    /* --- main phase --- */
+    let R = [], i = 1, circuitsSoFar = [];
+    const rounds = [];
+
+    while (i <= n) {
+        let j = i - 1, size = 0, B = [];
+        while (j < n) {
+            j += 1;
+            const Nk = N_of(GS, j);
+            time += Math.max(1, degree(GS, j));
+            if (batched) { const c = compressNeighbourhood(Nk); B = B.concat(c.edges); size += c.distinct; }
+            else         { B = B.concat(Nk); size += Nk.length; }
+            if (!batched || size >= n) break;
+        }
+
+        const virt = B.filter(e => mult(e) > 1).length;
+        push({ step: 'batch',
+            title: batched ? `(j, B̂) ← ReadBatch(G − S, ${i})` : `N<sub>${i}</sub> ← the edges of G − S at ${i}`,
+            status: batched
+                ? `Batch ${i}…${j}: N<sub>${i}</sub> + ⋯ + N<sub>${j}</sub> holds ${size} distinct edge${size === 1 ? '' : 's'}, compressed into ${B.length}${virt ? `, of which ${virt} virtual (a virtual edge stands for an odd number of parallel copies and is walked as a zig-zag)` : ''}. A batch stops as soon as it has collected n = ${n} distinct edges.`
+                : `N<sub>${i}</sub> is the edge neighbourhood of ${i} in G<sub>${i}</sub>, i.e. the edges of G − S whose smaller endpoint is ${i}: ${B.length} edge${B.length === 1 ? '' : 's'}.`,
+            roles: roleMap([[Sedges, 'skeleton'], [R, 'carry'], [B, 'batch']]),
+            batch: { i, j }, gi: j, mem: memNow(R, B) });
+
+        const H = plus(R, B);
+        push({ step: 'H', title: batched ? 'H ← R + B̂' : `H ← F<sub>${i - 1}</sub> + N<sub>${i}</sub>`,
+            status: `H has ${H.length} edge${H.length === 1 ? '' : 's'}: the carry forest (${R.length}) plus the batch (${B.length}). Everything outside the forest is incident to one of ${i}…${j}, and everything else in the graph is out of scope for this round.`,
+            roles: roleMap([[Sedges, 'skeleton'], [R, 'carry'], [B, 'batch']]),
+            fade: new Set(H.flatMap(e => e.members)), batch: { i, j }, gi: j, mem: memNow(R, B) });
+
+        time += H.length;
+        const Rnew = forestLemma(H, n);
+        const D = minus(H, Rnew);
+        push({ step: 'forest', title: batched ? 'R ← ForestLemma(H)' : `F<sub>${i}</sub> ← ForestLemma(H)`,
+            status: `The Forest Lemma splits H into a forest of ${Rnew.length} edge${Rnew.length === 1 ? '' : 's'} — carried over to the next round — and an even remainder H − R of ${D.length} edge${D.length === 1 ? '' : 's'}.`,
+            roles: roleMap([[Sedges, 'skeleton'], [D, 'circuit'], [Rnew, 'carry']]),
+            fade: new Set(H.flatMap(e => e.members)), batch: { i, j }, gi: j, mem: memNow(Rnew, B) });
+
+        const C = new Map();
+        for (let k = i; k <= j; k++) C.set(k, []);
+        const circuits = eulerCircuits(D, n);
+        for (const Q of circuits) {
+            let k = Infinity;
+            for (const t of Q) if (t.from >= i && t.from <= j) k = Math.min(k, t.from);
+            C.set(k, C.get(k).concat(rotateCircuit(Q, k)));
+        }
+        push({ step: 'circuits', title: 'EulerCircuits(H − R)',
+            status: D.length === 0
+                ? 'H − R is empty, so this round contributes no detour: we just walk on along the skeleton.'
+                : `H − R is even and splits into ${circuits.length} circuit${circuits.length === 1 ? '' : 's'}. None can live inside the forest alone, so each one meets ${i}…${j} and gets rooted there as some C<sub>k</sub>.`,
+            roles: roleMap([[Sedges, 'skeleton'], [D, 'circuit'], [Rnew, 'carry']]),
+            fade: new Set(H.flatMap(e => e.members)), batch: { i, j }, gi: j, mem: memNow(Rnew, B) });
+
+        for (let k = i; k <= j; k++) {
+            for (const t of C.get(k)) expandTraversal(t, 'C', k, output);
+            for (const t of su.W.get(k)) expandTraversal(t, 'W', k, output);
+            circuitsSoFar = circuitsSoFar.concat(C.get(k));
+            const lenC = C.get(k).reduce((s, t) => s + mult(t.e), 0);
+            push({ step: 'output', title: `Output(C<sub>${k}</sub>) ; Output(W<sub>${k}</sub>)`,
+                status: lenC
+                    ? `C<sub>${k}</sub> is a circuit of ${lenC} edge${lenC === 1 ? '' : 's'} rooted at ${k}: write it out, then walk on along W<sub>${k}</sub> to vertex ${k === n ? 1 : k + 1}.`
+                    : `C<sub>${k}</sub> is empty, so just walk on along W<sub>${k}</sub> to vertex ${k === n ? 1 : k + 1}.`,
+                roles: roleMap([[Sedges, 'skeleton'], [D, 'circuit'], [Rnew, 'carry']]),
+                batch: { i, j }, gi: j, mem: memNow(Rnew, B), emitting: k });
+        }
+
+        const sumC = circuitsSoFar.reduce((s, t) => s + mult(t.e), 0);
+        const fSize = Rnew.reduce((s, e) => s + mult(e), 0);
+        const gSize = G_of(GS, j).length;
+        rounds.push({ i, j, ok: sumC + fSize === gSize });
+        frames[frames.length - 1].invariant = { i: j, sumC, F: fSize, G: gSize };
+
+        R = Rnew; i = j + 1;
+    }
+
+    push({ step: 'done', title: 'Done',
+        status: `Fₙ must be empty — a forest all of whose degrees are even has no edges — so every edge of G has been written out exactly once: ${output.length} edges, in traversal order.`,
+        roles: roleMap([[Sedges, 'skeleton']]) });
+
+    const peakMem = Math.max(...frames.map(f => f.mem.total));
+    return { su, GS, Sedges, frames, output, rounds, peakMem, time };
+}
+
+/* =====================================================================
+   PART 2 — presets and input parsing
+   ===================================================================== */
+const PRESETS = {
+"Figure 1  (4 V, 9 E — parallel edges + a loop)":
+`4
+9
+0 1
+0 1
+1 2
+2 0
+1 3
+3 0
+2 3
+2 3
+0 0
+0 0
+2 0
+2 2
+0 2`,
+"K5  (5 V, 10 E — simple, every degree 4)":
+`5
+10
+0 1
+0 2
+0 3
+0 4
+1 2
+1 3
+1 4
+2 3
+2 4
+3 4`,
+"Octahedron  (6 V, 12 E — simple)":
+`6
+12
+0 1
+0 2
+0 3
+0 4
+1 2
+1 4
+1 5
+2 3
+2 5
+3 4
+3 5
+4 5`,
+"Two triangles, double bridge  (6 V, 8 E)":
+`6
+8
+0 1
+1 2
+2 0
+3 4
+4 5
+5 3
+2 3
+2 3
+0 0
+1 1
+2 0.6
+3.4 0.6
+4.4 1
+4.4 0`,
+"Theta  (2 V, 8 parallel edges)":
+`2
+8
+0 1
+0 1
+0 1
+0 1
+0 1
+0 1
+0 1
+0 1`,
+"Medium  (8 V, 34 E — three batches)":
+`8
+34
+4 6
+6 1
+1 7
+7 3
+3 2
+2 5
+5 0
+0 4
+1 2
+2 6
+6 5
+5 1
+4 7
+7 0
+0 3
+3 4
+4 5
+5 0
+0 4
+2 6
+6 0
+0 1
+1 2
+5 0
+0 1
+1 5
+7 5
+5 4
+4 0
+0 7
+1 5
+5 3
+3 1
+6 6`,
+"Big  (13 V, 68 E — several batches)":
+`13
+68
+8 9
+9 3
+3 4
+4 12
+12 5
+5 0
+0 7
+7 11
+11 10
+10 1
+1 2
+2 6
+6 8
+7 11
+11 4
+4 1
+1 7
+10 4
+4 2
+2 8
+8 10
+12 6
+6 10
+10 12
+0 9
+9 12
+12 7
+7 0
+8 12
+12 7
+7 11
+11 8
+8 4
+4 9
+9 10
+10 8
+0 5
+5 11
+11 0
+5 1
+1 0
+0 3
+3 6
+6 5
+8 12
+12 9
+9 1
+1 0
+0 8
+12 1
+1 9
+9 12
+4 11
+11 5
+5 4
+5 11
+11 9
+9 5
+9 11
+11 2
+2 8
+8 10
+10 9
+3 7
+7 5
+5 9
+9 2
+2 3`
+};
+
+/* A small seeded generator: start from a random Hamiltonian cycle (connected and
+   even), then superimpose random circuits — which keeps every degree even — until
+   the requested number of edges is reached, filling up with parallel pairs and, if
+   one edge is still missing, a single loop.                                      */
+function lcg(seed) { let x = seed >>> 0; return () => (x = (x * 1664525 + 1013904223) >>> 0) / 4294967296; }
+
+function randomEulerianText(nv, me, rnd) {
+    const n = Math.max(2, Math.min(60, nv | 0));
+    const m = Math.max(n, Math.min(1500, me | 0));
+    const pairs = [];
+    const perm = [...Array(n).keys()].map(x => x + 1);
+    for (let k = n - 1; k > 0; k--) { const t = Math.floor(rnd() * (k + 1));[perm[k], perm[t]] = [perm[t], perm[k]]; }
+    for (let k = 0; k < n; k++) pairs.push([perm[k], perm[(k + 1) % n]]);
+    while (m - pairs.length >= 3) {
+        const len = Math.min(3 + Math.floor(rnd() * 3), n, m - pairs.length);
+        if (len < 3) break;
+        const pool = [...Array(n).keys()].map(x => x + 1), cyc = [];
+        for (let z = 0; z < len; z++) cyc.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
+        for (let k = 0; k < len; k++) pairs.push([cyc[k], cyc[(k + 1) % len]]);
+    }
+    while (m - pairs.length >= 2) {
+        const u = 1 + Math.floor(rnd() * n);
+        let v = 1 + Math.floor(rnd() * n); if (v === u) v = 1 + (u % n);
+        pairs.push([u, v]); pairs.push([u, v]);
+    }
+    if (m - pairs.length === 1) { const u = 1 + Math.floor(rnd() * n); pairs.push([u, u]); }
+    return n + '\n' + pairs.length + '\n' + pairs.map(([u, v]) => (u - 1) + ' ' + (v - 1)).join('\n');
+}
+
+for (const [nv, me, seed] of [[10, 70, 7], [18, 160, 11], [30, 400, 23]])
+    PRESETS[`Random  (${nv} V, ${me} E \u2014 seed ${seed})`] = randomEulerianText(nv, me, lcg(seed));
+
+function generateRandom() {
+    const nv = +document.getElementById('randN').value, me = +document.getElementById('randM').value;
+    const text = randomEulerianText(nv, me, lcg(Math.floor(Math.random() * 4294967295)));
+    document.getElementById('graphText').value = text;
+    document.getElementById('presetSel').selectedIndex = -1;
+    loadGraph(text, false);
+}
+
+function parseGraph(text) {
+    const tok = text.trim().split(/\s+/).map(Number);
+    if (tok.some(x => !isFinite(x))) throw new Error('the input contains something that is not a number');
+    const n = tok[0], m = tok[1];
+    if (!(n >= 2)) throw new Error('need at least two vertices');
+    if (tok.length < 2 + 2 * m) throw new Error(`expected ${m} edge lines, found fewer`);
+    const pairs = [];
+    for (let k = 0; k < m; k++) {
+        const u = tok[2 + 2 * k], v = tok[3 + 2 * k];
+        if (!(u >= 0 && u < n && v >= 0 && v < n)) throw new Error(`edge ${k + 1} uses a vertex outside 0…${n - 1}`);
+        pairs.push([u + 1, v + 1]);
+    }
+    let coords = null;
+    if (tok.length >= 2 + 2 * m + 2 * n) {
+        coords = [];
+        for (let v = 0; v < n; v++) coords.push({ x: tok[2 + 2 * m + 2 * v], y: tok[3 + 2 * m + 2 * v] });
+    }
+    const G = pairs.map(([u, v], k) => mkEdge(u, v, [k]));
+    for (let v = 1; v <= n; v++) if (degree(G, v) === 0) throw new Error(`vertex ${v - 1} is isolated`);
+    if (!isEven(G, n)) {
+        const odd = []; for (let v = 1; v <= n; v++) if (degree(G, v) % 2) odd.push(v - 1);
+        throw new Error(`not Eulerian: odd degree at ${odd.slice(0, 6).join(', ')}${odd.length > 6 ? ' …' : ''}`);
+    }
+    spanningTree(G, n);                         /* throws if disconnected */
+    return { n, G, pairs, coords };
+}
+
+/* =====================================================================
+   PART 3 — state and drawing
+   ===================================================================== */
+let n = 0, G = [], pairs = [], coords = null;
+let trace = null, ptr = -1;
+let batched = true, startVertex = 1;
+let playing = false, timer = null, delay = 900;
+
+const canvas = document.getElementById('graph');
+const ctx = canvas.getContext('2d');
+
+/* animated positions, keyed by slot id */
+let animPos = new Map();       /* id -> {x, y, a} (a = alpha) */
+let rafId = null;
+let edgeGeom = new Map();      /* original edge id -> the curve it was drawn on */
+let walk = null;               /* the travelling token, while it is running     */
+let hoverChunk = null;         /* 'C3' / 'W3' when the pointer is on the stream */
+let hoverEdge = -1;            /* original edge id when the pointer is on an edge */
+
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+const COLOR = {};
+function refreshColors() {
+    for (const k of ['edge', 'tree', 'skeleton', 'skeleton-pale', 'carry', 'batch', 'circuit', 'gi', 'active', 'ink', 'ink-strong', 'node-cream', 'node-cream-border', 'bg', 'title-muted'])
+        COLOR[k] = css('--' + k);
+}
+
+/* The colour of the k-th circuit written out: hue nudged so that neighbouring
+   circuits stay apart, lightness running from pale (written long ago) to deep
+   (just written).                                                            */
+function circuitTone(rank) {
+    if (rank < 0) return { css: COLOR.circuit, light: 42 };
+    const denom = trace.circuitTotal - 1;
+    const t = denom > 0 ? rank / denom : 1;
+    const light = 71 - 33 * t;
+    const hue = 201 + [-11, 7, 20][rank % 3];   // was 213 (blue) -- now the site's slate
+    return { css: `hsl(${hue} 34% ${light}%)`, light };   // was 72% sat (vivid) -- now 34%
+}
+
+/* ---- layout ------------------------------------------------------------
+   A "slot" is a place where a vertex is drawn.  In the input layout and in
+   the compact ordered layout there is one slot per vertex; in the expanded
+   layout the skeleton is unrolled, so a vertex re-visited by S gets one
+   extra, visibly marked copy per revisit.  Slot ids are stable across
+   layouts ('v'+i for the real vertex, 'c'+p for the copy at step p of S),
+   which is what lets the drawing morph smoothly.                        */
+function layoutSlots(mode, expanded) {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    const cx = w / 2, cy = h / 2;
+    const slots = new Map();
+
+    if (mode === 'input') {
+        let pts;
+        if (coords) {
+            let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+            for (const p of coords) { mnx = Math.min(mnx, p.x); mny = Math.min(mny, p.y); mxx = Math.max(mxx, p.x); mxy = Math.max(mxy, p.y); }
+            const sw = Math.max(mxx - mnx, 1e-6), sh = Math.max(mxy - mny, 1e-6);
+            const s = Math.min((w - 165) / sw, (h - 165) / sh);
+            const uw = sw * s, uh = sh * s;
+            pts = coords.map(p => ({ x: (w - uw) / 2 + (p.x - mnx) * s, y: (h + uh) / 2 - (p.y - mny) * s }));
+        } else {
+            const r = Math.min(w, h) / 2 - 74;
+            pts = [];
+            for (let v = 0; v < n; v++) { const a = -Math.PI / 2 + 2 * Math.PI * v / n; pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) }); }
+        }
+        for (let v = 1; v <= n; v++) {
+            const i = trace ? trace.su.idx.get(v) : v;
+            slots.set('v' + i, { x: pts[v - 1].x, y: pts[v - 1].y, main: String(v - 1), sub: '', copy: false, vertex: i });
+        }
+        return slots;
+    }
+
+    const S = trace.su.S;
+    const L = expanded ? S.length : n;
+    const r = Math.min(w, h) / 2 - (expanded ? 58 : 66);
+    const at = k => { const a = -Math.PI / 2 + 2 * Math.PI * k / L; return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) }; };
+
+    if (!expanded) {
+        for (let i = 1; i <= n; i++)
+            slots.set('v' + i, Object.assign(at(i - 1), { main: String(i), sub: String(trace.su.order[i - 1] - 1), copy: false, vertex: i }));
+    } else {
+        const SUP = ['', '', '\u00b2', '\u00b3', '\u2074', '\u2075', '\u2076', '\u2077', '\u2078', '\u2079'];
+        const visit = new Map();
+        for (let p = 0; p < S.length; p++) {
+            const i = S[p].from;
+            const nth = (visit.get(i) || 0) + 1; visit.set(i, nth);
+            const first = nth === 1;
+            const id = first ? 'v' + i : 'c' + p;
+            slots.set(id, Object.assign(at(p), {
+                main: first ? String(i) : String(i) + (SUP[nth] || '\u207a'),
+                sub: first ? String(trace.su.order[i - 1] - 1) : '',
+                copy: !first, vertex: i, pos: p
+            }));
+        }
+    }
+    return slots;
+}
+
+/* which slot does an endpoint of a drawn edge attach to? */
+function endpointSlots(id, mode, expanded, slots) {
+    if (mode === 'input') {
+        const [u, v] = pairs[id];
+        return ['v' + trace.su.idx.get(u), 'v' + trace.su.idx.get(v)];
+    }
+    const e = trace.su.G[id];
+    if (expanded && trace.skelStep.has(id)) {         /* a skeleton edge: it is a side of the unrolled polygon */
+        const p = trace.skelStep.get(id), L = trace.su.S.length;
+        const a = slots.has('c' + p) ? 'c' + p : 'v' + trace.su.S[p].from;
+        const q = (p + 1) % L;
+        const b = slots.has('c' + q) ? 'c' + q : 'v' + trace.su.S[q].from;
+        return [a, b];
+    }
+    return ['v' + e.u, 'v' + e.v];
+}
+
+/* ---- geometry helpers ---- */
+function edgePath(A, B, off) {
+    const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+    let dx = B.x - A.x, dy = B.y - A.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len, ny = dx / len;
+    return { cx: mx + nx * off, cy: my + ny * off };
+}
+function bez(A, C, B, t) {
+    const s = 1 - t;
+    return { x: s * s * A.x + 2 * s * t * C.x + t * t * B.x, y: s * s * A.y + 2 * s * t * C.y + t * t * B.y };
+}
+function bezTangent(A, C, B, t) {
+    const s = 1 - t;
+    return { x: 2 * s * (C.x - A.x) + 2 * t * (B.x - C.x), y: 2 * s * (C.y - A.y) + 2 * t * (B.y - C.y) };
+}
+
+function arrowAt(A, C, B, t, color, scale) {
+    const p = bez(A, C, B, t), d = bezTangent(A, C, B, t);
+    const a = Math.atan2(d.y, d.x), s = 6 * scale;
+    ctx.beginPath();
+    ctx.moveTo(p.x + s * Math.cos(a), p.y + s * Math.sin(a));
+    ctx.lineTo(p.x + s * Math.cos(a + 2.5), p.y + s * Math.sin(a + 2.5));
+    ctx.lineTo(p.x + s * Math.cos(a - 2.5), p.y + s * Math.sin(a - 2.5));
+    ctx.closePath();
+    ctx.fillStyle = color; ctx.fill();
+}
+
+/* ---- the main draw ---- */
+function render() {
+    if (!trace) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+        canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    const f = ptr >= 0 ? trace.frames[ptr] : trace.frames[0];
+    const prevOut = ptr > 0 ? trace.frames[ptr - 1].outputCount : 0;
+    const mode = f.layout;
+    const expanded = mode === 'ordered' && document.getElementById('expandedChk').checked;
+    const collapse = document.getElementById('collapseChk').checked;
+    const showGi = document.getElementById('giChk').checked;
+    const arrows = document.getElementById('arrowChk').checked;
+
+    const slots = layoutSlots(mode, expanded);
+
+    /* ease the drawn positions towards the target */
+    let moving = false;
+    for (const [id, s] of slots) {
+        let a = animPos.get(id);
+        if (!a) {
+            const home = animPos.get('v' + s.vertex);
+            a = { x: home ? home.x : s.x, y: home ? home.y : s.y, al: 0 };
+            animPos.set(id, a);
+        }
+        a.x += (s.x - a.x) * 0.22; a.y += (s.y - a.y) * 0.22; a.al += (1 - a.al) * 0.22;
+        if (Math.hypot(s.x - a.x, s.y - a.y) > 0.4 || a.al < 0.99) moving = true;
+        s.dx = a.x; s.dy = a.y; s.al = a.al;
+    }
+    for (const [id, a] of [...animPos]) if (!slots.has(id)) {
+        a.al += (0 - a.al) * 0.25;
+        if (a.al < 0.02) animPos.delete(id); else moving = true;
+    }
+
+    const nSlots = Math.max(slots.size, 3);
+    const circleR = Math.min(w, h) / 2 - 60;
+    const rad = Math.max(5.5, Math.min(19, 2 * Math.PI * circleR / nSlots * 0.42));
+
+    /* What the pointer is currently pointing at, if anything: hovering a piece of
+       the output stream (or an edge) lights it up and dims everything else.     */
+    const hoverIds = hoverChunk && trace.chunks.has(hoverChunk) ? trace.chunks.get(hoverChunk).ids
+        : (hoverEdge >= 0 ? new Set([hoverEdge]) : null);
+
+    /* ---- collect the edges to draw ---- */
+    edgeGeom = new Map();
+    const items = [];
+    for (let id = 0; id < G.length; id++) {
+        const [sa, sb] = endpointSlots(id, mode, expanded, slots);
+        const A = slots.get(sa), B = slots.get(sb);
+        if (!A || !B) continue;
+        const role = f.roles.get(id) || 'plain';
+        const out = trace.outputIndex[id] >= 0 && trace.outputIndex[id] < f.outputCount;
+        const fresh = out && trace.outputIndex[id] >= prevOut;
+        const kind = trace.outputKind[id];
+        const dim = hoverIds ? (hoverIds.has(id) ? 1 : 0.10)
+            : (f.fade ? (f.fade.has(id) ? 1 : (role === 'skeleton' ? 0.55 : 0.12)) : 1);
+        const inGi = mode === 'ordered' && showGi && trace.giKey[id] >= 0 && trace.giKey[id] <= f.gi;
+        items.push({ id, sa, sb, A, B, role, out, fresh, kind, dim, inGi,
+            lit: !!(hoverIds && hoverIds.has(id)), focus: id === hoverEdge });
+    }
+
+    /* Group parallel edges by the pair of slots they join, so that a bundle can
+       be fanned out.  With "collapse" on, copies that would be drawn identically
+       are merged into a single curve carrying a ×k counter; copies that differ
+       (say one already written out, one not) stay separate, because merging them
+       would hide exactly what the drawing is meant to show.                    */
+    const pairGroups = new Map();
+    for (const it of items) {
+        const pk = it.sa < it.sb ? it.sa + '|' + it.sb : it.sb + '|' + it.sa;
+        if (!pairGroups.has(pk)) pairGroups.set(pk, []);
+        pairGroups.get(pk).push(it);
+    }
+    const bundles = new Map();
+    for (const [pk, list] of pairGroups) {
+        let draws;
+        if (collapse) {
+            const sub = new Map();
+            for (const it of list) {
+                const sk = it.role + '|' + (it.out ? it.kind : 'n') + '|' + it.dim + '|' + it.inGi + '|' + it.fresh;
+                if (!sub.has(sk)) sub.set(sk, { it, count: 0, ids: [] });
+                sub.get(sk).count++; sub.get(sk).ids.push(it.id);
+            }
+            draws = [...sub.values()];
+        } else {
+            draws = list.map(it => ({ it, count: 1, ids: [it.id] }));
+        }
+        draws.sort((a, b) => (a.it.role === 'skeleton' ? 0 : 1) - (b.it.role === 'skeleton' ? 0 : 1));
+        bundles.set(pk, draws);
+    }
+
+    const style = it => {
+        if (it.out) return {
+            color: it.kind === 'W' ? COLOR.skeleton : circuitTone(trace.rankOfEdge[it.id]).css,
+            width: 3.4, alpha: 1
+        };
+        switch (it.role) {
+            case 'skeleton': return { color: COLOR['skeleton-pale'], width: 4.2, alpha: 1 };
+            case 'tree':     return { color: COLOR.tree,     width: 3.0, alpha: 0.95 };
+            case 'carry':    return { color: COLOR.carry,    width: 3.0, alpha: 0.95 };
+            case 'batch':    return { color: COLOR.batch,    width: 2.8, alpha: 0.95 };
+            case 'circuit':  return { color: COLOR.circuit,  width: 3.2, alpha: 0.95 };
+            default:         return { color: COLOR.edge,     width: 1.7, alpha: 0.85 };
+        }
+    };
+
+    /* ---- draw edges ---- */
+    for (const [key, group] of bundles) {
+        const isLoopBundle = group[0].it.sa === group[0].it.sb;
+        const spread = isLoopBundle ? 13 : Math.min(17, 46 / Math.max(1, group.length - 1) + 5);
+        group.forEach((d, k) => {
+            const it = d.it, count = d.count;
+            const off = k === 0 ? 0 : Math.ceil(k / 2) * spread * (k % 2 ? 1 : -1);
+            const st = style(it);
+            const A = { x: it.A.dx, y: it.A.dy }, B = { x: it.B.dx, y: it.B.dy };
+            const alpha = st.alpha * it.dim * Math.min(it.A.al, it.B.al);
+
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.lineCap = 'round';
+
+            if (it.sa === it.sb) {                                   /* a loop */
+                const cxm = canvas.clientWidth / 2, cym = canvas.clientHeight / 2;
+                let ux = A.x - cxm, uy = A.y - cym;
+                const ul = Math.hypot(ux, uy) || 1; ux /= ul; uy /= ul;
+                const rr = rad * 0.85 + Math.abs(off) * 0.55;
+                const lc = { x: A.x + ux * (rad + rr * 0.6), y: A.y + uy * (rad + rr * 0.6) };
+                const pad = rr + 6;
+                lc.x = Math.max(pad, Math.min(canvas.clientWidth - pad, lc.x));
+                lc.y = Math.max(pad, Math.min(canvas.clientHeight - pad, lc.y));
+                for (const q of d.ids) edgeGeom.set(q, { loop: true, lc, rr, va: it.A.vertex });
+                if (it.lit) { ctx.beginPath(); ctx.arc(lc.x, lc.y, rr + 5, 0, 2 * Math.PI); ctx.strokeStyle = COLOR['ink-strong']; ctx.lineWidth = it.focus ? 2.4 : 1.2; ctx.globalAlpha = it.focus ? 0.95 : 0.45; ctx.stroke(); ctx.globalAlpha = alpha; }
+                if (it.inGi) { ctx.beginPath(); ctx.arc(lc.x, lc.y, rr + 3.5, 0, 2 * Math.PI); ctx.strokeStyle = COLOR.gi; ctx.setLineDash([3, 3]); ctx.lineWidth = 1.6; ctx.globalAlpha = alpha * 0.75; ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = alpha; }
+                ctx.beginPath(); ctx.arc(lc.x, lc.y, rr, 0, 2 * Math.PI);
+                ctx.strokeStyle = st.color; ctx.lineWidth = st.width; ctx.stroke();
+                if (it.fresh) { ctx.strokeStyle = COLOR.active; ctx.lineWidth = 1.4; ctx.globalAlpha = alpha * 0.9; ctx.beginPath(); ctx.arc(lc.x, lc.y, rr + 4, 0, 2 * Math.PI); ctx.stroke(); }
+                if (count > 1) drawBadge(lc.x, lc.y, '×' + count, st.color, alpha);
+                ctx.restore();
+                return;
+            }
+
+            const C = edgePath(A, B, off * 1.6);
+            for (const q of d.ids) edgeGeom.set(q, { loop: false, A, C: { x: C.cx, y: C.cy }, B, va: it.A.vertex, vb: it.B.vertex, off });
+            if (it.lit) {
+                ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.quadraticCurveTo(C.cx, C.cy, B.x, B.y);
+                ctx.strokeStyle = COLOR['ink-strong']; ctx.lineWidth = st.width + (it.focus ? 6 : 4); ctx.globalAlpha = it.focus ? 0.45 : 0.18; ctx.stroke();
+                ctx.globalAlpha = alpha;
+            }
+            if (it.inGi) {
+                ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.quadraticCurveTo(C.cx, C.cy, B.x, B.y);
+                ctx.strokeStyle = COLOR.gi; ctx.lineWidth = st.width + 7; ctx.globalAlpha = alpha * 0.32; ctx.stroke();
+                ctx.globalAlpha = alpha;
+            }
+            ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.quadraticCurveTo(C.cx, C.cy, B.x, B.y);
+            ctx.strokeStyle = st.color; ctx.lineWidth = st.width;
+            if (it.fresh) { ctx.shadowColor = COLOR.active; ctx.shadowBlur = 9; }
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            if (arrows && it.out) {
+                const s = trace.output[trace.outputIndex[it.id]];
+                const fwd = s.from === it.A.vertex || (mode === 'ordered' && expanded && trace.skelStep.has(it.id));
+                const P0 = fwd ? A : B, P1 = fwd ? B : A;
+                const CC = edgePath(P0, P1, (fwd ? off : -off) * 1.6);
+                arrowAt(P0, { x: CC.cx, y: CC.cy }, P1, 0.55, st.color, 1);
+            }
+            if (count > 1) {
+                const M = bez(A, { x: C.cx, y: C.cy }, B, 0.5);
+                drawBadge(M.x, M.y, '×' + count, st.color, alpha);
+            }
+            ctx.restore();
+        });
+    }
+
+    /* ---- draw vertices ---- */
+    for (const [id, s] of slots) {
+        const dim = f.fade ? 0.4 : 1;
+        ctx.save();
+        ctx.globalAlpha = s.al * dim;
+        ctx.beginPath(); ctx.arc(s.dx, s.dy, s.copy ? rad * 0.78 : rad, 0, 2 * Math.PI);
+        ctx.fillStyle = s.copy ? COLOR.bg : COLOR['node-cream'];
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = COLOR['node-cream-border'];
+        if (s.copy) { ctx.setLineDash([3.5, 3]); ctx.strokeStyle = COLOR.skeleton; ctx.globalAlpha = s.al * dim * 0.75; }
+        if (f.batch && !s.copy && s.vertex >= f.batch.i && s.vertex <= f.batch.j) { ctx.strokeStyle = COLOR.batch; ctx.lineWidth = 3; }
+        if (f.emitting === s.vertex && !s.copy) { ctx.strokeStyle = COLOR.active; ctx.lineWidth = 3.2; }
+        ctx.stroke(); ctx.setLineDash([]);
+        ctx.globalAlpha = s.al * dim;
+
+        ctx.fillStyle = COLOR['ink-strong'];
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = (s.copy ? 600 : 700) + ' ' + Math.round(rad * (s.copy ? 0.82 : 0.95)) + 'px -apple-system, Segoe UI, sans-serif';
+        ctx.fillText(s.main, s.dx, s.dy + 0.5);
+        if (s.sub && rad > 11) {
+            ctx.fillStyle = COLOR['title-muted'];
+            ctx.font = '600 ' + Math.round(rad * 0.62) + 'px -apple-system, Segoe UI, sans-serif';
+            ctx.fillText(s.sub, s.dx + rad * 1.15, s.dy - rad * 0.95);
+        }
+        ctx.restore();
+    }
+
+    /* ---- the travelling token ---- */
+    if (walk) {
+        const elapsed = performance.now() - walk.t0;
+        const total = (walk.to - walk.from + 1) * walk.per;
+        if (elapsed >= total) { walk = null; }
+        else {
+            const q = walk.from + Math.floor(elapsed / walk.per);
+            const u = (elapsed % walk.per) / walk.per;
+            const st = trace.output[q], gm = st && edgeGeom.get(st.id);
+            if (gm) {
+                let pt;
+                if (gm.loop) {
+                    const a = -Math.PI / 2 + 2 * Math.PI * u;
+                    pt = { x: gm.lc.x + gm.rr * Math.cos(a), y: gm.lc.y + gm.rr * Math.sin(a) };
+                } else {
+                    const fwd = st.from === gm.va || gm.va === gm.vb;
+                    const P0 = fwd ? gm.A : gm.B, P1 = fwd ? gm.B : gm.A;
+                    pt = bez(P0, gm.C, P1, u);
+                }
+                ctx.save();
+                ctx.globalAlpha = 0.9;
+                ctx.beginPath(); ctx.arc(pt.x, pt.y, Math.max(5, rad * 0.42) + 3, 0, 2 * Math.PI);
+                ctx.fillStyle = COLOR.bg; ctx.fill();
+                ctx.beginPath(); ctx.arc(pt.x, pt.y, Math.max(5, rad * 0.42), 0, 2 * Math.PI);
+                ctx.fillStyle = st.kind === 'W' ? COLOR.skeleton : circuitTone(trace.rankOfEdge[st.id]).css; ctx.fill();
+                ctx.strokeStyle = COLOR.active; ctx.lineWidth = 1.6; ctx.stroke();
+                ctx.restore();
+            }
+            moving = true;
+        }
+    }
+
+    if (moving && !rafId) rafId = requestAnimationFrame(() => { rafId = null; render(); });
+}
+
+/* ---- pointer interaction on the canvas ---- */
+function edgeAt(px, py) {
+    let best = -1, bestD = 11;
+    for (const [id, gm] of edgeGeom) {
+        let d = Infinity;
+        if (gm.loop) d = Math.abs(Math.hypot(px - gm.lc.x, py - gm.lc.y) - gm.rr);
+        else for (let t = 0; t <= 1.0001; t += 0.05) {
+            const q = bez(gm.A, gm.C, gm.B, t);
+            d = Math.min(d, Math.hypot(px - q.x, py - q.y));
+        }
+        if (d < bestD) { bestD = d; best = id; }
+    }
+    return best;
+}
+
+function edgeTooltip(id) {
+    const f = trace.frames[Math.max(0, ptr)];
+    const e = trace.su.G[id], o = trace.outputIndex[id];
+    const nm = v => trace.su.order[v - 1] - 1;
+    const lbl = `${trace.chunkOf[o][0]}<sub>${trace.output[o].k}</sub>`;
+    const head = `<b>${e.u} \u2013 ${e.v}</b> &nbsp;<span style="opacity:.65">(input ${nm(e.u)} \u2013 ${nm(e.v)})</span>`;
+    if (o < f.outputCount)
+        return `${head}<br>written as step <b>${o + 1}</b> of the tour, inside <b>${lbl}</b>`
+            + `<br><span style="opacity:.7">all of ${lbl} is lit up</span>`;
+    const role = { skeleton: 'on the skeleton S \u2014 still to be written', tree: 'in the spanning tree T',
+                   carry: 'in the carry forest', batch: 'in the current batch',
+                   circuit: 'in a circuit C\u2096 of H \u2212 R' }[f.roles.get(id)] || 'not touched yet';
+    return `${head}<br>${role}<br>it will be step ${o + 1} of the tour, inside ${lbl}`;
+}
+
+function showTip(html, ev) {
+    const t = document.getElementById('tooltip');
+    t.innerHTML = html; t.style.display = 'block';
+    const x = Math.min(ev.clientX + 14, window.innerWidth - t.offsetWidth - 10);
+    t.style.left = x + 'px';
+    t.style.top = Math.min(ev.clientY + 16, window.innerHeight - t.offsetHeight - 10) + 'px';
+}
+function hideTip() { document.getElementById('tooltip').style.display = 'none'; }
+
+function drawBadge(x, y, text, color, alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = '700 10px -apple-system, Segoe UI, sans-serif';
+    const w = ctx.measureText(text).width + 8;
+    ctx.fillStyle = COLOR.bg; ctx.strokeStyle = color; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(x - w / 2, y - 7.5, w, 15, 7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y + 0.5);
+    ctx.restore();
+}
+
+/* =====================================================================
+   PART 4 — the side panels
+   ===================================================================== */
+const CODE = {
+    naive: [
+        ['T \u2190 SpanningTree(G)', 'T'],
+        ['P \u2190 ForestLemma(G \u2212 T)', 'P', '(G\u2212T) \u2212 P is even'],
+        ['S \u2190 EulerTour(T + P)', 'S,TP,relabel', 'the skeleton'],
+        ['F \u2190 \u2205', '', 'F\u2080'],
+        ['<b class="kw">for</b> i = 1, \u2026, n <b class="kw">do</b>', ''],
+        ['    N\u1d62 \u2190 { uv \u2208 G \u2212 S : min(u,v) = i }', 'batch', '= G\u1d62 \u2212 G\u1d62\u208b\u2081'],
+        ['    H \u2190 F + N\u1d62', 'H'],
+        ['    F \u2190 ForestLemma(H)', 'forest', 'H \u2212 F is even'],
+        ['    C\u1d62 \u2190 the circuit of H \u2212 F rooted at i', 'circuits', '\u2205 if H \u2212 F = \u2205'],
+        ['    Output(C\u1d62) ; Output(W\u1d62)', 'output']
+    ],
+    batched: [
+        ['T \u2190 SpanningTree(G)', 'T'],
+        ['P \u2190 ForestLemma(G \u2212 T)', 'P', '(G\u2212T) \u2212 P is even'],
+        ['S \u2190 EulerTour(T + P)', 'S,TP,relabel', 'the skeleton'],
+        ['R \u2190 \u2205 ;  i \u2190 1', '', 'carry forest'],
+        ['<b class="kw">while</b> i \u2264 n <b class="kw">do</b>', ''],
+        ['    (j, B\u0302) \u2190 ReadBatch(G \u2212 S, i)', 'batch', 'compress N\u1d62+\u22ef+N\u2c7c'],
+        ['    H \u2190 R + B\u0302', 'H'],
+        ['    R \u2190 ForestLemma(H)', 'forest', 'H \u2212 R is even'],
+        ['    <b class="kw">for</b> k = i, \u2026, j <b class="kw">do</b>  C\u2096 \u2190 \u2205', ''],
+        ['    <b class="kw">for all</b> Q \u2208 EulerCircuits(H \u2212 R) <b class="kw">do</b>', 'circuits'],
+        ['        choose k \u2208 V(Q) \u2229 {i, \u2026, j}', 'circuits'],
+        ['        rotate Q to start and end at k', 'circuits'],
+        ['        C\u2096 \u2190 C\u2096 \u2218 Q', 'circuits'],
+        ['    <b class="kw">for</b> k = i, \u2026, j <b class="kw">do</b>', 'output'],
+        ['        Output(C\u2096) ; Output(W\u2096)', 'output'],
+        ['    i \u2190 j + 1', '']
+    ]
+};
+
+function renderCode(step) {
+    const lines = batched ? CODE.batched : CODE.naive;
+    const html = lines.map((L, k) => {
+        const hot = L[1] && L[1].split(',').includes(step);
+        const num = String(k + 1).padStart(2, ' ');
+        const cm = L[2] ? `  <span class="cm">\u25b7 ${L[2]}</span>` : '';
+        return `<span class="ln${hot ? ' hot' : ''}"><span class="no">${num}</span>  ${L[0]}${cm}</span>`;
+    }).join('');
+    document.getElementById('codeView').innerHTML = html;
+}
+
+function renderStream(f, prevOut) {
+    const box = document.getElementById('streamView');
+    if (['input', 'T', 'P', 'TP'].includes(f.step) || ptr < 0) {
+        box.innerHTML = '<span style="color:var(--title-muted);font-size:0.85rem">The stream starts once the skeleton S is known — it is the roadmap the output follows.</span>';
+        return;
+    }
+    const out = trace.output;
+    let html = `<span class="tok start">${out.length ? out[0].from : 1}</span>`;
+    let lastPlaceholder = null;
+    for (let k = 0; k < out.length; k++) {
+        const st = out[k];
+        const chunk = trace.chunkOf[k];
+        const hl = hoverChunk ? (hoverChunk === chunk ? ' hl' : ' dull')
+            : (hoverEdge >= 0 ? (st.id === hoverEdge ? ' hl' : ' dull') : '');
+        const attrs = `data-q="${k}" data-chunk="${chunk}"`;
+        if (k < f.outputCount) {
+            lastPlaceholder = null;
+            let sty = '';
+            if (st.kind === 'C') {
+                const tn = circuitTone(trace.rankOfEdge[st.id]);
+                // dark-on-pale contrast colour, tuned to the new slate hue (was a leftover navy)
+                sty = ` style="background:${tn.css};border-color:${tn.css};color:${tn.light > 58 ? '#203541' : '#fbfaf4'}"`;
+            }
+            html += `<span class="tok ${st.kind === 'W' ? 'w' : 'c'}${k >= prevOut ? ' fresh' : ''}${hl}" id="tk${k}"${sty} ${attrs}>${st.to}</span>`;
+        } else if (st.kind === 'W') {
+            lastPlaceholder = null;
+            html += `<span class="tok wf${hl}" id="tk${k}" ${attrs}>${st.to}</span>`;
+        } else if (lastPlaceholder !== st.k) {
+            lastPlaceholder = st.k;
+            html += `<span class="tok cf${hoverChunk === chunk ? ' hl' : ''}" ${attrs}>⟨C<sub>${st.k}</sub>⟩</span>`;
+        }
+    }
+    const keepScroll = box.scrollTop, sameFrame = lastStreamAt === f.outputCount;
+    box.innerHTML = html;
+    lastStreamAt = f.outputCount;
+    if (sameFrame) { box.scrollTop = keepScroll; return; }   /* hovering must not scroll the box */
+    const target = document.getElementById('tk' + Math.max(0, f.outputCount - 1));
+    if (target) {
+        const top = target.offsetTop - box.offsetTop;
+        if (top < box.scrollTop || top > box.scrollTop + box.clientHeight - 30) box.scrollTop = top - box.clientHeight / 2;
+    }
+}
+let lastStreamAt = -1;
+
+/* Hovering a piece of the stream lights up the matching edges in the graph;
+   clicking one jumps to the moment it was written and replays it.            */
+function wireStream() {
+    const box = document.getElementById('streamView');
+    box.addEventListener('mousemove', ev => {
+        const t = ev.target.closest('.tok');
+        const c = t && t.dataset.chunk ? t.dataset.chunk : null;
+        if (c !== hoverChunk) { hoverChunk = c; hoverEdge = -1; refresh(); }
+        if (c) {
+            const q = +t.dataset.q, st = trace.output[q], done = q < trace.frames[Math.max(0, ptr)].outputCount;
+            showTip(`<b>${c[0]}<sub>${st.k}</sub></b> — ${st.kind === 'W'
+                ? 'a piece of the skeleton, walking from ' + st.k + ' to ' + (st.k === n ? 1 : st.k + 1)
+                : 'the detour circuit rooted at ' + st.k}<br>step ${q + 1} of ${trace.output.length}${done ? '' : ' — not written yet'}<br><span style="opacity:.7">click to jump here</span>`, ev);
+        } else hideTip();
+    });
+    box.addEventListener('mouseleave', () => { if (hoverChunk) { hoverChunk = null; refresh(); } hideTip(); });
+    box.addEventListener('click', ev => {
+        const t = ev.target.closest('.tok');
+        if (!t || !t.dataset.chunk) return;
+        hoverChunk = null; hideTip();
+        walkChunk(t.dataset.chunk);
+    });
+}
+
+function wireCanvas() {
+    canvas.addEventListener('mousemove', ev => {
+        const r = canvas.getBoundingClientRect();
+        const id = edgeAt(ev.clientX - r.left, ev.clientY - r.top);
+        /* If the edge has already been written out, light up the whole piece it
+           left with — seeing all of C_i or W_i at once is what explains the step. */
+        const o = id >= 0 ? trace.outputIndex[id] : -1;
+        const chunk = (o >= 0 && o < outCount(ptr)) ? trace.chunkOf[o] : null;
+        if (id !== hoverEdge || chunk !== hoverChunk) { hoverEdge = id; hoverChunk = chunk; refresh(); }
+        if (id >= 0) showTip(edgeTooltip(id), ev); else hideTip();
+    });
+    canvas.addEventListener('mouseleave', () => { if (hoverEdge >= 0) { hoverEdge = -1; hoverChunk = null; refresh(); } hideTip(); });
+}
+
+function renderPanels() {
+    const f = trace.frames[Math.max(0, ptr)];
+    const prevOut = ptr > 0 ? trace.frames[ptr - 1].outputCount : 0;
+
+    document.getElementById('statusHead').innerHTML = ptr < 0 ? '' : f.title;
+    document.getElementById('statusText').innerHTML = ptr < 0
+        ? 'Press <b>&nbsp;Step&nbsp;</b> or <b>&nbsp;Play&nbsp;</b> to begin.'
+        : f.status;
+    document.getElementById('stepCount').textContent = `step ${Math.max(0, ptr)} / ${trace.frames.length - 1}`;
+
+    renderCode(ptr < 0 ? '' : f.step);
+    renderStream(f, prevOut);
+
+    /* invariant: show the most recent round boundary at or before ptr */
+    let inv = null;
+    for (let k = Math.max(0, ptr); k >= 0; k--) if (trace.frames[k].invariant) { inv = trace.frames[k].invariant; break; }
+    document.getElementById('invView').innerHTML = inv
+        ? `<span class="cc">|C<sub>1</sub>+⋯+C<sub>${inv.i}</sub>| = ${inv.sumC}</span> &nbsp;+&nbsp; <span class="ff">|F<sub>${inv.i}</sub>| = ${inv.F}</span> &nbsp;=&nbsp; <span class="gg">|G<sub>${inv.i}</sub>| = ${inv.G}</span> &nbsp;<span class="${inv.sumC + inv.F === inv.G ? 'ok' : 'bad'}">${inv.sumC + inv.F === inv.G ? '\u2713' : '\u2717'}</span>`
+        : '<span style="color:var(--title-muted)">no round finished yet</span>';
+
+    const m = G.length;
+    document.getElementById('costView').innerHTML = `
+        <tr><td class="k">n &nbsp;/&nbsp; m</td><td class="v">${n} / ${m}</td></tr>
+        <tr><td class="k">skeleton |S|</td><td class="v">${trace.Sedges.length} &nbsp;(\u2264 2n = ${2 * n})</td></tr>
+        <tr><td class="k">rounds</td><td class="v">${trace.rounds.length}</td></tr>
+        <tr><td class="k">edges inspected so far</td><td class="v">${f.time}</td></tr>
+        <tr><td class="k">&nbsp;&nbsp;carry forest F / R</td><td class="v">${f.mem.R} words</td></tr>
+        <tr><td class="k">&nbsp;&nbsp;current batch</td><td class="v">${f.mem.B} words</td></tr>
+        <tr><td class="k">&nbsp;&nbsp;index tables (3n)</td><td class="v">${f.mem.tables} words</td></tr>
+        <tr><td class="k">working memory now</td><td class="v">${f.mem.total} words</td></tr>
+        <tr><td class="k">peak working memory</td><td class="v">${trace.peakMem} words</td></tr>
+        <tr><td class="k">plain Hierholzer would need</td><td class="v">\u2248 ${m + n} words</td></tr>
+        <tr><td class="k">written out</td><td class="v">${f.outputCount} / ${m} edges</td></tr>`;
+
+    document.getElementById('graphNote').innerHTML = f.layout === 'input'
+        ? 'as given \u2014 labels are the input names'
+        : 'ordered by first appearance on S \u2014 big label = i, small label = input name';
+
+    const sl = document.getElementById('frameSlider');
+    if (+sl.value !== ptr) sl.value = ptr;
+    document.getElementById('frameLabel').innerHTML =
+        `${Math.max(0, ptr)} / ${trace.frames.length - 1}` + (ptr < 0 ? '' : ` \u00b7 <span style="opacity:.75">${f.title}</span>`);
+
+    document.getElementById('backBtn').disabled = ptr < 0;
+    document.getElementById('stepBtn').disabled = ptr >= trace.frames.length - 1;
+}
+
+/* =====================================================================
+   PART 5 — driving the animation
+   ===================================================================== */
+/* ---- chunk bookkeeping: which C_k / W_k does an output step belong to, and
+   which frame first shows it?  This is what makes the stream clickable.   ---- */
+function indexChunks() {
+    trace.chunkOf = [];          /* output index -> chunk id, e.g. 'C3' / 'W3' */
+    trace.chunks = new Map();    /* chunk id -> {kind, k, from, to, ids:Set}   */
+    trace.output.forEach((st, q) => {
+        const id = st.kind + st.k;
+        trace.chunkOf[q] = id;
+        if (!trace.chunks.has(id)) trace.chunks.set(id, { kind: st.kind, k: st.k, from: q, to: q, ids: new Set() });
+        const c = trace.chunks.get(id);
+        c.to = q; c.ids.add(st.id);
+    });
+    /* Every circuit C_k gets its own tone of blue, so a crowded picture still
+       groups by circuit; the tone gets lighter the longer ago it was written. */
+    trace.circuitRank = new Map();
+    trace.rankOfEdge = new Array(G.length).fill(-1);
+    let r = 0;
+    trace.output.forEach((st, q) => {
+        if (st.kind !== 'C') return;
+        const c = trace.chunkOf[q];
+        if (!trace.circuitRank.has(c)) trace.circuitRank.set(c, r++);
+        trace.rankOfEdge[st.id] = trace.circuitRank.get(c);
+    });
+    trace.circuitTotal = r;
+
+    trace.frameOfOutput = new Array(trace.output.length).fill(trace.frames.length - 1);
+    let q = 0;
+    trace.frames.forEach((f, fi) => { while (q < f.outputCount) trace.frameOfOutput[q++] = fi; });
+}
+
+function buildTrace() {
+    trace = run(G, n, startVertex, batched);
+    trace.skelStep = new Map();
+    trace.su.S.forEach((t, p) => { for (const id of t.e.members) trace.skelStep.set(id, p); });
+    trace.outputIndex = new Array(G.length).fill(-1);
+    trace.outputKind = new Array(G.length).fill('');
+    trace.output.forEach((s, k) => { trace.outputIndex[s.id] = k; trace.outputKind[s.id] = s.kind; });
+    trace.giKey = new Array(G.length).fill(-1);          /* the i at which an edge enters G_i */
+    for (const e of trace.GS) for (const id of e.members) trace.giKey[id] = e.u;
+    indexChunks();
+    ptr = -1;
+    walk = null; hoverChunk = null; hoverEdge = -1; lastStreamAt = -1;
+    animPos = new Map();
+    const sl = document.getElementById('frameSlider');
+    sl.min = -1; sl.max = trace.frames.length - 1; sl.value = -1;
+}
+
+function refresh() { render(); renderPanels(); }
+
+function outCount(i) { return i < 0 ? 0 : trace.frames[i].outputCount; }
+
+/* Move to frame `to`; if that writes new edges out, send the token along them. */
+function goTo(to, allowWalk = true) {
+    if (!trace) return;
+    to = Math.max(-1, Math.min(trace.frames.length - 1, to));
+    const before = outCount(ptr), after = outCount(to);
+    ptr = to;
+    /* Only send the token out for a modest jump forward — scrubbing the slider
+       across the whole run should stay instant.                              */
+    if (allowWalk && after > before && after - before <= 60) startWalk(before, after - 1);
+    else walk = null;
+    refresh();
+}
+
+function stepFwd() { if (!trace) return; if (ptr < trace.frames.length - 1) goTo(ptr + 1); if (ptr >= trace.frames.length - 1) stopPlay(); }
+function stepBack() { if (!trace) return; if (ptr >= 0) goTo(ptr - 1); }
+function jumpTo(v) { stopPlay(); goTo(v, false); }
+function resetRun() { stopPlay(); ptr = -1; walk = null; animPos = new Map(); refresh(); }
+
+/* ---- the token that walks along the freshly written piece of the tour ---- */
+function startWalk(from, to) {
+    if (!document.getElementById('walkChk').checked || to < from) { walk = null; return; }
+    walk = { from, to, t0: performance.now(), per: Math.max(70, Math.min(300, delay * 0.35)) };
+    if (!rafId) rafId = requestAnimationFrame(() => { rafId = null; render(); });
+}
+function walkChunk(chunkId) {
+    const c = trace.chunks.get(chunkId);
+    if (!c) return;
+    goTo(trace.frameOfOutput[c.to]);
+    startWalk(c.from, c.to);
+    refresh();
+}
+
+function togglePlay() { playing ? stopPlay() : startPlay(); }
+function startPlay() {
+    if (!trace || ptr >= trace.frames.length - 1) { ptr = -1; }
+    playing = true; document.getElementById('playBtn').textContent = 'Pause';
+    timer = setInterval(stepFwd, delay);
+}
+function stopPlay() { playing = false; document.getElementById('playBtn').textContent = 'Play'; if (timer) clearInterval(timer); timer = null; }
+function updateSpeed(v) { delay = +v; document.getElementById('speedVal').textContent = v + 'ms'; if (playing) { clearInterval(timer); timer = setInterval(stepFwd, delay); } }
+
+function setVariant(b) {
+    if (b === batched) return;
+    batched = b;
+    document.getElementById('varNaive').classList.toggle('on', !b);
+    document.getElementById('varBatch').classList.toggle('on', b);
+    stopPlay(); buildTrace(); refresh();
+}
+
+function fillStartSelect() {
+    const sel = document.getElementById('startSel');
+    sel.innerHTML = '';
+    for (let v = 1; v <= n; v++) {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = String(v - 1);
+        sel.appendChild(o);
+    }
+    sel.value = Math.min(startVertex, n);
+    startVertex = +sel.value;
+}
+
+function loadGraph(text, remember) {
+    const err = document.getElementById('parseErr');
+    try {
+        const g = parseGraph(text);
+        n = g.n; G = g.G; pairs = g.pairs; coords = g.coords;
+        startVertex = 1;
+        fillStartSelect();
+        stopPlay(); buildTrace(); refresh();
+        err.textContent = '';
+        if (remember) document.getElementById('graphText').value = text.trim();
+        return true;
+    } catch (e) {
+        err.textContent = e.message;
+        return false;
+    }
+}
+
+function loadFromText() { loadGraph(document.getElementById('graphText').value, false); }
+
+/* ---- boot ---- */
+(function init() {
+    refreshColors();
+    const sel = document.getElementById('presetSel');
+    Object.keys(PRESETS).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; sel.appendChild(o); });
+    sel.onchange = () => loadGraph(PRESETS[sel.value], true);
+    document.getElementById('startSel').onchange = e => { startVertex = +e.target.value; stopPlay(); buildTrace(); refresh(); };
+    document.getElementById('varBatch').classList.add('on');
+    wireStream(); wireCanvas();
+    window.addEventListener('resize', () => render());
+    document.addEventListener('keydown', e => {
+        if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+        if (e.key === 'ArrowRight') { e.preventDefault(); stepFwd(); }
+        if (e.key === 'ArrowLeft') { e.preventDefault(); stepBack(); }
+        if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+    });
+    loadGraph(PRESETS[sel.value], true);
+})();
+</script>
+</body>
+</html>

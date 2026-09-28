@@ -170,8 +170,14 @@
   .cellbg.base { fill:var(--wi-controls); }
   .cellbg.unused { fill:var(--wi-bg); stroke:none; }
   .cellbg.empty { fill:var(--wi-bg); stroke:var(--wi-border-soft); stroke-dasharray:2 3; }
-  .cellbg.read { fill:#f7edd9; stroke:var(--wi-examine); stroke-width:1.6; }
-  .cellbg.best { fill:#e8f0e2; stroke:var(--wi-relax); stroke-width:1.8; }
+  /* the two subproblems a cell reads: LEFT subtree green, RIGHT subtree blue --
+     the same two colours the tree panel uses for the two subtree triangles /
+     bars, so the picture and the table can be matched at a glance.  A dashed
+     border marks a candidate root still being tried (fine detail level). */
+  .cellbg.bestl { fill:#e8f0e2; stroke:var(--wi-relax); stroke-width:1.8; }
+  .cellbg.bestr { fill:#dfe6f2; stroke:var(--wi-cycle); stroke-width:1.8; }
+  .cellbg.readl { fill:#eef4ea; stroke:var(--wi-relax); stroke-width:1.6; stroke-dasharray:4 3; }
+  .cellbg.readr { fill:#e9eef7; stroke:var(--wi-cycle); stroke-width:1.6; stroke-dasharray:4 3; }
   .cellbg.cur  { fill:#f6e6df; stroke:var(--wi-active); stroke-width:2.2; }
   .cellbg.path { fill:#f0d7cd; stroke:var(--wi-accent); stroke-width:1.8; }
   .cellbg.skip { fill:var(--wi-bg); stroke:var(--wi-border-soft); }
@@ -188,8 +194,9 @@
   .hdrname { font-family:var(--wi-font-body); font-size:12.5px; fill:var(--wi-ink-soft); font-style:italic;
              pointer-events:none; }
   .arr { fill:none; stroke-width:2.4; pointer-events:none; }
-  .arr.read { stroke:var(--wi-examine); }
-  .arr.best { stroke:var(--wi-relax); stroke-width:3; }
+  .arr.l { stroke:var(--wi-relax); stroke-width:3; }
+  .arr.r { stroke:var(--wi-cycle); stroke-width:3; }
+  .arr.cand { stroke-width:2.2; stroke-dasharray:5 4; }
   .arr.taken { stroke:var(--wi-accent); stroke-width:3.2; }
   /* one dot per root actually examined: the ink in a cell is the work done in
      it, so the total ink is the running time */
@@ -200,6 +207,9 @@
   .tnode { fill:var(--wi-panel-2); stroke:var(--wi-border-strong); stroke-width:1.3; }
   .tnode.leaf { fill:#efe6d6; stroke:var(--wi-ink-strong); }
   .tnode.hot { fill:#f6e6df; stroke:var(--wi-active); stroke-width:2.4; }
+  /* the leaves of the subproblem currently being solved, and everybody else */
+  .tnode.leaf.act { fill:#f6e6df; stroke:var(--wi-active); stroke-width:1.8; }
+  .tnode.leaf.dim { opacity:.38; }
   .tedge { stroke:var(--wi-border-strong); stroke-width:1.6; fill:none; }
   .tlab { font-family:var(--wi-font-mono); font-size:11px; text-anchor:middle; dominant-baseline:central;
           fill:var(--wi-ink-strong); pointer-events:none; }
@@ -210,14 +220,44 @@
   .prevtick.hot { stroke:var(--wi-accent); stroke-width:1.8; }
   .prevseg { fill:#f6e6df; stroke:var(--wi-active); stroke-width:1.6; }
   .prevtri.left  { fill:#e6efe0; stroke:var(--wi-relax); stroke-width:1.4; }
-  .prevtri.right { fill:#dfeae4; stroke:var(--wi-queue); stroke-width:1.4; }
+  .prevtri.right { fill:#dfe6f2; stroke:var(--wi-cycle); stroke-width:1.4; }
   .prevtri.neutral { fill:#efe6d6; stroke:var(--wi-ink-strong); stroke-width:1.2; }
+  .prevtri.cand { stroke-dasharray:5 4; }
   .prevlab { font-family:var(--wi-font-mono); font-size:10px; text-anchor:middle; fill:var(--wi-ink-strong);
              pointer-events:none; }
   .prevlab.range { font-family:var(--wi-font-body); font-style:italic; fill:var(--wi-ink-soft); font-size:11px; }
   .seg-m { fill:#f0dcd2; stroke:var(--wi-accent-soft); stroke-width:1; }
   .seg-m.hot { fill:#f6e6df; stroke:var(--wi-active); stroke-width:2; }
   .seg-m.done { fill:#e8f0e2; stroke:var(--wi-relax); }
+  .seg-m.l { fill:#e8f0e2; stroke:var(--wi-relax); stroke-width:1.4; }
+  .seg-m.r { fill:#dfe6f2; stroke:var(--wi-cycle); stroke-width:1.4; }
+  .seg-m.pend { fill:#efe6d6; stroke:var(--wi-ink-strong); stroke-width:1.2; stroke-dasharray:4 3; }
+  .seg-m.pend.l { fill:#e8f0e2; stroke:var(--wi-relax); }
+  .seg-m.pend.r { fill:#dfe6f2; stroke:var(--wi-cycle); }
+  .seg-m.cand { stroke-dasharray:5 4; }
+  .seg-r.act { fill:#f6e6df; stroke:var(--wi-active); stroke-width:1.8; }
+  .seg-r.dim { opacity:.38; }
+  .segtxt.c { fill:var(--wi-accent); }
+  .treectl { display:flex; align-items:center; gap:14px; flex-wrap:wrap; text-transform:none; letter-spacing:0; }
+  .treectl .seg button { padding:3px 9px; font-size:.72rem; }
+  .treectl label.chk { font-size:.74rem; }
+  .treectl label.chk.off { opacity:.45; cursor:default; }
+  table.cmp tr.act td { background:#f6e6df; }
+  table.cmp tr.act td:first-child { box-shadow:inset 3px 0 0 var(--wi-active); }
+  details.cmpbox { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+                   border-radius:var(--wi-radius-lg); margin-top:14px; }
+  details.cmpbox > summary { cursor:pointer; padding:10px 15px; font-family:var(--wi-font-head);
+                             font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--wi-ink-faint); }
+  details.cmpbox[open] > summary { border-bottom:1px solid var(--wi-border-soft); color:var(--wi-accent); }
+  .cmpbody { padding:12px 15px 14px; display:grid; grid-template-columns:minmax(260px,1fr) minmax(0,2fr); gap:18px; align-items:start; }
+  @media (max-width:900px) { .cmpbody { grid-template-columns:1fr; } }
+  .minis { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  @media (max-width:760px) { .minis { grid-template-columns:1fr; } }
+  .mini { background:var(--wi-bg); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius); padding:6px 8px 4px; }
+  .mini .mtitle { font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.08em; text-transform:uppercase;
+                  color:var(--wi-ink-soft); display:flex; justify-content:space-between; margin-bottom:4px; }
+  .mini .mtitle b { color:var(--wi-accent); font-family:var(--wi-font-mono); font-weight:normal; letter-spacing:0; }
+  .mini svg { display:block; width:100%; height:auto; }
   .segtxt { font-family:var(--wi-font-mono); font-size:10px; text-anchor:middle; dominant-baseline:central;
             fill:var(--wi-ink-soft); pointer-events:none; }
   @keyframes cellpop { from { opacity:0; transform:translateY(-7px) scale(.7); } to { opacity:1; transform:none; } }
@@ -242,7 +282,6 @@ body { font-family: var(--wi-font-body); }
   <h1>Optimal alphabetic trees</h1>
   <span class="seg" id="modeSeg">
     <button id="mDP" class="on">Cubic DP</button>
-    <button id="mMerge">Merge cost</button>
     <button id="mKnuth">Knuth's optimisation</button>
   </span>
 </div>
@@ -255,14 +294,6 @@ body { font-family: var(--wi-font-body); }
   <code>[r..j)</code>; the subproblems are the ranges. Every leaf in a subtree pays 1 at its root, so a range
   costs its total weight plus what the two halves cost. Hover a cell for its range; click one to build the
   optimal tree for it alone.
-</p>
-<p class="subtitle" id="subMerge" style="display:none">
-  The same tree read as a <b>merge tree</b> for run-adaptive sorting: the leaves are runs, every internal node
-  is one merge, and a merge costs the total length of what it merges. So the merge cost of the whole sort is
-  Σ over internal nodes of the subtree weight — which is exactly <i>c</i>(<i>T</i>) again. The picture below
-  is that sum as an <b>area</b>: one bar per merge, as wide as the range it covers. Compare the optimum with
-  what <b>Peeksort</b> and <b>Powersort</b> build, and with the entropy bounds
-  <i>H</i> ≤ <i>c</i>(<i>T</i>*) and <i>c</i> ≤ <i>H</i>+2.
 </p>
 <p class="subtitle" id="subKnuth" style="display:none">
   The same DP, but the root is not guessed from the whole range. Write <i>R</i>(<i>i</i>,<i>j</i>) for an
@@ -289,14 +320,6 @@ live highlighting is on the desktop version.</div>
     <span class="seg" id="granSeg">
       <button id="granCoarse" class="on">One step per cell</button>
       <button id="granFine">Every root r</button>
-    </span>
-  </div>
-  <div class="ctl" id="treeWrap" style="display:none">
-    <span class="lbl">Tree</span>
-    <span class="seg" id="treeSeg">
-      <button id="tOpt" class="on">Optimal</button>
-      <button id="tPeek">Peeksort</button>
-      <button id="tPow">Powersort</button>
     </span>
   </div>
 </div>
@@ -333,8 +356,9 @@ live highlighting is on the desktop version.</div>
       <div class="svgscroll"><svg id="tabSvg" class="stagesvg"></svg></div>
       <div class="legend">
         <span class="item"><span class="sw" style="background:#f6e6df;border-color:var(--wi-active)"></span> current range</span>
-        <span class="item"><span class="sw" style="background:#f7edd9;border-color:var(--wi-examine)"></span> read for this r</span>
-        <span class="item"><span class="sw" style="background:#e8f0e2;border-color:var(--wi-relax)"></span> best root so far</span>
+        <span class="item"><span class="sw" style="background:#e8f0e2;border-color:var(--wi-relax)"></span> left subtree C(i,r)</span>
+        <span class="item"><span class="sw" style="background:#dfe6f2;border-color:var(--wi-cycle)"></span> right subtree C(r,j)</span>
+        <span class="item"><span class="sw" style="border-style:dashed"></span> dashed: candidate r still being tried</span>
         <span class="item" id="legKnuth" style="display:none"><span class="sw" style="background:#dfe6f2;border-color:var(--wi-cycle)"></span> one dot per root examined</span>
       </div>
     </div>
@@ -352,9 +376,37 @@ live highlighting is on the desktop version.</div>
 </div>
 
 <div class="sim-box" style="margin-top:18px">
-  <div class="sim-title"><span id="treeTitle">The tree</span><span class="rhs" id="treeMeta"></span></div>
+  <div class="sim-title">
+    <span id="treeTitle">The tree</span>
+    <span class="treectl">
+      <span class="seg" id="styleSeg" title="How to draw the tree">
+        <button id="sTree" class="on">Tree</button>
+        <button id="sBars">Merge tree</button>
+      </span>
+      <label class="chk" id="wLeafLab" title="Leaf width proportional to its weight (switch off if one weight dwarfs the others)">
+        <input type="checkbox" id="wLeafChk"> leaf width ∝ weight</label>
+    </span>
+    <span class="rhs" id="treeMeta"></span>
+  </div>
   <div class="svgscroll"><svg id="treeSvg" class="stagesvg"></svg></div>
 </div>
+
+<details class="cmpbox" id="cmpBox" style="display:none">
+  <summary>Merge trees compared: optimal vs Peeksort vs Powersort</summary>
+  <div class="cmpbody">
+    <div>
+      <div id="cmpTable"></div>
+      <div class="hint" style="margin-top:10px">
+        Read as a <b>merge tree</b> for run-adaptive sorting: the leaves are runs, every internal node is one
+        merge, and a merge costs the total length of what it merges. So the merge cost of the whole sort is
+        Σ over internal nodes of the subtree weight — exactly <i>c</i>(<i>T</i>) again, and the shaded
+        <b>area</b> of the drawing <i>is</i> the cost. Peeksort and Powersort never solve a DP, yet both stay within
+        the entropy bounds <i>H</i> ≤ <i>c</i>(<i>T</i>*) and <i>c</i> ≤ <i>H</i>+2. Neither is optimal in general.
+      </div>
+    </div>
+    <div class="minis" id="cmpMinis"></div>
+  </div>
+</details>
 
 <details class="code desk-only" id="codeBox" open>
   <summary>Recurrence &amp; pseudocode</summary>
@@ -373,7 +425,7 @@ live highlighting is on the desktop version.</div>
     <div class="hint">
       One line of positive numbers: the leaf weights <code>ℓ₀ ℓ₁ … ℓₙ</code>, whitespace or comma separated.
       Lines starting with <code>#</code> are ignored. They need not sum to 1 — everything is normalised, and
-      both the raw values and the normalised ones are shown. In the merge-cost reading they are
+      both the raw values and the normalised ones are shown. In the merge-tree reading they are
       <b>run lengths</b>, so integers are the natural input there. Between 2 and 12 weights.
     </div>
   </div>
@@ -400,6 +452,15 @@ const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(
 const key = (i, j) => i + "," + j;
 const rng = (i, j) => "[" + i + ".." + j + ")";
 function f3(x) { return (Math.round(x * 1000) / 1000).toString(); }
+/* Costs are displayed in one of two units, chosen with the tree style: in the
+   "tree" picture everything is normalised (weights sum to 1, so c(T) is the
+   expected depth and H bounds it); in the "merge tree" picture everything is
+   scaled by the total n, so weights are run lengths and costs are element
+   moves. fc() formats a cost / weight in the current unit, hN() names the
+   entropy bound in it. */
+const barsUnit = () => treeStyle === "bars";
+const fc = x => f3(x * (barsUnit() ? tot : 1));
+const hN = s => barsUnit() ? "n\u00b7" + (s.indexOf("+") >= 0 ? "(" + s + ")" : s) : s;
 function f2(x) { return (Math.round(x * 100) / 100).toFixed(2); }
 
 const PRESETS = {
@@ -414,9 +475,19 @@ const PRESETS = {
 
 let w = [1, 1, 1, 1], L = 4, tot = 1, p = [];        /* raw, count, total, normalised */
 let W = [], C = [], R = [];
-let mode = "dp", gran = 0, whichTree = "opt";
+let mode = "dp", gran = 0;
 let steps = [], phases = [], cur = 0, timer = null;
 let traceFrom = null, selCell = null, hoverCell = null;
+/* how the tree panel draws: "tree" = nodes and edges, "bars" = the merge-tree
+   picture (one bar per node, as wide as its range, so the shaded area is the
+   cost). wLeaf: leaf width proportional to its weight (tree style only; the
+   bars are always weighted -- that is their point). */
+const LS = { style: "alphatree.style", wleaf: "alphatree.wleaf" };
+let treeStyle = "tree", wLeaf = true, finalDepth = 0;
+try {
+  if (localStorage.getItem(LS.style) === "bars") treeStyle = "bars";
+  if (localStorage.getItem(LS.wleaf) === "0") wLeaf = false;
+} catch (e) {}
 
 /* ---------- the DP -------------------------------------------------------- */
 
@@ -523,9 +594,18 @@ function buildDP(knuth) {
         "<code>" + rng(0, L) + "</code>, the top-right corner.", hl: ["r_head"], hlp: ["c_head"] });
   const base = [];
   for (let i = 0; i < L; i++) base.push([i, i + 1]);
-  add({ fillTo: L, write: base, cells: cellsOf(base, "cur"),
-        txt: "<b>Base cases</b>: a range of one leaf is a bare null pointer at depth 0 \u2014 nothing to " +
-             "pay, <code>C(i,i+1) = 0</code>.", hl: ["r_base"], hlp: ["c_init"] });
+  if (gran === 1) {
+    /* fine detail: one step per base case, each lighting its own leaf */
+    for (let i = 0; i < L; i++)
+      add({ fillTo: i + 1, write: [[i, i + 1]], cell: [i, i + 1], cells: cellsOf([[i, i + 1]], "cur"),
+            txt: "<b>Base case " + rng(i, i + 1) + "</b>: the single leaf <code>\u2113<sub>" + i +
+                 "</sub></code> (weight <code>" + fc(p[i]) + "</code>) is a bare null pointer at depth 0 " +
+                 "\u2014 nothing to pay, <code>C(" + i + "," + (i + 1) + ") = 0</code>.",
+            hl: ["r_base"], hlp: ["c_init"] });
+  } else
+    add({ fillTo: L, write: base, base: true, cells: cellsOf(base, "cur"),
+          txt: "<b>Base cases</b>: a range of one leaf is a bare null pointer at depth 0 \u2014 nothing to " +
+               "pay, <code>C(i,i+1) = 0</code>.", hl: ["r_base"], hlp: ["c_init"] });
 
   let filled = L;
   for (let len = 2; len <= L; len++) {
@@ -535,29 +615,33 @@ function buildDP(knuth) {
       const lo = knuth ? knuthLo(i, j) : i + 1, hi = knuth ? knuthHi(i, j) : j - 1;
       full += (j - 1) - (i + 1) + 1; tried += hi - lo + 1;
       const wins = bestRoots(i, j).filter(r => r >= lo && r <= hi);
+      /* left subproblem C(i,r) green, right subproblem C(r,j) blue -- the same
+         colours as the two subtree triangles in the tree panel */
+      const lr = (r, cand) => Object.assign(cellsOf([[i, r]], cand ? "readl" : "bestl"),
+                                            cellsOf([[r, j]], cand ? "readr" : "bestr"));
+      const lrArrows = (r, cand) => [{ from: [i, r], to: [i, j], side: "l", cand: cand },
+                                     { from: [r, j], to: [i, j], side: "r", cand: cand }];
       if (gran === 1) {
         let best = Infinity;
         for (let r = lo; r <= hi; r++) {
           const q = C[i][r] + C[r][j];
           best = Math.min(best, q);
           add({ fillTo: filled, cell: [i, j], r: r, lo: lo, hi: hi, knuth: knuth,
-                cells: Object.assign(cellsOf([[i, r], [r, j]], "read"), cellsOf([[i, j]], "cur")),
-                arrows: [{ from: [i, r], to: [i, j] }, { from: [r, j], to: [i, j] }],
+                cells: Object.assign(lr(r, true), cellsOf([[i, j]], "cur")),
+                arrows: lrArrows(r, true),
                 txt: "<b>" + rng(i, j) + ", root r = " + r + "</b>: left subtree over " + rng(i, r) +
-                     " costs <code>" + f3(C[i][r]) + "</code>, right subtree over " + rng(r, j) +
-                     " costs <code>" + f3(C[r][j]) + "</code> \u21d2 <code>" + f3(q) + "</code>. " +
-                     "Best so far <code>" + f3(best) + "</code>.",
+                     " costs <code>" + fc(C[i][r]) + "</code>, right subtree over " + rng(r, j) +
+                     " costs <code>" + fc(C[r][j]) + "</code> \u21d2 <code>" + fc(q) + "</code>. " +
+                     "Best so far <code>" + fc(best) + "</code>.",
                 hl: ["r_min"], hlp: ["c_r", "c_q", "c_min"] });
         }
       }
       filled++;
       add({ fillTo: filled, cell: [i, j], write: [[i, j]], lo: lo, hi: hi, knuth: knuth,
-            cells: Object.assign(cellsOf([].concat.apply([], wins.map(r => [[i, r], [r, j]])), "best"),
-                                 cellsOf([[i, j]], "cur")),
-            arrows: [].concat.apply([], wins.map(r => [{ from: [i, r], to: [i, j], best: true },
-                                                       { from: [r, j], to: [i, j], best: true }])),
-            txt: "<b>C" + rng(i, j) + " = " + f3(C[i][j]) + "</b> = weight <code>" + f3(W[i][j]) +
-                 "</code> + <code>" + f3(C[i][j] - W[i][j]) + "</code> from the two subtrees, at " +
+            cells: Object.assign.apply(null, [{}].concat(wins.map(r => lr(r, false)), [cellsOf([[i, j]], "cur")])),
+            arrows: [].concat.apply([], wins.map(r => lrArrows(r, false))),
+            txt: "<b>C" + rng(i, j) + " = " + fc(C[i][j]) + "</b> = weight <code>" + fc(W[i][j]) +
+                 "</code> + <code>" + fc(C[i][j] - W[i][j]) + "</code> from the two subtrees, at " +
                  "<b>r = " + wins.join(" and ") + "</b>" +
                  (wins.length > 1 ? " <i>(a tie: several trees are optimal)</i>" : "") +
                  (knuth ? " \u2014 searched only <span class='a'>r \u2208 [" + lo + ".." + hi + "]</span>, " +
@@ -578,19 +662,19 @@ function buildDP(knuth) {
       nodes.push({ i: i, j: j, r: null, d: d, leaf: true });
       add({ nodes: nodes.slice(), cell: [i, j], cells: cellsOf(p2, "path"), trace: true, hot: key(i, j),
             txt: "<code>" + rng(i, j) + "</code> is a single leaf: <code>L<sub>" + i + "</sub></code> at " +
-                 "depth " + d + ", contributing <code>" + f3(p[i]) + "\u00b7" + d + " = " + f3(p[i] * d) +
+                 "depth " + d + ", contributing <code>" + fc(p[i]) + "\u00b7" + d + " = " + fc(p[i] * d) +
                  "</code>.", hl: ["r_base"], hlp: ["c_ret"] });
       return;
     }
     const r = R[i][j];
     nodes.push({ i: i, j: j, r: r, d: d });
     add({ nodes: nodes.slice(), cell: [i, j], cells: Object.assign(cellsOf(p2, "path"),
-            cellsOf([[i, r], [r, j]], "best")),
+            cellsOf([[i, r]], "bestl"), cellsOf([[r, j]], "bestr")),
           arrows: [{ from: [i, r], to: [i, j], taken: true }, { from: [r, j], to: [i, j], taken: true }],
           trace: true, hot: key(i, j),
           txt: "<code>" + rng(i, j) + "</code> has optimal root <b>r = " + r + "</b>: leaves " +
                rng(i, r) + " go left, " + rng(r, j) + " right. All " + (j - i) + " leaves below pay 1 " +
-               "here, i.e. <code>" + f3(W[i][j]) + "</code>.",
+               "here, i.e. <code>" + fc(W[i][j]) + "</code>.",
           hl: ["r_min"], hlp: ["c_ret"] });
     tb(i, r, d + 1, p2); tb(r, j, d + 1, p2);
   })(ti, tj, 0, []);
@@ -598,45 +682,16 @@ function buildDP(knuth) {
         txt: "Done. Every leaf sits at its depth, and the weighted depths sum to <code>C" + rng(ti, tj) +
              "</code>." + (knuth ? " Candidates examined: <b>" + tried + "</b> instead of <b>" + full +
              "</b> \u2014 and that gap grows like n\u00b3 vs n\u00b2." : ""),
-        ans: "c(T) = " + f3(C[ti][tj]) + (ti === 0 && tj === L ? "   ·   H = " + f3(entropy()) : ""),
+        ans: "c(T) = " + fc(C[ti][tj]) + (ti === 0 && tj === L ? "   ·   " + hN("H") + " = " + fc(entropy()) : ""),
         hl: ["r_head"], hlp: ["c_ret"] });
-}
-
-/* merge mode: one step per merge, in the order a bottom-up merge would do them */
-function buildMerge() {
-  const t = treeOf(whichTree, 0, L);
-  const inner = t.filter(x => !x.leaf).slice().sort((a, b) => (b.d - a.d) || (a.i - b.i));
-  mkPhase("The runs");
-  add({ nodes: t, merged: [], txt: "The leaves are the <b>runs</b>: " + w.join(", ") +
-        " elements, " + tot + " in total. Sorting means merging them back together, and every merge " +
-        "costs the total length of what it merges. The tree says in which order.",
-        hl: ["m_head"] });
-  mkPhase("Merging");
-  let acc = 0;
-  inner.forEach((nd, k) => {
-    acc += W[nd.i][nd.j];
-    add({ nodes: t, merged: inner.slice(0, k + 1), hot: key(nd.i, nd.j), cell: [nd.i, nd.j],
-          txt: "Merge " + (k + 1) + " of " + inner.length + ": join " + rng(nd.i, nd.r) + " and " +
-               rng(nd.r, nd.j) + " \u2014 <code>" + f3(W[nd.i][nd.j] * tot) + "</code> elements moved, " +
-               "<code>" + f3(W[nd.i][nd.j]) + "</code> per element. Running total <code>" + f3(acc) +
-               "</code>.", hl: ["m_min"] });
-  });
-  mkPhase("Total");
-  const h = entropy(), co = treeCost(optTree(0, L));
-  add({ nodes: t, merged: inner, done: true,
-        txt: "Total merge cost <b>" + f3(acc) + "</b> per element, i.e. <code>" + f3(acc * tot) +
-             "</code> element moves. That is exactly \u03a3 \u2113<sub>i</sub>\u00b7depth(L<sub>i</sub>) " +
-             "\u2014 the same number the DP minimises. Entropy <code>H = " + f3(h) + "</code> is a lower " +
-             "bound for every tree; Peeksort and Powersort stay below <code>H+2 = " + f3(h + 2) +
-             "</code> without solving any DP.",
-        ans: "c(T) = " + f3(acc) + "   ·   optimum " + f3(co) + "   ·   H = " + f3(h),
-        hl: ["m_head"] });
 }
 
 function build() {
   compute(); computePowers();
   steps = []; phases = []; cur = 0;
-  if (mode === "merge") buildMerge(); else buildDP(mode === "knuth");
+  buildDP(mode === "knuth");
+  const ti = traceFrom ? traceFrom[0] : 0, tj = traceFrom ? traceFrom[1] : L;
+  finalDepth = optTree(ti, tj).reduce((a, x) => Math.max(a, x.d), 0);
 }
 
 /* ---------- table drawing ------------------------------------------------- */
@@ -655,7 +710,7 @@ function drawTable() {
   const cells = st.cells || {}, wrote = {};
   (st.write || []).forEach(x => wrote[key(x[0], x[1])] = 1);
   const out = ['<defs>'];
-  [["read", "var(--wi-examine)"], ["best", "var(--wi-relax)"], ["taken", "var(--wi-accent)"]].forEach(k =>
+  [["l", "var(--wi-relax)"], ["r", "var(--wi-cycle)"], ["taken", "var(--wi-accent)"]].forEach(k =>
     out.push('<marker id="ah-' + k[0] + '" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="5.5" ' +
              'markerHeight="5.5" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="' + k[1] + '"/></marker>'));
   out.push("</defs>");
@@ -686,7 +741,7 @@ function drawTable() {
     /* one dot per root this cell examines -- filled when it is really tried,
        hollow when Knuth's window skips it. A short range can never earn many
        dots, so the ink piles up only towards the top right. */
-    if (shown && j - i >= 2 && mode !== "merge") {
+    if (shown && j - i >= 2) {
       const lo = (mode === "knuth") ? knuthLo(i, j) : i + 1;
       const hi = (mode === "knuth") ? knuthHi(i, j) : j - 1;
       const all = (j - 1) - (i + 1) + 1;
@@ -701,7 +756,7 @@ function drawTable() {
     if (shown) {
       const big = (cells[kk] === "cur" || cells[kk] === "path") ? " big" : "";
       out.push('<text class="cellval' + (wrote[kk] ? " pop" : "") + big + '" x="' + cx(j) + '" y="' +
-               (cy(i) - (j - i >= 2 ? (mode === "knuth" ? 9 : 5) : 0)) + '">' + f3(C[i][j]) + "</text>");
+               (cy(i) - (j - i >= 2 ? (mode === "knuth" ? 9 : 5) : 0)) + '">' + fc(C[i][j]) + "</text>");
       if (mode === "knuth" && j - i >= 2 && R[i][j] >= 0)
         out.push('<text class="cellr mono" x="' + cx(j) + '" y="' + (cy(i) + 3) + '">r=' + R[i][j] + "</text>");
     }
@@ -715,13 +770,13 @@ function drawTable() {
     const x2 = cx(a.to[1]) + (horiz ? 0 : off), y2 = cy(a.to[0]) + (horiz ? off : 0);
     const dx = x2 - x1, dy = y2 - y1, Lp = Math.hypot(dx, dy) || 1;
     const p1 = horiz ? CW * 0.34 : CHt * 0.34, p2 = horiz ? CW * 0.36 : CHt * 0.38;
-    const cl = a.taken ? "taken" : (a.best ? "best" : "read");
-    out.push('<line class="arr ' + cl + '" x1="' + (x1 + dx / Lp * p1) + '" y1="' + (y1 + dy / Lp * p1) +
-             '" x2="' + (x2 - dx / Lp * p2) + '" y2="' + (y2 - dy / Lp * p2) +
+    const cl = a.taken ? "taken" : a.side;
+    out.push('<line class="arr ' + cl + (a.cand ? " cand" : "") + '" x1="' + (x1 + dx / Lp * p1) + '" y1="' +
+             (y1 + dy / Lp * p1) + '" x2="' + (x2 - dx / Lp * p2) + '" y2="' + (y2 - dy / Lp * p2) +
              '" marker-end="url(#ah-' + cl + ')"/>');
   });
   svg.innerHTML = out.join("");
-  el("tabMeta").textContent = "0 \u2264 i < j \u2264 " + L + " \u00b7 C(0," + L + ") = " + f3(C[0][L]);
+  el("tabMeta").textContent = "0 \u2264 i < j \u2264 " + L + " \u00b7 C(0," + L + ") = " + fc(C[0][L]);
 }
 /* fill order: base cells first, then by increasing length */
 function rank(i, j) {
@@ -730,44 +785,232 @@ function rank(i, j) {
   return c + i;
 }
 
-/* ---------- tree / area drawing ------------------------------------------- */
+/* ---------- tree panel ------------------------------------------------------
+   One shared geometry for everything the panel ever shows (the leaf row while
+   the table is filled, the split preview, the growing backtrace tree, and
+   the merge-tree bars), so the bounding box is the union of all of them and
+   the panel never jumps in size from one step to the next.
+
+   xOf(k) is the x-coordinate of the boundary between leaf k-1 and leaf k;
+   half-integers address the middle of a leaf. With weighted leaves the
+   boundaries sit at the prefix sums W[0][k], otherwise they are equidistant.
+   ------------------------------------------------------------------------- */
+
+const geomStyle = () => treeStyle;
+const weightedX = () => treeStyle === "bars" || wLeaf;
+
+function treeGeom() {
+  const pad = 26, axisW = Math.min(660, Math.max(300, 96 * L));
+  const wx = weightedX();
+  const xOf = k => {
+    const fl = Math.min(L, Math.floor(k)), fr = k - fl;
+    const lo = wx ? W[0][fl] : fl / L, seg = wx ? (fl < L ? p[fl] : 0) : 1 / L;
+    return pad + (lo + fr * seg) * axisW;
+  };
+  const g = { pad: pad, axisW: axisW, xOf: xOf, weighted: wx };
+  if (treeStyle === "bars") {
+    g.RH = 26; g.TOP = 26;
+    g.Wd = pad * 2 + axisW + 84;
+    /* preview needs root / children / gap / leaf row (4 rows), the tree
+       itself finalDepth+1 rows; both plus the footer */
+    g.H = g.TOP + (Math.max(4, finalDepth + 1)) * g.RH + 60;
+  } else {
+    g.DY = 62; g.TOP = 28; g.TRIH = 44;
+    g.Wd = pad * 2 + axisW;
+    g.leafY = 150;                                  /* leaf row of the preview */
+    g.H = Math.max(g.leafY + 44, g.TOP + finalDepth * g.DY + g.TRIH + 12);
+  }
+  return g;
+}
+function sizeSvg(svg, g) {
+  svg.setAttribute("width", g.Wd); svg.setAttribute("height", g.H);
+  svg.setAttribute("viewBox", "0 0 " + g.Wd + " " + g.H);
+}
+
+/* one leaf, tree style: centred at (x, y). Weighted: as wide as its range
+   and of fixed height; unweighted: fixed width, height ~ weight. */
+function leafShape(g, k, y, cls) {
+  const out = [];
+  let x1, x2, hh;
+  if (g.weighted) {
+    x1 = g.xOf(k) + 2; x2 = g.xOf(k + 1) - 2; hh = 18;
+    if (x2 - x1 < 3) { const m = (x1 + x2) / 2; x1 = m - 1.5; x2 = m + 1.5; }
+  } else {
+    const m = g.xOf(k + 0.5); x1 = m - 17; x2 = m + 17;
+    hh = Math.max(9, 34 * p[k] / Math.max.apply(null, p));
+  }
+  const m = (x1 + x2) / 2;
+  out.push('<rect class="tnode leaf' + (cls ? " " + cls : "") + '" x="' + x1 + '" y="' + (y - hh / 2) +
+           '" width="' + (x2 - x1) + '" height="' + hh + '" rx="2"/>');
+  if (!g.weighted || x2 - x1 > 16)
+    out.push('<text class="tlab' + (cls && cls.indexOf("dim") >= 0 ? '" style="opacity:.5' : "") + '" x="' + m +
+             '" y="' + (y + hh / 2 + 12) + '">' + f3(w[k]) + "</text>");
+  out.push('<rect class="hit" data-ni="' + k + '" data-nj="' + (k + 1) + '" x="' + Math.min(x1, m - 20) +
+           '" y="' + (y - 18) + '" width="' + Math.max(40, x2 - x1) + '" height="38"/>');
+  return out.join("");
+}
+
+/* one bar, merge-tree style */
+function barShape(g, i, j, y, cls, label, labelCls) {
+  const x1 = g.xOf(i), x2 = g.xOf(j), out = [];
+  out.push('<rect class="' + cls + '" x="' + x1 + '" y="' + y + '" width="' + Math.max(0, x2 - x1) +
+           '" height="' + (g.RH - 6) + '" rx="2"/>');
+  if (label !== undefined && x2 - x1 > 8 + 7 * String(label).length)
+    out.push('<text class="segtxt' + (labelCls ? " " + labelCls : "") + '" x="' + ((x1 + x2) / 2) + '" y="' +
+             (y + (g.RH - 6) / 2) + '">' + label + "</text>");
+  out.push('<rect class="hit" data-ni="' + i + '" data-nj="' + j + '" x="' + x1 + '" y="' + y +
+           '" width="' + Math.max(3, x2 - x1) + '" height="' + (g.RH - 6) + '"/>');
+  return out.join("");
+}
 
 function drawTree() {
   const st = steps[cur] || {};
-  const svg = el("treeSvg");
 
   /* hovering a table cell always wins: show what that cell's optimum looks
      like, regardless of where the animation currently is. That's also what
      makes Knuth's window legible -- hover the cells the window points at. */
-  if (hoverCell && mode !== "merge") {
+  if (hoverCell) {
     const hi = hoverCell[0], hj = hoverCell[1];
     if (hj - hi >= 2 && R[hi][hj] >= 0) { drawPreview({ i: hi, j: hj, r: R[hi][hj] }, { hover: true }); return; }
+    if (hj - hi === 1) { drawPreview({ i: hi, j: hj, r: null }, { hover: true }); return; }
   }
 
-  const nodes = st.nodes || [];
-  if (mode === "merge") { drawArea(nodes, st); return; }
-  if (st.trace) { drawBacktrace(nodes, st); return; }
-  const sp = currentPreviewSplit(st);
-  if (sp) { drawPreview(sp, st); return; }
-  svg.setAttribute("width", 400); svg.setAttribute("height", 44);
-  svg.setAttribute("viewBox", "0 0 400 44");
-  svg.innerHTML = '<text class="hdrname" x="12" y="26">the tree is built during the backtrace</text>';
-  el("treeMeta").textContent = "";
+  if (st.trace) { drawBacktrace(st.nodes || [], st); return; }
+  drawPreview(currentPreviewSplit(st), st);
+}
+
+/* During table filling there is no tree yet -- only the range being solved
+   and, once the range has two leaves or more, the split being tried right
+   now. r is the root guess (null while there is no split to show), cand
+   marks a candidate root that is still being tried (fine detail level),
+   all marks the base-case step in which every single leaf is its own range. */
+function currentPreviewSplit(st) {
+  if (st.base) return { all: true };
+  if (!st.cell) return {};
+  const i = st.cell[0], j = st.cell[1];
+  if (j - i < 2) return { i: i, j: j, r: null };
+  const r = (st.r !== undefined) ? st.r : R[i][j];
+  return { i: i, j: j, r: (r === undefined || r < 0) ? null : r, cand: st.r !== undefined };
+}
+
+/* the leaf row that every preview stands on, with the active range lit and
+   everybody else dimmed */
+function leafRow(g, sp, y, shape) {
+  const out = [];
+  for (let k = 0; k < L; k++) {
+    const act = sp.all || (sp.i !== undefined && k >= sp.i && k < sp.j);
+    const any = sp.all || sp.i !== undefined;
+    out.push(shape(k, y, act ? "act" : (any ? "dim" : "")));
+  }
+  return out.join("");
+}
+function rangeLabels(g, sp, y) {
+  const out = [];
+  const marks = sp.all ? [0, L] : (sp.i !== undefined ? [0, sp.i, sp.j, L] : [0, L]);
+  marks.filter((v, idx, a) => a.indexOf(v) === idx).forEach(k =>
+    out.push('<text class="hdrix' + (!sp.all && (k === sp.i || k === sp.j) ? " hot" : "") + '" x="' + g.xOf(k) +
+             '" y="' + y + '">' + k + "</text>"));
+  const lab = sp.all ? "every single leaf is a range [i..i+1) of its own"
+            : sp.i !== undefined ? rng(sp.i, sp.j) : "all " + L + " leaves, " + rng(0, L);
+  const mx = sp.i !== undefined && !sp.all ? (g.xOf(sp.i) + g.xOf(sp.j)) / 2 : (g.xOf(0) + g.xOf(L)) / 2;
+  out.push('<text class="prevlab range" x="' + mx + '" y="' + (y + 13) + '">' + lab + "</text>");
+  return out.join("");
+}
+
+function drawPreview(sp, st) {
+  const svg = el("treeSvg"), g = treeGeom();
+  sizeSvg(svg, g);
+  if (treeStyle === "bars") { drawPreviewBars(sp, st, g, svg); return; }
+  const leafY = g.leafY, baseY = leafY - 22, apexY = 78, rootY = 34;
+  const out = [];
+  out.push(leafRow(g, sp, leafY, (k, y, cls) => leafShape(g, k, y, cls)));
+  out.push(rangeLabels(g, sp, leafY + 28));
+
+  if (sp.r !== null && sp.r !== undefined) {
+    const i = sp.i, j = sp.j, r = sp.r, cand = sp.cand ? " cand" : "";
+    /* the two subtrees, drawn only as triangles -- their real shape is not
+       yet known (or not shown), only their leaf range and already-known cost.
+       Left green, right blue, like the two table cells being read. */
+    const tri = (a, b, cls) => {
+      const x1 = g.xOf(a), x2 = g.xOf(b), apx = (x1 + x2) / 2;
+      const t = ['<path class="prevtri ' + cls + cand + '" d="M' + x1 + " " + baseY + "L" + x2 + " " + baseY +
+                 "L" + apx + " " + apexY + 'Z"/>'];
+      const w2 = x2 - x1;
+      if (w2 > 46) {
+        t.push('<text class="prevlab" x="' + apx + '" y="' + (baseY - 20) + '">' + rng(a, b) + "</text>");
+        t.push('<text class="prevlab" x="' + apx + '" y="' + (baseY - 8) + '" style="fill:var(--wi-accent)">C=' +
+               fc(C[a][b]) + "</text>");
+      } else if (w2 > 22) {
+        t.push('<text class="prevlab" x="' + apx + '" y="' + (baseY - 12) + '" style="fill:var(--wi-accent)">' +
+               fc(C[a][b]) + "</text>");
+      }
+      t.push('<rect class="hit" data-ni="' + a + '" data-nj="' + b + '" x="' + x1 + '" y="' + apexY +
+             '" width="' + Math.max(3, w2) + '" height="' + (baseY - apexY) + '"/>');
+      return t.join("");
+    };
+    out.push(tri(i, r, "left"));
+    out.push(tri(r, j, "right"));
+    /* the root: same visual language as a real internal tree node, so this
+       reads as "the node we are about to place", not a different kind of thing */
+    const rx = g.xOf(r);
+    out.push('<path class="tedge" d="M' + rx + " " + (rootY + 13) + "L" + ((g.xOf(i) + g.xOf(r)) / 2) + " " + apexY + '"/>');
+    out.push('<path class="tedge" d="M' + rx + " " + (rootY + 13) + "L" + ((g.xOf(r) + g.xOf(j)) / 2) + " " + apexY + '"/>');
+    out.push('<circle class="tnode hot" cx="' + rx + '" cy="' + rootY + '" r="13"/>');
+    out.push('<text class="tlab" x="' + rx + '" y="' + rootY + '" style="font-size:9.5px">' + r + "</text>");
+    out.push('<rect class="tpill" x="' + (rx - 18) + '" y="' + (rootY + 15) + '" width="36" height="12" rx="3"/>');
+    out.push('<text class="tlab" x="' + rx + '" y="' + (rootY + 21) + '" style="font-size:9px;fill:var(--wi-accent)">+' +
+             fc(W[i][j]) + "</text>");
+  }
+  svg.innerHTML = out.join("");
+  el("treeMeta").textContent = previewMeta(sp, st);
+}
+function previewMeta(sp, st) {
+  if (sp.all) return "base cases: " + L + " ranges of one leaf, cost 0 each";
+  if (sp.i === undefined) return L + " leaves \u2014 the tree is built during the backtrace";
+  if (sp.r === null) return (st.hover ? "hovering " : "") + rng(sp.i, sp.j) + " \u2014 a single leaf, cost 0";
+  return st.hover
+    ? "hovering C" + rng(sp.i, sp.j) + " \u2014 optimal root r = " + sp.r
+    : "previewing root r = " + sp.r + " of " + rng(sp.i, sp.j) + (sp.cand ? " (candidate)" : " (best so far)");
+}
+
+/* merge-tree preview: the range as a bar at depth 0, its two halves as bars
+   at depth 1 (dashed: shape still unknown), the runs at the bottom */
+function drawPreviewBars(sp, st, g, svg) {
+  const out = [], rowY = d => g.TOP + d * g.RH;
+  const leafY = rowY(3);
+  out.push(leafRow(g, sp, leafY, (k, y, cls) => barShape(g, k, k + 1, y, "seg-r" + (cls ? " " + cls : ""), w[k])));
+  out.push(rangeLabels(g, sp, leafY + g.RH + 4));
+  if (sp.r !== null && sp.r !== undefined) {
+    const i = sp.i, j = sp.j, r = sp.r, cand = sp.cand ? " cand" : "";
+    out.push(barShape(g, i, j, rowY(0), "seg-m hot", fc(W[i][j])));
+    out.push(barShape(g, i, r, rowY(1), "seg-m pend l" + cand, "C=" + fc(C[i][r]), "c"));
+    out.push(barShape(g, r, j, rowY(1), "seg-m pend r" + cand, "C=" + fc(C[r][j]), "c"));
+    const mid = (g.xOf(i) + g.xOf(j)) / 2;
+    out.push('<text class="segtxt" x="' + mid + '" y="' + (rowY(2) + (g.RH - 6) / 2) + '" style="font-size:13px">\u22ee</text>');
+    ["this merge", "its two halves", "", "the runs"].forEach((t, d) => { if (t)
+      out.push('<text class="hdrname" x="' + (g.pad + g.axisW + 10) + '" y="' + (rowY(d) + (g.RH - 6) / 2 + 4) + '">' + t + "</text>"); });
+  } else {
+    out.push('<text class="hdrname" x="' + (g.pad + g.axisW + 10) + '" y="' + (leafY + (g.RH - 6) / 2 + 4) + '">the runs</text>');
+  }
+  svg.innerHTML = out.join("");
+  el("treeMeta").textContent = previewMeta(sp, st);
 }
 
 /* The backtrace tree, drawn as it is actually discovered: it starts as one
    giant, undifferentiated triangle over the traced range and is refined one
    root at a time. Any child of a resolved node that hasn't been decided yet
    is drawn as a triangle of its own -- same idiom as the filling-phase
-   preview, so "not yet known" always looks the same on this page. */
+   preview, so "not yet known" always looks the same on this page. The two
+   children of the node just resolved are green (left) and blue (right),
+   like the two table cells its root was read from. */
 function drawBacktrace(nodes, st) {
-  const svg = el("treeSvg");
-  const LWd = Math.max(52, Math.min(96, Math.round(660 / L)));
-  const DY = 62, TOP = 28, pad = 18, TRIH = 44;
-  const xOf = k => pad + k * LWd;
+  const svg = el("treeSvg"), g = treeGeom();
+  sizeSvg(svg, g);
   const find = (i, j) => nodes.find(x => x.i === i && x.j === j);
   const ti = traceFrom ? traceFrom[0] : 0, tj = traceFrom ? traceFrom[1] : L;
+  if (treeStyle === "bars") { drawBacktraceBars(nodes, st, g, svg, find, ti, tj); return; }
 
+  const DY = g.DY, TOP = g.TOP, TRIH = g.TRIH, xOf = g.xOf;
   const edges = [], shapes = [];
   let maxD = 0;
   /* anchor of a range: the split point once resolved as an internal node,
@@ -779,54 +1022,47 @@ function drawBacktrace(nodes, st) {
     const nd = find(i, j);
     return (nd && !nd.leaf) ? xOf(nd.r) : xOf((i + j) / 2);
   };
-  (function walk(i, j, d) {
+  (function walk(i, j, d, side) {
     maxD = Math.max(maxD, d);
     const nd = find(i, j), x = anchorOf(i, j), y = TOP + d * DY;
-    if (!nd) { shapes.push({ t: "tri", i: i, j: j, x: x, y: y }); return; }
+    if (!nd) { shapes.push({ t: "tri", i: i, j: j, x: x, y: y, side: side }); return; }
     if (nd.leaf) { shapes.push({ t: "leaf", i: i, x: x, y: y }); return; }
     shapes.push({ t: "root", i: i, j: j, r: nd.r, x: x, y: y });
+    const hot = st.hot === key(i, j);
     [[i, nd.r, "left"], [nd.r, j, "right"]].forEach(ch => {
       const cx = anchorOf(ch[0], ch[1]), cy = TOP + (d + 1) * DY;
       edges.push({ x1: x, y1: y, x2: cx, y2: cy });
-      walk(ch[0], ch[1], d + 1);
+      walk(ch[0], ch[1], d + 1, hot ? ch[2] : null);
     });
-  })(ti, tj, 0);
+  })(ti, tj, 0, null);
 
-  const Wd = Math.max(340, pad * 2 + L * LWd), H = TOP + maxD * DY + TRIH + 30;
-  svg.setAttribute("width", Wd); svg.setAttribute("height", H);
-  svg.setAttribute("viewBox", "0 0 " + Wd + " " + H);
   const out = [];
   edges.forEach(e => out.push('<path class="tedge" d="M' + e.x1 + " " + e.y1 + "L" + e.x2 + " " + e.y2 + '"/>'));
   shapes.forEach(s => {
     if (s.t === "tri") {
       const x1 = xOf(s.i), x2 = xOf(s.j), baseY = s.y + TRIH, w2 = x2 - x1;
-      out.push('<path class="prevtri neutral" d="M' + x1 + " " + baseY + "L" + x2 + " " + baseY +
+      out.push('<path class="prevtri ' + (s.side || "neutral") + '" d="M' + x1 + " " + baseY + "L" + x2 + " " + baseY +
                "L" + s.x + " " + s.y + 'Z"/>');
       if (w2 > 46) {
         out.push('<text class="prevlab" x="' + s.x + '" y="' + (baseY - 20) + '">' + rng(s.i, s.j) + "</text>");
         out.push('<text class="prevlab" x="' + s.x + '" y="' + (baseY - 8) + '" style="fill:var(--wi-accent)">C=' +
-                 f3(C[s.i][s.j]) + "</text>");
+                 fc(C[s.i][s.j]) + "</text>");
       } else if (w2 > 22) {
         out.push('<text class="prevlab" x="' + s.x + '" y="' + (baseY - 12) + '" style="fill:var(--wi-accent)">' +
-                 f3(C[s.i][s.j]) + "</text>");
+                 fc(C[s.i][s.j]) + "</text>");
       }
       out.push('<rect class="hit" data-ni="' + s.i + '" data-nj="' + s.j + '" x="' + x1 + '" y="' + s.y +
-               '" width="' + (x2 - x1) + '" height="' + (baseY - s.y) + '"/>');
+               '" width="' + Math.max(3, x2 - x1) + '" height="' + (baseY - s.y) + '"/>');
     } else if (s.t === "leaf") {
-      const hh = Math.max(9, 34 * p[s.i] / Math.max.apply(null, p));
-      const hot = st.hot === key(s.i, s.i + 1) ? " hot pop" : "";
-      out.push('<rect class="tnode leaf' + hot + '" x="' + (s.x - 17) + '" y="' + (s.y - hh / 2) +
-               '" width="34" height="' + hh + '" rx="2"/>');
-      out.push('<text class="tlab" x="' + s.x + '" y="' + (s.y + hh / 2 + 12) + '">' + f3(w[s.i]) + "</text>");
-      out.push('<rect class="hit" data-ni="' + s.i + '" data-nj="' + (s.i + 1) + '" x="' + (s.x - 20) +
-               '" y="' + (s.y - 18) + '" width="40" height="38"/>');
+      const hot = st.hot === key(s.i, s.i + 1) ? "hot pop" : "";
+      out.push(leafShape(g, s.i, s.y, hot));
     } else {
       const hot = st.hot === key(s.i, s.j) ? " hot pop" : "";
       out.push('<circle class="tnode' + hot + '" cx="' + s.x + '" cy="' + s.y + '" r="13"/>');
       out.push('<text class="tlab" x="' + s.x + '" y="' + s.y + '" style="font-size:9.5px">' + s.r + "</text>");
       out.push('<rect class="tpill" x="' + (s.x - 18) + '" y="' + (s.y + 15) + '" width="36" height="12" rx="3"/>');
       out.push('<text class="tlab" x="' + s.x + '" y="' + (s.y + 21) +
-               '" style="font-size:9px;fill:var(--wi-accent)">+' + f3(W[s.i][s.j]) + "</text>");
+               '" style="font-size:9px;fill:var(--wi-accent)">+' + fc(W[s.i][s.j]) + "</text>");
       out.push('<rect class="hit" data-ni="' + s.i + '" data-nj="' + s.j + '" x="' + (s.x - 20) + '" y="' +
                (s.y - 18) + '" width="40" height="38"/>');
     }
@@ -835,162 +1071,106 @@ function drawBacktrace(nodes, st) {
   const resolved = shapes.filter(s => s.t !== "tri").length, pending = shapes.filter(s => s.t === "tri").length;
   el("treeMeta").textContent = pending
     ? resolved + " node" + (resolved === 1 ? "" : "s") + " resolved \u00b7 " + pending + " still to go"
-    : "cost " + f3(C[ti][tj]) + " \u00b7 depth " + maxD;
+    : "cost " + fc(C[ti][tj]) + " \u00b7 depth " + maxD;
 }
 
-/* the merge-cost picture: one bar per merge, as wide as the range it covers.
-   The shaded area IS the cost. */
-/* During table filling there is no tree yet -- only the split being tried
-   right now. Show it schematically: the root guess r, and its two subtrees
-   drawn as triangles (we don't know their shape, only their extent and their
-   already-known cost), against the full leaf range so the viewer can see
-   which subproblem this is inside the whole problem. */
-function currentPreviewSplit(st) {
-  if (!st.cell) return null;
-  const i = st.cell[0], j = st.cell[1];
-  if (j - i < 2) return null;                 /* a single leaf has no split to show */
-  const r = (st.r !== undefined) ? st.r : R[i][j];
-  if (r === undefined || r < 0) return null;
-  return { i: i, j: j, r: r };
-}
-function drawPreview(sp, st) {
-  const svg = el("treeSvg");
-  const i = sp.i, j = sp.j, r = sp.r;
-  const pad = 26, axisW = 660;
-  const Wd = pad * 2 + axisW, baseY = 150, apexY = 78, rootY = 34;
-  const H = baseY + 34;
-  svg.setAttribute("width", Wd); svg.setAttribute("height", H);
-  svg.setAttribute("viewBox", "0 0 " + Wd + " " + H);
-  const xOf = k => pad + (k / L) * axisW;
-  const out = [];
-
-  /* the full leaf range, for context: which subproblem is [i..j) inside it */
-  out.push('<line class="prevaxis" x1="' + xOf(0) + '" y1="' + baseY + '" x2="' + xOf(L) + '" y2="' + baseY + '"/>');
-  for (let k = 0; k <= L; k++)
-    out.push('<line class="prevtick' + (k === r ? " hot" : "") + '" x1="' + xOf(k) + '" y1="' + (baseY - 4) +
-             '" x2="' + xOf(k) + '" y2="' + (baseY + 4) + '"/>');
-  out.push('<rect class="prevseg" x="' + xOf(i) + '" y="' + (baseY - 5) + '" width="' + (xOf(j) - xOf(i)) +
-           '" height="10" rx="2"/>');
-  [0, i, j, L].filter((v, idx, a) => a.indexOf(v) === idx).forEach(k =>
-    out.push('<text class="hdrix' + (k === i || k === j ? " hot" : "") + '" x="' + xOf(k) + '" y="' +
-             (baseY + 18) + '">' + k + "</text>"));
-  out.push('<text class="prevlab range" x="' + ((xOf(i) + xOf(j)) / 2) + '" y="' + (baseY + 30) + '">' +
-           rng(i, j) + "</text>");
-
-  /* the two subtrees, drawn only as triangles -- their real shape is not yet
-     known (or not shown), only their leaf range and already-computed cost */
-  const tri = (a, b, cls) => {
-    const x1 = xOf(a), x2 = xOf(b), apx = (x1 + x2) / 2;
-    const t = ['<path class="prevtri ' + cls + '" d="M' + x1 + " " + baseY + "L" + x2 + " " + baseY +
-               "L" + apx + " " + apexY + 'Z"/>'];
-    const w2 = x2 - x1;
-    if (w2 > 46) {
-      t.push('<text class="prevlab" x="' + apx + '" y="' + (baseY - 20) + '">' + rng(a, b) + "</text>");
-      t.push('<text class="prevlab" x="' + apx + '" y="' + (baseY - 8) + '" style="fill:var(--wi-accent)">C=' +
-             f3(C[a][b]) + "</text>");
-    } else if (w2 > 22) {
-      t.push('<text class="prevlab" x="' + apx + '" y="' + (baseY - 12) + '" style="fill:var(--wi-accent)">' +
-             f3(C[a][b]) + "</text>");
+/* the same backtrace as a merge tree: one bar per node, as wide as its
+   range. Resolved merges are filled, still-unknown subtrees are dashed
+   outlines. The shaded area so far is the cost paid so far. */
+function drawBacktraceBars(nodes, st, g, svg, find, ti, tj) {
+  const out = [], rowY = d => g.TOP + d * g.RH;
+  let maxD = 0, acc = 0, pending = 0, resolved = 0;
+  (function walk(i, j, d, side) {
+    maxD = Math.max(maxD, d);
+    const nd = find(i, j), hot = st.hot === key(i, j);
+    if (!nd) {
+      pending++;
+      out.push(barShape(g, i, j, rowY(d), "seg-m pend" + (side ? " " + side : ""), "C=" + fc(C[i][j]), "c"));
+      return;
     }
-    return t.join("");
-  };
-  out.push(tri(i, r, "left"));
-  out.push(tri(r, j, "right"));
-
-  /* the root: same visual language as a real internal tree node, so this
-     reads as "the node we are about to place", not a different kind of thing */
-  const rx = xOf(r);
-  out.push('<path class="tedge" d="M' + rx + " " + (rootY + 13) + "L" + ((xOf(i) + xOf(r)) / 2) + " " + apexY + '"/>');
-  out.push('<path class="tedge" d="M' + rx + " " + (rootY + 13) + "L" + ((xOf(r) + xOf(j)) / 2) + " " + apexY + '"/>');
-  out.push('<circle class="tnode hot" cx="' + rx + '" cy="' + rootY + '" r="13"/>');
-  out.push('<text class="tlab" x="' + rx + '" y="' + rootY + '" style="font-size:9.5px">' + r + "</text>");
-  out.push('<rect class="tpill" x="' + (rx - 18) + '" y="' + (rootY + 15) + '" width="36" height="12" rx="3"/>');
-  out.push('<text class="tlab" x="' + rx + '" y="' + (rootY + 21) + '" style="font-size:9px;fill:var(--wi-accent)">+' +
-           f3(W[i][j]) + "</text>");
-
+    resolved++;
+    if (nd.leaf) { out.push(barShape(g, i, j, rowY(d), "seg-r" + (hot ? " act pop" : ""), w[i])); return; }
+    acc += W[i][j];
+    out.push(barShape(g, i, j, rowY(d), "seg-m" + (hot ? " hot pop" : ""), fc(W[i][j])));
+    walk(i, nd.r, d + 1, hot ? "l" : null); walk(nd.r, j, d + 1, hot ? "r" : null);
+  })(ti, tj, 0, null);
+  for (let d = 0; d <= maxD; d++)
+    out.push('<text class="hdrname" x="' + (g.pad + g.axisW + 10) + '" y="' + (rowY(d) + (g.RH - 6) / 2 + 4) +
+             '">depth ' + d + "</text>");
+  out.push('<text class="hdrname" x="' + g.pad + '" y="' + (g.H - 16) +
+           '">shaded area so far = ' + fc(acc) + " element moves  (" + f3(acc) + " per element)</text>");
   svg.innerHTML = out.join("");
-  el("treeMeta").textContent = st.hover
-    ? "hovering C" + rng(i, j) + " \u2014 optimal root r = " + r
-    : "previewing root r = " + r + " of " + rng(i, j) +
-      (st.r !== undefined ? " (candidate)" : " (best so far)");
+  el("treeMeta").textContent = pending
+    ? resolved + " node" + (resolved === 1 ? "" : "s") + " resolved \u00b7 " + pending + " still to go"
+    : "cost " + fc(C[ti][tj]) + " \u00b7 depth " + maxD;
 }
 
-/* the merge-cost picture: one bar per merge, as wide as the range it covers.
-   The shaded area IS the cost. */
-function drawArea(nodes, st) {
-  const svg = el("treeSvg");
+/* ---------- comparison box (merge-tree style only) -------------------------- */
+
+function miniBars(nodes, cls) {
+  const RH = 16, TOP = 4, pad = 4, BW = 300;
   const maxD = nodes.reduce((a, x) => Math.max(a, x.d), 0);
-  const pad = 20, BW = 720, RH = 26, TOP = 26;
-  const Wd = BW + 2 * pad + 80, H = TOP + (maxD + 1) * RH + 56;
-  svg.setAttribute("width", Wd); svg.setAttribute("height", H);
-  svg.setAttribute("viewBox", "0 0 " + Wd + " " + H);
-  const xw = t => pad + t * BW;
-  const done = {}; (st.merged || []).forEach(nd => done[key(nd.i, nd.j)] = 1);
-  const out = [];
+  const Wd = BW + 2 * pad, H = TOP + (maxD + 1) * RH + 4;
+  const xw = t => pad + t * BW, out = [];
   nodes.forEach(nd => {
     const x1 = xw(W[0][nd.i]), x2 = xw(W[0][nd.j]), y = TOP + nd.d * RH;
-    if (nd.leaf) {
-      out.push('<rect class="seg-r" x="' + x1 + '" y="' + y + '" width="' + (x2 - x1) + '" height="' + (RH - 6) + '" rx="2"/>');
-      if (x2 - x1 > 22) out.push('<text class="segtxt" x="' + ((x1 + x2) / 2) + '" y="' + (y + (RH - 6) / 2) + '">' + w[nd.i] + "</text>");
-    } else {
-      const hot = st.hot === key(nd.i, nd.j) ? " hot" : (done[key(nd.i, nd.j)] ? " done" : "");
-      out.push('<rect class="seg-m' + hot + '" x="' + x1 + '" y="' + y + '" width="' + (x2 - x1) + '" height="' + (RH - 6) + '" rx="2"/>');
-      if (x2 - x1 > 34)
-        out.push('<text class="segtxt" x="' + ((x1 + x2) / 2) + '" y="' + (y + (RH - 6) / 2) + '">' +
-                 f3(W[nd.i][nd.j] * tot) + "</text>");
-    }
+    out.push('<rect class="' + (nd.leaf ? "seg-r" : "seg-m " + cls) + '" x="' + x1 + '" y="' + y + '" width="' +
+             Math.max(0, x2 - x1) + '" height="' + (RH - 4) + '" rx="1.5"/>');
+    if (x2 - x1 > 18)
+      out.push('<text class="segtxt" style="font-size:8.5px" x="' + ((x1 + x2) / 2) + '" y="' + (y + (RH - 4) / 2) + '">' +
+               (nd.leaf ? w[nd.i] : fc(W[nd.i][nd.j])) + "</text>");
     out.push('<rect class="hit" data-ni="' + nd.i + '" data-nj="' + nd.j + '" x="' + x1 + '" y="' + y +
-             '" width="' + Math.max(3, x2 - x1) + '" height="' + (RH - 6) + '"/>');
+             '" width="' + Math.max(3, x2 - x1) + '" height="' + (RH - 4) + '"/>');
   });
-  for (let d = 0; d <= maxD; d++)
-    out.push('<text class="hdrname" x="' + (pad + BW + 10) + '" y="' + (TOP + d * RH + (RH - 6) / 2 + 4) +
-             '">depth ' + d + "</text>");
-  const acc = (st.merged || []).reduce((a, nd) => a + W[nd.i][nd.j], 0);
-  out.push('<text class="hdrname" x="' + pad + '" y="' + (H - 16) +
-           '">shaded area so far = ' + f3(acc) + " per element  (" + f3(acc * tot) + " moves)</text>");
-  svg.innerHTML = out.join("");
-  el("treeMeta").textContent = "cost " + f3(treeCost(nodes)) + " \u00b7 " +
-    nodes.filter(x => !x.leaf).length + " merges";
+  return '<svg viewBox="0 0 ' + Wd + " " + H + '" width="' + Wd + '" height="' + H + '">' + out.join("") + "</svg>";
+}
+function renderCmp() {
+  el("cmpBox").style.display = treeStyle === "bars" ? "" : "none";
+  if (treeStyle !== "bars") return;
+  const h = entropy();
+  const kinds = [["opt", "Optimal (DP)", ""], ["peek", "Peeksort", "done"], ["pow", "Powersort", "r"]];
+  const trees = kinds.map(k => treeOf(k[0], 0, L)), costs = trees.map(treeCost);
+  const mx = Math.max.apply(null, costs.concat([h + 2])), best = Math.min.apply(null, costs);
+  const rows = kinds.map((k, idx) => "<tr" + (Math.abs(costs[idx] - best) < 1e-12 ? " class='best'" : "") + "><td>" + k[1] +
+    "</td><td class='n'>" + fc(costs[idx]) + "</td><td><span class='barwrap'><span class='barfill' style='width:" +
+    (100 * costs[idx] / mx).toFixed(1) + "%'></span></span></td></tr>").join("");
+  el("cmpTable").innerHTML = "<table class='cmp'><tr><th>tree</th><th>c(T)</th><th></th></tr>" + rows +
+    "<tr><td style='color:var(--wi-ink-faint)'>" + hN("H") + " (lower bound)</td><td class='n'>" + fc(h) +
+    "</td><td><span class='barwrap'><span class='barfill' style='width:" + (100 * h / mx).toFixed(1) +
+    "%;background:var(--wi-inert)'></span></span></td></tr>" +
+    "<tr><td style='color:var(--wi-ink-faint)'>" + hN("H+2") + "</td><td class='n'>" + fc(h + 2) +
+    "</td><td><span class='barwrap'><span class='barfill' style='width:" + (100 * (h + 2) / mx).toFixed(1) +
+    "%;background:var(--wi-inert)'></span></span></td></tr></table>";
+  el("cmpMinis").innerHTML = kinds.map((k, idx) => '<div class="mini"><div class="mtitle"><span>' + k[1] +
+    "</span><b>" + fc(costs[idx]) + "</b></div>" + miniBars(trees[idx], "") + "</div>").join("");
 }
 
 /* ---------- side panel ---------------------------------------------------- */
 
-function renderNums() {
+/* the range of leaves the current step is about: the cell being filled or
+   traced, the hovered cell, or (base-case step) every leaf */
+function activeLeaves() {
   const st = steps[cur] || {};
+  if (hoverCell) return [hoverCell[0], hoverCell[1]];
+  if (st.base) return [0, L];
+  if (st.cell) return [st.cell[0], st.cell[1]];
+  return null;
+}
+function renderNums() {
   const h = entropy();
-  if (mode !== "merge") {
-    const ti = traceFrom ? traceFrom[0] : 0, tj = traceFrom ? traceFrom[1] : L;
-    el("numTitle").textContent = "Weights";
-    const rows = w.map((x, i) => "<tr><td>\u2113<sub>" + i + "</sub></td><td class='n'>" + f3(x) +
-      "</td><td class='n'>" + f3(p[i]) + "</td><td><span class='barwrap'><span class='barfill' style='width:" +
-      (100 * p[i] / Math.max.apply(null, p)).toFixed(1) + "%'></span></span></td></tr>").join("");
-    el("numBox").innerHTML = "<table class='cmp'><tr><th>leaf</th><th>raw</th><th>normalised</th><th></th></tr>" +
-      rows + "</table><div class='hint' style='margin-top:8px'>C" + rng(ti, tj) + " = <b>" + f3(C[ti][tj]) +
-      "</b> &nbsp;·&nbsp; H = " + f3(h) + " &nbsp;·&nbsp; H+2 = " + f3(h + 2) + "</div>";
-    el("numMeta").textContent = L + " leaves";
-    return;
-  }
-  el("numTitle").textContent = "Trees compared";
-  const kinds = [["opt", "Optimal (DP)"], ["peek", "Peeksort"], ["pow", "Powersort"]];
-  const costs = kinds.map(k => treeCost(treeOf(k[0], 0, L)));
-  const mx = Math.max.apply(null, costs.concat([h + 2]));
-  const best = Math.min.apply(null, costs);
-  const rows = kinds.map((k, idx) => "<tr class='pick" + (Math.abs(costs[idx] - best) < 1e-12 ? " best" : "") +
-    (whichTree === k[0] ? " sel" : "") + "' data-k='" + k[0] + "'><td>" + k[1] + "</td><td class='n'>" +
-    f3(costs[idx]) + "</td><td><span class='barwrap'><span class='barfill' style='width:" +
-    (100 * costs[idx] / mx).toFixed(1) + "%'></span></span></td></tr>").join("");
-  el("numBox").innerHTML = "<table class='cmp'><tr><th>tree</th><th>c(T)</th><th></th></tr>" + rows +
-    "<tr><td style='color:var(--wi-ink-faint)'>H (lower bound)</td><td class='n'>" + f3(h) +
-    "</td><td><span class='barwrap'><span class='barfill' style='width:" + (100 * h / mx).toFixed(1) +
-    "%;background:var(--wi-inert)'></span></span></td></tr>" +
-    "<tr><td style='color:var(--wi-ink-faint)'>H + 2</td><td class='n'>" + f3(h + 2) +
-    "</td><td><span class='barwrap'><span class='barfill' style='width:" + (100 * (h + 2) / mx).toFixed(1) +
-    "%;background:var(--wi-inert)'></span></span></td></tr></table>" +
-    "<div class='hint' style='margin-top:8px'>Peeksort and Powersort never solve a DP, yet both stay within " +
-    "H+2. Neither is optimal in general \u2014 click a row to step through its merges.</div>";
-  el("numMeta").textContent = tot + " elements";
-  [].forEach.call(el("numBox").querySelectorAll("tr[data-k]"), tr =>
-    tr.addEventListener("click", () => setTree(tr.dataset.k)));
+  const ti = traceFrom ? traceFrom[0] : 0, tj = traceFrom ? traceFrom[1] : L;
+  const act = activeLeaves();
+  el("numTitle").textContent = "Weights";
+  const bars = barsUnit();
+  const rows = w.map((x, i) => "<tr" + (act && i >= act[0] && i < act[1] ? " class='act'" : "") +
+    "><td>\u2113<sub>" + i + "</sub></td><td class='n'>" + f3(x) +
+    (bars ? "" : "</td><td class='n'>" + f3(p[i])) + "</td><td><span class='barwrap'><span class='barfill' style='width:" +
+    (100 * p[i] / Math.max.apply(null, p)).toFixed(1) + "%'></span></span></td></tr>").join("");
+  el("numBox").innerHTML = "<table class='cmp'><tr><th>" + (bars ? "run" : "leaf") + "</th><th>" +
+    (bars ? "length" : "raw") + "</th>" + (bars ? "" : "<th>normalised</th>") + "<th></th></tr>" +
+    rows + "</table><div class='hint' style='margin-top:8px'>C" + rng(ti, tj) + " = <b>" + fc(C[ti][tj]) +
+    "</b> &nbsp;·&nbsp; " + hN("H") + " = " + fc(h) + " &nbsp;·&nbsp; " + hN("H+2") + " = " + fc(h + 2) + "</div>";
+  el("numMeta").textContent = L + " leaves" + (treeStyle === "bars" ? " \u00b7 " + tot + " elements" : "");
 }
 
 /* ---------- pseudocode ----------------------------------------------------- */
@@ -1025,11 +1205,6 @@ const KCODE = [
   { k: "c_add",  t: "            C[i][j] := C[i][j] + W[i][j]" },
   { k: "c_ret",  t: "    " + K("return") + " (C, R)" }
 ];
-const MCODE = [
-  { k: "m_head", t: Cm("// merge cost of a merge tree T over runs of lengths \u2113\u1d62") },
-  { k: "m_min",  t: "cost(T) = \u03a3 { W(v) : v an internal node of T }" },
-  { k: "m_min",  t: "        = \u03a3 { \u2113\u1d62 \u00b7 depth(L\u1d62) : i }        " + Cm("// the same number") }
-];
 function renderCode() {
   const st = steps[cur] || {};
   const hl = new Set(st.hl), hlp = new Set(st.hlp);
@@ -1038,18 +1213,13 @@ function renderCode() {
       (num ? '<span class="ln">' + (i + 1) + "</span>" : '<span class="ln"></span>') +
       "<span>" + l.t + "</span></div>").join("");
   el("codeBody").innerHTML = blk("Step 3 \u00b7 recurrence", REC, hl, false) +
-    (mode === "merge" ? blk("The same cost, read as merges", MCODE, hl, false)
-     : blk(mode === "knuth" ? "Step 5 \u00b7 with Knuth's window" : "Step 5 \u00b7 table filling",
-           mode === "knuth" ? KCODE : CODE, hlp, true));
+    blk(mode === "knuth" ? "Step 5 \u00b7 with Knuth's window" : "Step 5 \u00b7 table filling",
+        mode === "knuth" ? KCODE : CODE, hlp, true);
   el("codeNote").innerHTML = mode === "knuth"
     ? "Only line 6 differs. The windows along one diagonal <b>telescope</b>: summing " +
       "(R[i+1][j] \u2212 R[i][j\u22121] + 1) over one diagonal is O(L), so the whole table costs " +
       "\u0398(L\u00b2). The monotonicity itself follows from the quadrangle inequality; the picture " +
       "shows it holding, which is the part worth seeing."
-    : mode === "merge"
-    ? "Nothing to run here \u2014 the point is that the merge cost of a merge tree and the weighted depth " +
-      "of an alphabetic tree are the same sum, read two ways. So the DP that finds the best alphabetic " +
-      "tree also finds the best possible merge order for a given run decomposition."
     : "\u0398(L\u00b3) time, \u0398(L\u00b2) space: L\u00b2/2 subproblems, each scanning up to L roots. " +
       "The lecture states the recurrence; this procedure is the cookie-cutter steps 5 and 6 spelled out " +
       "for it, with R[i][j] remembered so the backtrace does not have to re-derive the root.";
@@ -1074,7 +1244,7 @@ function renderPhases() {
 }
 function render() {
   const st = steps[cur] || {};
-  drawTable(); drawTree(); renderNums(); renderPhases();
+  drawTable(); drawTree(); renderNums(); renderPhases(); renderCmp();
   if (window.innerWidth > 760) renderCode();
   el("statusBox").innerHTML = (st.txt || "") + (st.ans ? '<b class="ans">' + esc(st.ans) + "</b>" : "");
   el("phaseName").textContent = phases[st.ph] ? phases[st.ph].name : "";
@@ -1083,12 +1253,9 @@ function render() {
   el("stepNo").textContent = steps.length ? (cur + 1) + " / " + steps.length : "\u2014 / \u2014";
   el("backBtn").disabled = cur <= 0; el("stepBtn").disabled = cur >= steps.length - 1;
   const whole = !traceFrom || (traceFrom[0] === 0 && traceFrom[1] === L);
-  el("wholeBtn").style.display = (whole || mode === "merge") ? "none" : "";
-  el("opNote").innerHTML = mode === "merge"
-    ? "Showing the <b>" + (whichTree === "opt" ? "optimal" : whichTree === "peek" ? "Peeksort" : "Powersort") +
-      "</b> merge tree."
-    : whole ? "Backtracing from <b>" + rng(0, L) + "</b> \u2014 all " + L + " leaves."
-            : "Backtracing from <b>" + rng(traceFrom[0], traceFrom[1]) + "</b>.";
+  el("wholeBtn").style.display = whole ? "none" : "";
+  el("opNote").innerHTML = whole ? "Backtracing from <b>" + rng(0, L) + "</b> \u2014 all " + L + " leaves."
+                                 : "Backtracing from <b>" + rng(traceFrom[0], traceFrom[1]) + "</b>.";
 }
 const PLAY = "\u25B6\uFE0E", PAUSE = "\u23F8\uFE0E";
 function stepFwd() { if (cur < steps.length - 1) { cur++; render(); } else stopPlay(); }
@@ -1117,23 +1284,33 @@ const nums = s => s.split(/[\s,;]+/).filter(x => x.length).map(Number);
 function setMode(m) {
   mode = m;
   el("mDP").classList.toggle("on", m === "dp");
-  el("mMerge").classList.toggle("on", m === "merge");
   el("mKnuth").classList.toggle("on", m === "knuth");
   el("subDP").style.display = m === "dp" ? "" : "none";
-  el("subMerge").style.display = m === "merge" ? "" : "none";
   el("subKnuth").style.display = m === "knuth" ? "" : "none";
-  el("granWrap").style.display = m === "merge" ? "none" : "";
-  el("treeWrap").style.display = m === "merge" ? "" : "none";
-  el("tabBox").style.display = m === "merge" ? "none" : "";
   el("legKnuth").style.display = m === "knuth" ? "" : "none";
-  el("treeTitle").textContent = m === "merge" ? "Merge cost as area" : "The tree";
   traceFrom = null; stopPlay(); build(); render();
 }
-function setTree(k) {
-  whichTree = k;
-  ["opt", "peek", "pow"].forEach(x => el(x === "opt" ? "tOpt" : x === "peek" ? "tPeek" : "tPow")
-    .classList.toggle("on", x === k));
-  stopPlay(); build(); render();
+/* tree panel: drawing style and weighted leaves -- both remembered */
+function setTreeStyle(s) {
+  treeStyle = s;
+  try { localStorage.setItem(LS.style, s); } catch (e) {}
+  el("sTree").classList.toggle("on", s === "tree");
+  el("sBars").classList.toggle("on", s === "bars");
+  el("treeTitle").textContent = s === "bars" ? "The tree as a merge tree" : "The tree";
+  el("wLeafChk").disabled = s === "bars";
+  el("wLeafLab").classList.toggle("off", s === "bars");
+  el("wLeafLab").title = s === "bars"
+    ? "In the merge-tree picture every bar is as wide as its weight -- that is the point"
+    : "Leaf width proportional to its weight (switch off if one weight dwarfs the others)";
+  /* the step texts carry the costs in the current unit, so rebuild in place */
+  const k = cur; stopPlay(); build(); cur = Math.min(k, steps.length - 1);
+  render();
+}
+function setWLeaf(b) {
+  wLeaf = !!b;
+  try { localStorage.setItem(LS.wleaf, wLeaf ? "1" : "0"); } catch (e) {}
+  el("wLeafChk").checked = wLeaf;
+  render();
 }
 function setGran(g) {
   gran = g;
@@ -1174,11 +1351,10 @@ function init() {
     setWeights(a, false);
   });
   el("mDP").addEventListener("click", () => setMode("dp"));
-  el("mMerge").addEventListener("click", () => setMode("merge"));
   el("mKnuth").addEventListener("click", () => setMode("knuth"));
-  el("tOpt").addEventListener("click", () => setTree("opt"));
-  el("tPeek").addEventListener("click", () => setTree("peek"));
-  el("tPow").addEventListener("click", () => setTree("pow"));
+  el("sTree").addEventListener("click", () => setTreeStyle("tree"));
+  el("sBars").addEventListener("click", () => setTreeStyle("bars"));
+  el("wLeafChk").addEventListener("change", e => setWLeaf(e.target.checked));
   el("granCoarse").addEventListener("click", () => setGran(0));
   el("granFine").addEventListener("click", () => setGran(1));
   el("stepBtn").addEventListener("click", () => { stopPlay(); stepFwd(); });
@@ -1202,11 +1378,11 @@ function init() {
       const i = Number(t.dataset.i), j = Number(t.dataset.j);
       if (j <= i) { hideTip(); return; }
       if (!hoverCell || hoverCell[0] !== i || hoverCell[1] !== j) {
-        hoverCell = [i, j]; drawTable(); drawTree();
+        hoverCell = [i, j]; drawTable(); drawTree(); renderNums();
       }
       const bk = j - i >= 2 ? bestRoots(i, j) : [];
-      showTip(ev, '<span class="tt-h">C' + rng(i, j) + " = " + f3(C[i][j]) + "</span><br>leaves " +
-        (j - i) + ", weight <code>" + f3(W[i][j]) + "</code>" +
+      showTip(ev, '<span class="tt-h">C' + rng(i, j) + " = " + fc(C[i][j]) + "</span><br>leaves " +
+        (j - i) + ", weight <code>" + fc(W[i][j]) + "</code>" +
         (bk.length ? "<br>optimal root r = " + bk.join(", ") : "<br>a single leaf: cost 0") +
         (j - i >= 2
           ? '<br><span class="tt-s">roots examined: ' +
@@ -1214,9 +1390,9 @@ function init() {
                                 " (window [" + knuthLo(i, j) + ".." + knuthHi(i, j) + "])"
                               : (j - i - 1) + " (all of them)") + "</span>" : "") +
         '<br><span class="tt-s">click: build the tree for this range</span>');
-    } else { if (hoverCell) { hoverCell = null; drawTable(); drawTree(); } hideTip(); }
+    } else { if (hoverCell) { hoverCell = null; drawTable(); drawTree(); renderNums(); } hideTip(); }
   });
-  tab.addEventListener("mouseleave", () => { if (hoverCell) { hoverCell = null; drawTable(); drawTree(); } hideTip(); });
+  tab.addEventListener("mouseleave", () => { if (hoverCell) { hoverCell = null; drawTable(); drawTree(); renderNums(); } hideTip(); });
   tab.addEventListener("click", ev => {
     const t = ev.target;
     if (!t || !t.classList.contains("hit") || t.dataset.i === undefined) return;
@@ -1227,20 +1403,21 @@ function init() {
     build(); cur = phases[phases.length - 1].from; render();
   });
 
-  const tsvg = el("treeSvg");
-  tsvg.addEventListener("mousemove", ev => {
+  const treeTip = ev => {
     const t = ev.target;
     if (t && t.classList.contains("hit") && t.dataset.ni !== undefined) {
       const i = Number(t.dataset.ni), j = Number(t.dataset.nj);
       showTip(ev, j - i === 1
         ? '<span class="tt-h">leaf L<sub>' + i + "</sub></span><br>weight <code>" + f3(w[i]) +
-          "</code> (" + f3(p[i]) + " normalised)"
+          "</code>" + (barsUnit() ? " (run length)" : " (" + f3(p[i]) + " normalised)")
         : '<span class="tt-h">' + rng(i, j) + "</span><br>" + (j - i) + " leaves, weight <code>" +
-          f3(W[i][j]) + "</code><br>subtree cost <code>" + f3(C[i][j]) + "</code>" +
-          (mode === "merge" ? "<br>this merge moves <code>" + f3(W[i][j] * tot) + "</code> elements" : ""));
+          fc(W[i][j]) + "</code><br>subtree cost <code>" + fc(C[i][j]) + "</code>" +
+          (barsUnit() ? "<br>the weight is the number of elements this merge moves" : ""));
     } else hideTip();
+  };
+  [el("treeSvg"), el("cmpMinis")].forEach(n => {
+    n.addEventListener("mousemove", treeTip); n.addEventListener("mouseleave", hideTip);
   });
-  tsvg.addEventListener("mouseleave", hideTip);
 
   window.addEventListener("resize", () => render());
   document.addEventListener("keydown", ev => {
@@ -1248,8 +1425,10 @@ function init() {
     if (ev.key === "ArrowRight") { stopPlay(); stepFwd(); ev.preventDefault(); }
     if (ev.key === "ArrowLeft") { stopPlay(); stepBack(); ev.preventDefault(); }
   });
+  el("wLeafChk").checked = wLeaf;
   sel.value = "runs";
   setWeights(PRESETS.runs.w, false);
+  setTreeStyle(treeStyle);
 }
 document.addEventListener("DOMContentLoaded", init);
 </script>

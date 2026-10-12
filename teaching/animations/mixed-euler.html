@@ -1,0 +1,1777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eulerian orientation of a mixed graph · step by step</title>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [["\\(", "\\)"]], packages: { "[+]": ["color"] } },
+  loader: { load: ["[tex]/color"] },
+  svg: { fontCache: "global" },
+  startup: { typeset: false }
+};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#8d897c;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    --mono: var(--wi-font-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title,.wi-caption { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:18px;
+              flex-wrap:wrap; margin:0 0 6px; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 16px; max-width:96ch; line-height:1.55; }
+  .subtitle code, .hint code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; font-family:var(--mono); }
+
+  /* --- control chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:12px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; }
+  .ctl > label, .lbl { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer;
+           transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.small { padding:4px 10px; font-size:.78rem; }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text;
+                font-size:1.02rem; line-height:1.1; padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  input[type=number] { width:5.2em; }
+  input[type=range] { accent-color:var(--wi-accent); cursor:pointer; vertical-align:middle; }
+  .seg { display:inline-flex; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+
+  /* --- transport --- */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:18px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; --thumb:8px; }
+  .progress input[type=range] { display:block; width:100%; margin:0; }
+  .stepno { font-family:var(--mono); font-size:.76rem; color:var(--wi-ink-faint);
+            white-space:nowrap; text-align:right; padding-top:4px; }
+  .phasebar { display:flex; margin:5px var(--thumb) 0; width:calc(100% - var(--thumb) - var(--thumb)); }
+  .phasebtn { position:relative; overflow:hidden;
+              flex-grow:1; flex-basis:0; min-width:0; padding:3px 0; font-size:.68rem; line-height:1.3;
+              font-family:var(--wi-font-head); letter-spacing:.03em;
+              background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+              border-left-width:0; border-radius:0; color:var(--wi-ink-faint); cursor:pointer;
+              text-overflow:ellipsis; white-space:nowrap; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3;
+                    border-right:1px solid var(--wi-accent-soft); transition:width .12s linear; }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+
+  /* --- stage with draggable splitters --- */
+  .stage { display:grid; grid-template-columns:minmax(0,var(--mainw,1.45fr)) 16px minmax(300px,1fr);
+           align-items:start; }
+  .col-main, .col-side { min-width:0; }
+  .col-side { display:flex; flex-direction:column; gap:14px; }
+  .vsplit { align-self:stretch; cursor:col-resize; position:relative; touch-action:none; }
+  .vsplit::after { content:""; position:absolute; left:7px; top:8px; bottom:8px; width:2px;
+                   background:var(--wi-border-soft); border-radius:1px; }
+  .vsplit:hover::after, .vsplit.drag::after { background:var(--wi-accent-soft); }
+  .hsplit { height:14px; cursor:row-resize; position:relative; touch-action:none; }
+  .hsplit::before, .hsplit::after { content:""; position:absolute; left:calc(50% - 26px); width:52px; height:2px;
+                   background:var(--wi-border); border-radius:1px; }
+  .hsplit::before { top:4px; } .hsplit::after { top:8px; }
+  .hsplit:hover::before, .hsplit:hover::after, .hsplit.drag::before, .hsplit.drag::after { background:var(--wi-accent-soft); }
+  @media (max-width:1080px) {
+    .stage { grid-template-columns:1fr; row-gap:14px; }
+    .vsplit { display:none; }
+  }
+
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+             border-radius:var(--wi-radius-lg); padding:12px 15px; }
+  .col-main .sim-box + .sim-box, .col-main details { margin-top:14px; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em;
+               color:var(--wi-ink-faint); margin:0 0 9px; display:flex; justify-content:space-between;
+               align-items:baseline; gap:10px; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--mono);
+                    font-size:.9em; color:var(--wi-ink-soft); }
+  svg#gsvg.hovering g[data-e]:not(.hl) { opacity:.16 !important; }
+  svg#gsvg.hovering g[data-e].hl { opacity:1 !important; filter:drop-shadow(0 0 2.5px #e0a800) drop-shadow(0 0 1px #e0a800); }
+  svg#gsvg g[data-v].hl circle { stroke:#e0a800 !important; stroke-width:4.5px !important; stroke-dasharray:none !important; }
+  table.vtab tr.hl td { background:#f7ebc8 !important; }
+  table.vtab td.hlcell { outline:2.5px solid #e0a800; outline-offset:-2px; }
+  table.vtab td[data-k] { cursor:default; }
+  svg#gsvg { display:block; background:var(--wi-bg); border-radius:var(--wi-radius); touch-action:none;
+             user-select:none; -webkit-user-select:none; }
+
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+            border-radius:var(--wi-radius); padding:10px 13px; font-size:.9rem;
+            color:var(--wi-ink-strong); min-height:96px; }
+  .status .ans { display:block; margin-top:6px; font-size:.95rem; }
+  .status .ans .tchips { margin-top:6px; font-weight:normal; }
+  .status .ans.yes { color:var(--wi-relax); } .status .ans.no { color:var(--wi-accent); }
+
+  .legend { display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:6px; font-size:.72rem; color:var(--wi-ink-soft); }
+  .legend .item { display:flex; align-items:center; gap:6px; }
+  .legend svg { display:block; }
+
+  /* --- pseudocode --- */
+  .codebody { padding:2px 0 4px; }
+  .cline { display:flex; gap:9px; padding:2px 9px; font-family:var(--mono); font-size:.72rem;
+           line-height:1.6; color:var(--wi-ink-strong); border-left:3px solid transparent; white-space:pre; }
+  .cline .ln { color:var(--wi-ink-faint); min-width:1.4em; text-align:right; user-select:none; }
+  .cline.on { background:#f6e6df; border-left-color:var(--wi-active); }
+  .cline .kw { color:var(--wi-accent); }
+  .cline .cm { color:var(--wi-ink-faint); font-style:italic; }
+  .codewrap { overflow-x:auto; }
+  .codenote { font-size:.74rem; color:var(--wi-ink-soft); padding:8px 4px 0; line-height:1.5;
+              border-top:1px solid var(--wi-border-soft); margin-top:6px; }
+
+  /* --- cut panel --- */
+  .cut { font-size:.86rem; color:var(--wi-ink-strong); line-height:1.6; }
+  .cut .src { color:var(--wi-ink-faint); font-size:.8rem; }
+  .cut .verdict { margin-top:6px; padding:6px 10px; border-radius:var(--wi-radius); border:1px solid var(--wi-border-soft); }
+  .cut .verdict.bad { background:#f6e3dc; border-color:var(--wi-accent-soft); }
+  .cut .verdict.ok { background:#e8f0e2; border-color:#a9c29c; }
+  .cut .now { margin-top:6px; color:var(--wi-ink-soft); font-size:.8rem; }
+  .cut .empty { color:var(--wi-ink-faint); font-size:.84rem; }
+  .cutbtns { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .tboxes { display:flex; flex-wrap:wrap; gap:5px; align-items:center; }
+  .te { display:inline-flex; align-items:baseline; gap:4px; padding:1px 7px 2px; border-radius:4px; border:1.5px solid;
+        color:#fcf9f3; font-family:var(--wi-font-body); font-weight:bold; font-size:.84rem; line-height:1.35;
+        font-variant-numeric:tabular-nums; cursor:default; white-space:nowrap; }
+  .te small { font-size:.64rem; font-weight:normal; opacity:.85; font-family:var(--mono); }
+  .te.out { background:var(--wi-panel-2); }
+  .te.new { box-shadow:0 0 0 2px var(--wi-panel), 0 0 0 4px var(--wi-ink-strong); }
+  .te.hl { box-shadow:0 0 0 2px var(--wi-panel), 0 0 0 4.5px #e0a800; transform:translateY(-1px); }
+  .tmark { align-self:stretch; display:inline-flex; align-items:center; padding:0 4px; border-left:3px solid var(--wi-examine);
+           color:var(--wi-examine); font-weight:bold; font-size:.78rem; }
+  .tempty { color:var(--wi-ink-faint); font-style:italic; font-size:.8rem; }
+  .status .ans .tboxes { margin-top:7px; font-weight:normal; }
+  .tchips { display:flex; flex-wrap:wrap; align-items:center; row-gap:4px; font-size:.84rem; font-variant-numeric:tabular-nums; }
+  .tchips .tv { min-width:1.7em; text-align:center; padding:0 4px; border:1px solid var(--wi-border-soft);
+                border-radius:3px; background:var(--wi-panel-2); color:var(--wi-ink-strong); }
+  .tchips .tv.cur { border:2px solid var(--wi-active); }
+  .tchips .tv.sp { border:2px solid var(--wi-examine); }
+  .tchips .ta { padding:0 3px; font-weight:bold; }
+  .tsub { font-size:.76rem; margin:8px 0 3px; font-style:italic; }
+  .worstmsg { font-size:.78rem; color:var(--wi-ink-soft); margin-top:6px; min-height:1.2em; }
+
+  /* --- vertex table --- */
+  details.vt > summary, details.editor > summary { cursor:pointer; padding:10px 15px; font-family:var(--wi-font-head);
+      font-size:.74rem; letter-spacing:.08em; text-transform:uppercase; color:var(--wi-ink-faint); }
+  details.vt, details.editor { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details[open].vt > summary, details[open].editor > summary { border-bottom:1px solid var(--wi-border-soft); color:var(--wi-accent); }
+  .vtwrap { padding:8px 12px 12px; overflow-x:auto; }
+  table.vtab { border-collapse:collapse; font-size:.82rem; font-variant-numeric:tabular-nums; }
+  table.vtab th, table.vtab td { padding:2px 10px; text-align:center; border-bottom:1px solid var(--wi-border-soft); }
+  table.vtab th { font-weight:normal; color:var(--wi-ink-soft); }
+  table.vtab td.bad { color:var(--wi-active); font-weight:bold; }
+  table.vtab td.good { color:var(--wi-relax); }
+  table.vtab tr.s td { background:#f6e6df; } table.vtab tr.t td { background:#e8f0e2; }
+  table.vtab td.xp { color:var(--wi-accent); font-weight:bold; } table.vtab td.xn { color:var(--wi-queue); font-weight:bold; }
+  .vtnote { font-size:.74rem; color:var(--wi-ink-faint); margin-top:6px; max-width:70ch; }
+
+  /* --- editor --- */
+  details.editor { margin-top:18px; }
+  .editor-body { padding:12px 16px 16px; display:grid; grid-template-columns:minmax(0,300px) 1fr;
+                 gap:18px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  textarea { width:100%; height:240px; font-family:var(--mono); font-size:.78rem;
+             background:var(--wi-panel-2); color:var(--wi-ink); border:1px solid var(--wi-border);
+             border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.78rem; color:var(--wi-ink-soft); line-height:1.55; }
+  .hint b { color:var(--wi-ink-strong); }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+  .gen { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; margin:10px 0 4px;
+         padding:10px 12px; background:var(--wi-controls); border-radius:var(--wi-radius); }
+
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls { gap:8px 12px; padding:10px 12px; }
+    .ctl { flex-wrap:wrap; max-width:100%; }
+    select { max-width:100%; }
+    .phasebtn { font-size:.6rem; padding:3px 2px; }
+  }
+
+  /* --- svg animation --- */
+  @keyframes drawin { from { stroke-dashoffset:1; } to { stroke-dashoffset:0; } }
+  .drawin { stroke-dasharray:1; animation:drawin .45s ease-out both; }
+  @keyframes popin { from { opacity:0; } to { opacity:1; } }
+  .popin { animation:popin .2s ease-out .4s both; }
+  @media (prefers-reduced-motion:reduce) {
+    * { animation-duration:.001ms !important; animation-delay:0s !important; transition-duration:.001ms !important; }
+  }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
+  font-family: var(--wi-font-head);
+  letter-spacing: .05em;
+}
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1>Eulerian orientation of a mixed graph</h1>
+</div>
+
+<p class="subtitle">
+  Some edges are <b>fixed arcs</b>; the others are <b>free</b> and may still be oriented either way.
+  Is there a choice for the free edges that gives every vertex in-degree = out-degree?
+  The algorithm orients the free edges at random and then repairs: a search from a vertex with surplus either
+  finds a path whose reversal moves one unit of surplus to a vertex with deficit, or it gets stuck at a set
+  <i>S</i> that proves no orientation exists &mdash; more fixed arcs leave <i>S</i> than free edges could ever bring back.
+  <b>Click vertices</b> to test the cut condition for any set <i>S</i> yourself; drag them to tidy the layout.
+</p>
+
+<div class="controls">
+  <div class="ctl">
+    <label for="presetSel">Example</label>
+    <select id="presetSel"></select>
+  </div>
+  <div class="ctl">
+    <label for="seedIn">Orientation seed</label>
+    <input type="number" id="seedIn" value="1" min="0" step="1">
+    <button id="shuffleBtn" title="Next seed: a different random initial orientation">Reshuffle</button>
+  </div>
+  <div class="ctl">
+    <span class="lbl">Search</span>
+    <span class="seg"><button id="bfsBtn" class="on">BFS</button><button id="dfsBtn">DFS</button></span>
+  </div>
+  <div class="ctl" id="trailCtl" style="display:none">
+    <span class="lbl">Open trail</span>
+    <span class="seg"><button id="trEither" class="on">either way</button><button id="trXY"></button><button id="trYX"></button></span>
+  </div>
+  <div class="ctl">
+    <span class="lbl">Detail</span>
+    <span class="seg"><button id="coarseBtn" class="on" title="One step per path, walk or tour edge">Coarse</button><button id="fineBtn" title="Every vertex reached, every edge walked, every candidate checked">Fine</button></span>
+  </div>
+  <div class="ctl">
+    <span class="lbl">Tour</span>
+    <span class="seg"><button id="hierBtn" class="on">Hierholzer</button><button id="fleuryBtn">Fleury</button></span>
+  </div>
+</div>
+
+<div class="transport">
+  <div class="transport-row">
+    <span class="ctl" style="gap:6px">
+      <button id="resetBtn" class="icon" title="Back to the first step" aria-label="Back to the first step">&#x21BA;</button>
+      <button id="backBtn" class="icon" title="One step back  (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+      <button id="stepBtn" class="icon pri" title="One step forward  (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+      <button id="playBtn" class="icon" title="Play / pause" aria-label="Play">&#x25B6;&#xFE0E;</button>
+    </span>
+    <span class="progress">
+      <input type="range" id="scrubber" min="0" max="0" value="0" aria-label="Step">
+      <div class="phasebar" id="phaseBar"></div>
+    </span>
+    <span class="stepno" id="stepNo">— / —</span>
+    <span class="ctl" style="gap:6px">
+      <span class="lbl">Speed</span>
+      <input type="range" id="speed" min="80" max="1600" value="700" style="width:88px" aria-label="Delay per step">
+      <span class="stepno" id="speedVal">700ms</span>
+    </span>
+  </div>
+</div>
+
+<div class="stage" id="stage">
+  <div class="col-main" id="colMain">
+    <div class="sim-box">
+      <div class="sim-title"><span>Mixed graph</span><span class="rhs" id="graphMeta"></span></div>
+      <div id="svgHost"><svg id="gsvg"></svg></div>
+      <div class="hsplit" id="hsplit" title="Drag to resize the drawing"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <details class="vt" open>
+      <summary>Vertices: degrees, local test, excess</summary>
+      <div class="vtwrap">
+        <table class="vtab">
+          <thead><tr>
+            <th>\(v\)</th><th>\(\deg(v)\)</th><th>\(a^+(v)\)</th><th>\(a^-(v)\)</th><th>\(e(v)\)</th>
+            <th>local test</th><th>\(x(v)\)</th>
+          </tr></thead>
+          <tbody id="vtBody"></tbody>
+        </table>
+        <div class="vtnote">
+          \(a^+(v)\), \(a^-(v)\): fixed arcs leaving / entering \(v\); \(e(v)\): free edges at \(v\).
+          Hover over a cell to see the edges it counts. The local test asks for an even degree and \(|a^+(v) - a^-(v)| \;\le\; e(v)\) &mdash; the cut
+          condition for the single set \(S = \{v\}\). It is necessary, but not sufficient. When exactly two vertices have odd
+          degree, they are the endpoints of a possible open trail: odd degree is allowed there, and the test uses the
+          trail version of the condition (see the cut panel).
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="vsplit" id="vsplit" title="Drag to resize the columns"></div>
+
+  <div class="col-side">
+    <div class="sim-box">
+      <div class="sim-title"><span>What just happened</span><span class="rhs" id="phaseName"></span></div>
+      <div class="status" id="statusBox"></div>
+    </div>
+
+    <div class="sim-box" id="tourWrap" style="display:none">
+      <div class="sim-title"><span id="tourName">Tour T</span><span class="rhs" id="tourMeta"></span></div>
+      <div id="tourBox"></div>
+    </div>
+
+    <div class="sim-box">
+      <div class="sim-title"><span id="codeName">Algorithm</span><span class="rhs" id="codeMeta"></span></div>
+      <div class="codewrap"><div class="codebody" id="codeBody"></div></div>
+      <div class="codenote" id="codeNote"></div>
+    </div>
+
+    <div class="sim-box">
+      <div class="sim-title"><span>Cut test for a set S</span><span class="rhs" id="cutMeta"></span></div>
+      <div class="cut" id="cutBox"></div>
+      <div class="cutbtns">
+        <button class="small" id="clearSBtn">Clear S</button>
+        <button class="small" id="worstBtn" title="Brute force over all subsets (up to 18 vertices)">Most violated set</button>
+      </div>
+      <div class="worstmsg" id="worstMsg"></div>
+    </div>
+  </div>
+</div>
+
+<details class="editor" id="editorBox">
+  <summary>Input</summary>
+  <div class="editor-body">
+    <div>
+      <textarea id="inputText" spellcheck="false"></textarea>
+      <div style="margin-top:8px"><button class="pri" id="loadBtn">Load</button></div>
+      <div class="err" id="parseErr"></div>
+    </div>
+    <div class="hint">
+      The augmented <code>algs4</code> graph format: the number of vertices <code>V</code>, the number of edges
+      <code>E</code>, then one line per edge. A line <code>u v</code> is a <b>free</b> edge;
+      <code>u v &gt;</code> is a <b>fixed arc</b> <i>u</i>&nbsp;→&nbsp;<i>v</i> (and <code>u v &lt;</code> the arc
+      <i>v</i>&nbsp;→&nbsp;<i>u</i>). Any further numbers on an edge line, such as a weight, are ignored, so
+      the same file still loads in the other graph pages and in the graph editor (which keeps the edges but
+      drops the markers). Optionally, <code>V</code> more lines <code>x y</code> fix the layout; any scale
+      works. Parallel edges are fine; self-loops are refused, since a loop never affects the balance.
+      Text after <code>#</code> is a comment.
+      <div class="gen">
+        <span class="lbl">Random graph</span>
+        <label class="chk">vertices <input type="number" id="genN" value="10" min="3" max="40"></label>
+        <label class="chk">fixed <input type="range" id="genFix" min="0" max="100" value="50" style="width:80px"><span id="genFixVal">50%</span></label>
+        <label class="chk"><input type="checkbox" id="genFlip"> reverse one fixed arc</label>
+        <label class="chk"><input type="checkbox" id="genTrail"> delete one arc (open trail)</label>
+        <label class="chk">seed <input type="number" id="genSeed" value="1" min="0"></label>
+        <button class="small" id="genBtn">Generate</button>
+        <button class="small" id="genNextBtn">Next seed</button>
+      </div>
+      Generated graphs are unions of random directed cycles on nearby points, so they are Eulerian before
+      the arcs are freed: with each arc kept fixed independently with the chosen probability, an
+      orientation always exists. Reversing one fixed arc keeps every degree even but may or may not
+      destroy that. Deleting one arc instead leaves exactly two odd vertices, and an open Euler trail
+      between them (in the direction the deleted arc came from) always exists.
+      <br><br>
+      <b>Open trails.</b> If exactly two vertices have odd degree, the page looks for an Euler trail between them:
+      it adds a virtual edge between the two (free, or a fixed arc if you prescribe the direction) and
+      runs the same algorithm. The cut condition then gets one unit of slack on cuts separating the endpoints,
+      or, for a prescribed direction, the term \(b(S)\).
+    </div>
+  </div>
+</details>
+
+<script>
+"use strict";
+
+/* ==========================================================================
+   Eulerian orientation of a mixed graph G = (V, A, E).
+   A = fixed arcs, E = free (undirected) edges.
+
+   Orient E at random. x(v) = (out(v) - in(v)) / 2 over all edges. While
+   some s has x(s) > 0, search from s along free edges in their current
+   direction. Reaching t with x(t) < 0: reverse that path (x(s)-1, x(t)+1).
+   Getting stuck: the reached set S has every crossing free edge pointing
+   into S and x(S) > 0, hence a+(S) - a-(S) > e(S): no orientation exists.
+   ========================================================================== */
+
+const el = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const MINUS = "\u2212";
+const fmtX = v => v > 0 ? "+" + v : v < 0 ? MINUS + (-v) : "0";
+const texX = v => v > 0 ? "+" + v : v < 0 ? "-" + (-v) : "0";
+const texSet = arr => "\\{" + arr.join(", ") + "\\}";
+const C = { ink: "var(--wi-ink)", teal: "var(--wi-queue)", gold: "var(--wi-examine)", red: "var(--wi-active)",
+            green: "var(--wi-relax)", acc: "var(--wi-accent)", faint: "var(--wi-ink-faint)" };
+const HEX = { acc: "#902015", green: "#4a7c3f", gold: "#b07d18" };
+
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+/* ---------- presets ------------------------------------------------------ */
+
+const PRESETS = [
+  { key: "c4", name: "4-cycle: every vertex passes, still no",
+    text: "# arcs 0->1 and 3->2 point the same way round the cycle\n4\n4\n0 1 >\n3 2 >\n1 2\n3 0\n0 0\n1 0\n1 1\n0 1\n" },
+  { key: "blocks", name: "Two blocks: three arcs one way, one free edge back",
+    text: "# all local tests pass; S = {0,1,2,3} fails\n8\n16\n0 1\n1 2\n2 3\n3 0\n0 2\n1 3\n4 5\n5 6\n6 7\n7 4\n4 6\n5 7\n" +
+          "0 4 >\n1 5 >\n2 6 >\n3 7\n0 0\n0.8 0.33\n0 0.66\n0.8 1\n3.0 0\n2.2 0.33\n3.0 0.66\n2.2 1\n" },
+  { key: "ring", name: "Ring with one fixed arc (forced, yes)",
+    text: "# the single arc 7->0 forces the whole ring\n8\n8\n0 1\n1 2\n2 3\n3 4\n4 5\n5 6\n6 7\n7 0 >\n" +
+          [0,1,2,3,4,5,6,7].map(i => (Math.cos(Math.PI * i / 4)).toFixed(3) + " " + (Math.sin(Math.PI * i / 4)).toFixed(3)).join("\n") + "\n" },
+  { key: "ladder", name: "Ladder (yes)",
+    text: "8\n12\n0 1\n1 2\n2 3\n4 5\n5 6\n6 7\n0 4\n3 7\n1 5\n2 6\n1 2 >\n6 5 >\n0 0\n1 0\n2 0\n3 0\n0 1\n1 1\n2 1\n3 1\n" },
+  { key: "nik1", name: "Nikolaus house: trail one way only",
+    text: "# odd vertices 0 and 1; try the trail directions 0 ~> 1 and 1 ~> 0\n5\n8\n0 1 >\n1 2\n3 2 >\n3 0\n0 2\n1 3\n3 4 >\n4 2\n0 2\n2 2\n2 1\n0 1\n1 0\n" },
+  { key: "nik2", name: "Nikolaus house: no trail, local tests pass",
+    text: "# odd vertices 0 and 1; no Euler trail in either direction\n5\n8\n0 1\n1 2 >\n3 2 >\n3 0\n0 2\n1 3\n3 4 >\n4 2\n0 2\n2 2\n2 1\n0 1\n1 0\n" },
+  { key: "tri", name: "Triangular grid (larger, tour)", text: "# triangular grid: every edge lies in one upward triangle\n15\n30\n0 1 >\n1 2 >\n2 0\n1 3 >\n4 3\n1 4\n2 4 >\n4 5\n5 2 >\n3 6 >\n6 7 >\n3 7\n7 4\n7 8 >\n8 4 >\n8 5\n9 8\n9 5 >\n10 6\n10 11\n11 6\n11 7\n11 12\n7 12\n12 8\n12 13\n13 8\n9 13 >\n13 14 >\n14 9\n0.000 0.000\n-0.500 0.866\n0.500 0.866\n-1.000 1.732\n0.000 1.732\n1.000 1.732\n-1.500 2.598\n-0.500 2.598\n0.500 2.598\n1.500 2.598\n-2.000 3.464\n-1.000 3.464\n0.000 3.464\n1.000 3.464\n2.000 3.464\n" },
+  { key: "tri1", name: "Triangular grid minus one edge (larger, trail)", text: "# triangular grid with one edge removed: open trail\n15\n29\n0 1 >\n1 2 >\n2 0\n1 3 >\n4 3\n1 4\n2 4 >\n4 5\n5 2 >\n3 6 >\n6 7 >\n3 7\n7 8 >\n8 4 >\n8 5\n9 8\n9 5 >\n10 6\n10 11\n11 6\n11 7\n11 12\n7 12\n12 8\n12 13\n13 8\n9 13 >\n13 14 >\n14 9\n0.000 0.000\n-0.500 0.866\n0.500 0.866\n-1.000 1.732\n0.000 1.732\n1.000 1.732\n-1.500 2.598\n-0.500 2.598\n0.500 2.598\n1.500 2.598\n-2.000 3.464\n-1.000 3.464\n0.000 3.464\n1.000 3.464\n2.000 3.464\n" },
+  { key: "flower", name: "Flower: Fleury meets a bridge at the centre", text: "# four petals through the centre 12\n13\n16\n12 0\n0 1 >\n1 2\n2 12 >\n12 5\n5 4 >\n4 3\n3 12 >\n12 6\n6 7 >\n7 8\n8 12 >\n12 11\n11 10 >\n10 9\n9 12 >\n0.408 -0.913\n0.000 -1.750\n-0.408 -0.913\n-0.913 -0.408\n-1.750 -0.000\n-0.913 0.408\n-0.408 0.913\n-0.000 1.750\n0.408 0.913\n0.913 0.408\n1.750 0.000\n0.913 -0.408\n0.000 0.000\n" },
+  { key: "city", name: "18 vertices, 36 edges (larger, tour)", text: "# a union of random directed cycles, half of the arcs kept fixed\n18\n36\n13 12 >\n12 16 >\n16 17 >\n13 17\n12 7\n12 16 >\n17 16\n17 13 >\n13 8 >\n3 8\n3 7\n1 2\n1 7\n7 8\n2 8\n0 6\n0 1\n1 6 >\n14 8 >\n8 3\n3 2 >\n2 4 >\n4 14\n15 16 >\n10 16\n10 15\n12 11 >\n17 11\n17 12 >\n9 8\n14 8\n14 4\n4 9\n5 10 >\n10 15 >\n15 5 >\n0.07 0.094\n0.301 0\n0.516 0.086\n0.676 0.007\n0.894 0.072\n0.028 0.283\n0.24 0.225\n0.536 0.198\n0.705 0.233\n0.88 0.275\n0 0.516\n0.234 0.505\n0.468 0.47\n0.661 0.427\n1 0.438\n0.089 0.666\n0.273 0.735\n0.535 0.76\n" },
+  { key: "random", name: "Random graph (settings under Input)", gen: true }
+];
+
+/* ---------- state -------------------------------------------------------- */
+
+let V = 0, BASE = [], EDGES = [], pos = [], adj = [], offsets = [];
+let ends = null;          /* [x, y] when exactly two vertices have odd degree */
+let trailDir = 0;         /* 0: either direction, 1: trail x ⇝ y, 2: trail y ⇝ x */
+let steps = [], phases = [], cur = 0, timer = null;
+let searchMode = "bfs", fine = false, seed = 1;
+let tourAlgo = "hier";    /* "hier" | "fleury" */
+let userS = new Set();
+let canvasH = 470;
+let lastAnimStep = -1, lastAnimKey = "";
+let view = null, drag = null;
+let worstMsg = "";
+let lastStatus = null, lastCut = null;
+
+/* ---------- graph helpers ------------------------------------------------ */
+
+function rebuildAdj() {
+  adj = Array.from({ length: V }, () => []);
+  EDGES.forEach((e, i) => { adj[e.u].push(i); adj[e.v].push(i); });
+  /* parallel edges: spread them out, measured relative to the canonical direction lo -> hi */
+  const groups = new Map();
+  EDGES.forEach((e, i) => {
+    const k = Math.min(e.u, e.v) + "_" + Math.max(e.u, e.v);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(i);
+  });
+  offsets = new Array(EDGES.length).fill(0);
+  for (const idxs of groups.values()) idxs.forEach((i, k) => offsets[i] = (k - (idxs.length - 1) / 2) * 28);
+}
+const tailOf = (i, or) => (EDGES[i].fixed || or[i]) ? EDGES[i].u : EDGES[i].v;
+const headOf = (i, or) => (EDGES[i].fixed || or[i]) ? EDGES[i].v : EDGES[i].u;
+
+function excessOf(or) {
+  const x = new Array(V).fill(0);
+  EDGES.forEach((e, i) => { x[tailOf(i, or)]++; x[headOf(i, or)]--; });
+  return x.map(v => v / 2);
+}
+function vstats(base) {
+  const s = Array.from({ length: V }, () => ({ d: 0, ap: 0, am: 0, e: 0 }));
+  for (const e of (base ? BASE : EDGES)) {
+    s[e.u].d++; s[e.v].d++;
+    if (e.fixed) { s[e.u].ap++; s[e.v].am++; } else { s[e.u].e++; s[e.v].e++; }
+  }
+  s.forEach(t => t.local = t.d % 2 === 0 && Math.abs(t.ap - t.am) <= t.e);
+  return s;
+}
+function components() {
+  const comp = new Array(V).fill(-1); let count = 0;
+  for (let s = 0; s < V; s++) {
+    if (comp[s] >= 0 || adj[s].length === 0) continue;
+    comp[s] = count; const st = [s];
+    while (st.length) {
+      const u = st.pop();
+      for (const ei of adj[u]) { const w = EDGES[ei].u === u ? EDGES[ei].v : EDGES[ei].u;
+        if (comp[w] < 0) { comp[w] = count; st.push(w); } }
+    }
+    count++;
+  }
+  return { comp, count };
+}
+function cutInfo(S, or) {
+  let ap = 0, am = 0, e = 0, ep = 0, em = 0;
+  const cls = new Array(EDGES.length).fill(null);
+  EDGES.forEach((ed, i) => {
+    const iu = S.has(ed.u), iv = S.has(ed.v);
+    if (iu === iv) return;
+    if (ed.virt) { cls[i] = "virt"; return; }
+    if (ed.fixed) { if (iu) { ap++; cls[i] = "out"; } else { am++; cls[i] = "in"; } }
+    else { e++; cls[i] = "free"; if (or) { if (S.has(tailOf(i, or))) ep++; else em++; } }
+  });
+  return { ap, am, e, ep, em, cls };
+}
+
+/* The condition for a set S, on the input graph. Closed tour: |a+ - a-| <= e(S).
+   Open trail, either direction: one unit of slack on cuts separating the endpoints.
+   Open trail p ~> q: the trail must leave S net b(S) times, b = +1 / -1 / 0.        */
+function condition(S, ci) {
+  const diff = ci.ap - ci.am;
+  if (!ends) return { lhs: Math.abs(diff), rhs: ci.e, lhsTex: "|a^+(S) - a^-(S)|", rhsTex: "e(S)", note: "" };
+  const [x, y] = ends;
+  if (trailDir === 0) {
+    const sep = S.has(x) !== S.has(y);
+    return { lhs: Math.abs(diff), rhs: ci.e + (sep ? 1 : 0), lhsTex: "|a^+(S) - a^-(S)|",
+             rhsTex: sep ? "e(S) + 1" : "e(S)",
+             note: sep ? "The +1: \\(S\\) separates the endpoints " + x + " and " + y + ", so the trail may cross this cut once more in one direction than in the other."
+                       : "\\(S\\) does not separate the endpoints " + x + " and " + y + ", so no slack here." };
+  }
+  const [p, q] = trailDir === 1 ? [x, y] : [y, x];
+  const b = S.has(p) && !S.has(q) ? 1 : S.has(q) && !S.has(p) ? -1 : 0;
+  return { lhs: Math.abs(diff - b), rhs: ci.e, b, lhsTex: "|a^+(S) - a^-(S) - b(S)|", rhsTex: "e(S)",
+           lhsNum: "|" + ci.ap + " - " + ci.am + " - (" + texX(b) + ")|",
+           note: "\\(b(S) = " + texX(b) + "\\): the trail " + p + " ⇝ " + q + (b > 0 ? " starts inside \\(S\\) and ends outside, so it leaves \\(S\\) once more than it enters."
+                 : b < 0 ? " ends inside \\(S\\), so it enters \\(S\\) once more than it leaves."
+                 : (S.has(p) ? " starts and ends inside \\(S\\)" : " starts and ends outside \\(S\\)") + ", so it crosses the cut equally often both ways.") };
+}
+function trailEnds() { return !ends ? null : trailDir === 2 ? [ends[1], ends[0]] : ends; }
+
+/* ---------- step generation ---------------------------------------------- */
+
+function mkPhase(name) { phases.push({ name, from: steps.length, to: steps.length }); }
+function add(o) {
+  o.ph = phases.length - 1;
+  if (o.or) o.or = o.or.slice();
+  if (o.x) o.x = o.x.slice();
+  steps.push(o);
+  phases[phases.length - 1].to = steps.length - 1;
+}
+
+function search(s, or, x, onDiscover) {
+  const vis = new Array(V).fill(false), par = new Array(V).fill(-1);
+  vis[s] = true;
+  const order = [s], tree = [];
+  let t = -1;
+  const visit = (u, ei) => {
+    const w = headOf(ei, or);
+    vis[w] = true; par[w] = ei; tree.push(ei); order.push(w);
+    return w;
+  };
+  if (searchMode === "bfs") {
+    const q = [s];
+    while (q.length && t < 0) {
+      const u = q.shift();
+      for (const ei of adj[u]) {
+        if (EDGES[ei].fixed || tailOf(ei, or) !== u || vis[headOf(ei, or)]) continue;
+        const w = visit(u, ei);
+        q.push(w);
+        const neg = x[w] < 0;
+        if (neg) t = w;
+        onDiscover({ u, w, ei, neg, visited: order.slice(), frontier: q.slice(), tree: tree.slice(), cur: u });
+        if (neg) break;
+      }
+    }
+  } else {
+    const st = [[s, 0]];
+    while (st.length && t < 0) {
+      const top = st[st.length - 1], u = top[0];
+      if (top[1] >= adj[u].length) { st.pop(); continue; }
+      const ei = adj[u][top[1]++];
+      if (EDGES[ei].fixed || tailOf(ei, or) !== u || vis[headOf(ei, or)]) continue;
+      const w = visit(u, ei);
+      st.push([w, 0]);
+      const neg = x[w] < 0;
+      if (neg) t = w;
+      onDiscover({ u, w, ei, neg, visited: order.slice(), frontier: st.map(f => f[0]), tree: tree.slice(), cur: u });
+    }
+  }
+  const path = [];
+  if (t >= 0) { let w = t; while (w !== s) { path.push(par[w]); w = tailOf(par[w], or); } path.reverse(); }
+  return { t, visited: order, tree, path };
+}
+
+function pathVerts(s, path, or) { const vs = [s]; for (const ei of path) vs.push(headOf(ei, or)); return vs; }
+const surplus = x => x.reduce((a, v) => a + Math.max(v, 0), 0);
+
+/* the local test = the condition for the singleton S = {v}, plus the right parity */
+function localOk(v) {
+  const st = vstats(true)[v], S = new Set([v]);
+  const parityOk = (st.d % 2 === 1) === (!!ends && ends.includes(v));
+  const ci = cutInfo(S, null), cd = condition(S, ci);
+  return parityOk && cd.lhs <= cd.rhs;
+}
+function updateTrailControls() {
+  el("trailCtl").style.display = ends ? "" : "none";
+  if (!ends) return;
+  el("trXY").textContent = ends[0] + " ⇝ " + ends[1];
+  el("trYX").textContent = ends[1] + " ⇝ " + ends[0];
+  ["trEither", "trXY", "trYX"].forEach((id, i) => el(id).classList.toggle("on", i === trailDir));
+}
+
+function build() {
+  steps = []; phases = [];
+  EDGES = BASE.slice(); rebuildAdj();
+  const st0 = vstats(true);
+  const odd0 = []; for (let v = 0; v < V; v++) if (st0[v].d % 2) odd0.push(v);
+  ends = odd0.length === 2 ? odd0 : null;
+  updateTrailControls();
+
+  mkPhase("Degrees");
+  if (ends) {
+    const [x, y] = ends;
+    add({ code: 2, showDeg: true, degBase: true, hideVirt: true, endsHL: ends,
+          txt: "Exactly two vertices have odd degree, " + x + " and " + y + ". No closed tour can exist, but an open " +
+               "<b>Euler trail</b> might: it would start at one of them (one out-edge more than in-edges) and end at the other." });
+    const virt = trailDir === 0 ? { u: x, v: y, fixed: false, virt: true }
+               : trailDir === 1 ? { u: y, v: x, fixed: true, virt: true }
+               :                  { u: x, v: y, fixed: true, virt: true };
+    EDGES.push(virt); rebuildAdj();
+    const te = trailEnds();
+    add({ code: 3, showDeg: true, endsHL: ends, labels: trailDir ? { [te[0]]: "start", [te[1]]: "end" } : null,
+          txt: trailDir === 0
+            ? "Add a <i>free</i> virtual edge " + x + "–" + y + " (dashed). The trail exists iff this graph has an Eulerian " +
+              "orientation; the direction the virtual edge receives decides which way the trail runs."
+            : "We want the trail to run " + te[0] + " ⇝ " + te[1] + ", so add the virtual edge as a <i>fixed</i> arc " +
+              te[1] + " → " + te[0] + ": closing the trail into a tour forces exactly that direction." });
+  }
+  const st = vstats();
+  const odd = []; for (let v = 0; v < V; v++) if (st[v].d % 2) odd.push(v);
+  const nonIso = st.filter(t => t.d > 0).length;
+  const localFail = []; for (let v = 0; v < V; v++) if (st[v].d > 0 && !localOk(v)) localFail.push(v);
+
+  if (V === 0 || EDGES.length === 0) {
+    add({ code: 13, showDeg: true, odd: [], verdict: "yes",
+          txt: "No edges at all: the empty orientation is (trivially) Eulerian." });
+    return;
+  }
+  if (odd.length) {
+    add({ code: 4, showDeg: true, odd,
+          txt: "Every vertex of an Eulerian digraph has in-degree = out-degree, so its total degree is even. " +
+               "Odd degree at " + (odd.length === 1 ? "vertex " : "vertices ") + odd.join(", ") + "." });
+    add({ code: 4, showDeg: true, odd, verdict: "no",
+          txt: "Whatever we do with the free edges, an odd-degree vertex can never be balanced. " +
+               "An open trail would allow exactly two unbalanced vertices, its endpoints; here there are " + odd.length + ".",
+          ans: "Neither an Euler tour nor an Euler trail: " + odd.length + " odd degrees." });
+    return;
+  }
+  const { comp, count } = components();
+  if (count > 1) {
+    const cert = []; for (let v = 0; v < V; v++) if (comp[v] === 0) cert.push(v);
+    add({ code: 4, showDeg: true, odd: [], cert, certKind: "comp", verdict: "no",
+          txt: "All degrees are even, but the edges fall into " + count + " separate pieces (one is shaded). " +
+               "Each piece may well be balanced on its own, but no single closed tour can visit all edges.",
+          ans: "No Euler tour: the graph is disconnected." });
+    return;
+  }
+  add({ code: 4, showDeg: true, odd: [], endsHL: ends,
+        txt: (ends ? "With the virtual edge, all degrees are even" : "All degrees are even") + " and the graph is connected. " +
+             (localFail.length
+               ? "The local test already fails at " + (localFail.length === 1 ? "vertex " : "vertices ") +
+                 localFail.join(", ") + " (see the table) &mdash; the search below will find that, too."
+               : "The local test passes at all " + nonIso + " vertices. Whether that suffices is what the rest decides.") });
+
+  mkPhase("Random orientation");
+  const rng = mulberry32(seed * 2654435761 >>> 0);
+  const or = EDGES.map(e => e.fixed ? true : rng() < 0.5);
+  const nFree = EDGES.filter(e => !e.fixed).length;
+  add({ code: 5, or,
+        txt: "Orient each of the " + nFree + " free edges by a coin flip (seed " + seed + "). " +
+             "The small chevron on a free edge shows its current, still revisable, direction." });
+  const x = excessOf(or);
+  const P0 = surplus(x);
+  add({ code: 6, or, x,
+        txt: "Excess \\(x(v) = \\tfrac12\\bigl(\\mathrm{out}(v) - \\mathrm{in}(v)\\bigr)\\), an integer since degrees are even. " +
+             "Total surplus \\(\\sum_v \\max(x(v), 0) = " + P0 + "\\)" +
+             (P0 ? ": at most that many reversals to go." : ": the random orientation is already balanced.") });
+
+  const perIter = P0 <= 8;
+  let k = 0;
+  for (;;) {
+    let s = -1;
+    for (let v = 0; v < V; v++) if (x[v] > 0) { s = v; break; }
+    if (s < 0) break;
+    k++;
+    if (perIter) mkPhase("Path " + k); else if (k === 1) mkPhase("Reversing paths");
+    add({ code: 7, or, x, s, visited: [s], frontier: [s],
+          txt: "Vertex " + s + " has \\(x(" + s + ") = " + texX(x[s]) + "\\): more edges leave than enter. " +
+               "Search from " + s + " (" + searchMode.toUpperCase() + ") for a vertex with negative excess, " +
+               "walking only along free edges in their current direction." });
+    const res = search(s, or, x, d => {
+      if (!fine) return;
+      add({ code: 8, or, x, s, visited: d.visited, frontier: d.frontier, tree: d.tree, curV: d.cur, fresh: d.w,
+            txt: "From " + d.u + ", the free edge " + d.u + " → " + d.w + " points away: reach " + d.w +
+                 ", where \\(x(" + d.w + ") = " + texX(x[d.w]) + "\\)" +
+                 (d.neg ? " &mdash; a deficit. Stop." : ".") });
+    });
+    if (res.t >= 0) {
+      const t = res.t, vs = pathVerts(s, res.path, or);
+      add({ code: 9, or, x, s, t, visited: res.visited, tree: res.tree, path: res.path,
+            txt: "Reached " + t + " with \\(x(" + t + ") = " + texX(x[t]) + "\\) via " + vs.join(" → ") + ". " +
+                 "Reversing this path turns one out-edge of " + s + " into an in-edge and one in-edge of " + t +
+                 " into an out-edge; every inner vertex swaps one in-edge for one out-edge and keeps its balance." });
+      for (const ei of res.path) or[ei] = !or[ei];
+      x[s]--; x[t]++;
+      add({ code: 10, or, x, s, t, rev: res.path,
+            txt: "Reversed " + res.path.length + " edge" + (res.path.length === 1 ? "" : "s") + ". Now \\(x(" + s + ") = " +
+                 texX(x[s]) + "\\) and \\(x(" + t + ") = " + texX(x[t]) + "\\); surplus left: " + surplus(x) + "." });
+    } else {
+      mkPhase("Verdict");
+      const S = new Set(res.visited), ci = cutInfo(S, or), cd = condition(S, ci);
+      const xs = res.visited.reduce((a, v) => a + x[v], 0);
+      add({ code: 12, or, x, s, visited: res.visited, tree: res.tree, cert: res.visited.slice().sort((a, b) => a - b),
+            certKind: "stuck", verdict: "no",
+            txt: "The search from " + s + " got stuck at \\(S = " + texSet(res.visited.slice().sort((a, b) => a - b)) + "\\): " +
+                 "no vertex of negative excess is reachable. Every free edge between \\(S\\) and the rest " +
+                 "already points into \\(S\\) (else its far end would have been reached), and yet \\(x(S) = " + xs + " > 0\\). " +
+                 "No reorientation can help, since reversing a crossing edge would only push more out of \\(S\\).",
+            ans: (ends ? (trailDir ? "No Euler trail " + trailEnds().join(" ⇝ ") : "No Euler trail in either direction")
+                       : "No Eulerian orientation") +
+                 ": \\(" + cd.lhsTex + " = " + cd.lhs + " \\;>\\; " + cd.rhs + " = " + cd.rhsTex + "\\)." });
+      return;
+    }
+  }
+  mkPhase("Verdict");
+  if (ends) {
+    const vi = EDGES.length - 1, a = tailOf(vi, or), b = headOf(vi, or);
+    add({ code: 13, or, x, verdict: "yes", virtGone: true, labels: { [b]: "start", [a]: "end" },
+          txt: "Every vertex is balanced in the graph with the virtual edge, which ended up as " + a + " → " + b + ". " +
+               "Delete it: now " + b + " has one out-edge more than in-edges, " + a + " has one in-edge more than out-edges, " +
+               "and everything else is balanced. " + (k ? k + " reversal" + (k === 1 ? " was" : "s were") + " needed." : ""),
+          ans: "Euler trail found: from " + b + " to " + a + "." });
+    addTour(or, b, a);
+    return;
+  }
+  add({ code: 13, or, x, verdict: "yes",
+        txt: "Every vertex is balanced, so the oriented graph is a connected digraph with in-degree = out-degree " +
+             "everywhere: it is Eulerian. " + (k ? k + " reversal" + (k === 1 ? " was" : "s were") +
+             " needed &mdash; exactly the initial surplus." : "The coin flips happened to be balanced already."),
+        ans: "Eulerian orientation found." });
+  let s0 = 0; while (s0 < V && adj[s0].length === 0) s0++;
+  addTour(or, s0, s0);
+}
+
+/* ---------- phase 2: the Euler tour / trail in the oriented graph D -------- */
+
+const SEGCOL = ["#902015", "#b07d18", "#2a6a63", "#4a7c3f", "#6b4c9a", "#c0612b", "#3d6e9c", "#8a5a2b"];
+const segCol = k => SEGCOL[k % SEGCOL.length];
+const vseq = (start, T, or) => { const vs = [start]; for (const ei of T) vs.push(headOf(ei, or)); return vs; };
+const unusedOut = (u, used, or) => adj[u].filter(e => !used[e] && tailOf(e, or) === u);
+const arrowSeq = vs => vs.join(" → ");
+
+/* taking ei now is safe iff afterwards every unused edge is still connected to its head */
+function bridgeTest(ei, used, or) {
+  used[ei] = true;
+  const w = headOf(ei, or), seen = new Set([w]), st = [w];
+  while (st.length) {
+    const u = st.pop();
+    for (const e of adj[u]) if (!used[e]) { const o = EDGES[e].u === u ? EDGES[e].v : EDGES[e].u; if (!seen.has(o)) { seen.add(o); st.push(o); } }
+  }
+  let stranded = 0; const sE = [], sV = new Set();
+  for (let e = 0; e < EDGES.length; e++) if (!used[e] && !seen.has(EDGES[e].u)) { stranded++; sE.push(e); sV.add(EDGES[e].u); sV.add(EDGES[e].v); }
+  used[ei] = false;
+  return { safe: stranded === 0, stranded, sE, sV: [...sV].sort((x, y) => x - y), aV: [...seen].sort((x, y) => x - y) };
+}
+
+function addTour(or, start, endV) {
+  const mD = BASE.length, kind = ends ? "trail" : "tour";
+  const used = new Array(EDGES.length).fill(false);
+  if (ends) used[EDGES.length - 1] = true;               /* the virtual edge is not part of D */
+  const labels = ends ? { [start]: "start", [endV]: "end" } : { [start]: "start" };
+  const T = [], segOf = {};
+  const maps = () => { const tp = {}, ts = {}; T.forEach((ei, k) => { tp[ei] = k + 1; ts[ei] = segOf[ei]; }); return { tourPos: tp, tourSeg: ts }; };
+  const mk = o => add(Object.assign({ or, tourPhase: true, virtGone: !!ends, labels, noBadges: true, algo: tourAlgo,
+                                      tourStart: start, tour: T.slice() }, maps(), o));
+  const intro = "The orientation is settled; what is left is a directed graph \\(D\\) with " + mD + " edges" +
+                (ends ? " (the virtual edge is gone)" : "") + ". Find an Euler " + kind + " in \\(D\\), starting at " + start +
+                (ends ? ", the vertex with one out-edge too many." : ".");
+
+  if (tourAlgo === "hier") {
+    /* dry run, only to know how many detours there will be (for the phase strip) */
+    const u0 = used.slice(); let T0 = [], nDet = 0;
+    const walk0 = v => { const C = []; let u = v; for (;;) { const o = unusedOut(u, u0, or); if (!o.length) break; u0[o[0]] = true; C.push(o[0]); u = headOf(o[0], or); } return C; };
+    T0 = walk0(start);
+    for (;;) { const vs = vseq(start, T0, or); const j = vs.findIndex(v => unusedOut(v, u0, or).length);
+      if (j < 0) break; nDet++; T0.splice(j, 0, ...walk0(vs[j])); }
+
+    mkPhase("First walk");
+    mk({ code: 1, curV: start, txt: intro + " Hierholzer: walk until stuck, then repeatedly splice in detours." });
+    let u = start;
+    for (;;) {
+      const o = unusedOut(u, used, or); if (!o.length) break;
+      const ei = o[0], w = headOf(ei, or);
+      used[ei] = true; T.push(ei); segOf[ei] = 0;
+      if (fine) mk({ code: 2, curV: w, txt: "Take the first unused out-edge of " + u + ": " + u + " → " + w + "." });
+      u = w;
+    }
+    mk({ code: 2, curV: u,
+         txt: "Stuck at " + u + " after " + T.length + " edge" + (T.length === 1 ? "" : "s") + ": all its out-edges are used. " +
+              (ends ? "Only the trail's end can be a dead end: everywhere else, each arrival still has an unused way out."
+                    : "In a balanced graph only the start can be a dead end: everywhere else, each arrival still has an unused way out.") +
+              (T.length === mD ? " And all edges are used already." : " " + (mD - T.length) + " edge" + (mD - T.length === 1 ? "" : "s") + " remain.") });
+    let d = 0;
+    for (;;) {
+      const vs = vseq(start, T, or);
+      const j = vs.findIndex(v => unusedOut(v, used, or).length);
+      if (j < 0) break;
+      d++;
+      const v = vs[j];
+      if (nDet <= 6) mkPhase("Detour " + d); else if (d === 1) mkPhase("Detours");
+      mk({ code: 3, curV: v, spliceV: v, spliceIdx: j,
+           txt: "Unused edges remain. Reading \\(T\\) from the start, " + v + (j ? " (after " + j + " edge" + (j === 1 ? "" : "s") + ")" : " (its first vertex)") +
+                " is the first vertex with an unused out-edge." });
+      const Cw = []; let w = v;
+      for (;;) {
+        const o = unusedOut(w, used, or); if (!o.length) break;
+        const ei = o[0], z = headOf(ei, or);
+        used[ei] = true; Cw.push(ei);
+        if (fine) mk({ code: 4, curV: z, spliceV: v, spliceIdx: j, walk: Cw.slice(), walkSeg: d, txt: "Detour: " + w + " → " + z + "." });
+        w = z;
+      }
+      mk({ code: 4, curV: w, spliceV: v, spliceIdx: j, walk: Cw.slice(), walkSeg: d,
+           txt: "The detour " + arrowSeq(vseq(v, Cw, or)) + " gets stuck where it began: among the unused edges every vertex " +
+                "is balanced, so the only dead end is " + v + " itself." });
+      Cw.forEach(e => segOf[e] = d);
+      T.splice(j, 0, ...Cw);
+      mk({ code: 5, curV: v, spliceV: v, spliceIdx: j,
+           txt: "Splice the detour into \\(T\\) at " + v + ": arrive at " + v + ", go round the detour, then continue as before. " +
+                "Every later edge moves back by " + Cw.length + " position" + (Cw.length === 1 ? "" : "s") + "." });
+    }
+    mk({ code: 6, verdict: "yes",
+         txt: "No vertex on \\(T\\) has an unused out-edge, and since the graph is connected, no unused edges are left anywhere: " +
+              "\\(T\\) uses all " + mD + " edges exactly once." + (d ? " It was built from the first walk and " + d + " detour" + (d === 1 ? "" : "s") + "." : ""),
+         ans: "Euler " + kind + ", coloured by the walk each edge came from:" +
+              tourBoxesHTML(T, or, ei => segCol(segOf[ei])) });
+  } else {
+    mkPhase("Fleury");
+    mk({ code: 2, curV: start, txt: intro + " Fleury: always move on, but never burn a bridge unless forced." });
+    let u = start;
+    for (;;) {
+      const outs = unusedOut(u, used, or); if (!outs.length) break;
+      const info = outs.map(ei => Object.assign({ ei, w: headOf(ei, or) }, bridgeTest(ei, used, or)));
+      const pick = info.find(c => c.safe) || info[0];
+      const cand = {}; info.forEach(c => cand[c.ei] = c.safe ? "safe" : "bridge");
+      const bridges = info.filter(c => !c.safe);
+      const why = info.length === 1 ? "the only unused out-edge of " + u + (pick.safe ? "" : " (a bridge, but forced)")
+                : !bridges.length ? "no candidate is a bridge, so take the first"
+                : "skip " + bridges.map(c => u + " → " + c.w).join(" and ") + ": taking " + (bridges.length === 1 ? "it" : "one of them") +
+                  " now would cut off " + bridges[0].stranded + " unused edge" + (bridges[0].stranded === 1 ? "" : "s") + " for good";
+      const br = bridges.length && info.length > 1 ? bridges[0] : null;
+      const goal = ends ? "the end " + endV : "the start " + start;
+      const cutTxt = br ? " " + u + " → " + br.w + " is the only unused edge into the shaded side, which contains " + goal +
+                          ", where the " + kind + " has to finish. No unused edge leads back out of it, so crossing now would strand the " +
+                          br.stranded + " unused edge" + (br.stranded === 1 ? "" : "s") + " outside it (in red). This edge has to be the last way in." : "";
+      const fcut = br ? { side: br.aV, edges: br.sE } : null;
+      if (fine) mk({ code: 5, curV: u, cand, fcut,
+                     txt: "Unused out-edges of " + u + ": " + info.map(c => u + " → " + c.w + (c.safe ? "" : " (bridge)")).join(", ") + "." +
+                          (br ? cutTxt : " None of them is a bridge, so any choice keeps all unused edges reachable.") });
+      used[pick.ei] = true; T.push(pick.ei); segOf[pick.ei] = 0;
+      const bridgeOnly = {}; if (br) bridgeOnly[br.ei] = "bridge";
+      mk({ code: 6, curV: pick.w, cand: br && !fine ? bridgeOnly : null, fcut: br && !fine ? fcut : null,
+           txt: "Take " + u + " → " + pick.w + ": " + why + "." + (br && !fine ? cutTxt : "") });
+      u = pick.w;
+    }
+    mk({ code: 7, verdict: "yes",
+         txt: "No unused out-edge at " + u + ". Because no bridge was ever taken while there was a choice, the unused edges " +
+              "stayed connected to the current vertex all along, so all " + mD + " edges are used.",
+         ans: "Euler " + kind + ":" + tourBoxesHTML(T, or, () => segCol(0)) });
+  }
+}
+
+/* ---------- pseudocode --------------------------------------------------- */
+
+const CODE = [
+  '<span class="kw">EulerianOrientation</span>(G = (V, A, E))',
+  '  <span class="kw">if</span> exactly two vertices x, y have odd degree:   <span class="cm">// open trail</span>',
+  '    add a virtual edge x–y to E      <span class="cm">// or a fixed arc y→x: trail x ⇝ y</span>',
+  '  <span class="kw">if</span> some v has odd degree <span class="kw">or</span> G is disconnected: <span class="kw">return</span> NO',
+  '  orient every edge of E at random',
+  '  x(v) ← (out(v) − in(v)) / 2   <span class="kw">for</span> every v',
+  '  <span class="kw">while</span> some s has x(s) &gt; 0:',
+  '    search from s along E-edges in their current direction',
+  '    <span class="kw">if</span> it reaches some t with x(t) &lt; 0:',
+  '      reverse every edge on the path s ⇝ t   <span class="cm">// x(s)−1, x(t)+1</span>',
+  '    <span class="kw">else</span>:',
+  '      S ← reached vertices; <span class="kw">return</span> NO    <span class="cm">// a⁺(S) − a⁻(S) &gt; e(S)</span>',
+  '  <span class="kw">return</span> YES          <span class="cm">// all x(v) = 0; trail: delete the virtual edge</span>'
+];
+const CODE_HIER = [
+  '<span class="kw">Hierholzer</span>(D, s)        <span class="cm">// trail: s has out = in + 1</span>',
+  '  T ← walk from s along unused edges until stuck',
+  '  <span class="kw">while</span> some vertex v on T has an unused out-edge:',
+  '    C ← walk from v along unused edges until stuck   <span class="cm">// ends at v</span>',
+  '    splice C into T at v',
+  '  <span class="kw">return</span> T'
+];
+const CODE_FLEURY = [
+  '<span class="kw">Fleury</span>(D, s)            <span class="cm">// trail: s has out = in + 1</span>',
+  '  u ← s;  T ← (s)',
+  '  <span class="kw">while</span> u has an unused out-edge:',
+  '    look at the unused out-edges u → w',
+  '    pick one that is not a bridge, unless it is the only one',
+  '    mark it used;  append w to T;  u ← w',
+  '  <span class="kw">return</span> T'
+];
+const CODES = {
+  orient: { name: "Eulerian orientation", lines: CODE,
+    note: "Line 8 only ever walks along <i>free</i> edges, and only in their <i>current</i> direction: that is exactly the residual graph of the " +
+          "underlying flow problem, so no separate network is needed. Each reversal lowers the total surplus \\(\\sum_v \\max(x(v), 0)\\) by one." },
+  hier: { name: "Hierholzer", lines: CODE_HIER,
+    note: "Walks always pick the first unused out-edge in input order. A walk can only get stuck where it has arrived more often than " +
+          "it has left: at the end of the trail for the first walk, at its own start for every detour. With a pointer per adjacency " +
+          "list and \\(T\\) as a linked list, everything runs in \\(O(m)\\)." },
+  fleury: { name: "Fleury", lines: CODE_FLEURY,
+    note: "A <i>bridge</i> here: an out-edge after which some unused edges are no longer connected to its head, ignoring directions. " +
+          "At most one candidate can be a bridge whenever there is a choice. Every step needs a connectivity check, so \\(O(m^2)\\) " +
+          "overall, but each decision is local, which makes it pleasant by hand." }
+};
+let codeShown = null;
+function renderCode(algo) {
+  if (codeShown === algo) return;
+  codeShown = algo;
+  const c = CODES[algo];
+  el("codeBody").innerHTML = c.lines.map((t, i) =>
+    '<div class="cline" data-l="' + (i + 1) + '"><span class="ln">' + (i + 1) + "</span><span>" + t + "</span></div>").join("");
+  setMath(el("codeNote"), c.note);
+  el("codeName").textContent = c.name;
+}
+
+/* ---------- drawing ------------------------------------------------------ */
+
+const R = 17;
+function computeView(W, H) {
+  let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+  for (const p of pos) { minx = Math.min(minx, p.x); miny = Math.min(miny, p.y); maxx = Math.max(maxx, p.x); maxy = Math.max(maxy, p.y); }
+  if (!pos.length) { minx = miny = 0; maxx = maxy = 1; }
+  const M = 46, bw = maxx - minx, bh = maxy - miny;
+  let s = Math.min(bw > 1e-9 ? (W - 2 * M) / bw : Infinity, bh > 1e-9 ? (H - 2 * M) / bh : Infinity);
+  if (!isFinite(s)) s = 1;
+  return { s, ox: (W - bw * s) / 2 - minx * s, oy: (H - bh * s) / 2 - miny * s, W, H };
+}
+const toScr = (T, p) => ({ x: T.ox + p.x * T.s, y: T.oy + p.y * T.s });
+const fromScr = (T, q) => ({ x: (q.x - T.ox) / T.s, y: (q.y - T.oy) / T.s });
+const f1 = v => v.toFixed(1);
+function toward(a, b, r) { const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1; return { x: a.x + dx / d * r, y: a.y + dy / d * r }; }
+
+function edgeGeom(i, tl, hd, T) {
+  const e = EDGES[i], lo = Math.min(e.u, e.v), hi = Math.max(e.u, e.v);
+  const A = toScr(T, pos[lo]), B = toScr(T, pos[hi]);
+  const dx = B.x - A.x, dy = B.y - A.y, len = Math.hypot(dx, dy) || 1;
+  const off = offsets[i];
+  const Cp = { x: (A.x + B.x) / 2 - dy / len * off * 2, y: (A.y + B.y) / 2 + dx / len * off * 2 };
+  return { P: toScr(T, pos[tl]), Q: toScr(T, pos[hd]), Cp };
+}
+
+/* quadratic Bézier helpers: the drawn edge is the exact piece of the centre-to-centre curve outside both circles */
+const qpt = (P, Cp, Q, t) => { const a = (1 - t) * (1 - t), b = 2 * t * (1 - t), c = t * t; return { x: a * P.x + b * Cp.x + c * Q.x, y: a * P.y + b * Cp.y + c * Q.y }; };
+const qtan = (P, Cp, Q, t) => ({ x: 2 * (1 - t) * (Cp.x - P.x) + 2 * t * (Q.x - Cp.x), y: 2 * (1 - t) * (Cp.y - P.y) + 2 * t * (Q.y - Cp.y) });
+function tAtDist(P, Cp, Q, fromEnd, r) {
+  let lo = fromEnd ? 0.5 : 0, hi = fromEnd ? 1 : 0.5;
+  const E = fromEnd ? Q : P;
+  for (let k = 0; k < 30; k++) {
+    const m = (lo + hi) / 2, b = qpt(P, Cp, Q, m), d = Math.hypot(b.x - E.x, b.y - E.y);
+    if (fromEnd ? d > r : d < r) lo = m; else hi = m;
+  }
+  return (lo + hi) / 2;
+}
+function subCurve(P, Cp, Q, a, b) {
+  const ctrl = { x: (1 - a) * (1 - b) * P.x + ((1 - a) * b + a * (1 - b)) * Cp.x + a * b * Q.x,
+                 y: (1 - a) * (1 - b) * P.y + ((1 - a) * b + a * (1 - b)) * Cp.y + a * b * Q.y };
+  return { s: qpt(P, Cp, Q, a), c: ctrl, e: qpt(P, Cp, Q, b) };
+}
+
+function edgeSVG(i, st, cut, anim) {
+  const e = EDGES[i];
+  if (e.virt && st.hideVirt) return "";
+  const or = st.or;
+  const tl = or ? tailOf(i, or) : e.u, hd = or ? headOf(i, or) : e.v;
+  const { P, Q, Cp } = edgeGeom(i, tl, hd, view);
+  let col = e.fixed ? C.ink : C.teal, w = e.fixed ? 2.4 : 2.1, dash = "", op = 1, isRev = false;
+  const inList = (k) => st[k] && st[k].includes(i);
+  if (inList("rev")) { col = C.green; w = 3.8; isRev = true; }
+  else if (inList("path")) { col = C.red; w = 3.8; }
+  else if (inList("tree")) { col = C.gold; w = 3.2; }
+  let label = null;
+  if (st.tourPhase && !e.virt) {
+    if (st.tourPos[i]) { col = segCol(st.tourSeg[i]); w = 3.4; label = { n: st.tourPos[i], filled: true }; if (st.fcut) op = 0.35; }
+    else if (st.walk && st.walk.includes(i)) { col = segCol(st.walkSeg); w = 3.4; dash = "7 4"; label = { n: st.walk.indexOf(i) + 1, filled: false }; }
+    else if (st.cand && st.cand[i]) { if (st.cand[i] === "safe") { col = C.gold; w = 3.6; } else { col = C.red; w = 3.6; dash = "5 4"; } }
+    else if (st.fcut && st.fcut.edges.includes(i)) { col = C.red; w = 2.8; }
+    else op = st.fcut ? 0.45 : 0.8;
+  }
+  if (e.virt) dash = "6 5";
+  if (e.virt && st.virtGone) op = st.tourPhase ? 0.15 : 0.28;
+  if (cut) {
+    const c = cut.cls[i];
+    if (c === "virt") { col = C.faint; w = 3; dash = "6 5"; }
+    else if (!c) op = e.virt ? 0.5 : 0.32;
+    else if (c === "out") { col = C.acc; w = 4; }
+    else if (c === "in") { col = C.green; w = 4; }
+    else { col = C.gold; w = 3.4; dash = "7 5"; }
+  }
+  const arrow = e.fixed, ah = 12;
+  const t0 = tAtDist(P, Cp, Q, false, R + 1), tTip = tAtDist(P, Cp, Q, true, R + 1);
+  const tEnd = arrow ? tAtDist(P, Cp, Q, true, R + 1 + ah * 0.8) : tTip;
+  const sc = subCurve(P, Cp, Q, t0, tEnd);
+  const tip = qpt(P, Cp, Q, tTip);
+  const cls = (isRev && anim && !e.virt) ? ' class="drawin" pathLength="1"' : "";
+  const dPath = "M" + f1(sc.s.x) + "," + f1(sc.s.y) + " Q" + f1(sc.c.x) + "," + f1(sc.c.y) + " " + f1(sc.e.x) + "," + f1(sc.e.y);
+  let s = '<g data-e="' + i + '" opacity="' + op + '">';
+  s += '<path d="' + dPath + '" fill="none" stroke="transparent" stroke-width="14" style="pointer-events:stroke"/>';
+  s += '<path d="M' + f1(sc.s.x) + "," + f1(sc.s.y) + " Q" + f1(sc.c.x) + "," + f1(sc.c.y) + " " + f1(sc.e.x) + "," + f1(sc.e.y) +
+       '" fill="none" stroke-linecap="round" style="stroke:' + col + ";stroke-width:" + w + (dash && !cls ? ";stroke-dasharray:" + dash : "") + '"' + cls + "/>";
+  const popc = (isRev && anim) ? ' class="popin"' : "";
+  if (arrow) {
+    const tg = qtan(P, Cp, Q, tTip), a = Math.atan2(tg.y, tg.x), ca = Math.cos(a), sa = Math.sin(a);
+    const bx = tip.x - ca * ah, by = tip.y - sa * ah;
+    s += '<path d="M' + f1(tip.x) + "," + f1(tip.y) + " L" + f1(bx - sa * 5.2) + "," + f1(by + ca * 5.2) +
+         " L" + f1(bx + sa * 5.2) + "," + f1(by - ca * 5.2) + 'Z" style="fill:' + col + '"/>';
+  } else if (or) {
+    /* chevron at the curve's midpoint; the tangent there is parallel to Q - P */
+    const M = qpt(P, Cp, Q, 0.5);
+    const d = Math.hypot(Q.x - P.x, Q.y - P.y) || 1, ux = (Q.x - P.x) / d, uy = (Q.y - P.y) / d;
+    const t = { x: M.x + ux * 4.5, y: M.y + uy * 4.5 }, b = { x: M.x - ux * 4, y: M.y - uy * 4 };
+    s += '<polyline points="' + f1(b.x - uy * 6) + "," + f1(b.y + ux * 6) + " " + f1(t.x) + "," + f1(t.y) + " " +
+         f1(b.x + uy * 6) + "," + f1(b.y - ux * 6) + '" fill="none" stroke-linecap="round" stroke-linejoin="round" style="stroke:' +
+         col + ";stroke-width:" + Math.max(2.4, w * 0.9) + '"' + popc + "/>";
+  }
+  if (label) {
+    /* position number, a little before the middle of the curve so it does not cover the chevron */
+    const L = qpt(P, Cp, Q, 0.3);
+    const txt = String(label.n), rw = Math.max(19, 8 + 7 * txt.length);
+    s += '<rect x="' + f1(L.x - rw / 2) + '" y="' + f1(L.y - 9.5) + '" width="' + rw + '" height="19" rx="9.5" style="fill:' +
+         (label.filled ? col : "var(--wi-panel-2)") + ";stroke:" + col + ';stroke-width:1.6"/>' +
+         '<text x="' + f1(L.x) + '" y="' + f1(L.y + 0.5) + '" text-anchor="middle" dominant-baseline="central" style="font-family:var(--mono);' +
+         "font-size:11.5px;font-weight:bold;fill:" + (label.filled ? "#fcf9f3" : col) + '">' + txt + "</text>";
+  }
+  return s + "</g>";
+}
+
+function regionSVG(set, color) {
+  if (!set || !set.length) return "";
+  const S = new Set(set);
+  let s = '<g opacity="0.3" style="fill:' + color + ";stroke:" + color + '">';
+  EDGES.forEach((e, i) => {
+    if (!S.has(e.u) || !S.has(e.v) || offsets[i] !== 0 && EDGES.findIndex(f => Math.min(f.u, f.v) === Math.min(e.u, e.v) && Math.max(f.u, f.v) === Math.max(e.u, e.v)) !== i) return;
+    const a = toScr(view, pos[e.u]), b = toScr(view, pos[e.v]);
+    s += '<line x1="' + f1(a.x) + '" y1="' + f1(a.y) + '" x2="' + f1(b.x) + '" y2="' + f1(b.y) + '" stroke-width="24" stroke-linecap="round"/>';
+  });
+  for (const v of set) { const p = toScr(view, pos[v]); s += '<circle cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="' + (R + 14) + '" stroke="none"/>'; }
+  return s + "</g>";
+}
+
+function badgeSVG(p, text, kind) {
+  const sty = {
+    pos:  ["#f2d6cd", "var(--wi-accent)", "var(--wi-accent-dark)"],
+    neg:  ["#d3e6e1", "var(--wi-queue)", "#1d4e48"],
+    zero: ["var(--wi-panel)", "var(--wi-border-soft)", "var(--wi-ink-faint)"],
+    odd:  ["#f2d6cd", "var(--wi-active)", "var(--wi-accent-dark)"],
+    even: ["var(--wi-panel)", "var(--wi-border)", "var(--wi-ink-soft)"]
+  }[kind];
+  const w = 8 + 7.6 * text.length, h = 17, x = p.x + R * 0.62, y = p.y - R * 0.62 - h;
+  return '<rect x="' + f1(x) + '" y="' + f1(y) + '" width="' + f1(w) + '" height="' + h + '" rx="4" style="fill:' + sty[0] +
+         ";stroke:" + sty[1] + ';stroke-width:1.2"/><text x="' + f1(x + w / 2) + '" y="' + f1(y + h / 2 + 0.5) +
+         '" text-anchor="middle" dominant-baseline="central" style="font-family:' + "var(--mono)" +
+         ";font-size:12.5px;font-weight:bold;fill:" + sty[2] + '">' + esc(text) + "</text>";
+}
+
+function currentCutSource(st) {
+  if (userS.size) return { set: [...userS].sort((a, b) => a - b), kind: "user" };
+  if (st.cert) return { set: st.cert, kind: st.certKind };
+  return null;
+}
+
+function drawGraph() {
+  const st = steps[cur] || {};
+  const svg = el("gsvg");
+  const W = Math.max(260, el("svgHost").clientWidth), H = canvasH;
+  if (!drag) view = computeView(W, H);
+  svg.setAttribute("width", W); svg.setAttribute("height", H);
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+
+  const animKey = cur + "|" + V + "|" + EDGES.length + "|" + seed + "|" + searchMode + "|" + fine;
+  const anim = animKey !== lastAnimKey && !drag;
+  lastAnimKey = animKey;
+
+  const src = currentCutSource(st);
+  const cut = src ? cutInfo(new Set(src.set), st.or) : null;
+  let s = "";
+  if (st.cert && !(src && src.kind === "user")) s += regionSVG(st.cert, "#c96b5c");
+  if (userS.size) s += regionSVG([...userS], "#d4ac4e");
+  if (st.fcut) s += regionSVG(st.fcut.side, "#c96b5c");
+  for (let i = 0; i < EDGES.length; i++) s += edgeSVG(i, st, cut, anim);
+
+  const visited = new Set(st.visited || []), frontier = new Set(st.frontier || []), odd = new Set(st.odd || []);
+  const deg = st.showDeg ? vstats(!!st.degBase) : null;
+  for (let v = 0; v < V; v++) {
+    const p = toScr(view, pos[v]);
+    let fill = "var(--wi-panel-2)", stroke = "var(--wi-border)", sw = 1.6, dash = "";
+    if (visited.has(v)) fill = "#f3e3bf";
+    if (frontier.has(v)) { stroke = C.gold; sw = 2.6; }
+    if (st.fresh === v) { stroke = C.gold; sw = 3.2; }
+    if (st.s === v) { stroke = C.red; sw = 3.2; }
+    if (st.t === v) { stroke = C.green; sw = 3.2; }
+    if (odd.has(v)) { stroke = C.red; sw = 2.8; dash = "4 3"; }
+    if (st.endsHL && st.endsHL.includes(v) && st.s !== v && st.t !== v) { stroke = C.gold; sw = 3; dash = "5 3"; }
+    if (st.spliceV === v) { stroke = C.gold; sw = 3.6; dash = ""; }
+    if (st.curV === v) { stroke = C.red; sw = 3.4; dash = ""; }
+    if (adj[v].length === 0) { fill = "var(--wi-bg)"; stroke = "var(--wi-inert)"; dash = "3 3"; }
+    s += '<g data-v="' + v + '" style="cursor:pointer"><circle cx="' + f1(p.x) + '" cy="' + f1(p.y) + '" r="' + R + '" style="fill:' + fill +
+         ";stroke:" + stroke + ";stroke-width:" + sw + (dash ? ";stroke-dasharray:" + dash : "") + '"/>' +
+         '<text x="' + f1(p.x) + '" y="' + f1(p.y + 0.5) + '" text-anchor="middle" dominant-baseline="central" ' +
+         'style="font-family:var(--wi-font-body);font-size:15px;font-weight:bold;fill:var(--wi-ink-strong);pointer-events:none">' + v + "</text></g>";
+  }
+  if (st.labels) for (const v in st.labels) {
+    const p = toScr(view, pos[v]);
+    /* put the label on the side facing away from the neighbours */
+    let dx = 0, dy = 0;
+    for (const ei of adj[v]) { const o = EDGES[ei].u === +v ? EDGES[ei].v : EDGES[ei].u; const q = toScr(view, pos[o]);
+      const d = Math.hypot(q.x - p.x, q.y - p.y) || 1; dx += (q.x - p.x) / d; dy += (q.y - p.y) / d; }
+    const dl = Math.hypot(dx, dy);
+    const ux = dl > 0.3 ? -dx / dl : 0, uy = dl > 0.3 ? -dy / dl : 1;
+    const lp = { x: p.x + ux * (R + 15), y: p.y + uy * (R + 13) };
+    s += '<text x="' + f1(lp.x) + '" y="' + f1(lp.y) + '" text-anchor="middle" dominant-baseline="central" ' +
+         'style="font-family:var(--wi-font-body);font-style:italic;font-size:14px;fill:var(--wi-accent);pointer-events:none">' + st.labels[v] + "</text>";
+  }
+  for (let v = 0; v < V; v++) {
+    if (adj[v].length === 0) continue;
+    const p = toScr(view, pos[v]);
+    if (deg) s += badgeSVG(p, String(deg[v].d), deg[v].d % 2 ? "odd" : "even");
+    else if (st.x && !st.noBadges) s += badgeSVG(p, fmtX(st.x[v]), st.x[v] > 0 ? "pos" : st.x[v] < 0 ? "neg" : "zero");
+  }
+  svg.innerHTML = s;
+  if (hoverSpec && !drag) applyHover();
+}
+
+function legendHTML(mode) {
+  const line = (col, w, dash, extra) =>
+    '<svg width="36" height="14"><line x1="2" y1="7" x2="' + (extra === "arrow" ? 24 : 34) + '" y2="7" style="stroke:' + col + ";stroke-width:" + w +
+    (dash ? ";stroke-dasharray:" + dash : "") + '"/>' +
+    (extra === "arrow" ? '<path d="M34,7 L23,1.8 L23,12.2Z" style="fill:' + col + '"/>' : "") +
+    (extra === "chev" ? '<polyline points="15,1.5 21,7 15,12.5" fill="none" style="stroke:' + col + ';stroke-width:2.4" stroke-linecap="round" stroke-linejoin="round"/>' : "") +
+    "</svg>";
+  const blob = col => '<svg width="18" height="14"><circle cx="9" cy="7" r="7" style="fill:' + col + '" opacity=".45"/></svg>';
+  const num = (fill, col) => '<svg width="22" height="16"><rect x="1" y="1" width="20" height="14" rx="7" style="fill:' + fill +
+    ";stroke:" + col + '"/><text x="11" y="8.5" text-anchor="middle" dominant-baseline="central" style="font:bold 10px var(--mono);fill:' +
+    (fill === col ? "#fcf9f3" : col) + '">7</text></svg>';
+  const base = [[line(C.ink, 2.4, "", "arrow"), "fixed arc"], [line(C.teal, 2.1, "", "chev"), "free edge, as oriented"]];
+  const tail = [[blob("#d4ac4e"), "your set S"]];
+  const items = mode === "hier" ? base.concat([
+      [num("#902015", "#902015"), "tour position (colour: first walk, then each detour)"],
+      [num("#fcf9f3", "#b07d18"), "detour, not yet spliced in"],
+      ['<svg width="18" height="18"><circle cx="9" cy="9" r="7" style="fill:#fcf9f3;stroke:#cc2f22;stroke-width:2.6"/></svg>', "current vertex"],
+      ['<svg width="18" height="18"><circle cx="9" cy="9" r="7" style="fill:#fcf9f3;stroke:#b07d18;stroke-width:2.6"/></svg>', "where the detour is spliced in"]], tail)
+    : mode === "fleury" ? base.concat([
+      [num("#902015", "#902015"), "tour position"],
+      [line(C.gold, 3.6, ""), "candidate, safe"],
+      [line(C.red, 3.6, "5 4"), "candidate, a bridge"],
+      [blob("#c96b5c"), "side of the bridge with the " + (ends ? "end" : "start")],
+      [line(C.red, 2.8, ""), "edges it would strand"]], tail)
+    : null;
+  if (items) return items.map(([sw, t]) => '<span class="item">' + sw + "<span>" + t + "</span></span>").join("");
+  return [
+    [line(C.ink, 2.4, "", "arrow"), "fixed arc"],
+    [line(C.teal, 2.1, "", "chev"), "free edge, current direction"],
+    [line(C.gold, 3.2, ""), "search tree"],
+    [line(C.red, 3.8, ""), "path s ⇝ t"],
+    [line(C.green, 3.8, ""), "just reversed"],
+    [line(C.teal, 2.1, "6 5"), "virtual edge (open trail)"],
+    [blob("#d4ac4e"), "your set S"],
+    [blob("#c96b5c"), "certificate S"],
+    ['<span style="font:bold 12px var(--mono);color:var(--wi-accent)">+1</span>', "excess x(v) badge (degree in phase 1)"]
+  ].map(([sw, t]) => '<span class="item">' + sw + "<span>" + t + "</span></span>").join("");
+}
+
+/* ---------- side panels -------------------------------------------------- */
+
+function typeset(node) {
+  if (window.MathJax && MathJax.typesetPromise) {
+    if (MathJax.typesetClear) MathJax.typesetClear([node]);
+    MathJax.typesetPromise([node]).catch(() => {});
+  }
+}
+function setMath(node, html, cacheKey) {
+  if (node._last === html) return;
+  if (window.MathJax && MathJax.typesetClear) MathJax.typesetClear([node]);
+  node.innerHTML = html; node._last = html;
+  typeset(node);
+}
+
+function renderStatus(st) {
+  let h = st.txt || "";
+  if (st.ans) h += '<b class="ans ' + (st.verdict || "") + '">' + st.ans + "</b>";
+  setMath(el("statusBox"), h);
+}
+
+function renderCut(st) {
+  const src = currentCutSource(st);
+  el("cutMeta").textContent = src ? "|S| = " + src.set.length : "";
+  if (!src) {
+    setMath(el("cutBox"), '<div class="empty">Click vertices in the drawing to put them into \\(S\\) (click again to remove). ' +
+      "The panel then counts the fixed arcs leaving and entering \\(S\\) and the free edges across the cut. " +
+      (ends ? "With two odd vertices " + ends.join(" and ") + ", the test is for an open Euler trail between them " +
+              (trailDir ? "in the chosen direction." : "in either direction.") :
+      "An Eulerian orientation exists iff the graph is connected, all degrees are even, and " +
+      "\\(|a^+(S) - a^-(S)| \\;\\le\\; e(S)\\) for <i>every</i> \\(S\\).") + "</div>");
+    return;
+  }
+  const S = new Set(src.set), ci = cutInfo(S, st.or), diff = ci.ap - ci.am, cd = condition(S, ci);
+  const why = { user: "your selection", stuck: "where the search got stuck", comp: "one connected piece" }[src.kind];
+  let h = "<div>\\(S = " + texSet(src.set) + '\\) <span class="src">(' + why + ")</span></div>";
+  h += "<div>\\(\\color{" + HEX.acc + "}{a^+(S)} = " + ci.ap + "\\) fixed arcs leave, \\(\\color{" + HEX.green + "}{a^-(S)} = " + ci.am +
+       "\\) enter, \\(\\color{" + HEX.gold + "}{e(S)} = " + ci.e + "\\) free edges cross.</div>";
+  const trivial = S.size === 0 || S.size === V;
+  const what = ends ? (trailDir ? "No Euler trail " + trailEnds().join(" ⇝ ") + " exists." : "No Euler trail exists, in either direction.")
+                    : "No Eulerian orientation exists.";
+  if (cd.note) h += '<div class="src">' + cd.note + "</div>";
+  const eq = "\\(" + cd.lhsTex + " = " + cd.lhs + " \\;" + (cd.lhs > cd.rhs ? ">" : "\\le") + "\\; " + cd.rhs + " = " + cd.rhsTex + "\\)";
+  if (cd.lhs > cd.rhs) {
+    h += '<div class="verdict bad">' + eq + ": <b>violated</b>. The free edges across the cut can make up for at most " + cd.rhs +
+         " units of this imbalance, so every orientation leaves \\(S\\) unbalanced. " + what + "</div>";
+  } else {
+    h += '<div class="verdict ok">' + eq + ": holds" +
+         (trivial ? " (trivially)." : cd.lhs === cd.rhs && cd.rhs > 0 ? ", with equality: every free edge across the cut has a forced direction." :
+          ". One set passing proves nothing; the condition is needed for every \\(S\\).") + "</div>";
+  }
+  if (st.or) {
+    const xs = src.set.reduce((a, v) => a + st.x[v], 0);
+    h += '<div class="now">In the current orientation' + (ends && !st.virtGone ? " (virtual edge included)" : "") + ", " + ci.ep +
+         " of the free edges across the cut leave \\(S\\) and " + ci.em + " enter; \\(x(S) = \\sum_{v \\in S} x(v) = " + texX(xs) + "\\).</div>";
+  }
+  setMath(el("cutBox"), h);
+}
+
+function renderTable(st) {
+  const s = vstats(true);
+  let h = "";
+  for (let v = 0; v < V; v++) {
+    const t = s[v];
+    const cls = st.s === v ? ' class="s"' : st.t === v ? ' class="t"' : "";
+    const xv = st.x ? st.x[v] : null;
+    h += "<tr" + cls + ' data-v="' + v + '"><td data-k="v">' + v + '</td><td data-k="d"' + (t.d % 2 && !(ends && ends.includes(v)) ? ' class="bad"' : "") + ">" + t.d + (ends && ends.includes(v) ? " <i>end</i>" : "") +
+         '</td><td data-k="ap">' + t.ap + '</td><td data-k="am">' + t.am +
+         '</td><td data-k="e">' + t.e + '</td><td data-k="loc" class="' + (t.d === 0 ? "" : localOk(v) ? "good" : "bad") + '">' + (t.d === 0 ? "—" : localOk(v) ? "✓" : "✗") +
+         '</td><td data-k="x"' + (xv > 0 ? ' class="xp"' : xv < 0 ? ' class="xn"' : "") + ">" + (xv === null ? "" : fmtX(xv)) + "</td></tr>";
+  }
+  el("vtBody").innerHTML = h;
+}
+
+/* the tour as a row of edge boxes, each filled with the colour of its walk / detour */
+function tourBoxesHTML(list, or, colOf, opt) {
+  opt = opt || {};
+  const nw = new Set(opt.fresh || []);
+  let h = "";
+  list.forEach((ei, k) => {
+    if (opt.markAt === k) h += '<span class="tmark" title="splice point">' + opt.markLabel + "</span>";
+    const c = colOf(ei), u = tailOf(ei, or), w = headOf(ei, or);
+    h += '<span class="te' + (opt.outline ? " out" : "") + (nw.has(ei) ? " new" : "") + '" data-e="' + ei + '" style="' +
+         (opt.outline ? "color:" + c + ";border-color:" + c : "background:" + c + ";border-color:" + c) + '">' +
+         "<small>" + (k + 1) + "</small>" + u + "→" + w + "</span>";
+  });
+  if (opt.markAt === list.length) h += '<span class="tmark" title="splice point">' + opt.markLabel + "</span>";
+  return '<div class="tboxes">' + (h || '<span class="tempty">no edges yet</span>') + "</div>";
+}
+
+function renderTour(st) {
+  if (!st.tourPhase) { el("tourWrap").style.display = "none"; return; }
+  el("tourWrap").style.display = "";
+  const mD = BASE.length, kind = ends ? "trail" : "tour";
+  el("tourName").textContent = "Euler " + kind + " T, from " + st.tourStart;
+  el("tourMeta").textContent = st.tour.length + " / " + mD + " edges";
+  const prev = steps[cur - 1];
+  const fresh = prev && prev.tourPhase ? st.tour.filter(e => !prev.tour.includes(e)) : [];
+  let h = tourBoxesHTML(st.tour, st.or, ei => segCol(st.tourSeg[ei] || 0),
+                        { fresh, markAt: st.walk || st.code === 3 ? st.spliceIdx : undefined, markLabel: st.spliceV });
+  if (st.walk && st.walk.length) {
+    h += '<div class="tsub" style="color:' + segCol(st.walkSeg) + '">detour from ' + st.spliceV + ", to be spliced in at the marker:</div>" +
+         tourBoxesHTML(st.walk, st.or, () => segCol(st.walkSeg), { outline: true, fresh: [st.walk[st.walk.length - 1]] });
+  }
+  el("tourBox").innerHTML = h;
+}
+
+function renderPhases() {
+  const bar = el("phaseBar");
+  bar.innerHTML = "";
+  /* thumb centres sit at step k / (n-1) of the track; phase p owns [from - 1/2, to + 1/2], clipped to [0, n-1] */
+  const n = steps.length, units = Math.max(1, n - 1);
+  phases.forEach(p => {
+    const a = Math.max(0, p.from - 0.5), z = Math.min(n - 1, p.to + 0.5);
+    const span = Math.max(0, z - a);
+    const pct = cur >= z ? 100 : cur <= a ? 0 : ((cur - a) / span) * 100;
+    const b = document.createElement("button");
+    b.className = "phasebtn" + (cur >= p.from && cur <= p.to ? " on" : (cur > p.to ? " past" : ""));
+    b.style.flex = "0 0 " + (n > 1 ? (span / units * 100) : 100) + "%";
+    b.innerHTML = '<span class="fill' + (pct === 0 ? " empty" : "") + '" style="width:' + pct.toFixed(2) +
+                  '%"></span><span class="lab">' + esc(p.name) + "</span>";
+    b.title = p.name + " — steps " + (p.from + 1) + "–" + (p.to + 1);
+    b.addEventListener("click", () => { stopPlay(); cur = p.from; render(); });
+    bar.appendChild(b);
+  });
+}
+
+function render() {
+  const st = steps[cur] || {};
+  drawGraph();
+  renderStatus(st);
+  renderCut(st);
+  renderTable(st);
+  renderPhases();
+  renderCode(st.algo || "orient");
+  const lm = st.algo || "orient";
+  if (el("legend")._mode !== lm) { el("legend").innerHTML = legendHTML(lm); el("legend")._mode = lm; }
+  renderTour(st);
+  document.querySelectorAll("#codeBody .cline").forEach(n => n.classList.toggle("on", Number(n.dataset.l) === st.code));
+  el("codeMeta").textContent = st.code ? "line " + st.code : "";
+  el("phaseName").textContent = phases[st.ph] ? phases[st.ph].name : "";
+  const nFix = BASE.filter(e => e.fixed).length;
+  el("graphMeta").textContent = V + " vertices · " + nFix + " fixed · " + (BASE.length - nFix) + " free" +
+    (ends ? " · open trail " + (trailDir ? trailEnds().join(" ⇝ ") : ends.join(" – ")) : "");
+  el("scrubber").max = String(Math.max(0, steps.length - 1));
+  el("scrubber").value = String(cur);
+  el("stepNo").textContent = steps.length ? (cur + 1) + " / " + steps.length : "— / —";
+  el("backBtn").disabled = cur <= 0;
+  el("stepBtn").disabled = cur >= steps.length - 1;
+  setMath(el("worstMsg"), worstMsg);
+  if (hoverSpec) applyHover();
+}
+
+/* ---------- linked hover: graph edges, vertices, tour boxes, table cells ---- */
+
+let hoverSpec = null, hoverKey = "";
+function specEdge(ei) {
+  const e = EDGES[ei]; if (!e) return null;
+  return { key: "e" + ei, edges: new Set([ei]), verts: new Set([e.u, e.v]) };
+}
+function specVertex(v, kind) {
+  if (v >= V) return null;
+  const pick = ei => { const e = EDGES[ei];
+    if (kind === "ap") return e.fixed && !e.virt && e.u === v;
+    if (kind === "am") return e.fixed && !e.virt && e.v === v;
+    if (kind === "e") return !e.fixed && !e.virt;
+    if (kind === "d" || kind === "loc") return !e.virt;
+    return true; };
+  return { key: "v" + v + kind, edges: new Set(adj[v].filter(pick)), verts: new Set([v]), cell: { v, kind } };
+}
+function specFrom(t) {
+  if (!t || !t.closest) return null;
+  const cell = t.closest("td[data-k]");
+  if (cell) return specVertex(Number(cell.parentNode.dataset.v), cell.dataset.k);
+  const e = t.closest("[data-e]");
+  if (e) return specEdge(Number(e.dataset.e));
+  const v = t.closest("[data-v]");
+  if (v) return specVertex(Number(v.dataset.v), "all");
+  return null;
+}
+function applyHover() {
+  document.querySelectorAll(".hl, .hlcell").forEach(n => n.classList.remove("hl", "hlcell"));
+  const svg = el("gsvg");
+  svg.classList.toggle("hovering", !!hoverSpec);
+  if (!hoverSpec) return;
+  hoverSpec.edges.forEach(ei => document.querySelectorAll('[data-e="' + ei + '"]').forEach(n => n.classList.add("hl")));
+  hoverSpec.verts.forEach(v => document.querySelectorAll('[data-v="' + v + '"]').forEach(n => n.classList.add("hl")));
+  if (hoverSpec.cell) {
+    const c = document.querySelector('#vtBody tr[data-v="' + hoverSpec.cell.v + '"] td[data-k="' + hoverSpec.cell.kind + '"]');
+    if (c) c.classList.add("hlcell");
+  }
+}
+function initHover() {
+  document.addEventListener("mouseover", ev => {
+    if (drag) return;
+    const sp = specFrom(ev.target), key = sp ? sp.key : "";
+    if (key !== hoverKey) { hoverKey = key; hoverSpec = sp; applyHover(); }
+  });
+  document.addEventListener("mouseout", ev => {
+    if (!ev.relatedTarget && hoverSpec) { hoverKey = ""; hoverSpec = null; applyHover(); }
+  });
+}
+
+/* ---------- transport ---------------------------------------------------- */
+
+const PLAY = "\u25B6\uFE0E", PAUSE = "\u23F8\uFE0E";
+function stepFwd() { if (cur < steps.length - 1) { cur++; render(); } else stopPlay(); }
+function stepBack() { if (cur > 0) { cur--; render(); } }
+function stopPlay() {
+  if (timer) { clearInterval(timer); timer = null; el("playBtn").textContent = PLAY; el("playBtn").setAttribute("aria-label", "Play"); }
+}
+function togglePlay() {
+  if (timer) { stopPlay(); return; }
+  if (cur >= steps.length - 1) cur = 0;
+  el("playBtn").textContent = PAUSE; el("playBtn").setAttribute("aria-label", "Pause");
+  timer = setInterval(stepFwd, Number(el("speed").value));
+}
+function rebuildKeepPhase() {
+  stopPlay();
+  const ph = (steps[cur] || {}).ph || 0;
+  build();
+  cur = phases[Math.min(ph, phases.length - 1)].from;
+  render();
+}
+
+/* ---------- input -------------------------------------------------------- */
+
+function normalizePositions(raw) {
+  let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+  for (const p of raw) { minx = Math.min(minx, p.x); miny = Math.min(miny, p.y); maxx = Math.max(maxx, p.x); maxy = Math.max(maxy, p.y); }
+  const w = Math.max(maxx - minx, 1e-6), h = Math.max(maxy - miny, 1e-6), s = 1 / Math.max(w, h);
+  return raw.map(p => ({ x: (p.x - minx) * s, y: (p.y - miny) * s }));
+}
+function circleLayout(n) {
+  return Array.from({ length: n }, (_, i) => ({ x: Math.cos(2 * Math.PI * i / n - Math.PI / 2), y: Math.sin(2 * Math.PI * i / n - Math.PI / 2) }));
+}
+
+function parseGraph(text) {
+  const lines = text.split(/\r?\n/).map(l => l.replace(/#.*$/, "").trim()).filter(l => l.length).map(l => l.split(/\s+/));
+  if (!lines.length) throw new Error("Empty input.");
+  let li, v, m;
+  if (lines[0].length >= 2) { v = parseInt(lines[0][0], 10); m = parseInt(lines[0][1], 10); li = 1; }
+  else { if (lines.length < 2) throw new Error("Need E on the second line."); v = parseInt(lines[0][0], 10); m = parseInt(lines[1][0], 10); li = 2; }
+  if (!Number.isFinite(v) || v < 0) throw new Error("V must be a non-negative integer.");
+  if (!Number.isFinite(m) || m < 0) throw new Error("E must be a non-negative integer.");
+  if (v > 60) throw new Error("At most 60 vertices — beyond that the drawing stops being readable.");
+  const edges = [];
+  for (let k = 0; k < m; k++) {
+    if (li >= lines.length) throw new Error("Expected " + m + " edge line(s), only found " + k + ".");
+    const t = lines[li++];
+    const a = parseInt(t[0], 10), b = parseInt(t[1], 10);
+    if (t.length < 2 || !Number.isFinite(a) || !Number.isFinite(b)) throw new Error("Edge " + (k + 1) + ": expected two vertex numbers.");
+    if (a < 0 || a >= v || b < 0 || b >= v) throw new Error("Edge " + (k + 1) + ": vertex out of range 0…" + (v - 1) + ".");
+    if (a === b) throw new Error("Edge " + (k + 1) + ": self-loop at " + a + ". Loops never affect the balance; please remove them.");
+    const rest = t.slice(2);
+    if (rest.some(x => x === ">" || x === "->")) edges.push({ u: a, v: b, fixed: true });
+    else if (rest.some(x => x === "<" || x === "<-")) edges.push({ u: b, v: a, fixed: true });
+    else edges.push({ u: a, v: b, fixed: false });
+  }
+  const remaining = lines.length - li;
+  let p = null;
+  if (remaining > 0) {
+    if (remaining !== v) throw new Error("After the edges, expected nothing or exactly " + v + " coordinate lines \"x y\", found " + remaining + ".");
+    const raw = [];
+    for (let i = 0; i < v; i++) {
+      const t = lines[li++], x = parseFloat(t[0]), y = parseFloat(t[1]);
+      if (t.length < 2 || !Number.isFinite(x) || !Number.isFinite(y)) throw new Error("Vertex " + i + ": expected two coordinates \"x y\".");
+      raw.push({ x, y });
+    }
+    p = normalizePositions(raw);
+  }
+  return { v, edges, pos: p || (v ? normalizePositions(circleLayout(v)) : []) };
+}
+
+function serialize() {
+  const out = ["# u v = free edge, u v > = fixed arc u->v; then optional x y per vertex", String(V), String(BASE.length)];
+  for (const e of BASE) out.push(e.fixed ? e.u + " " + e.v + " >" : e.u + " " + e.v);
+  const np = V ? normalizePositions(pos) : [];
+  for (const p of np) out.push((Math.round(p.x * 1000) / 1000) + " " + (Math.round(p.y * 1000) / 1000));
+  return out.join("\n");
+}
+function refreshTextarea() { el("inputText").value = serialize(); }
+
+function setGraph(g) {
+  stopPlay();
+  V = g.v; BASE = g.edges; EDGES = BASE.slice(); pos = g.pos;
+  rebuildAdj();
+  userS.clear(); worstMsg = ""; trailDir = 0;
+  build(); cur = 0;
+  refreshTextarea(); render();
+}
+function loadFromText() {
+  try { setGraph(parseGraph(el("inputText").value)); el("parseErr").textContent = ""; el("presetSel").value = ""; }
+  catch (err) { el("parseErr").textContent = err.message; }
+}
+
+/* ---------- random generator: unions of directed cycles on nearby points -- */
+
+function generate(n, pFix, flip, gseed, openTrail) {
+  const rng = mulberry32((gseed * 7919 + 17) >>> 0);
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const cols = Math.ceil(Math.sqrt(n * 1.35)), pts = [];
+    for (let i = 0; i < n; i++) pts.push({ x: (i % cols) + (rng() - 0.5) * 0.55, y: Math.floor(i / cols) + (rng() - 0.5) * 0.55 });
+    /* neighbour graph: 4 nearest, symmetrised, minus pairs whose segment grazes a third point */
+    const nb = Array.from({ length: n }, () => new Set());
+    for (let i = 0; i < n; i++) {
+      const order = [...Array(n).keys()].filter(j => j !== i).sort((a, b) =>
+        Math.hypot(pts[a].x - pts[i].x, pts[a].y - pts[i].y) - Math.hypot(pts[b].x - pts[i].x, pts[b].y - pts[i].y));
+      for (const j of order.slice(0, 4)) { nb[i].add(j); nb[j].add(i); }
+    }
+    for (let i = 0; i < n; i++) for (const j of [...nb[i]]) {
+      if (j < i) continue;
+      const a = pts[i], b = pts[j], dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy;
+      for (let k = 0; k < n; k++) {
+        if (k === i || k === j) continue;
+        const t = Math.max(0, Math.min(1, ((pts[k].x - a.x) * dx + (pts[k].y - a.y) * dy) / L2));
+        if (Math.hypot(pts[k].x - a.x - t * dx, pts[k].y - a.y - t * dy) < 0.2) { nb[i].delete(j); nb[j].delete(i); break; }
+      }
+    }
+    const arcs = [], mult = new Map(), covered = new Array(n).fill(false);
+    const key = (a, b) => Math.min(a, b) + "_" + Math.max(a, b);
+    for (let tries = 0; tries < 3000 && (arcs.length < 1.7 * n || covered.some(c => !c)); tries++) {
+      const unc = [...Array(n).keys()].filter(v => !covered[v]);
+      const start = unc.length && rng() < 0.7 ? unc[Math.floor(rng() * unc.length)] : Math.floor(rng() * n);
+      const walk = [start], inWalk = new Set([start]);
+      let closed = false;
+      for (let step = 0; step < n; step++) {
+        const c = walk[walk.length - 1];
+        const canClose = walk.length >= 3 && nb[c].has(start);
+        const fresh = [...nb[c]].filter(w => !inWalk.has(w));
+        if (canClose && (rng() < 0.4 || !fresh.length)) { closed = true; break; }
+        if (!fresh.length) break;
+        const w = fresh[Math.floor(rng() * fresh.length)];
+        walk.push(w); inWalk.add(w);
+      }
+      if (!closed) continue;
+      const cyc = walk.map((v, i) => [v, walk[(i + 1) % walk.length]]);
+      if (cyc.some(([a, b]) => (mult.get(key(a, b)) || 0) >= 2)) continue;
+      for (const [a, b] of cyc) { arcs.push([a, b]); mult.set(key(a, b), (mult.get(key(a, b)) || 0) + 1); covered[a] = true; }
+      if (arcs.length > 3 * n) break;
+    }
+    /* keep covered vertices, require connectivity */
+    const keep = [...Array(n).keys()].filter(v => covered[v]);
+    if (keep.length < 3) continue;
+    const id = new Map(keep.map((v, i) => [v, i]));
+    const ad = keep.map(() => []);
+    for (const [a, b] of arcs) { ad[id.get(a)].push(id.get(b)); ad[id.get(b)].push(id.get(a)); }
+    const seen = new Set([0]), st = [0];
+    while (st.length) { const u = st.pop(); for (const w of ad[u]) if (!seen.has(w)) { seen.add(w); st.push(w); } }
+    if (seen.size !== keep.length) continue;
+    if (openTrail) arcs.splice(Math.floor(rng() * arcs.length), 1);   /* an Eulerian digraph minus one arc: a trail */
+    const edges = arcs.map(([a, b]) => rng() < pFix ? { u: id.get(a), v: id.get(b), fixed: true }
+                                                     : (rng() < 0.5 ? { u: id.get(a), v: id.get(b), fixed: false } : { u: id.get(b), v: id.get(a), fixed: false }));
+    if (flip) {
+      const fixedIdx = edges.map((e, i) => e.fixed ? i : -1).filter(i => i >= 0);
+      if (fixedIdx.length) { const e = edges[fixedIdx[Math.floor(rng() * fixedIdx.length)]]; [e.u, e.v] = [e.v, e.u]; }
+      else { const [a, b] = arcs[0]; edges[0] = { u: id.get(b), v: id.get(a), fixed: true }; }
+    }
+    return { v: keep.length, edges, pos: normalizePositions(keep.map(v => pts[v])) };
+  }
+  throw new Error("Could not generate a connected graph with these settings; try another seed.");
+}
+function runGenerator() {
+  try {
+    const g = generate(Math.max(3, Math.min(40, Number(el("genN").value) || 10)), Number(el("genFix").value) / 100,
+                       el("genFlip").checked, Number(el("genSeed").value) || 0, el("genTrail").checked);
+    el("parseErr").textContent = "";
+    el("presetSel").value = "random";
+    setGraph(g);
+  } catch (err) { el("parseErr").textContent = err.message; }
+}
+
+/* ---------- brute force over all sets ------------------------------------ */
+
+function worstSet() {
+  if (V > 18) return null;
+  const eu = EDGES.map(e => e.u), ev = EDGES.map(e => e.v), ef = EDGES.map(e => e.fixed);
+  let best = -Infinity, bestMask = 0, nViol = 0;
+  const full = (1 << V) - 1;
+  for (let mask = 1; mask < full; mask++) {
+    let val = 0;
+    for (let i = 0; i < eu.length; i++) {
+      const iu = (mask >> eu[i]) & 1, iv = (mask >> ev[i]) & 1;
+      if (iu === iv) continue;
+      val += ef[i] ? (iu ? 1 : -1) : -1;
+    }
+    if (val > 0) nViol++;
+    if (val > best) { best = val; bestMask = mask; }
+  }
+  const set = []; for (let v = 0; v < V; v++) if ((bestMask >> v) & 1) set.push(v);
+  return { best, set, nViol };
+}
+
+/* ---------- interaction: vertices, splitters ------------------------------ */
+
+function svgPoint(ev) { const r = el("gsvg").getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; }
+
+function initPointer() {
+  const svg = el("gsvg");
+  svg.addEventListener("pointerdown", ev => {
+    const g = ev.target.closest && ev.target.closest("[data-v]");
+    if (!g) return;
+    ev.preventDefault();
+    svg.setPointerCapture(ev.pointerId);
+    drag = { v: Number(g.dataset.v), start: svgPoint(ev), moved: false };
+  });
+  svg.addEventListener("pointermove", ev => {
+    if (!drag) return;
+    const p = svgPoint(ev);
+    if (!drag.moved && Math.hypot(p.x - drag.start.x, p.y - drag.start.y) < 5) return;
+    drag.moved = true;
+    const q = { x: Math.max(R, Math.min(view.W - R, p.x)), y: Math.max(R, Math.min(view.H - R, p.y)) };
+    pos[drag.v] = fromScr(view, q);
+    drawGraph();
+  });
+  const end = () => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    if (d.moved) { refreshTextarea(); render(); return; }
+    if (userS.has(d.v)) userS.delete(d.v); else userS.add(d.v);
+    worstMsg = "";
+    render();
+  };
+  svg.addEventListener("pointerup", end);
+  svg.addEventListener("pointercancel", end);
+}
+
+function initSplitters() {
+  const vs = el("vsplit"), hs = el("hsplit"), stage = el("stage");
+  let st = null;
+  vs.addEventListener("pointerdown", ev => {
+    ev.preventDefault(); vs.setPointerCapture(ev.pointerId); vs.classList.add("drag");
+    st = { x: ev.clientX, w: el("colMain").getBoundingClientRect().width };
+  });
+  vs.addEventListener("pointermove", ev => {
+    if (!st) return;
+    const total = stage.getBoundingClientRect().width;
+    const w = Math.max(300, Math.min(total - 16 - 300, st.w + ev.clientX - st.x));
+    stage.style.setProperty("--mainw", w + "px");
+    render();
+  });
+  const vend = () => { st = null; vs.classList.remove("drag"); };
+  vs.addEventListener("pointerup", vend); vs.addEventListener("pointercancel", vend);
+
+  let hst = null;
+  hs.addEventListener("pointerdown", ev => {
+    ev.preventDefault(); hs.setPointerCapture(ev.pointerId); hs.classList.add("drag");
+    hst = { y: ev.clientY, h: canvasH };
+  });
+  hs.addEventListener("pointermove", ev => {
+    if (!hst) return;
+    canvasH = Math.max(220, Math.min(1600, hst.h + ev.clientY - hst.y));
+    drawGraph();
+  });
+  const hend = () => { hst = null; hs.classList.remove("drag"); };
+  hs.addEventListener("pointerup", hend); hs.addEventListener("pointercancel", hend);
+}
+
+/* ---------- init --------------------------------------------------------- */
+
+function loadPreset(key) {
+  const p = PRESETS.find(q => q.key === key);
+  if (!p) return;
+  if (p.gen) { runGenerator(); return; }
+  try { setGraph(parseGraph(p.text)); el("parseErr").textContent = ""; el("presetSel").value = key; }
+  catch (err) { el("parseErr").textContent = err.message; }
+}
+function setSeg(onId, offId) { el(onId).classList.add("on"); el(offId).classList.remove("on"); }
+
+function init() {
+  renderCode("orient");
+  el("legend").innerHTML = legendHTML("orient");
+  const sel = el("presetSel");
+  PRESETS.forEach(p => { const o = document.createElement("option"); o.value = p.key; o.textContent = p.name; sel.appendChild(o); });
+  sel.addEventListener("change", e => loadPreset(e.target.value));
+
+  el("seedIn").addEventListener("change", e => { seed = Math.max(0, Math.floor(Number(e.target.value) || 0)); rebuildKeepPhase(); });
+  el("shuffleBtn").addEventListener("click", () => {
+    seed++; el("seedIn").value = seed;
+    stopPlay(); build();
+    const ph = phases.findIndex(p => p.name === "Random orientation");
+    cur = ph >= 0 ? phases[ph].from : 0;
+    render();
+  });
+  el("bfsBtn").addEventListener("click", () => { searchMode = "bfs"; setSeg("bfsBtn", "dfsBtn"); rebuildKeepPhase(); });
+  el("dfsBtn").addEventListener("click", () => { searchMode = "dfs"; setSeg("dfsBtn", "bfsBtn"); rebuildKeepPhase(); });
+  ["trEither", "trXY", "trYX"].forEach((id, i) => el(id).addEventListener("click", () => {
+    trailDir = i; userS.clear(); worstMsg = ""; rebuildKeepPhase();
+  }));
+  el("hierBtn").addEventListener("click", () => { tourAlgo = "hier"; setSeg("hierBtn", "fleuryBtn"); rebuildKeepPhase(); });
+  el("fleuryBtn").addEventListener("click", () => { tourAlgo = "fleury"; setSeg("fleuryBtn", "hierBtn"); rebuildKeepPhase(); });
+  el("coarseBtn").addEventListener("click", () => { fine = false; setSeg("coarseBtn", "fineBtn"); rebuildKeepPhase(); });
+  el("fineBtn").addEventListener("click", () => { fine = true; setSeg("fineBtn", "coarseBtn"); rebuildKeepPhase(); });
+
+  el("stepBtn").addEventListener("click", () => { stopPlay(); stepFwd(); });
+  el("backBtn").addEventListener("click", () => { stopPlay(); stepBack(); });
+  el("playBtn").addEventListener("click", togglePlay);
+  el("resetBtn").addEventListener("click", () => { stopPlay(); cur = 0; render(); });
+  el("scrubber").addEventListener("input", e => { stopPlay(); cur = Number(e.target.value); render(); });
+  el("speed").addEventListener("input", e => {
+    el("speedVal").textContent = e.target.value + "ms";
+    if (timer) { stopPlay(); togglePlay(); }
+  });
+
+  el("clearSBtn").addEventListener("click", () => { userS.clear(); worstMsg = ""; render(); });
+  el("worstBtn").addEventListener("click", () => {
+    const r = worstSet();
+    if (!r) { worstMsg = "Brute force is limited to 18 vertices."; render(); return; }
+    const total = Math.pow(2, V) - 2;
+    if (r.best > 0) {
+      userS = new Set(r.set);
+      worstMsg = "Checked all " + total + " proper subsets: " + r.nViol + (r.nViol === 1 ? " violates" : " violate") + " the condition " +
+                 "(counting \\(S\\) and its complement separately). Shown: the largest violation, " +
+                 "\\(a^+(S) - a^-(S) - e(S) = " + r.best + "\\).";
+    } else {
+      worstMsg = "Checked all " + total + " proper subsets: none violates the condition" +
+                 (r.best === 0 ? " (some hold with equality)." : ".");
+    if (ends) worstMsg += " (Evaluated on the graph with the virtual edge, which is the same condition.)";
+    }
+    render();
+  });
+
+  el("loadBtn").addEventListener("click", loadFromText);
+  el("genFix").addEventListener("input", e => el("genFixVal").textContent = e.target.value + "%");
+  el("genBtn").addEventListener("click", runGenerator);
+  el("genNextBtn").addEventListener("click", () => { el("genSeed").value = (Number(el("genSeed").value) || 0) + 1; runGenerator(); });
+
+  initPointer();
+  initHover();
+  initSplitters();
+  window.addEventListener("resize", () => drawGraph());
+  document.addEventListener("keydown", ev => {
+    if (ev.target.tagName === "TEXTAREA" || ev.target.tagName === "INPUT" || ev.target.tagName === "SELECT") return;
+    if (ev.key === "ArrowRight") { stopPlay(); stepFwd(); ev.preventDefault(); }
+    if (ev.key === "ArrowLeft")  { stopPlay(); stepBack(); ev.preventDefault(); }
+  });
+
+  loadPreset("c4");
+  if (window.MathJax && MathJax.startup && MathJax.startup.promise) {
+    MathJax.startup.promise.then(() => {
+      el("statusBox")._last = null; el("cutBox")._last = null; el("worstMsg")._last = null;
+      typeset(document.querySelector("table.vtab").parentNode);
+      el("codeNote")._last = null; codeShown = null; typeset(document.querySelector(".editor .hint"));
+      render();
+    });
+  } else {
+    window.addEventListener("load", () => {
+      if (window.MathJax && MathJax.startup && MathJax.startup.promise) MathJax.startup.promise.then(() => {
+        el("statusBox")._last = null; el("cutBox")._last = null;
+        typeset(document.querySelector("table.vtab").parentNode);
+        el("codeNote")._last = null; codeShown = null; typeset(document.querySelector(".editor .hint"));
+        render();
+      });
+    });
+  }
+}
+
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>

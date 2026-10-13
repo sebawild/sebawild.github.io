@@ -7,72 +7,182 @@
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Random Shuffle — two variants</title>
+<title>Random shuffle</title>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+  chtml: { scale: 0.95 },
+  startup: { typeset: true }
+};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js"></script>
 <style>
-body{background-color:#f5ebd9;color:#6b675c;font-family:var(--wi-font-body)"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-height:100vh;margin:0;padding:20px}
-h1{font-size:1.5rem;font-weight:500;margin-bottom:18px;letter-spacing:.5px;color:#46433a;text-transform:uppercase;text-align:center}
-.container{width:100%;max-width:1600px;display:flex;flex-direction:column;align-items:center}
-.card{background-color:#faf6ed;border:1px solid #d4c5b4;border-radius:8px;padding:14px 18px;margin-bottom:14px;width:100%;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.row .lbl{font-size:.8rem;color:#8b8779;font-weight:500}
-.row input[type="text"]{height:32px;padding:0 10px;border:1px solid #b9a793;border-radius:5px;font-size:.85rem;background-color:#faf6ed;color:#46433a;width:150px}
-.row input.wide{width:230px}
-.row input:focus{outline:none;border-color:#9c866d;box-shadow:0 0 0 2px rgba(196,51,51,.12)}
-button{background-color:#faf6ed;color:#46433a;border:1px solid #b9a793;padding:7px 14px;font-size:.82rem;border-radius:5px;cursor:pointer;transition:background .2s,border-color .2s;font-weight:500;white-space:nowrap}
-button:hover{background-color:#fcf9f3;border-color:#9c866d}
-button:disabled{opacity:.4;cursor:not-allowed}
-button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid #cc2f22;outline-offset:2px}
-button.primary{background-color:#46433a;color:#faf6ed;border-color:#46433a}
-button.primary:hover{background-color:#5c5043;border-color:#5c5043}
-button.small{padding:4px 9px;font-size:.75rem}
-.sep{width:1px;height:22px;background-color:#d4c5b4;margin:0 4px}
-.spin{display:inline-flex;align-items:center}
-.spin button{width:28px;padding:0;font-size:1rem;line-height:1;height:32px}
-.spin button.dec{border-top-right-radius:0;border-bottom-right-radius:0}
-.spin button.inc{border-top-left-radius:0;border-bottom-left-radius:0}
-.spin input{border-radius:0!important;border-left:none;border-right:none;width:52px;text-align:center;height:32px;border:1px solid #b9a793;background:#faf6ed;color:#46433a;font-size:.85rem;-moz-appearance:textfield}
-.spin input::-webkit-outer-spin-button,.spin input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-label.chk{font-size:.8rem;color:#8b8779;display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
-.tabs{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.tab{border:1px solid #b9a793;background:#faf6ed;border-radius:5px;padding:7px 16px;font-size:.85rem;font-weight:500;color:#6b5c4e;cursor:pointer}
-.tab.active{border-color:#cc2f22;background:#f7e6e0;color:#cc2f22;box-shadow:0 0 0 2px rgba(196,51,51,.15)}
-.canvas-wrap{background-color:#faf6ed;border:1px solid #d4c5b4;border-radius:8px;overflow:hidden;width:100%;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-svg.stage{display:block;width:100%;background:transparent}
-.log{background-color:#faf6ed;border:1px solid #d4c5b4;border-radius:8px;padding:11px 18px;font-size:.85rem;color:#46433a;width:100%;margin-top:12px;min-height:22px}
-.log b{color:#46433a}
-.cost{display:flex;gap:22px;flex-wrap:wrap;font-size:.8rem;color:#8b8779}
-.cost span b{color:#46433a;font-variant-numeric:tabular-nums}
-.hint{font-size:.75rem;color:#9c866d;margin-top:6px;width:100%;text-align:center}
-details.panel{background-color:#faf6ed;border:1px solid #d4c5b4;border-radius:8px;width:100%;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-details.panel>summary{cursor:pointer;padding:11px 18px;font-size:.85rem;font-weight:600;color:#46433a;list-style:none;user-select:none}
-details.panel>summary::-webkit-details-marker{display:none}
-details.panel>summary::before{content:"▶ ";font-size:.75rem;color:#9c866d}
-details.panel[open]>summary::before{content:"▼ "}
-.panel-body{padding:0 18px 16px 18px}
-textarea{width:100%;box-sizing:border-box;min-height:110px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.78rem;line-height:1.5;background:#faf6ed;color:#46433a;border:1px solid #b9a793;border-radius:6px;padding:9px 11px;resize:vertical}
-.code-section{border:1px solid #d4c5b4;border-radius:6px;overflow:hidden;background:#fbf8f0}
-.code-head{font-size:.75rem;font-weight:600;color:#8b8779;padding:5px 10px;background:#f0e7d0;border-bottom:1px solid #d4c5b4;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-pre.code{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.8rem;line-height:1.65;color:#46433a;overflow-x:auto}
-pre.code .ln{display:block;padding:0 10px;white-space:pre;border-left:3px solid transparent}
-pre.code .ln.hot{background:#f6dfd8;border-left-color:#cc2f22}
-pre.code .no{display:inline-block;width:1.4em;color:#b9a793}
-.k{color:#9b2c6f;font-weight:600}
-.f{color:#895a1c}
-.n{color:#2f6b3a}
-.c{color:#a89880;font-style:italic}
-.hl{background:#e8f0e2;border-radius:3px;padding:0 2px;color:#2f6b3a;font-weight:700}
-input[type=range]{accent-color:#cc2f22}
-#step-slider{flex:1;min-width:200px}
-[hidden]{display:none!important}
-.pane{display:none;width:100%}
-.pane.on{display:block}
-.tip{position:fixed;pointer-events:none;background:#46433a;color:#faf6ed;font-size:.74rem;line-height:1.45;padding:6px 9px;border-radius:5px;opacity:0;transition:opacity .12s;z-index:20;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre}
-table.dist{border-collapse:collapse;font-size:.78rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#46433a}
-table.dist th{text-align:left;font-weight:600;color:#8b8779;padding:3px 14px 3px 0;border-bottom:1px solid #d4c5b4}
-table.dist td{padding:2px 14px 2px 0;font-variant-numeric:tabular-nums}
-.stat{display:flex;gap:26px;flex-wrap:wrap;font-size:.8rem;color:#8b8779;margin-top:10px}
-.stat b{color:#46433a;font-variant-numeric:tabular-nums;font-weight:600}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#9c866d;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-font-mono:ui-monospace, Menlo, Consolas, monospace;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    --side-w:440px;
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; margin:0 0 6px; }
+  a { color:var(--wi-link); text-decoration:none; }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 16px; max-width:92ch; line-height:1.5; }
+  code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; font-family:var(--wi-font-mono); }
+
+  /* --- control chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:12px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .ctl > label, .lbl { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer; white-space:nowrap;
+           transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text;
+                font-size:1.02rem; line-height:1.1; padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  input.str { font-family:var(--wi-font-mono); font-size:.8rem; width:12em; }
+  input[type=range] { accent-color:var(--wi-accent); cursor:pointer; vertical-align:middle; }
+  .spin { display:inline-flex; }
+  .spin button { padding:3px 9px; font-family:var(--wi-font-body); }
+  .spin button:first-child { border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .spin button:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .spin input { width:3em; text-align:center; border-radius:0; border-left:0; border-right:0; -moz-appearance:textfield; }
+  .spin input::-webkit-outer-spin-button, .spin input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  .seg { display:inline-flex; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  .seg button:disabled { opacity:.45; }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+
+  .opbar { display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; padding:10px 18px;
+           background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+           border-radius:var(--wi-radius-lg); margin-bottom:14px; }
+  .opnote { font-size:.78rem; color:var(--wi-ink-faint); }
+
+  /* --- transport --- */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px; margin-bottom:18px;
+               display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; }
+  .progress { flex:1 1 260px; min-width:200px; }
+  .progress input[type=range] { display:block; width:100%; margin:0; }
+  .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint); white-space:nowrap; }
+  .vsep { width:1px; align-self:stretch; background:var(--wi-border-soft); }
+
+  /* --- stage with draggable splitter --- */
+  .stage { display:grid; grid-template-columns:minmax(0,1fr) 14px minmax(0,var(--side-w)); align-items:start; }
+  .hsplit { align-self:stretch; cursor:col-resize; position:relative; min-height:120px; touch-action:none; }
+  .hsplit::before { content:""; position:absolute; left:6px; top:4px; bottom:4px; width:2px; border-radius:2px;
+                    background:var(--wi-border-soft); transition:background .15s; }
+  .hsplit:hover::before, .hsplit.drag::before { background:var(--wi-accent-soft); width:3px; left:5px; }
+  @media (max-width:980px) {
+    .stage { grid-template-columns:1fr; gap:14px; }
+    .hsplit { display:none; }
+  }
+  .col-main, .col-side { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+             border-radius:var(--wi-radius-lg); padding:12px 15px; min-width:0; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em;
+               color:var(--wi-ink-faint); margin:0 0 9px; display:flex; justify-content:space-between;
+               align-items:baseline; gap:10px; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--wi-font-mono);
+                    font-size:.9em; color:var(--wi-ink-soft); }
+  .canvasbox { background:var(--wi-bg); border-radius:var(--wi-radius); overflow:auto; padding:8px; position:relative; }
+  .canvasbox svg { display:block; margin:0 auto; touch-action:manipulation; }
+  .vgrip { height:12px; cursor:row-resize; position:relative; margin-top:2px; touch-action:none; }
+  .vgrip::before { content:""; position:absolute; left:50%; top:4px; width:54px; height:4px; margin-left:-27px;
+                   border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .vgrip:hover::before, .vgrip.drag::before { background:var(--wi-accent-soft); }
+  [hidden] { display:none !important; }
+
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+            border-radius:var(--wi-radius); padding:10px 13px; font-size:.9rem;
+            color:var(--wi-ink-strong); min-height:72px; }
+  .status b { color:var(--wi-accent); }
+  .facts { list-style:none; margin:0; padding:0; font-size:.84rem; }
+  .facts li { padding:3px 0; border-bottom:1px solid var(--wi-border-soft); display:flex; justify-content:space-between; gap:12px; }
+  .facts li:last-child { border-bottom:0; }
+  .facts b { font-family:var(--wi-font-mono); font-size:.88em; color:var(--wi-ink-strong); font-weight:600; text-align:right; }
+  .note { font-size:.84rem; color:var(--wi-ink); line-height:1.55; }
+  .placeholder { font-size:.82rem; color:var(--wi-ink-faint); line-height:1.5; }
+
+  .legend { display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:8px; font-size:.72rem; color:var(--wi-ink-soft); }
+  .legend .item { display:flex; align-items:center; gap:6px; }
+  .sw { width:.85em; height:.85em; border-radius:2px; border:1px solid var(--wi-border); display:inline-block; }
+  .swl { width:1.3em; height:0; border-top:2px solid; display:inline-block; }
+
+  table.dist { border-collapse:collapse; font-size:.78rem; font-family:var(--wi-font-mono); color:var(--wi-ink); margin-top:8px; }
+  table.dist th { text-align:left; font-weight:600; color:var(--wi-ink-faint); padding:3px 12px 3px 0; border-bottom:1px solid var(--wi-border-soft); font-family:var(--wi-font-body); }
+  table.dist td { padding:2px 12px 2px 0; font-variant-numeric:tabular-nums; }
+
+  /* --- pseudocode --- */
+  .cline { display:flex; gap:9px; padding:2px 9px; font-family:var(--wi-font-mono); font-size:.75rem;
+           line-height:1.6; color:var(--wi-ink-strong); border-left:3px solid transparent; white-space:pre; }
+  .cline .ln { color:var(--wi-ink-faint); min-width:1.2em; text-align:right; user-select:none; }
+  .cline.on { background:#f6e6df; border-left-color:var(--wi-active); }
+  .cline .kw { color:var(--wi-accent); }
+  .cline .fn { color:var(--wi-examine); }
+  .cline .cm { color:var(--wi-ink-faint); font-style:italic; }
+  .cline .rg { background:#e3ebdc; color:var(--wi-relax); font-weight:bold; border-radius:3px; padding:0 2px; }
+  .codewrap { overflow-x:auto; }
+
+  /* --- editor --- */
+  details.editor { margin-top:18px; background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+                   border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:11px 16px; font-family:var(--wi-font-head);
+                             font-size:.78rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,300px) 1fr; gap:16px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  textarea { width:100%; height:170px; font-family:var(--wi-font-mono); font-size:.78rem;
+             background:var(--wi-panel-2); color:var(--wi-ink); border:1px solid var(--wi-border);
+             border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.78rem; color:var(--wi-ink-soft); line-height:1.55; }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+  .keyhint { font-size:.74rem; color:var(--wi-ink-faint); margin-top:14px; }
+
+  .tooltip { position:fixed; z-index:40; pointer-events:none; background:var(--wi-panel-2);
+             border:1px solid var(--wi-border-strong); border-radius:var(--wi-radius);
+             padding:6px 9px; font-size:.76rem; color:var(--wi-ink-strong);
+             box-shadow:0 3px 10px rgba(0,0,0,.12); max-width:300px; display:none; line-height:1.45; }
+  .tooltip .tt-h { font-family:var(--wi-font-mono); color:var(--wi-accent); }
+  .tooltip .tt-s { color:var(--wi-ink-faint); font-family:var(--wi-font-mono); }
+
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls, .opbar, .transport { gap:8px 12px; padding:10px 12px; }
+    button { padding:6px 10px; font-size:.8rem; }
+  }
+
+  /* --- SVG classes --- */
+  svg text { font-family:var(--wi-font-mono); }
+  .t-mute { fill:var(--wi-ink-faint); }
+  .t-ink { fill:var(--wi-ink-strong); }
+  .t-cap { fill:var(--wi-ink-soft); font-family:var(--wi-font-body) !important; font-style:italic; }
+  .pat { cursor:pointer; }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
 </style>
 <style>
 /* wild-inter.net: re-assert the site type stack over the page's own styles */
@@ -85,160 +195,245 @@ body { font-family: var(--wi-font-body); }
 </style>
 </head>
 <body>
-<div class="container">
-    <h1 id="page-title">Random Shuffle</h1>
 
-    <div class="card">
-        <div class="row">
-            <span class="lbl">Array size <i>n</i>:</span>
-            <span class="spin">
-                <button class="dec" onclick="bumpN(-1)" title="decrease">−</button>
-                <input id="n-input" type="number" min="2" max="7" value="4">
-                <button class="inc" onclick="bumpN(1)" title="increase">+</button>
-            </span>
-            <span class="lbl">Elements:</span>
-            <input id="elems-input" type="text" class="wide" value="1 2 3 4" title="whitespace- or comma-separated, must be distinct">
-            <button onclick="applySetup()">Apply</button>
-            <div class="sep"></div>
-            <span class="lbl">Presets:</span>
-            <button class="small" onclick="preset(2)">n = 2</button>
-            <button class="small" onclick="preset(3)">n = 3</button>
-            <button class="small" onclick="preset(4)">n = 4</button>
-            <button class="small" onclick="preset(5)">n = 5</button>
-            <button class="small" onclick="preset(6)">n = 6</button>
-            <button class="small" onclick="preset(4,'A B C D')">A B C D</button>
-        </div>
-    </div>
-
-    <details class="panel" id="input-panel">
-        <summary>Prepared input (text format)</summary>
-        <div class="panel-body">
-            <textarea id="input-text" spellcheck="false"></textarea>
-            <div class="row" style="margin-top:9px">
-                <button class="primary" onclick="loadInputText()">Load</button>
-                <button onclick="fillInputText()">Copy current setup into box</button>
-                <span class="lbl" id="input-msg"></span>
-            </div>
-            <div style="font-size:.75rem;color:#8b8779;margin-top:9px;line-height:1.6">
-                One <code>key = value</code> per line; <code>#</code> starts a comment; every line is optional.<br>
-                <code>n = 5</code> — array size (2 … 7).
-                <code>A = 1 2 3 4 5</code> — the array contents (distinct entries; sets <i>n</i>).
-                <code>r = 4 2 3 4 4</code> — the sequence of numbers returned by <code>randomInt</code>, one per iteration; omit to draw them at random.
-                <code>variant = my</code> or <code>variant = kfy</code> — which of the two procedures to run.
-            </div>
-        </div>
-    </details>
-
-    <div class="card">
-        <div class="row" style="justify-content:space-between">
-            <div class="tabs" id="mode-tabs">
-                <button class="tab active" data-mode="run" onclick="setMode('run')">Single run</button>
-                <button class="tab" data-mode="sample" onclick="setMode('sample')">Random sampling</button>
-                <button class="tab" id="tab-exact" data-mode="exact" onclick="setMode('exact')" hidden>Exact probabilities</button>
-            </div>
-            <div class="tabs" id="variant-tabs" hidden>
-                <span class="lbl" style="margin-right:2px">Algorithm:</span>
-                <button class="tab active" data-variant="my" onclick="setVariant('my')">myShuffle</button>
-                <button class="tab" data-variant="kfy" onclick="setVariant('kfy')">shuffleKnuthFisherYates</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="card" style="padding:12px 14px">
-        <div class="code-section">
-            <div class="code-head" id="code-head">pseudocode</div>
-            <pre class="code" id="code"></pre>
-        </div>
-    </div>
-
-    <!-- ══ single run ══ -->
-    <section class="pane on" id="pane-run">
-        <div class="card row">
-            <button id="btn-new" class="primary" onclick="newRun()">New run</button>
-            <button id="btn-random-r" onclick="clearForced()" hidden>Draw r at random again</button>
-            <div class="sep"></div>
-            <button id="btn-first" onclick="stepTo(0)">⏮ First</button>
-            <button id="btn-prev" onclick="stepBy(-1)">← Prev</button>
-            <button id="btn-next" onclick="stepBy(1)">Next →</button>
-            <button id="btn-last" onclick="stepTo(1e9)">⏭ Last</button>
-            <button id="btn-play" onclick="togglePlay()">▶ Play</button>
-            <div class="sep"></div>
-            <input id="step-slider" type="range" min="0" max="1" step="1" value="0">
-            <span class="lbl" id="step-label" style="min-width:120px"></span>
-            <div class="sep"></div>
-            <span class="lbl">Speed</span>
-            <input id="speed" type="range" min="1" max="10" step="1" value="5" style="width:90px">
-        </div>
-        <div class="canvas-wrap"><svg class="stage" id="run-svg" viewBox="0 0 900 272" preserveAspectRatio="xMidYMid meet"></svg></div>
-        <div class="log" id="run-log">Press <b>New run</b> or step through with the arrow keys.</div>
-        <div class="card cost" style="margin-top:12px">
-            <span>randomInt calls: <b id="c-draws">0</b> of <b id="c-n">0</b></span>
-            <span>swaps executed: <b id="c-swaps">0</b></span>
-            <span>of which <i>A</i>[<i>i</i>] ↔ <i>A</i>[<i>i</i>] (no effect): <b id="c-triv">0</b></span>
-            <span>total work: <b id="c-total">Θ(n)</b></span>
-            <span>drawn sequence <i>r</i> = <b id="c-seq">–</b></span>
-        </div>
-    </section>
-
-    <!-- ══ sampling ══ -->
-    <section class="pane" id="pane-sample">
-        <div class="card row">
-            <span class="lbl">Add runs:</span>
-            <button onclick="addRuns(1)">+1</button>
-            <button onclick="addRuns(100)">+100</button>
-            <button onclick="addRuns(10000)">+10 000</button>
-            <button onclick="addRuns(1000000)">+1 000 000</button>
-            <button id="btn-sample-play" class="primary" onclick="toggleSampling()">▶ Run continuously</button>
-            <span class="lbl">Speed</span>
-            <input id="sample-speed" type="range" min="1" max="5" step="1" value="3" style="width:90px">
-            <div class="sep"></div>
-            <button onclick="resetSample()">Reset counts</button>
-            <div class="sep"></div>
-            <label class="chk"><input type="checkbox" id="sample-marks" onchange="drawSample()"> mark most / least frequent</label>
-        </div>
-        <div class="canvas-wrap"><svg class="stage" id="sample-svg" viewBox="0 0 1000 330" preserveAspectRatio="xMidYMid meet"></svg></div>
-        <div class="log" id="sample-log">Each bar is one of the <i>n</i>! possible orderings; bar height is the observed relative frequency divided by 1/<i>n</i>!, so the red line marks what a perfectly uniform shuffle would produce.</div>
-        <div class="card" style="margin-top:12px">
-            <div class="stat">
-                <span>runs: <b id="s-runs">0</b></span>
-                <span>randomInt calls: <b id="s-draws">0</b></span>
-                <span>swaps: <b id="s-swaps">0</b></span>
-                <span id="s-dev-box" hidden>largest deviation from uniform: <b id="s-dev">–</b></span>
-                <span id="s-chi-box" hidden>χ² (df = <b id="s-df">–</b>): <b id="s-chi">–</b></span>
-                <span>last run: <b id="s-last">–</b></span>
-            </div>
-        </div>
-    </section>
-
-    <!-- ══ exact ══ -->
-    <section class="pane" id="pane-exact">
-        <div class="card row">
-            <button class="primary" id="btn-exact" onclick="computeExact()">Compute exact distribution</button>
-            <span class="lbl" id="exact-status">Enumerates every possible sequence of random draws.</span>
-            <div class="sep"></div>
-            <label class="chk"><input type="checkbox" id="exact-marks" onchange="drawExact()"> mark most / least likely</label>
-        </div>
-        <div class="canvas-wrap"><svg class="stage" id="exact-svg" viewBox="0 0 1000 330" preserveAspectRatio="xMidYMid meet"></svg></div>
-        <details class="panel" style="margin-top:12px;margin-bottom:0">
-            <summary>What the bars show</summary>
-            <div class="panel-body" style="font-size:.85rem;color:#46433a;line-height:1.6" id="exact-log">Bar height is the exact probability of that ordering divided by 1/<i>n</i>!.</div>
-        </details>
-        <div class="card" style="margin-top:12px">
-            <div class="stat" id="exact-stats"></div>
-            <div id="exact-table" style="margin-top:12px"></div>
-        </div>
-    </section>
-
-    <div class="hint">← / → step · Home / End jump to start / end · Space plays</div>
+<div class="wi-topbar">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
 </div>
-<div class="tip" id="tip"></div>
+
+<div class="titlebar">
+  <h1 id="page-title">Random shuffle</h1>
+</div>
+
+<p class="subtitle" id="subtitle">
+  Put the entries of an array into a uniformly random order, using <i>n</i> calls to <code>randomInt</code>.
+  Follow a <b>single run</b> step by step<span class="only-both">, watch the frequencies of <b>many random runs</b>, or
+  count <b>exactly</b> which sequences of random draws lead to which ordering</span><span class="only-single">, or
+  watch the frequencies of <b>many random runs</b></span>.
+</p>
+
+<div class="controls">
+  <div class="ctl">
+    <label for="n-input">Size <i style="text-transform:none">n</i></label>
+    <span class="spin">
+      <button id="n-dec" title="decrease n" aria-label="decrease n">−</button>
+      <input id="n-input" type="number" min="2" max="7" value="4">
+      <button id="n-inc" title="increase n" aria-label="increase n">+</button>
+    </span>
+  </div>
+  <div class="ctl">
+    <label for="elems-input">Array</label>
+    <input id="elems-input" type="text" class="str" spellcheck="false" value="1 2 3 4" title="whitespace- or comma-separated, distinct entries">
+    <button id="apply-btn" class="pri">Set</button>
+  </div>
+  <div class="ctl">
+    <label for="preset-sel">Example</label>
+    <select id="preset-sel"></select>
+  </div>
+  <div class="ctl" id="variant-ctl">
+    <span class="lbl">Algorithm</span>
+    <span class="seg" id="variant-seg">
+      <button data-variant="my" class="on">myShuffle</button>
+      <button data-variant="kfy">shuffleKnuthFisherYates</button>
+    </span>
+  </div>
+</div>
+
+<div class="opbar">
+  <span class="seg" id="mode-seg">
+    <button data-mode="run" class="on">Single run</button>
+    <button data-mode="sample">Random sampling</button>
+    <button data-mode="exact" id="tab-exact">Exact probabilities</button>
+  </span>
+  <span class="opnote" id="mode-note" style="margin-left:auto"></span>
+</div>
+
+<!-- ═══ transport bars, one per mode ═══ -->
+<div class="transport pane-only" data-pane="run">
+  <span class="ctl" style="gap:6px">
+    <button id="run-reset" class="icon" title="Back to the start  (Home)" aria-label="Back to the start">&#x21BA;</button>
+    <button id="run-back" class="icon" title="One step back  (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+    <button id="run-step" class="icon pri" title="One step forward  (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+    <button id="run-play" class="icon" title="Play / pause  (space)" aria-label="Play">&#x25B6;&#xFE0E;</button>
+    <button id="run-end" class="icon" title="Jump to the end  (End)" aria-label="Jump to the end">&#x21E5;</button>
+  </span>
+  <span class="progress"><input type="range" id="run-scrub" min="0" max="1" value="0" aria-label="step"></span>
+  <span class="stepno" id="run-stepno">– / –</span>
+  <span class="ctl" style="gap:6px">
+    <span class="lbl">Speed</span>
+    <input type="range" id="run-speed" min="1" max="10" value="5" style="width:80px" aria-label="speed">
+  </span>
+  <span class="vsep"></span>
+  <button id="run-new" class="pri">New run</button>
+  <button id="run-unforce" hidden>Draw r at random again</button>
+</div>
+
+<div class="transport pane-only" data-pane="sample" hidden>
+  <span class="ctl" style="gap:6px">
+    <span class="lbl">Add runs</span>
+    <button data-add="1">+1</button>
+    <button data-add="100">+100</button>
+    <button data-add="10000">+10 000</button>
+    <button data-add="1000000">+1 000 000</button>
+  </span>
+  <button id="sample-play" class="pri">&#x25B6;&#xFE0E; Run continuously</button>
+  <span class="ctl" style="gap:6px">
+    <span class="lbl">Speed</span>
+    <input id="sample-speed" type="range" min="1" max="5" value="3" style="width:80px" aria-label="sampling speed">
+  </span>
+  <span class="vsep"></span>
+  <button id="sample-reset">Reset counts</button>
+  <label class="chk"><input type="checkbox" id="sample-marks"> mark most / least frequent</label>
+</div>
+
+<div class="transport pane-only" data-pane="exact" hidden>
+  <span class="ctl">
+    <span class="lbl">View</span>
+    <span class="seg" id="view-seg">
+      <button data-view="patterns" id="view-pat" class="on">Draw patterns</button>
+      <button data-view="bars">Bar chart</button>
+    </span>
+  </span>
+  <span class="ctl pv-bars">
+    <button id="exact-compute" class="pri">Compute exact distribution</button>
+  </span>
+  <span class="ctl pv-pat" style="gap:6px">
+    <button id="pat-reset" class="icon" title="Remove all patterns  (Home)" aria-label="Back to the start">&#x21BA;</button>
+    <button id="pat-back" class="icon" title="Take back one pattern  (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+    <button id="pat-step" class="icon pri" title="Place the next pattern  (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+    <button id="pat-play" class="icon" title="Play / pause  (space)" aria-label="Play">&#x25B6;&#xFE0E;</button>
+    <button id="pat-end" class="icon" title="Place all patterns  (End)" aria-label="Place all">&#x21E5;</button>
+  </span>
+  <span class="progress pv-pat"><input type="range" id="pat-scrub" min="0" max="1" value="0" aria-label="number of placed patterns"></span>
+  <span class="stepno pv-pat" id="pat-stepno">– / –</span>
+  <span class="ctl pv-pat" style="gap:6px">
+    <span class="lbl">Speed</span>
+    <input type="range" id="pat-speed" min="1" max="10" value="4" style="width:80px" aria-label="speed">
+  </span>
+  <span class="vsep"></span>
+  <label class="chk"><input type="checkbox" id="exact-marks"> mark most / least likely</label>
+</div>
+
+<!-- ═══ stage ═══ -->
+<div class="stage" id="stage">
+  <div class="col-main">
+    <div class="sim-box pane-only" data-pane="run">
+      <div class="sim-title"><span>The array and the random draws</span><span class="rhs" id="run-meta"></span></div>
+      <div class="canvasbox" id="box-run"><svg id="run-svg"></svg></div>
+      <div class="vgrip" data-box="box-run" title="drag to resize · double-click to reset"></div>
+      <div class="legend">
+        <span class="item"><span class="sw" style="background:var(--wi-active);border-color:var(--wi-active)"></span> drawn value of <i>r</i></span>
+        <span class="item"><span class="sw" style="background:var(--wi-panel);opacity:.35"></span> value not possible in this iteration</span>
+        <span class="item">die face with no pips = 0</span>
+      </div>
+    </div>
+
+    <div class="sim-box pane-only" data-pane="sample" hidden>
+      <div class="sim-title"><span>Observed frequency of each ordering</span><span class="rhs" id="sample-meta"></span></div>
+      <div class="canvasbox" id="box-sample"><svg id="sample-svg"></svg></div>
+      <div class="vgrip" data-box="box-sample" title="drag to resize · double-click to reset"></div>
+      <div class="legend">
+        <span class="item"><span class="sw" style="background:#c28577;border-color:#c28577"></span> relative frequency ÷ (1/<i>n</i>!)</span>
+        <span class="item"><span class="sw" style="background:#902015;border-color:#902015"></span> ordering of the last run</span>
+        <span class="item"><span class="swl" style="border-color:#902015"></span> perfectly uniform</span>
+      </div>
+    </div>
+
+    <div class="sim-box pane-only" data-pane="exact" hidden>
+      <div class="sim-title"><span id="exact-title">Exact probability of each ordering</span><span class="rhs" id="exact-meta"></span></div>
+      <div class="canvasbox" id="box-exact"><svg id="exact-svg"></svg><svg id="pat-svg" style="display:none"></svg>
+        <div class="placeholder" id="pat-off" hidden style="padding:14px"></div></div>
+      <div class="vgrip" data-box="box-exact" title="drag to resize · double-click to reset"></div>
+      <div class="legend" id="exact-legend"></div>
+    </div>
+  </div>
+
+  <div class="hsplit" id="hsplit" title="drag to resize · double-click to reset" role="separator" aria-orientation="vertical"></div>
+
+  <div class="col-side">
+    <!-- run -->
+    <div class="sim-box pane-only" data-pane="run">
+      <div class="sim-title"><span>What just happened</span><span class="rhs" id="run-phase"></span></div>
+      <div class="status" id="run-status"></div>
+    </div>
+    <!-- exact / patterns: the current pattern, traced -->
+    <div class="sim-box pane-only pv-pat-box" data-pane="exact" hidden>
+      <div class="sim-title"><span>Current draw sequence</span><span class="rhs" id="trace-meta"></span></div>
+      <div class="status" id="pat-status" style="margin-bottom:10px"></div>
+      <div class="canvasbox" id="box-trace" style="padding:10px"><svg id="trace-svg"></svg></div>
+      <div style="margin-top:9px"><button id="trace-replay" disabled style="white-space:normal">Replay this sequence as a single run</button></div>
+    </div>
+
+    <div class="sim-box">
+      <div class="sim-title"><span id="code-head">Pseudocode</span></div>
+      <div class="codewrap"><div id="code"></div></div>
+    </div>
+
+    <!-- run counters -->
+    <div class="sim-box pane-only" data-pane="run">
+      <div class="sim-title"><span>Cost of this run</span></div>
+      <ul class="facts">
+        <li><span>calls to <code>randomInt</code></span><b id="c-draws">0</b></li>
+        <li><span>swaps executed</span><b id="c-swaps">0</b></li>
+        <li><span>&hellip; of which swap <i>A</i>[<i>i</i>] with itself</span><b id="c-triv">0</b></li>
+        <li><span>draws so far</span><b id="c-seq">–</b></li>
+      </ul>
+    </div>
+    <!-- sampling -->
+    <div class="sim-box pane-only" data-pane="sample" hidden>
+      <div class="sim-title"><span>Statistics</span></div>
+      <ul class="facts">
+        <li><span>runs</span><b id="s-runs">0</b></li>
+        <li><span>calls to <code>randomInt</code></span><b id="s-draws">0</b></li>
+        <li id="s-dev-box"><span>largest deviation from uniform</span><b id="s-dev">–</b></li>
+        <li id="s-chi-box"><span>χ² statistic (<span id="s-df">–</span> degrees of freedom)</span><b id="s-chi">–</b></li>
+        <li><span>ordering of the last run</span><b id="s-last">–</b></li>
+      </ul>
+      <p class="note" style="margin:10px 0 0">Bar height is the observed relative frequency divided by $1/n!$, so the line at height 1 marks what a perfectly uniform shuffle would produce in the long run.</p>
+    </div>
+    <!-- exact -->
+    <div class="sim-box pane-only" data-pane="exact" hidden>
+      <div class="sim-title"><span>Why</span></div>
+      <div class="note" id="exact-note"></div>
+      <ul class="facts" id="exact-stats" style="margin-top:10px"></ul>
+      <div id="exact-table"></div>
+    </div>
+  </div>
+</div>
+
+<details class="editor" id="editor">
+  <summary>Prepared input (text format)</summary>
+  <div class="editor-body">
+    <div>
+      <textarea id="input-text" spellcheck="false"></textarea>
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="pri" id="load-btn">Load</button>
+        <button id="fill-btn">Copy current setup into box</button>
+      </div>
+      <div class="err" id="input-msg"></div>
+    </div>
+    <div class="hint">
+      One <code>key = value</code> per line; <code>#</code> starts a comment; every line is optional.<br>
+      <code>n = 5</code> — array size (2 … 7).<br>
+      <code>A = 1 2 3 4 5</code> — the array contents (distinct entries; this also sets <i>n</i>).<br>
+      <code>r = 4 2 3 4 4</code> — the numbers returned by <code>randomInt</code>, one per iteration; omit to draw them at random.<br>
+      <span class="only-both"><code>variant = my</code> or <code>variant = kfy</code> — which of the two procedures to run.<br></span>
+      <span class="only-both"><code>mode = run</code>, <code>sample</code> or <code>exact</code></span><span class="only-single"><code>mode = run</code> or <code>sample</code></span> — which tab to open after loading (default <code>run</code>).<br>
+      <span class="only-both"><code>view = bars</code> or <code>view = patterns</code> — the view in the exact tab.<br></span>
+      <code>step = 6</code> — open the single run at this step<span class="only-both">, or (with <code>view = patterns</code>) with this many patterns placed</span>.
+    </div>
+  </div>
+</details>
+
+<div class="keyhint">← / → step · Home / End jump to start / end · space plays · drag the grey handles to resize the drawing</div>
+
+<div class="tooltip" id="tooltip"></div>
 
 <script>
 "use strict";
 /* ════════════════════════════════════════════════════════════════════
    0.  Page configuration
    ════════════════════════════════════════════════════════════════════ */
-const PAGE_BOTH = true; /* BUILD_FLAG */
+const PAGE_BOTH = true; /* BUILD_FLAG: false = myShuffle only, no exact tab */
 
 /* ════════════════════════════════════════════════════════════════════
    1.  The algorithm (the single source of truth for every mode)
@@ -257,12 +452,12 @@ const PAGE_BOTH = true; /* BUILD_FLAG */
    ════════════════════════════════════════════════════════════════════ */
 function lowerBound(variant, i) { return variant === 'kfy' ? i : 0; }
 
-/* one execution; a[] holds element ids 0..n-1, draws[] the randomInt results */
+/* one execution; a[] holds element ids 0..n-1; drawFn(m, i) returns an offset in [0..m) */
 function shuffle(a, variant, drawFn) {
     const n = a.length, draws = [];
     for (let i = 0; i < n; i++) {
         const lo = lowerBound(variant, i);
-        const r = lo + drawFn(n - lo);
+        const r = lo + drawFn(n - lo, i);
         draws.push(r);
         const t = a[i]; a[i] = a[r]; a[r] = t;
     }
@@ -288,7 +483,7 @@ function traceShuffle(n, variant, forced) {
 }
 
 /* ── permutation ranking (lexicographic order of the resulting array) ── */
-let FACT = [1]; for (let i = 1; i <= 8; i++) FACT[i] = FACT[i - 1] * i;
+const FACT = [1]; for (let i = 1; i <= 8; i++) FACT[i] = FACT[i - 1] * i;
 function lexRank(a) {
     const n = a.length; let rank = 0;
     for (let i = 0; i < n; i++) {
@@ -306,6 +501,9 @@ function unrank(rank, n) {
     }
     return out;
 }
+function numSequences(n, variant) {
+    let t = 1; for (let i = 0; i < n; i++) t *= n - lowerBound(variant, i); return t;
+}
 
 /* ── exact distribution: enumerate every possible sequence of draws ── */
 function exactCounts(n, variant) {
@@ -319,9 +517,29 @@ function exactCounts(n, variant) {
             const u = a[i]; a[i] = a[r]; a[r] = u;
         }
     })(0);
-    let total = 1;
-    for (let i = 0; i < n; i++) total *= n - lowerBound(variant, i);
-    return { counts, total };
+    return { counts, total: numSequences(n, variant) };
+}
+
+/* ── all draw sequences in lexicographic order, each run through shuffle() ── */
+const PAT_MAX_N = 5;
+function enumeratePatterns(n, variant) {
+    const T = numSequences(n, variant), m = FACT[n];
+    const seq = new Uint8Array(T * n), rank = new Int32Array(T), slot = new Int32Array(T);
+    const counts = new Int32Array(m), off = new Array(n).fill(0), a = new Array(n);
+    for (let k = 0; k < T; k++) {
+        for (let j = 0; j < n; j++) a[j] = j;
+        const d = shuffle(a, variant, (mm, i) => off[i]);
+        for (let j = 0; j < n; j++) seq[k * n + j] = d[j];
+        const rk = lexRank(a);
+        rank[k] = rk; slot[k] = counts[rk]++;
+        for (let j = n - 1; j >= 0; j--) {          /* odometer, last draw fastest */
+            if (++off[j] < n - lowerBound(variant, j)) break;
+            off[j] = 0;
+        }
+    }
+    let maxC = 0, minC = Infinity;
+    for (let r = 0; r < m; r++) { maxC = Math.max(maxC, counts[r]); minC = Math.min(minC, counts[r]); }
+    return { n, variant, T, m, seq, rank, slot, counts, maxC, minC };
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -332,170 +550,296 @@ const S = {
     elems: ['1', '2', '3', '4'],
     variant: 'my',
     mode: 'run',
+    view: 'patterns',      // exact tab: 'patterns' (default) or 'bars'
     forced: null,          // forced draw sequence from the input box, or null
     run: null,             // {steps, draws}
     step: 0,
     playing: false,
-    sample: {},            // per variant: {counts, runs}
-    exact: {}              // per variant: {counts, total}
+    sample: {},            // per variant/n: {counts, runs, last}
+    exact: {},             // per variant/n: {counts, total}
+    pat: null,             // enumeratePatterns(...) for the current variant/n
+    patK: 0,               // number of patterns placed
+    patSel: null,          // pattern index shown in the trace panel (null = latest placed)
+    patPlaying: false
 };
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
 
-/* colours (matching the lecture slides) */
+/* colours: the shared wild-inter.net tokens */
 const COL = {
-    bar: '#c28577', barHi: '#a8564a', ref: '#962b21',
-    ink: '#46433a', mute: '#8b8779', line: '#cbbd9c',
-    tile: '#eadfc6', tileEdge: '#b9a97f', done: '#f0e8d6',
-    i: '#cc2f22', r: '#1f6a70', min: '#1f6a70', max: '#962b21'
+    bar: '#c28577', barHi: '#902015', ref: '#902015',
+    ink: '#38362e', ink2: '#46433a', mute: '#8b8779', soft: '#6b675c', line: '#d4c5b4',
+    panel: '#faf6ed', panel2: '#fcf9f3', controls: '#ecddc5', bg: '#f5ebd9',
+    tile: '#ecddc5', tileEdge: '#b9a793',
+    i: '#cc2f22', r: '#2a6a63', accent: '#902015', max: '#cc2f22', min: '#2a6a63', hot: '#f6e6df'
 };
 
 /* ════════════════════════════════════════════════════════════════════
-   3.  Pseudocode panel
+   3.  Pseudocode panel (verbatim as in the lecture)
    ════════════════════════════════════════════════════════════════════ */
 const CODE = {
     my: {
         head: 'myShuffle',
         lines: [
-            '<span class="k">procedure</span> <span class="f">myShuffle</span>(<i>A</i>[0..<i>n</i>))',
-            '    <span class="k">for</span> <i>i</i> := 0, …, <i>n</i>−1',
-            '        <i>r</i> := <span class="f">randomInt</span>(<span class="hl">[0..<i>n</i>)</span>)   <span class="c">// A uniformly random number r with 0 ≤ r &lt; n.</span>',
-            '        <span class="k">Swap</span> <i>A</i>[<i>i</i>] <span class="k">and</span> <i>A</i>[<i>r</i>]        <span class="c">// Swap A[i] to random position.</span>',
-            '    <span class="k">end for</span>'
+            '<span class="kw">procedure</span> <span class="fn">myShuffle</span>(<i>A</i>[0..<i>n</i>))',
+            '    <span class="kw">for</span> <i>i</i> := 0, …, <i>n</i>−1',
+            '        <i>r</i> := <span class="fn">randomInt</span>(<span class="rg">[0..<i>n</i>)</span>)   <span class="cm">// A uniformly random number r with 0 ≤ r &lt; n.</span>',
+            '        <span class="kw">Swap</span> <i>A</i>[<i>i</i>] <span class="kw">and</span> <i>A</i>[<i>r</i>]        <span class="cm">// Swap A[i] to random position.</span>',
+            '    <span class="kw">end for</span>'
         ]
     },
     kfy: {
         head: 'shuffleKnuthFisherYates',
         lines: [
-            '<span class="k">procedure</span> <span class="f">shuffleKnuthFisherYates</span>(<i>A</i>[0..<i>n</i>))',
-            '    <span class="k">for</span> <i>i</i> := 0, …, <i>n</i>−1',
-            '        <i>r</i> := <span class="f">randomInt</span>(<span class="hl">[<i>i</i>..<i>n</i>)</span>)',
-            '        <span class="k">Swap</span> <i>A</i>[<i>i</i>] <span class="k">and</span> <i>A</i>[<i>r</i>]',
-            '    <span class="k">end for</span>'
+            '<span class="kw">procedure</span> <span class="fn">shuffleKnuthFisherYates</span>(<i>A</i>[0..<i>n</i>))',
+            '    <span class="kw">for</span> <i>i</i> := 0, …, <i>n</i>−1',
+            '        <i>r</i> := <span class="fn">randomInt</span>(<span class="rg">[<i>i</i>..<i>n</i>)</span>)',
+            '        <span class="kw">Swap</span> <i>A</i>[<i>i</i>] <span class="kw">and</span> <i>A</i>[<i>r</i>]',
+            '    <span class="kw">end for</span>'
         ]
     }
 };
 function renderCode() {
     const c = CODE[S.variant];
-    document.getElementById('code-head').textContent = c.head;
-    document.getElementById('code').innerHTML = c.lines
-        .map((l, k) => '<span class="ln" data-l="' + (k + 1) + '"><span class="no">' + (k + 1) + '</span>' + l + '</span>').join('');
-    highlightLine(null);
+    $('code-head').textContent = 'Pseudocode · ' + c.head;
+    $('code').innerHTML = c.lines.map((l, k) =>
+        '<div class="cline" data-l="' + (k + 1) + '"><span class="ln">' + (k + 1) + '</span><span>' + l + '</span></div>').join('');
 }
 function highlightLine(l) {
-    document.querySelectorAll('#code .ln').forEach(e =>
-        e.classList.toggle('hot', l != null && +e.dataset.l === l));
+    document.querySelectorAll('#code .cline').forEach(e => e.classList.toggle('on', l != null && +e.dataset.l === l));
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   4.  Single run — array animation
+   4.  Small helpers: SVG, MathJax, tooltips, number formatting
    ════════════════════════════════════════════════════════════════════ */
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const CELL = 64, GAP = 10, VW = 900;
-const Y_TILE = 92, Y_IDX = 180, Y_BRACKET = 200;
-const DIE = 30, ROW_H = 38, HIST_Y = 262;
-/* pip positions on the 3×3 grid of a die face, for 0 … 6 */
-const PIPS = [[], [[1, 1]], [[0, 0], [2, 2]], [[0, 0], [1, 1], [2, 2]], [[0, 0], [2, 0], [0, 2], [2, 2]],
-              [[0, 0], [2, 0], [1, 1], [0, 2], [2, 2]], [[0, 0], [2, 0], [0, 1], [2, 1], [0, 2], [2, 2]]];
-let tilePos = {}, anim = null;
-
 function el(tag, attrs, parent) {
     const e = document.createElementNS(SVG_NS, tag);
     for (const k in attrs) e.setAttribute(k, attrs[k]);
     if (parent) parent.appendChild(e);
     return e;
 }
-function cellX(pos) {
-    const total = S.n * (CELL + GAP) - GAP;
-    return (VW - total) / 2 + pos * (CELL + GAP);
+function setSize(svg, W, H, z) {
+    z = z || 1;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('width', Math.round(W * z)); svg.setAttribute('height', Math.round(H * z));
+}
+function typeset(node) {
+    if (window.MathJax && MathJax.typesetPromise) {
+        if (MathJax.typesetClear) MathJax.typesetClear([node]);
+        MathJax.typesetPromise([node]).catch(() => {});
+    }
+}
+function setMath(node, html) { node.innerHTML = html; typeset(node); }
+function fmt(x) { return Math.round(x).toLocaleString('en-US').replace(/,/g, '\u202f'); }
+function gcd(a, b) { while (b) { const t = a % b; a = b; b = t; } return a || 1; }
+function permLabel(rank) { return unrank(rank, S.n).map(i => S.elems[i]).join(' '); }
+function seqLabel(d) { return Array.from(d).join(' '); }
+const tipEl = $('tooltip');
+function showTip(e, html) {
+    tipEl.innerHTML = html; tipEl.style.display = 'block';
+    const w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+    let x = e.clientX + 14, y = e.clientY + 14;
+    if (x + w > window.innerWidth - 6) x = e.clientX - w - 10;
+    if (y + h > window.innerHeight - 6) y = e.clientY - h - 10;
+    tipEl.style.left = x + 'px'; tipEl.style.top = y + 'px';
+}
+function hideTip() { tipEl.style.display = 'none'; }
+
+/* die faces: pip positions on the 3×3 grid for 0 … 6 (0 = blank face) */
+const PIPS = [[], [[1, 1]], [[0, 0], [2, 2]], [[0, 0], [1, 1], [2, 2]], [[0, 0], [2, 0], [0, 2], [2, 2]],
+              [[0, 0], [2, 0], [1, 1], [0, 2], [2, 2]], [[0, 0], [2, 0], [0, 1], [2, 1], [0, 2], [2, 2]]];
+function drawDie(parent, x0, y0, size, v, state) {
+    /* state: 'chosen' | 'open' | 'off' */
+    const g = el('g', { opacity: state === 'off' ? 0.16 : 1 }, parent);
+    const chosen = state === 'chosen';
+    el('rect', { x: x0, y: y0, width: size, height: size, rx: size * 0.2,
+                 fill: chosen ? COL.i : COL.panel, stroke: chosen ? COL.i : COL.tileEdge, 'stroke-width': 1.2 }, g);
+    if (v < PIPS.length) {
+        for (const [px, py] of PIPS[v])
+            el('circle', { cx: x0 + size * (0.26 + 0.24 * px), cy: y0 + size * (0.26 + 0.24 * py), r: size * 0.093,
+                           fill: chosen ? COL.panel : COL.mute }, g);
+    } else {
+        el('text', { x: x0 + size / 2, y: y0 + size / 2, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+                     fill: chosen ? COL.panel : COL.mute, 'font-size': size * 0.5 }, g).textContent = v;
+    }
+    return g;
 }
 
+/* ════════════════════════════════════════════════════════════════════
+   5.  Layout: draggable column splitter and height grips
+   ════════════════════════════════════════════════════════════════════ */
+const userH = {};               // canvas box id -> height in px, set by dragging
+function dragHelper(handle, onStart, onMove, onEnd) {
+    handle.addEventListener('pointerdown', ev => {
+        ev.preventDefault();
+        handle.setPointerCapture(ev.pointerId);
+        handle.classList.add('drag');
+        const st = onStart(ev);
+        const mv = e => onMove(e, st);
+        const up = () => {
+            handle.classList.remove('drag');
+            handle.removeEventListener('pointermove', mv);
+            handle.removeEventListener('pointerup', up);
+            handle.removeEventListener('pointercancel', up);
+            if (onEnd) onEnd();
+        };
+        handle.addEventListener('pointermove', mv);
+        handle.addEventListener('pointerup', up);
+        handle.addEventListener('pointercancel', up);
+    });
+}
+(function setupSplitter() {
+    const sp = $('hsplit'), stage = $('stage');
+    const side = () => stage.querySelector('.col-side');
+    dragHelper(sp, ev => ({ x: ev.clientX, w: side().getBoundingClientRect().width }),
+        (e, st) => {
+            const total = stage.getBoundingClientRect().width;
+            const w = Math.max(240, Math.min(total - 300, st.w - (e.clientX - st.x)));
+            document.documentElement.style.setProperty('--side-w', w + 'px');
+        });
+    sp.addEventListener('dblclick', () => document.documentElement.style.removeProperty('--side-w'));
+    document.querySelectorAll('.vgrip').forEach(g => {
+        const box = $(g.dataset.box);
+        dragHelper(g, ev => ({ y: ev.clientY, h: box.getBoundingClientRect().height }),
+            (e, st) => {
+                const h = Math.max(140, st.h + (e.clientY - st.y));
+                userH[box.id] = h; box.style.height = h + 'px';
+                relayout();
+            });
+        g.addEventListener('dblclick', () => { delete userH[box.id]; box.style.height = ''; relayout(); });
+    });
+})();
+function innerSize(box) {
+    const cs = getComputedStyle(box);
+    return {
+        w: box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight),
+        h: box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
+    };
+}
+let relayoutQueued = false;
+function relayout() {
+    if (relayoutQueued) return;
+    relayoutQueued = true;
+    requestAnimationFrame(() => {
+        relayoutQueued = false;
+        if (S.mode === 'run') layoutRun();
+        else if (S.mode === 'sample') drawSample();
+        else if (S.mode === 'exact') drawExactPane();
+    });
+}
+const lastW = {};
+const ro = new ResizeObserver(entries => {
+    let changed = false;
+    for (const en of entries) {
+        const w = Math.round(en.contentRect.width);
+        if (lastW[en.target.id] !== w) { lastW[en.target.id] = w; changed = true; }
+    }
+    if (changed) relayout();
+});
+['box-run', 'box-sample', 'box-exact'].forEach(id => ro.observe($(id)));
+
+/* ════════════════════════════════════════════════════════════════════
+   6.  Single run — array animation (drawn 1:1 in CSS pixels)
+   ════════════════════════════════════════════════════════════════════ */
+const CELL = 54, GAP = 10, LM = 96, RM = 24;
+const Y_TILE = 56, DIE = 28, ROW_H = 36;
+const Y_IDX = Y_TILE + CELL + 18, Y_BRACKET = Y_TILE + CELL + 32, HIST_Y = Y_TILE + CELL + 100;
+let RUN_W = 0, RUN_H = 0, X0 = 0, tilePos = {}, anim = null;
+
+function cellX(pos) { return X0 + pos * (CELL + GAP); }
+
 function buildRunSvg() {
-    const svg = document.getElementById('run-svg');
+    const svg = $('run-svg');
     svg.innerHTML = '';
+    const arrW = S.n * (CELL + GAP) - GAP;
+    const avail = Math.max(arrW, 300);
+    RUN_W = LM + avail + RM;
+    RUN_H = HIST_Y + S.n * ROW_H + 6;
+    X0 = LM + (avail - arrW) / 2;
     el('g', { id: 'g-frames' }, svg);
     el('g', { id: 'g-bracket' }, svg);
     el('g', { id: 'g-marks' }, svg);
     el('g', { id: 'g-tiles' }, svg);
     el('g', { id: 'g-hist' }, svg);
-    svg.setAttribute('viewBox', '0 0 ' + VW + ' ' + (HIST_Y + S.n * ROW_H + 12));
 
     const frames = svg.querySelector('#g-frames');
+    el('text', { x: X0 - 16, y: Y_TILE + CELL / 2, 'text-anchor': 'end', 'dominant-baseline': 'central',
+                 class: 't-cap', 'font-size': 17 }, frames).textContent = 'A';
     for (let p = 0; p < S.n; p++) {
-        el('rect', { class: 'frame', 'data-p': p, x: cellX(p), y: Y_TILE, width: CELL, height: CELL, rx: 6, fill: 'none', stroke: COL.line, 'stroke-width': 1.5 }, frames);
-        el('text', { x: cellX(p) + CELL / 2, y: Y_IDX, 'text-anchor': 'middle', fill: COL.mute, 'font-size': 14, 'font-family': 'var(--wi-font-mono)', class: 'idx', 'data-p': p }, frames).textContent = p;
+        el('rect', { x: cellX(p), y: Y_TILE, width: CELL, height: CELL, rx: 5, fill: 'none', stroke: COL.line, 'stroke-width': 1.5 }, frames);
+        el('text', { x: cellX(p) + CELL / 2, y: Y_IDX, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+                     fill: COL.mute, 'font-size': 13, class: 'idx', 'data-p': p }, frames).textContent = p;
     }
     const tiles = svg.querySelector('#g-tiles');
     tilePos = {};
+    const fs = Math.max(13, Math.min(22, 120 / Math.max(...S.elems.map(e => e.length), 1) / 1.1));
     for (let id = 0; id < S.n; id++) {
         const g = el('g', { class: 'tile', 'data-id': id }, tiles);
-        el('rect', { x: 0, y: 0, width: CELL, height: CELL, rx: 6, fill: COL.tile, stroke: COL.tileEdge, 'stroke-width': 1.5 }, g);
-        el('text', { x: CELL / 2, y: CELL / 2 + 7, 'text-anchor': 'middle', fill: COL.ink, 'font-size': 22, 'font-family': 'var(--wi-font-mono)' }, g).textContent = S.elems[id];
-        tilePos[id] = { x: cellX(id), y: Y_TILE };
+        el('rect', { x: 0, y: 0, width: CELL, height: CELL, rx: 5, fill: COL.tile, stroke: COL.tileEdge, 'stroke-width': 1.5 }, g);
+        el('text', { x: CELL / 2, y: CELL / 2, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+                     fill: COL.ink, 'font-size': fs }, g).textContent = S.elems[id];
+        tilePos[id] = { x: cellX(id) };
         g.setAttribute('transform', 'translate(' + cellX(id) + ',' + Y_TILE + ')');
     }
     const marks = svg.querySelector('#g-marks');
     mkPointer(marks, 'ptr-i', 'i', COL.i);
     mkPointer(marks, 'ptr-r', 'r', COL.r);
-    buildHistory(svg);
     const br = svg.querySelector('#g-bracket');
     el('path', { id: 'bracket', d: '', fill: 'none', stroke: COL.r, 'stroke-width': 1.6, opacity: 0 }, br);
-    el('text', { id: 'bracket-label', x: 0, y: Y_BRACKET + 26, 'text-anchor': 'middle', fill: COL.r, 'font-size': 14, 'font-family': 'var(--wi-font-mono)', opacity: 0 }, br);
+    el('text', { id: 'bracket-label', x: 0, y: Y_BRACKET + 20, 'text-anchor': 'middle', fill: COL.r, 'font-size': 14, opacity: 0 }, br);
+    buildHistory(svg);
+    layoutRun();
 }
-/* one row of "dice" per iteration: every possible outcome of randomInt,
+function layoutRun() {
+    const svg = $('run-svg'), box = $('box-run');
+    if (!RUN_W) return;
+    const s = innerSize(box);
+    let z = Math.max(0.5, Math.min(1, s.w / RUN_W));       /* never wider than the box by default */
+    if (userH[box.id]) z = Math.max(0.5, Math.min(4, Math.min(s.w / RUN_W, s.h / RUN_H)));
+    setSize(svg, RUN_W, RUN_H, z);
+}
+/* one row of dice per iteration: every possible outcome of randomInt,
    the drawn one filled red; columns line up with the array positions */
 function buildHistory(svg) {
     const g = svg.querySelector('#g-hist'); g.innerHTML = '';
-    el('text', { x: cellX(0) - 16, y: HIST_Y - 10, 'text-anchor': 'end', fill: COL.mute, 'font-size': 12 }, g).textContent = 'draws';
-    el('text', { x: cellX(0) - 16, y: HIST_Y + 4, 'text-anchor': 'end', fill: COL.mute, 'font-size': 10, opacity: .8 }, g).textContent = '(0 = blank face)';
+    el('text', { x: X0 - 16, y: HIST_Y - 16, 'text-anchor': 'end', class: 't-cap', 'font-size': 15 }, g).textContent = 'draws';
     for (let k = 0; k < S.n; k++) {
         const row = el('g', { class: 'hrow', 'data-k': k, opacity: 0 }, g);
-        const y = HIST_Y + k * ROW_H;
-        el('rect', { class: 'hbg', x: cellX(0) - 10, y: y - 3, width: S.n * (CELL + GAP) - GAP + 20, height: DIE + 6, rx: 5, fill: 'none' }, row);
-        el('text', { x: cellX(0) - 16, y: y + DIE / 2 + 5, 'text-anchor': 'end', fill: COL.mute, 'font-size': 14, 'font-style': 'italic', 'font-family': 'var(--wi-font-mono)' }, row).textContent = 'i = ' + k;
-        for (let v = 0; v < S.n; v++) {
-            const d = el('g', { class: 'die', 'data-v': v }, row);
-            const x0 = cellX(v) + CELL / 2 - DIE / 2;
-            el('rect', { x: x0, y: y, width: DIE, height: DIE, rx: 6, fill: '#faf6ed', stroke: COL.tileEdge, 'stroke-width': 1.2 }, d);
-            if (v < PIPS.length) {
-                for (const [px, py] of PIPS[v])
-                    el('circle', { class: 'pip', cx: x0 + DIE * (0.26 + 0.24 * px), cy: y + DIE * (0.26 + 0.24 * py), r: DIE * 0.093, fill: COL.mute }, d);
-            } else {  /* fall back to numerals beyond a die's six faces */
-                el('text', { class: 'pip-num', x: x0 + DIE / 2, y: y + DIE / 2 + 5, 'text-anchor': 'middle', fill: COL.mute, 'font-size': 14, 'font-family': 'var(--wi-font-mono)' }, d).textContent = v;
-            }
-        }
+        row._y = HIST_Y + k * ROW_H;
+        el('rect', { class: 'hbg', x: X0 - 70, y: row._y - 4, width: S.n * (CELL + GAP) - GAP + 76, height: DIE + 8, rx: 5, fill: 'none' }, row);
+        el('text', { x: X0 - 16, y: row._y + DIE / 2, 'text-anchor': 'end', 'dominant-baseline': 'central',
+                     fill: COL.mute, 'font-size': 13 }, row).textContent = 'i = ' + k;
+        el('g', { class: 'dice' }, row);
     }
 }
 function renderHistory(st) {
-    const svg = document.getElementById('run-svg');
+    const svg = $('run-svg');
     svg.querySelectorAll('.hrow').forEach(row => {
         const k = +row.dataset.k, drawn = S.step >= 1 + 2 * k;
         row.setAttribute('opacity', drawn ? 1 : 0);
-        row.querySelector('.hbg').setAttribute('fill', drawn && st.i === k ? '#f7e6e0' : 'none');
+        row.querySelector('.hbg').setAttribute('fill', drawn && st.i === k ? COL.hot : 'none');
+        const dice = row.querySelector('.dice'); dice.innerHTML = '';
         if (!drawn) return;
         const lo = lowerBound(S.variant, k), r = S.run.draws[k];
-        row.querySelectorAll('.die').forEach(d => {
-            const v = +d.dataset.v, rect = d.querySelector('rect'), chosen = v === r;
-            d.setAttribute('opacity', v >= lo ? 1 : .14);
-            rect.setAttribute('fill', chosen ? COL.i : '#faf6ed');
-            rect.setAttribute('stroke', chosen ? COL.i : COL.tileEdge);
-            d.querySelectorAll('.pip, .pip-num').forEach(e => e.setAttribute('fill', chosen ? '#faf6ed' : COL.mute));
-        });
+        for (let v = 0; v < S.n; v++)
+            drawDie(dice, cellX(v) + CELL / 2 - DIE / 2, row._y, DIE, v, v === r ? 'chosen' : (v >= lo ? 'open' : 'off'));
     });
 }
 function mkPointer(parent, id, label, colour) {
     const g = el('g', { id: id, opacity: 0 }, parent);
-    el('path', { d: 'M0,-8 L7,-22 L-7,-22 Z', fill: colour }, g);
-    el('text', { x: 0, y: -28, 'text-anchor': 'middle', fill: colour, 'font-size': 17, 'font-style': 'italic', 'font-family': 'var(--wi-font-mono)' }, g).textContent = label;
+    el('path', { d: 'M0,-6 L7,-20 L-7,-20 Z', fill: colour }, g);
+    el('text', { x: 0, y: -27, 'text-anchor': 'middle', fill: colour, 'font-size': 17, 'font-style': 'italic',
+                 style: 'font-family:var(--wi-font-body)' }, g).textContent = label;
     return g;
 }
 
-function clearForced() { S.forced = null; setMsg(''); newRun(); }
 function newRun() {
     S.run = traceShuffle(S.n, S.variant, S.forced);
     S.step = 0;
-    document.getElementById('step-slider').max = S.run.steps.length - 1;
-    document.getElementById('btn-new').textContent = S.forced ? 'Replay prepared run' : 'New run';
-    document.getElementById('btn-random-r').hidden = !S.forced;
+    $('run-scrub').max = S.run.steps.length - 1;
+    $('run-new').textContent = S.forced ? 'Replay prepared run' : 'New run';
+    $('run-unforce').hidden = !S.forced;
     renderStep(false);
 }
 function stepBy(d) { stepTo(S.step + d); }
@@ -503,208 +847,187 @@ function stepTo(k) {
     if (!S.run) newRun();
     const last = S.run.steps.length - 1;
     const target = Math.max(0, Math.min(last, k));
-    const animate = Math.abs(target - S.step) === 1;
+    const animate = Math.abs(target - S.step) === 1 && target > S.step;
     S.step = target;
     renderStep(animate);
 }
-function togglePlay() {
-    S.playing = !S.playing;
-    document.getElementById('btn-play').textContent = S.playing ? '⏸ Pause' : '▶ Play';
-    if (S.playing) playTick();
+function runDelay() { return 1400 / +$('run-speed').value; }
+function togglePlay(force) {
+    S.playing = force != null ? force : !S.playing;
+    $('run-play').innerHTML = S.playing ? '&#x23F8;&#xFE0E;' : '&#x25B6;&#xFE0E;';
+    if (S.playing) {
+        if (S.run && S.step >= S.run.steps.length - 1) stepTo(0);
+        setTimeout(playTick, 200);
+    }
 }
 function playTick() {
     if (!S.playing) return;
-    if (!S.run || S.step >= S.run.steps.length - 1) { S.playing = false; document.getElementById('btn-play').textContent = '▶ Play'; return; }
+    if (!S.run || S.step >= S.run.steps.length - 1) { togglePlay(false); return; }
     stepBy(1);
-    const sp = +document.getElementById('speed').value;
-    setTimeout(playTick, 1400 / sp);
+    setTimeout(playTick, runDelay());
 }
 
 function renderStep(animate) {
     if (!S.run) return;
-    const st = S.run.steps[S.step], svg = document.getElementById('run-svg');
-    document.getElementById('step-slider').value = S.step;
-    document.getElementById('step-label').textContent = 'step ' + S.step + ' / ' + (S.run.steps.length - 1);
-    highlightLine(S.mode === 'run' ? st.line : null);
+    const st = S.run.steps[S.step], svg = $('run-svg');
+    $('run-scrub').value = S.step;
+    $('run-stepno').textContent = S.step + ' / ' + (S.run.steps.length - 1);
+    $('run-phase').textContent = st.i != null ? 'i = ' + st.i : (st.type === 'done' ? 'finished' : 'start');
+    if (S.mode === 'run') highlightLine(st.line);
 
-    /* index labels: mark the positions the loop has already visited */
     svg.querySelectorAll('.idx').forEach(f => {
         const p = +f.dataset.p;
         const visited = st.i == null ? (st.type === 'done') : (st.type === 'swap' ? p <= st.i : p < st.i);
         f.setAttribute('fill', st.i === p ? COL.i : (visited ? COL.ink : COL.mute));
-        f.setAttribute('font-weight', st.i === p || visited ? 600 : 400);
+        f.setAttribute('font-weight', st.i === p || visited ? 700 : 400);
     });
 
-    /* pointers */
     const pi = svg.querySelector('#ptr-i'), pr = svg.querySelector('#ptr-r');
-    if (st.i != null) { pi.setAttribute('opacity', 1); pi.setAttribute('transform', 'translate(' + (cellX(st.i) + CELL / 2) + ',' + Y_TILE + ')'); }
+    if (st.i != null) { pi.setAttribute('opacity', 1); pi.setAttribute('transform', 'translate(' + (cellX(st.i) + CELL / 2 - (st.i === st.r ? 11 : 0)) + ',' + Y_TILE + ')'); }
     else pi.setAttribute('opacity', 0);
-    if (st.r != null) { pr.setAttribute('opacity', 1); pr.setAttribute('transform', 'translate(' + (cellX(st.r) + CELL / 2 + (st.i === st.r ? 20 : 0)) + ',' + Y_TILE + ')'); }
+    if (st.r != null) { pr.setAttribute('opacity', 1); pr.setAttribute('transform', 'translate(' + (cellX(st.r) + CELL / 2 + (st.i === st.r ? 11 : 0)) + ',' + Y_TILE + ')'); }
     else pr.setAttribute('opacity', 0);
 
-    /* range bracket for randomInt */
     const br = svg.querySelector('#bracket'), bl = svg.querySelector('#bracket-label');
     if (st.lo != null) {
         const x1 = cellX(st.lo), x2 = cellX(S.n - 1) + CELL, y = Y_BRACKET;
         br.setAttribute('d', 'M' + x1 + ',' + (y - 7) + ' L' + x1 + ',' + y + ' L' + x2 + ',' + y + ' L' + x2 + ',' + (y - 7));
         br.setAttribute('opacity', 1);
-        bl.setAttribute('x', (x1 + x2) / 2); bl.setAttribute('opacity', 1);
-        bl.textContent = 'randomInt([' + st.lo + '..' + S.n + '))' + (st.type === 'draw' || st.type === 'swap' ? '  →  r = ' + st.r : '');
+        let cx = (x1 + x2) / 2;
+        const txt = 'randomInt([' + st.lo + '..' + S.n + '))  →  r = ' + st.r;
+        const half = txt.length * 4.3;
+        cx = Math.max(half + 4, Math.min(RUN_W - half - 4, cx));
+        bl.setAttribute('x', cx); bl.setAttribute('opacity', 1);
+        bl.textContent = txt;
     } else { br.setAttribute('opacity', 0); bl.setAttribute('opacity', 0); }
 
-    /* tiles */
     const targets = {}; st.arr.forEach((id, pos) => targets[id] = cellX(pos));
     const arcs = {};
-    if (animate && !REDUCED && st.type === 'swap' && st.i !== st.r) {
-        arcs[st.arr[st.i]] = -1; arcs[st.arr[st.r]] = 1;
-    }
+    if (animate && !REDUCED && st.type === 'swap' && st.i !== st.r) { arcs[st.arr[st.i]] = -1; arcs[st.arr[st.r]] = 1; }
     moveTiles(targets, arcs, animate && !REDUCED);
 
     renderHistory(st);
-    document.getElementById('run-log').innerHTML = stepText(st);
+    setMath($('run-status'), stepText(st));
     updateRunCost();
 }
 function stepText(st) {
     const arr = st.arr.map(id => S.elems[id]).join(' ');
-    if (st.type === 'init') return 'Array before the loop: <b>' + arr + '</b>';
-    if (st.type === 'draw') return '<b>i = ' + st.i + '</b>: draw <i>r</i> uniformly from [' + st.lo + '..' + S.n + ') — that is ' + (S.n - st.lo) + ' equally likely value' + (S.n - st.lo > 1 ? 's' : '') + ' — and get <b>r = ' + st.r + '</b>.';
+    if (st.type === 'init') return 'Array before the loop: <b>' + arr + '</b>.';
+    if (st.type === 'draw') return 'Iteration $i \\;=\\; ' + st.i + '$: draw $r$ uniformly from $[' + st.lo + '..' + S.n + ')$ — ' +
+        (S.n - st.lo) + ' equally likely value' + (S.n - st.lo > 1 ? 's' : '') + ' — and get <b>r = ' + st.r + '</b>.';
     if (st.type === 'swap') return st.i === st.r
-        ? 'Swap <i>A</i>[' + st.i + '] and <i>A</i>[' + st.r + ']: here <i>r</i> = <i>i</i>, so the array is unchanged: <b>' + arr + '</b>'
-        : 'Swap <i>A</i>[' + st.i + '] and <i>A</i>[' + st.r + ']: <b>' + arr + '</b>';
-    return 'Loop finished after ' + S.n + ' iterations. Result: <b>' + arr + '</b>';
+        ? 'Swap $A[' + st.i + ']$ and $A[' + st.r + ']$: here $r \\;=\\; i$, so the array is unchanged: <b>' + arr + '</b>.'
+        : 'Swap $A[' + st.i + ']$ and $A[' + st.r + ']$: <b>' + arr + '</b>.';
+    return 'Loop finished after $n \\;=\\; ' + S.n + '$ iterations. Result: <b>' + arr + '</b>.';
 }
 function moveTiles(targets, arcs, animate) {
-    const svg = document.getElementById('run-svg');
+    const svg = $('run-svg');
     const tiles = [...svg.querySelectorAll('.tile')];
     if (anim) { cancelAnimationFrame(anim); anim = null; }
     const from = {}; tiles.forEach(t => from[t.dataset.id] = tilePos[t.dataset.id].x);
-    if (!animate) {
-        tiles.forEach(t => { const id = t.dataset.id; tilePos[id].x = targets[id]; t.setAttribute('transform', 'translate(' + targets[id] + ',' + Y_TILE + ')'); });
-        return;
-    }
-    const dur = 900 / (+document.getElementById('speed').value * 0.55 + 0.6), t0 = performance.now();
+    const place = () => tiles.forEach(t => { const id = t.dataset.id; tilePos[id].x = targets[id]; t.setAttribute('transform', 'translate(' + targets[id] + ',' + Y_TILE + ')'); });
+    if (!animate) { place(); return; }
+    const dur = Math.min(900, runDelay() * 0.7), t0 = performance.now();
     (function frame(now) {
         const u = Math.min(1, (now - t0) / dur), e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
         tiles.forEach(t => {
             const id = t.dataset.id, x = from[id] + (targets[id] - from[id]) * e;
-            const y = Y_TILE + (arcs[id] ? arcs[id] * 46 * Math.sin(Math.PI * u) : 0);
+            const y = Y_TILE + (arcs[id] ? arcs[id] * 44 * Math.sin(Math.PI * u) : 0);
             t.setAttribute('transform', 'translate(' + x + ',' + y + ')');
             tilePos[id].x = x;
         });
-        if (u < 1) anim = requestAnimationFrame(frame);
-        else { anim = null; tiles.forEach(t => { const id = t.dataset.id; tilePos[id].x = targets[id]; t.setAttribute('transform', 'translate(' + targets[id] + ',' + Y_TILE + ')'); }); }
+        if (u < 1) anim = requestAnimationFrame(frame); else { anim = null; place(); }
     })(t0);
 }
 function updateRunCost() {
-    const done = S.run ? S.run.steps[S.step] : null;
     let drawn = 0, swaps = 0, triv = 0;
-    if (S.run) {
-        for (let k = 1; k <= S.step; k++) {
-            const s = S.run.steps[k];
-            if (s.type === 'draw') drawn++;
-            if (s.type === 'swap') { swaps++; if (s.i === s.r) triv++; }
-        }
+    for (let k = 1; k <= S.step; k++) {
+        const s = S.run.steps[k];
+        if (s.type === 'draw') drawn++;
+        if (s.type === 'swap') { swaps++; if (s.i === s.r) triv++; }
     }
-    document.getElementById('c-draws').textContent = drawn;
-    document.getElementById('c-n').textContent = S.n;
-    document.getElementById('c-swaps').textContent = swaps;
-    document.getElementById('c-triv').textContent = triv;
-    document.getElementById('c-total').textContent = 'n = ' + S.n + ' draws + ' + S.n + ' swaps = Θ(n)';
-    document.getElementById('c-seq').textContent = S.run ? S.run.draws.slice(0, Math.ceil(S.step / 2)).join(' ') || '–' : '–';
+    $('c-draws').textContent = drawn + ' of ' + S.n;
+    $('c-swaps').textContent = swaps + ' of ' + S.n;
+    $('c-triv').textContent = triv;
+    $('c-seq').textContent = S.run.draws.slice(0, Math.ceil(S.step / 2)).join(' ') || '–';
+    $('run-meta').textContent = S.forced ? 'r prepared: ' + S.forced.join(' ') : 'r drawn at random';
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   5.  Bar chart shared by the sampling and the exact mode
+   7.  Bar chart shared by the sampling and the exact mode (1:1 pixels)
    ════════════════════════════════════════════════════════════════════ */
-const CH = { W: 1000, H: 330, L: 52, R: 16, T: 18, B: 46 };
-function makeChart(svgId) {
-    const svg = document.getElementById(svgId);
+const CH = { L: 50, R: 14, T: 14, B: 34 };
+function makeChart(svgId, boxId) {
+    const svg = $(svgId);
     return {
-        svg, bars: [], m: 0, yMax: 1.3,
-        build(m) {
-            this.m = m; this.bars = []; svg.innerHTML = '';
-            const plotW = CH.W - CH.L - CH.R;
-            el('g', { id: 'grid' }, svg);
-            const gb = el('g', { id: 'bars' }, svg);
-            const bw = plotW / m, inner = bw < 4 ? bw : Math.max(1, bw * 0.84);
-            for (let k = 0; k < m; k++) {
-                const r = el('rect', { x: CH.L + k * bw + (bw - inner) / 2, y: CH.H - CH.B, width: inner, height: 0, fill: COL.bar }, gb);
-                this.bars.push(r);
-            }
-            el('g', { id: 'labels' }, svg);
-            el('g', { id: 'axis' }, svg);
-            el('line', { id: 'refline', x1: CH.L, x2: CH.W - CH.R, y1: 0, y2: 0, stroke: COL.ref, 'stroke-width': 1.6 }, svg);
-            el('text', { id: 'xcap', x: CH.W / 2, y: CH.H - 8, 'text-anchor': 'middle', fill: COL.mute, 'font-size': 13 }, svg);
-            svg.onmousemove = e => this.hover(e);
-            svg.onmouseleave = () => hideTip();
-        },
+        svg, vals: null,
         draw(vals, opts) {
             opts = opts || {};
-            const plotH = CH.H - CH.T - CH.B, plotW = CH.W - CH.L - CH.R;
-            let mx = 0; for (let k = 0; k < this.m; k++) mx = Math.max(mx, vals[k]);
-            this.yMax = Math.max(1.3, mx * 1.1);
-            const y = v => CH.H - CH.B - (v / this.yMax) * plotH;
-            const bw = plotW / this.m;
-            let lo = Infinity, hi = -Infinity;
-            for (let k = 0; k < this.m; k++) { lo = Math.min(lo, vals[k]); hi = Math.max(hi, vals[k]); }
-            for (let k = 0; k < this.m; k++) {
-                const b = this.bars[k], v = vals[k];
-                b.setAttribute('y', y(v)); b.setAttribute('height', Math.max(0, CH.H - CH.B - y(v)));
-                let fill = COL.bar, stroke = 'none', sw = 0;
+            const box = $(boxId), s = innerSize(box);
+            const m = vals.length;
+            const W = Math.max(320, Math.floor(s.w));
+            const H = userH[boxId] ? Math.max(160, Math.floor(s.h) - 4) : 330;
+            setSize(svg, W, H);
+            svg.innerHTML = '';
+            this.W = W; this.H = H; this.m = m; this.vals = vals;
+            const plotH = H - CH.T - CH.B, plotW = W - CH.L - CH.R;
+            let mx = 0, lo = Infinity, hi = -Infinity;
+            for (let k = 0; k < m; k++) { mx = Math.max(mx, vals[k]); lo = Math.min(lo, vals[k]); hi = Math.max(hi, vals[k]); }
+            const yMax = Math.max(1.3, mx * 1.08);
+            const y = v => H - CH.B - (v / yMax) * plotH;
+            const grid = el('g', {}, svg);
+            const step = yMax > 4 ? 1 : 0.5;
+            for (let v = 0; v <= yMax + 1e-9; v += step) {
+                el('line', { x1: CH.L, x2: W - CH.R, y1: y(v), y2: y(v), stroke: v === 0 ? COL.tileEdge : COL.line,
+                             'stroke-width': 1, 'stroke-dasharray': v === 0 ? '' : '3 4' }, grid);
+                el('text', { x: CH.L - 7, y: y(v), 'text-anchor': 'end', 'dominant-baseline': 'central', fill: COL.mute, 'font-size': 12 }, grid).textContent = v.toFixed(1);
+            }
+            const bw = plotW / m, inner = bw < 4 ? bw : Math.max(1, bw * 0.84);
+            const gb = el('g', {}, svg);
+            for (let k = 0; k < m; k++) {
+                const v = vals[k];
+                let fill = opts.flash === k ? COL.barHi : COL.bar, stroke = 'none';
                 if (opts.marks && hi - lo > 1e-12) {
-                    if (Math.abs(v - hi) < 1e-12) { stroke = COL.max; sw = 1.6; }
-                    else if (Math.abs(v - lo) < 1e-12) { stroke = COL.min; sw = 1.6; }
+                    if (Math.abs(v - hi) < 1e-12) stroke = COL.max; else if (Math.abs(v - lo) < 1e-12) stroke = COL.min;
                 }
-                if (opts.flash === k) fill = COL.barHi;
-                b.setAttribute('fill', fill); b.setAttribute('stroke', stroke); b.setAttribute('stroke-width', sw);
+                el('rect', { x: CH.L + k * bw + (bw - inner) / 2, y: y(v), width: inner, height: Math.max(0, H - CH.B - y(v)),
+                             fill, stroke, 'stroke-width': stroke === 'none' ? 0 : 2 }, gb);
             }
-            /* axis + gridlines */
-            const grid = this.svg.querySelector('#grid'); grid.innerHTML = '';
-            for (let v = 0; v <= this.yMax + 1e-9; v += 0.5) {
-                el('line', { x1: CH.L, x2: CH.W - CH.R, y1: y(v), y2: y(v), stroke: v === 0 ? COL.line : '#d4c5b4', 'stroke-width': 1, 'stroke-dasharray': v === 0 ? '' : '3 4' }, grid);
-                el('text', { x: CH.L - 8, y: y(v) + 4, 'text-anchor': 'end', fill: COL.mute, 'font-size': 12 }, grid).textContent = v.toFixed(1);
-            }
-            const rl = this.svg.querySelector('#refline'); rl.setAttribute('y1', y(1)); rl.setAttribute('y2', y(1));
-            /* in-bar labels for small n */
-            const lab = this.svg.querySelector('#labels'); lab.innerHTML = '';
-            if (this.m <= 24 && bw >= 13) {
-                for (let k = 0; k < this.m; k++) {
-                    const cx = CH.L + k * bw + bw / 2, cy = CH.H - CH.B - 8;
-                    const t = el('text', { x: cx, y: cy, fill: '#46433a', 'font-size': Math.min(12, bw * 0.55), 'font-family': 'var(--wi-font-mono)', transform: 'rotate(-90 ' + cx + ' ' + cy + ')' }, lab);
-                    t.textContent = permLabel(k);
+            if (m <= 40 && bw >= 13) {
+                const lab = el('g', {}, svg);
+                const fs = Math.min(12, bw * 0.55);
+                for (let k = 0; k < m; k++) {
+                    const cx = CH.L + k * bw + bw / 2, cy = H - CH.B - 7;
+                    el('text', { x: cx, y: cy, fill: opts.flash === k ? COL.panel : COL.ink, 'font-size': fs, 'dominant-baseline': 'central',
+                                 transform: 'rotate(-90 ' + cx + ' ' + cy + ')' }, lab).textContent = permLabel(k);
                 }
             }
-            this.svg.querySelector('#xcap').textContent = opts.caption || '';
-            this.vals = vals;
+            el('line', { x1: CH.L, x2: W - CH.R, y1: y(1), y2: y(1), stroke: COL.ref, 'stroke-width': 1.6 }, svg);
+            el('text', { x: W - CH.R - 2, y: y(1) - 6, 'text-anchor': 'end', fill: COL.ref, 'font-size': 12 }, svg).textContent = 'uniform';
+            el('text', { x: CH.L + plotW / 2, y: H - 10, 'text-anchor': 'middle', class: 't-cap', 'font-size': 14 }, svg)
+                .textContent = opts.caption || '';
+            svg.onmousemove = e => {
+                const b = svg.getBoundingClientRect();
+                const k = Math.floor(((e.clientX - b.left) - CH.L) / bw);
+                if (k < 0 || k >= m) { hideTip(); return; }
+                showTip(e, this.tipText(k));
+            };
+            svg.onmouseleave = hideTip;
         },
-        hover(e) {
-            if (!this.vals) return;
-            const box = this.svg.getBoundingClientRect();
-            const sx = (e.clientX - box.left) / box.width * CH.W;
-            const plotW = CH.W - CH.L - CH.R, bw = plotW / this.m;
-            const k = Math.floor((sx - CH.L) / bw);
-            if (k < 0 || k >= this.m) { hideTip(); return; }
-            showTip(e, this.tipText(k));
-        },
-        tipText(k) { return permLabel(k); }
+        tipText(k) { return '<span class="tt-h">' + permLabel(k) + '</span>'; }
     };
 }
-function permLabel(rank) { return unrank(rank, S.n).map(i => S.elems[i]).join(' '); }
-const tipEl = document.getElementById('tip');
-function showTip(e, text) { tipEl.textContent = text; tipEl.style.opacity = 1; tipEl.style.left = (e.clientX + 14) + 'px'; tipEl.style.top = (e.clientY + 14) + 'px'; }
-function hideTip() { tipEl.style.opacity = 0; }
-
-const chSample = makeChart('sample-svg'), chExact = makeChart('exact-svg');
+const chSample = makeChart('sample-svg', 'box-sample'), chExact = makeChart('exact-svg', 'box-exact');
 
 /* ════════════════════════════════════════════════════════════════════
-   6.  Random sampling mode
+   8.  Random sampling mode
    ════════════════════════════════════════════════════════════════════ */
 function sampleState() {
     const key = S.variant + '/' + S.n;
     if (!S.sample[key]) S.sample[key] = { counts: new Float64Array(FACT[S.n]), runs: 0, last: -1 };
     return S.sample[key];
 }
-function resetSample() { const k = S.variant + '/' + S.n; S.sample[k] = null; drawSample(); }
+function resetSample() { S.sample[S.variant + '/' + S.n] = null; drawSample(); }
 function addRuns(k) {
     const st = sampleState(), n = S.n, a = new Array(n);
     const rnd = m => Math.floor(Math.random() * m);
@@ -718,235 +1041,655 @@ function addRuns(k) {
     drawSample();
 }
 let sampling = false;
-function toggleSampling() {
-    sampling = !sampling;
-    document.getElementById('btn-sample-play').textContent = sampling ? '⏸ Pause' : '▶ Run continuously';
+function toggleSampling(force) {
+    sampling = force != null ? force : !sampling;
+    $('sample-play').innerHTML = sampling ? '&#x23F8;&#xFE0E; Pause' : '&#x25B6;&#xFE0E; Run continuously';
     if (sampling) sampleTick();
 }
 function sampleTick() {
     if (!sampling) return;
-    const per = [1, 5, 40, 400, 5000][+document.getElementById('sample-speed').value - 1];
+    const per = [1, 5, 40, 400, 5000][+$('sample-speed').value - 1];
     addRuns(per);
-    requestAnimationFrame(sampleTick);
+    if (per === 1) setTimeout(() => requestAnimationFrame(sampleTick), 120); else requestAnimationFrame(sampleTick);
 }
 function drawSample() {
+    if (S.mode !== 'sample') return;
     const st = sampleState(), m = FACT[S.n];
-    if (chSample.m !== m) chSample.build(m);
     const vals = new Float64Array(m);
     if (st.runs > 0) for (let k = 0; k < m; k++) vals[k] = st.counts[k] / st.runs * m;
-    chSample.tipText = k => permLabel(k) + '\ncount  ' + st.counts[k] + '\nfreq   ' + (st.runs ? (st.counts[k] / st.runs).toFixed(5) : '0') + '\nvs 1/n! ' + (st.runs ? (vals[k]).toFixed(4) : '–');
-    chSample.draw(vals, {
-        marks: document.getElementById('sample-marks').checked && st.runs > 0,
-        flash: st.last,
-        caption: 'all ' + m + ' orderings of the array, in lexicographic order'
-    });
-    /* statistics */
+    chSample.tipText = k => '<span class="tt-h">' + permLabel(k) + '</span><br><span class="tt-s">count ' + fmt(st.counts[k]) +
+        '<br>freq  ' + (st.runs ? (st.counts[k] / st.runs).toFixed(5) : '0') + '<br>÷ 1/n! ' + (st.runs ? vals[k].toFixed(4) : '–') + '</span>';
+    chSample.draw(vals, { marks: $('sample-marks').checked && st.runs > 0, flash: st.last,
+                          caption: 'all ' + m + ' orderings of the array, in lexicographic order' });
     let dev = 0, chi = 0; const exp = st.runs / m;
     for (let k = 0; k < m; k++) { dev = Math.max(dev, Math.abs(vals[k] - 1)); if (exp > 0) chi += (st.counts[k] - exp) * (st.counts[k] - exp) / exp; }
-    document.getElementById('s-runs').textContent = fmt(st.runs);
-    document.getElementById('s-draws').textContent = fmt(st.runs * S.n);
-    document.getElementById('s-swaps').textContent = fmt(st.runs * S.n);
-    document.getElementById('s-dev').textContent = st.runs ? (dev * 100).toFixed(2) + ' %' : '–';
-    document.getElementById('s-df').textContent = m - 1;
-    document.getElementById('s-chi').textContent = st.runs ? chi.toFixed(1) : '–';
-    document.getElementById('s-last').textContent = st.last >= 0 ? permLabel(st.last) : '–';
+    $('s-runs').textContent = fmt(st.runs);
+    $('s-draws').textContent = fmt(st.runs * S.n);
+    $('s-dev').textContent = st.runs ? (dev * 100).toFixed(2) + ' %' : '–';
+    $('s-df').textContent = m - 1;
+    $('s-chi').textContent = st.runs ? chi.toFixed(1) : '–';
+    $('s-last').textContent = st.last >= 0 ? permLabel(st.last) : '–';
+    $('sample-meta').textContent = fmt(st.runs) + ' runs';
 }
-function fmt(x) { return x.toLocaleString('en-US').replace(/,/g, ' '); }
 
 /* ════════════════════════════════════════════════════════════════════
-   7.  Exact probabilities mode
+   9.  Exact probabilities mode: bar chart, statistics, explanation
    ════════════════════════════════════════════════════════════════════ */
+function exactKey() { return S.variant + '/' + S.n; }
 function computeExact() {
-    const key = S.variant + '/' + S.n;
-    let tot = 1; for (let i = 0; i < S.n; i++) tot *= S.n - lowerBound(S.variant, i);
-    document.getElementById('exact-status').textContent = 'enumerating ' + fmt(tot) + ' sequences of draws …';
-    setTimeout(() => {
-        S.exact[key] = exactCounts(S.n, S.variant);
-        drawExact();
-    }, 20);
+    const key = exactKey();
+    $('exact-meta').textContent = 'enumerating ' + fmt(numSequences(S.n, S.variant)) + ' sequences …';
+    setTimeout(() => { S.exact[key] = exactCounts(S.n, S.variant); drawExactPane(); updateExactText(); }, 20);
 }
-function drawExact() {
-    const key = S.variant + '/' + S.n, m = FACT[S.n];
-    if (chExact.m !== m) chExact.build(m);
-    const e = S.exact[key];
+function drawExactPane() {
+    if (S.mode !== 'exact') return;
+    const pat = S.view === 'patterns';
+    $('exact-svg').style.display = pat ? 'none' : '';
+    $('pat-svg').style.display = !pat || S.n > PAT_MAX_N ? 'none' : '';
+    $('pat-off').hidden = !pat || S.n <= PAT_MAX_N;
+    document.querySelectorAll('.pv-bars').forEach(e => e.hidden = pat);
+    document.querySelectorAll('.pv-pat').forEach(e => e.hidden = !pat || S.n > PAT_MAX_N);
+    document.querySelectorAll('.pv-pat-box').forEach(e => e.hidden = !pat || S.n > PAT_MAX_N);
+    if (pat) { drawPatternsPane(); return; }
+    $('exact-title').textContent = 'Exact probability of each ordering';
+    $('exact-legend').innerHTML =
+        '<span class="item"><span class="sw" style="background:#c28577;border-color:#c28577"></span> probability ÷ (1/<i>n</i>!)</span>' +
+        '<span class="item"><span class="swl" style="border-color:#902015"></span> perfectly uniform</span>';
+    const m = FACT[S.n], e = S.exact[exactKey()];
     if (!e) {
-        chExact.draw(new Float64Array(m), { caption: '' });
-        document.getElementById('exact-status').textContent = 'Enumerates every possible sequence of random draws.';
-        document.getElementById('exact-stats').innerHTML = '';
-        document.getElementById('exact-table').innerHTML = '';
+        chExact.draw(new Float64Array(m), { caption: 'press “Compute exact distribution”' });
+        $('exact-meta').textContent = fmt(numSequences(S.n, S.variant)) + ' sequences to enumerate';
         return;
     }
     const vals = new Float64Array(m);
     for (let k = 0; k < m; k++) vals[k] = e.counts[k] / e.total * m;
-    chExact.tipText = k => permLabel(k) + '\nprob   ' + e.counts[k] + ' / ' + e.total + '\n     = ' + (e.counts[k] / e.total).toFixed(7) + '\nvs 1/n! ' + vals[k].toFixed(5);
-    chExact.draw(vals, {
-        marks: document.getElementById('exact-marks').checked,
-        caption: 'all ' + m + ' orderings of the array, in lexicographic order'
-    });
-    document.getElementById('exact-status').textContent = 'done';
-    let note = 'Bar height is the exact probability of that ordering divided by 1/<i>n</i>!.';
-    if (PAGE_BOTH) {
-        const q = e.total / m;
-        note += Number.isInteger(q)
-            ? '  Every ordering is produced by exactly ' + fmt(q) + ' of the ' + fmt(e.total) + ' equally likely sequences of draws, so all of them have probability 1/' + fmt(m) + '.'
-            : '  The ' + fmt(e.total) + ' equally likely sequences of draws cannot be split evenly among the ' + fmt(m) + ' orderings: ' + fmt(e.total) + ' / ' + fmt(m) + ' = ' + q.toFixed(4) + ' is not an integer.';
-    }
-    document.getElementById('exact-log').innerHTML = note;
-
-    let lo = Infinity, hi = -Infinity, tv = 0;
-    for (let k = 0; k < m; k++) { lo = Math.min(lo, vals[k]); hi = Math.max(hi, vals[k]); tv += Math.abs(e.counts[k] / e.total - 1 / m); }
-    tv /= 2;
-    const draws = [];
-    for (let i = 0; i < S.n; i++) draws.push(S.n - lowerBound(S.variant, i));
-    document.getElementById('exact-stats').innerHTML =
-        '<span>possible sequences of draws: <b>' + draws.join(' · ') + ' = ' + fmt(e.total) + '</b></span>' +
-        '<span>orderings: <i>n</i>! = <b>' + fmt(m) + '</b></span>' +
-        '<span>least likely ordering: <b>' + lo.toFixed(5) + ' × 1/n!</b></span>' +
-        '<span>most likely ordering: <b>' + hi.toFixed(5) + ' × 1/n!</b></span>' +
-        '<span>distance to uniform (total variation): <b>' + tv.toFixed(6) + '</b></span>';
-
-    /* how many orderings share each probability value */
-    const byCount = new Map();
-    for (let k = 0; k < m; k++) byCount.set(e.counts[k], (byCount.get(e.counts[k]) || 0) + 1);
-    const rows = [...byCount.entries()].sort((a, b) => a[0] - b[0]);
-    let html = '<table class="dist"><tr><th>probability</th><th>= decimal</th><th>× n!</th><th>number of orderings</th></tr>';
-    const show = rows.length <= 12 ? rows : rows.slice(0, 6).concat([null]).concat(rows.slice(-5));
-    for (const row of show) {
-        if (!row) { html += '<tr><td colspan="4" style="color:#a89880">⋮ ' + (rows.length - 11) + ' further values</td></tr>'; continue; }
-        const [c, cnt] = row, g = gcd(c, e.total);
-        html += '<tr><td>' + (c / g) + ' / ' + (e.total / g) + '</td><td>' + (c / e.total).toFixed(7) + '</td><td>' + (c / e.total * m).toFixed(5) + '</td><td>' + cnt + '</td></tr>';
-    }
-    html += '</table>';
-    document.getElementById('exact-table').innerHTML = html;
+    chExact.tipText = k => '<span class="tt-h">' + permLabel(k) + '</span><br><span class="tt-s">prob   ' + fmt(e.counts[k]) + ' / ' + fmt(e.total) +
+        '<br>     = ' + (e.counts[k] / e.total).toFixed(7) + '<br>÷ 1/n! ' + vals[k].toFixed(5) + '</span>';
+    chExact.draw(vals, { marks: $('exact-marks').checked, caption: 'all ' + m + ' orderings of the array, in lexicographic order' });
+    $('exact-meta').textContent = 'all ' + fmt(e.total) + ' sequences enumerated';
 }
-function gcd(a, b) { while (b) { const t = a % b; a = b; b = t; } return a || 1; }
+function updateExactText() {
+    const n = S.n, m = FACT[n], T = numSequences(n, S.variant);
+    const q = T / m;
+    let note;
+    if (S.variant === 'kfy') {
+        note = 'In iteration $i$, <code>randomInt</code> has $n - i$ possible outcomes, so there are ' +
+            '$n \\cdot (n-1) \\cdots 1 \\;=\\; n! \\;=\\; ' + fmt(m) + '$ equally likely sequences of draws, ' +
+            'exactly as many as there are orderings. ';
+        note += Number.isInteger(q) ? 'Every ordering is produced by exactly ' + (q === 1 ? 'one' : fmt(q)) + ' of them, so each has probability $1/n!$.' : '';
+    } else {
+        note = 'Each of the $n = ' + n + '$ calls to <code>randomInt</code> has $n$ possible outcomes, so there are ' +
+            '$n^n \\;=\\; ' + fmt(T) + '$ equally likely sequences of draws, each with probability $1/n^n$. ' +
+            'The probability of an ordering is the number of sequences producing it, divided by $n^n$. ';
+        note += Number.isInteger(q)
+            ? 'Here $n^n / n! \\;=\\; ' + fmt(q) + '$ is an integer, so a uniform result is at least not ruled out by counting.'
+            : 'For uniformity, all $n! = ' + fmt(m) + '$ orderings would need the same number of sequences — but ' +
+              '$n^n / n! \\;=\\; ' + fmt(T) + ' / ' + fmt(m) + ' \\;\\approx\\; ' + q.toFixed(3) + '$ is not an integer. ' +
+              'So some orderings <i>must</i> be more likely than others, whatever the details.';
+    }
+    if (S.view === 'patterns' && n <= PAT_MAX_N)
+        note += ' <br><br>In the pattern view, every draw sequence is drawn as a little grid (one row per iteration, the drawn $r$ in red) ' +
+                'and stacked on top of the ordering it produces — the stacks <i>are</i> the bars, counted in sequences.';
+    setMath($('exact-note'), note);
+
+    const e = S.exact[exactKey()] || (S.pat && S.pat.n === n && S.pat.variant === S.variant && S.patK === S.pat.T ? { counts: S.pat.counts, total: S.pat.T } : null);
+    const draws = []; for (let i = 0; i < n; i++) draws.push(n - lowerBound(S.variant, i));
+    let html = '<li><span>sequences of draws</span><b>' + draws.join('·') + ' = ' + fmt(T) + '</b></li>' +
+               '<li><span>orderings</span><b>' + n + '! = ' + fmt(m) + '</b></li>';
+    let tab = '';
+    if (e) {
+        let lo = Infinity, hi = -Infinity, tv = 0;
+        for (let k = 0; k < m; k++) { lo = Math.min(lo, e.counts[k]); hi = Math.max(hi, e.counts[k]); tv += Math.abs(e.counts[k] / e.total - 1 / m); }
+        tv /= 2;
+        html += '<li><span>least likely ordering</span><b>' + (lo / e.total * m).toFixed(4) + ' × 1/n!</b></li>' +
+                '<li><span>most likely ordering</span><b>' + (hi / e.total * m).toFixed(4) + ' × 1/n!</b></li>' +
+                '<li><span>distance to uniform (total variation)</span><b>' + tv.toFixed(6) + '</b></li>';
+        const byCount = new Map();
+        for (let k = 0; k < m; k++) byCount.set(e.counts[k], (byCount.get(e.counts[k]) || 0) + 1);
+        const rows = [...byCount.entries()].sort((a, b) => a[0] - b[0]);
+        tab = '<table class="dist"><tr><th>sequences</th><th>probability</th><th>× n!</th><th>orderings</th></tr>';
+        const show = rows.length <= 12 ? rows : rows.slice(0, 6).concat([null]).concat(rows.slice(-5));
+        for (const row of show) {
+            if (!row) { tab += '<tr><td colspan="4" style="color:#8b8779">⋮ ' + (rows.length - 11) + ' further values</td></tr>'; continue; }
+            const [c, cnt] = row, g = gcd(c, e.total);
+            tab += '<tr><td>' + fmt(c) + '</td><td>' + fmt(c / g) + '/' + fmt(e.total / g) + '</td><td>' + (c / e.total * m).toFixed(4) + '</td><td>' + cnt + '</td></tr>';
+        }
+        tab += '</table>';
+    }
+    $('exact-stats').innerHTML = html;
+    $('exact-table').innerHTML = tab;
+}
 
 /* ════════════════════════════════════════════════════════════════════
-   8.  Setup, input format, modes
+   10. Exact probabilities mode: the draw patterns, stacked per ordering
    ════════════════════════════════════════════════════════════════════ */
-function parseElems(s) {
-    return s.split(/[\s,;]+/).map(x => x.trim()).filter(x => x.length);
+const PL = { L: 46, R: 12, T: 32 };
+let PG = null;                    // current pattern-chart geometry
+let patAnim = null, patAnimEl = null;   /* running drop animation and the pattern it hides */
+
+function ensurePatterns() {
+    if (S.n > PAT_MAX_N) { S.pat = null; return null; }
+    if (!S.pat || S.pat.n !== S.n || S.pat.variant !== S.variant) {
+        S.pat = enumeratePatterns(S.n, S.variant);
+        S.patK = 0; S.patSel = null;
+    }
+    return S.pat;
 }
-function applySetup() {
-    let elems = parseElems(document.getElementById('elems-input').value);
-    let n = Math.max(2, Math.min(7, +document.getElementById('n-input').value || 4));
-    if (elems.length !== n) {
-        if (elems.length >= 2 && elems.length <= 7 && elems.length !== S.n) n = elems.length;
-        else elems = Array.from({ length: n }, (_, i) => String(i + 1));
+/* outline of the grid of possible outcomes: square, or staircase for KFY */
+function gridOutline(n, c, variant) {
+    if (variant !== 'kfy') return 'M0,0H' + n * c + 'V' + n * c + 'H0Z';
+    let d = 'M0,0H' + n * c + 'V' + n * c;
+    for (let i = n - 1; i >= 1; i--) d += 'H' + i * c + 'V' + i * c;
+    return d + 'H0Z';
+}
+function gridLines(n, c, variant) {
+    let d = '';
+    for (let k = 1; k < n; k++) {
+        const x0 = variant === 'kfy' ? k * c : 0;
+        d += 'M' + x0 + ',' + k * c + 'H' + n * c;                    /* between rows k-1 and k */
+        const y1 = variant === 'kfy' ? k * c : n * c;
+        d += 'M' + k * c + ',0V' + y1;                                  /* between columns k-1 and k */
     }
-    if (new Set(elems).size !== elems.length) {
-        elems = Array.from({ length: n }, (_, i) => String(i + 1));
-        setMsg('Entries must be distinct — using 1 … ' + n + '.');
+    return d;
+}
+function redPath(P, k, c) {
+    let d = '';
+    const n = P.n, inset = c >= 6 ? 0.8 : 0;
+    for (let i = 0; i < n; i++) {
+        const r = P.seq[k * n + i];
+        d += 'M' + (r * c + inset) + ',' + (i * c + inset) + 'h' + (c - 2 * inset) + 'v' + (c - 2 * inset) + 'h' + (-(c - 2 * inset)) + 'Z';
     }
+    return d;
+}
+function patLayout() {
+    const P = S.pat, n = P.n, m = P.m;
+    const box = $('box-exact'), s = innerSize(box);
+    const labelLen = (2 * n - 1) * 7.3;
+    /* candidate cell size c: columns of width n·c + gx, stacks of units n·c + gy */
+    const geo = c => {
+        const gx = Math.max(4, Math.round(c * 1.1)), gy = Math.max(2, Math.round(c * 0.45));
+        const colW = n * c + gx, unit = n * c + gy;
+        const rotate = colW < labelLen + 6;
+        const B = (rotate ? labelLen + 12 : 22) + 26;
+        return { c, gx, gy, colW, unit, rotate, B, W: PL.L + m * colW + PL.R, H: PL.T + P.maxC * unit + B + 6 };
+    };
+    const fitW = c => geo(c).W <= s.w;
+    const maxH = userH[box.id] ? s.h - 4 : Math.max(380, Math.min(640, window.innerHeight * 0.68));
+    const fitH = c => geo(c).H <= maxH;
+    let c = 18;
+    while (c > 2.5 && !(fitW(c) && fitH(c))) c -= 0.5;
+    if (c <= 2.5) { c = 2.5; }
+    /* if only the height does not fit, prefer a readable size and let the box scroll */
+    if (!fitH(c) && !userH[box.id]) c = Math.max(c, 3);
+    return geo(c);
+}
+function patX(col) { return PL.L + col * PG.colW + PG.gx / 2; }
+function patY(slot) { return PG.baseY - (slot + 1) * PG.unit + PG.gy; }
+
+function buildPatSvg() {
+    const P = S.pat, svg = $('pat-svg');
+    PG = patLayout();
+    const n = P.n, m = P.m, c = PG.c;
+    PG.baseY = PG.H - PG.B;
+    PG.W = Math.max(PG.W, 440);
+    setSize(svg, PG.W, PG.H);
+    svg.innerHTML = '';
+    const defs = el('defs', {}, svg);
+    const sym = el('g', { id: 'pgrid' }, defs);
+    el('path', { d: gridOutline(n, c, P.variant), fill: COL.panel2, stroke: COL.tileEdge, 'stroke-width': c >= 5 ? 0.9 : 0.6 }, sym);
+    if (c >= 5) el('path', { d: gridLines(n, c, P.variant), fill: 'none', stroke: COL.line, 'stroke-width': 0.7 }, sym);
+
+    /* axis: counts of sequences */
+    const ax = el('g', {}, svg);
+    const step = P.maxC <= 8 ? 1 : P.maxC <= 20 ? 2 : P.maxC <= 50 ? 5 : 10;
+    for (let v = 0; v <= P.maxC; v += step) {
+        const y = PG.baseY - v * PG.unit;
+        el('line', { x1: PL.L - 4, x2: PG.W - PL.R, y1: y, y2: y, stroke: v === 0 ? COL.tileEdge : COL.line,
+                     'stroke-width': 1, 'stroke-dasharray': v === 0 ? '' : '3 4' }, ax);
+        el('text', { x: PL.L - 8, y, 'text-anchor': 'end', 'dominant-baseline': 'central', fill: COL.mute, 'font-size': 12 }, ax).textContent = v;
+    }
+    el('text', { x: 6, y: 10, 'dominant-baseline': 'central', class: 't-cap', 'font-size': 13 }, ax).textContent = 'number of draw sequences';
+    el('g', { id: 'pcolbg' }, svg);
+    /* column labels */
+    const lab = el('g', { id: 'plabels' }, svg);
+    for (let r = 0; r < m; r++) {
+        const cx = PL.L + r * PG.colW + PG.colW / 2, cy = PG.baseY + 8;
+        const t = el('text', { x: cx, y: cy, fill: COL.ink, 'font-size': 12, 'data-r': r }, lab);
+        if (PG.rotate) { t.setAttribute('text-anchor', 'end'); t.setAttribute('dominant-baseline', 'central');
+                         t.setAttribute('transform', 'rotate(-90 ' + cx + ' ' + cy + ')'); }
+        else { t.setAttribute('text-anchor', 'middle'); t.setAttribute('dominant-baseline', 'hanging'); }
+        t.textContent = permLabel(r);
+    }
+    el('text', { x: PL.L + m * PG.colW / 2, y: PG.H - 10, 'text-anchor': 'middle', class: 't-cap', 'font-size': 14 }, svg)
+        .textContent = 'all ' + m + ' orderings of the array, in lexicographic order';
+    el('g', { id: 'pmarks' }, svg);
+    /* the patterns themselves (created once, shown/hidden by step) */
+    const gp = el('g', { id: 'ppats' }, svg);
+    const els = new Array(P.T);
+    for (let k = 0; k < P.T; k++) {
+        const g = el('g', { class: 'pat', 'data-k': k, transform: 'translate(' + patX(P.rank[k]) + ',' + patY(P.slot[k]) + ')', display: 'none' }, gp);
+        el('use', { href: '#pgrid' }, g);
+        el('path', { d: redPath(P, k, c), fill: COL.i }, g);
+        els[k] = g;
+    }
+    PG.els = els; PG.shown = 0;
+    /* uniform reference line */
+    const yU = PG.baseY - (P.T / m) * PG.unit;
+    el('line', { x1: PL.L - 4, x2: PG.W - PL.R, y1: yU, y2: yU, stroke: COL.ref, 'stroke-width': 1.6, 'stroke-dasharray': '7 4' }, svg);
+    el('line', { x1: 230, x2: 256, y1: 10, y2: 10, stroke: COL.ref, 'stroke-width': 1.6, 'stroke-dasharray': '7 4' }, svg);
+    el('text', { x: 262, y: 10, 'dominant-baseline': 'central', fill: COL.ref, 'font-size': 12 }, svg)
+        .textContent = 'uniform: ' + fmt(P.T) + ' / ' + fmt(m) + (Number.isInteger(P.T / m) ? ' = ' + P.T / m : ' ≈ ' + (P.T / m).toFixed(2));
+    el('rect', { id: 'pcur', x: 0, y: 0, width: n * c + 4, height: n * c + 4, rx: 2, fill: 'none', stroke: COL.i, 'stroke-width': 2, display: 'none' }, svg);
+    el('g', { id: 'pfly' }, svg);
+
+    svg.onmousemove = e => {
+        const g = e.target.closest && e.target.closest('.pat');
+        if (!g) { hideTip(); return; }
+        const k = +g.dataset.k;
+        showTip(e, '<span class="tt-h">r = ' + seqLabel(P.seq.subarray(k * n, k * n + n)) + '</span><br><span class="tt-s">→ ' +
+            permLabel(P.rank[k]) + '<br>click to trace</span>');
+    };
+    svg.onmouseleave = hideTip;
+    svg.onclick = e => {
+        const g = e.target.closest && e.target.closest('.pat');
+        if (!g) return;
+        S.patSel = +g.dataset.k; renderPatState(false);
+    };
+}
+function drawPatternsPane() {
+    const P = ensurePatterns();
+    if (!P) {
+        $('exact-title').textContent = 'Draw patterns';
+        $('pat-off').textContent = 'With n = ' + S.n + ' there are ' + fmt(numSequences(S.n, S.variant)) +
+            ' draw sequences for ' + fmt(FACT[S.n]) + ' orderings — too many to draw one by one. Use n ≤ ' + PAT_MAX_N + ', or the bar chart.';
+        $('exact-legend').innerHTML = '';
+        $('exact-meta').textContent = '';
+        return;
+    }
+    $('exact-title').textContent = 'Draw patterns, stacked on the ordering they produce';
+    const ex = S.variant === 'kfy' ? [1, 2, 2] : [1, 0, 2];
+    let red = ''; ex.forEach((r, i) => red += '<rect x="' + (r * 6 + 0.5) + '" y="' + (i * 6 + 0.5) + '" width="6" height="6" fill="#cc2f22"/>');
+    $('exact-legend').innerHTML =
+        '<span class="item"><svg width="20" height="20" viewBox="0 0 20 20"><g transform="translate(.5,.5)"><path d="' + gridOutline(3, 6, S.variant) +
+        '" fill="#fcf9f3" stroke="#b9a793"/><path d="' + gridLines(3, 6, S.variant) + '" fill="none" stroke="#d4c5b4"/></g>' + red +
+        '</svg> one sequence of draws: row <i>i</i> = iteration, red cell = value of <i>r</i></span>' +
+        '<span class="item"><span class="swl" style="border-color:#902015;border-top-style:dashed"></span> stack height for a uniform shuffle</span>' +
+        '<span class="item">hover / click a pattern to trace it</span>';
+    $('pat-scrub').max = P.T;
+    buildPatSvg();
+    renderPatState(false);
+}
+function setPatShown(k) {
+    const els = PG.els;
+    if (k > PG.shown) for (let j = PG.shown; j < k; j++) { els[j].setAttribute('display', 'inline'); }
+    else for (let j = k; j < PG.shown; j++) els[j].setAttribute('display', 'none');
+    PG.shown = k;
+}
+function renderPatState(animateLast) {
+    const P = S.pat; if (!P || !PG) return;
+    const svg = $('pat-svg'), k = S.patK;
+    /* an interrupted drop must not leave its pattern hidden: give it back to setPatShown */
+    if (patAnim) { cancelAnimationFrame(patAnim); patAnim = null; }
+    svg.querySelector('#pfly').innerHTML = '';
+    if (patAnimEl) { patAnimEl.setAttribute('display', +patAnimEl.dataset.k < PG.shown ? 'inline' : 'none'); patAnimEl = null; }
+    setPatShown(k);
+    $('pat-scrub').value = k;
+    $('pat-stepno').textContent = fmt(k) + ' / ' + fmt(P.T);
+    $('exact-meta').textContent = fmt(k) + ' of ' + fmt(P.T) + ' sequences placed';
+    const cur = S.patSel != null ? S.patSel : (k > 0 ? k - 1 : null);
+
+    /* column highlight + most/least marks */
+    const bg = svg.querySelector('#pcolbg'); bg.innerHTML = '';
+    if (cur != null) {
+        const col = P.rank[cur];
+        el('rect', { x: PL.L + col * PG.colW, y: PL.T - 6, width: PG.colW, height: PG.baseY - PL.T + 6, fill: COL.hot, rx: 3 }, bg);
+    }
+    svg.querySelectorAll('#plabels text').forEach(t => {
+        const on = cur != null && +t.dataset.r === P.rank[cur];
+        t.setAttribute('fill', on ? COL.i : COL.ink); t.setAttribute('font-weight', on ? 700 : 400);
+    });
+    const mk = svg.querySelector('#pmarks'); mk.innerHTML = '';
+    if ($('exact-marks').checked && k === P.T && P.maxC > P.minC) {
+        for (let r = 0; r < P.m; r++) {
+            const cnt = P.counts[r];
+            if (cnt !== P.maxC && cnt !== P.minC) continue;
+            const x = PL.L + r * PG.colW + 1, y = PG.baseY - cnt * PG.unit + PG.gy - 3;
+            el('rect', { x, y, width: PG.colW - 2, height: PG.baseY - y + 2, rx: 3, fill: 'none',
+                         stroke: cnt === P.maxC ? COL.max : COL.min, 'stroke-width': 2 }, mk);
+        }
+    }
+    const pc = svg.querySelector('#pcur');
+    if (cur != null && cur < k) {
+        pc.setAttribute('display', 'inline');
+        pc.setAttribute('x', patX(P.rank[cur]) - 2); pc.setAttribute('y', patY(P.slot[cur]) - 2);
+    } else pc.setAttribute('display', 'none');
+
+    /* the newest pattern drops onto its stack */
+    if (animateLast && k > 0 && !REDUCED && S.patSel == null) {
+        const j = k - 1, g = PG.els[j], tx = patX(P.rank[j]), ty = patY(P.slot[j]);
+        const sy = PL.T - 4 - P.n * PG.c * 0.4, sc = Math.min(2.2, Math.max(1.4, 16 / PG.c));
+        const dur = Math.min(650, patDelay() * 0.75), t0 = performance.now();
+        g.setAttribute('display', 'none'); patAnimEl = g;
+        const fly = svg.querySelector('#pfly'); fly.innerHTML = '';
+        const ghost = g.cloneNode(true); ghost.setAttribute('display', 'inline'); fly.appendChild(ghost);
+        pc.setAttribute('display', 'none');
+        (function frame(now) {
+            const u = Math.min(1, (now - t0) / dur);
+            const a = Math.min(1, u / 0.35), b = Math.max(0, (u - 0.35) / 0.65);
+            const e = b < .5 ? 2 * b * b : 1 - Math.pow(-2 * b + 2, 2) / 2;
+            const s = sc + (1 - sc) * e;
+            const y = sy + (ty - sy) * e;
+            ghost.setAttribute('transform', 'translate(' + (tx - (s - 1) * P.n * PG.c / 2) + ',' + y + ') scale(' + s + ')');
+            ghost.setAttribute('opacity', a);
+            if (u < 1) patAnim = requestAnimationFrame(frame);
+            else { patAnim = null; patAnimEl = null; fly.innerHTML = ''; g.setAttribute('display', 'inline'); pc.setAttribute('display', 'inline'); }
+        })(t0);
+    }
+    renderTrace(cur);
+    if (k === P.T && !S.exact[exactKey()]) S.exact[exactKey()] = { counts: Float64Array.from(P.counts), total: P.T };
+    if (k === P.T || k === 0) updateExactText();
+}
+/* the trace panel: one pattern, iteration by iteration, with the array after each swap */
+function renderTrace(k) {
+    const svg = $('trace-svg'), P = S.pat, n = S.n;
+    svg.innerHTML = '';
+    $('trace-replay').disabled = k == null;
+    if (k == null) {
+        setSize(svg, 300, 40);
+        el('text', { x: 4, y: 22, class: 't-cap', 'font-size': 14 }, svg).textContent = 'no pattern placed yet — press ▶ or →';
+        setMath($('pat-status'), 'Each of the ' + fmt(P.T) + ' equally likely sequences of draws will be run through <code>' +
+            CODE[S.variant].head + '</code> one after the other, and its pattern placed on the ordering it produces.');
+        $('trace-meta').textContent = '';
+        return;
+    }
+    const d = P.seq.subarray(k * n, k * n + n);
+    const D = 24, DG = 4, TS = 26, TG = 3, LW = 52, ROWH = 34;
+    const diceW = n * (D + DG) - DG, arrX = LW + diceW + 34, tilesW = n * (TS + TG) - TG;
+    const W = arrX + tilesW + 6, H = 28 + (n + 1) * ROWH + 6;
+    setSize(svg, W, H);
+    el('text', { x: LW, y: 12, class: 't-cap', 'font-size': 13 }, svg).textContent = 'r';
+    el('text', { x: arrX, y: 12, class: 't-cap', 'font-size': 13 }, svg).textContent = 'A after the swap';
+    const a = [...Array(n).keys()];
+    const tileRow = (y, arr, hi) => {
+        for (let p = 0; p < n; p++) {
+            const x = arrX + p * (TS + TG), on = hi && hi.includes(p);
+            el('rect', { x, y, width: TS, height: TS, rx: 4, fill: on ? '#f0d7cd' : COL.tile, stroke: on ? COL.accent : COL.tileEdge, 'stroke-width': on ? 1.6 : 1 }, svg);
+            el('text', { x: x + TS / 2, y: y + TS / 2, 'text-anchor': 'middle', 'dominant-baseline': 'central', fill: COL.ink, 'font-size': 13 }, svg).textContent = S.elems[arr[p]];
+        }
+    };
+    let y = 22;
+    el('text', { x: LW - 10, y: y + TS / 2, 'text-anchor': 'end', 'dominant-baseline': 'central', fill: COL.mute, 'font-size': 12 }, svg).textContent = 'start';
+    tileRow(y, a, null);
+    for (let i = 0; i < n; i++) {
+        y += ROWH;
+        const lo = lowerBound(S.variant, i), r = d[i];
+        el('text', { x: LW - 10, y: y + TS / 2, 'text-anchor': 'end', 'dominant-baseline': 'central', fill: COL.mute, 'font-size': 12 }, svg).textContent = 'i = ' + i;
+        for (let v = 0; v < n; v++) drawDie(svg, LW + v * (D + DG), y + (TS - D) / 2, D, v, v === r ? 'chosen' : (v >= lo ? 'open' : 'off'));
+        const t = a[i]; a[i] = a[r]; a[r] = t;
+        el('text', { x: LW + diceW + 17, y: y + TS / 2, 'text-anchor': 'middle', 'dominant-baseline': 'central', fill: COL.mute, 'font-size': 14 }, svg).textContent = '→';
+        tileRow(y, a, i === r ? [i] : [i, r]);
+    }
+    const rk = P.rank[k];
+    $('trace-meta').textContent = '#' + (k + 1) + ' of ' + fmt(P.T);
+    const same = P.counts[rk];
+    const placedSame = (() => { let c = 0; for (let j = 0; j < S.patK; j++) if (P.rank[j] === rk) c++; return c; })();
+    setMath($('pat-status'), 'Draws <b>r = ' + seqLabel(d) + '</b> produce the ordering <b>' + permLabel(rk) + '</b>' +
+        (S.patK > k ? ' (pattern ' + (P.slot[k] + 1) + ' in its stack)' : '') + '. ' +
+        (S.patK === P.T
+            ? 'Altogether ' + same + ' of the ' + fmt(P.T) + ' sequences lead here: probability $' + same + '/' + fmt(P.T) + '$.'
+            : placedSame + ' sequence' + (placedSame === 1 ? '' : 's') + ' placed on this ordering so far.'));
+}
+function patDelay() { return [1400, 1000, 700, 480, 320, 200, 120, 60, 25, 8][+$('pat-speed').value - 1]; }
+function patStepTo(k, animate) {
+    const P = ensurePatterns(); if (!P) return;
+    k = Math.max(0, Math.min(P.T, k));
+    const anim = animate && k === S.patK + 1;
+    S.patK = k; S.patSel = null;
+    renderPatState(anim);
+}
+function togglePatPlay(force) {
+    S.patPlaying = force != null ? force : !S.patPlaying;
+    $('pat-play').innerHTML = S.patPlaying ? '&#x23F8;&#xFE0E;' : '&#x25B6;&#xFE0E;';
+    if (S.patPlaying) {
+        if (S.pat && S.patK >= S.pat.T) patStepTo(0, false);
+        setTimeout(patTick, 120);
+    }
+}
+function patTick() {
+    if (!S.patPlaying || S.mode !== 'exact' || S.view !== 'patterns' || !S.pat) { if (S.patPlaying) togglePatPlay(false); return; }
+    if (S.patK >= S.pat.T) { togglePatPlay(false); return; }
+    const dl = patDelay();
+    if (dl >= 60) { patStepTo(S.patK + 1, true); setTimeout(patTick, dl); }
+    else { patStepTo(S.patK + Math.max(1, Math.round(40 / dl)), false); setTimeout(patTick, 40); }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   11. Setup, input format, modes
+   ════════════════════════════════════════════════════════════════════ */
+const PRESETS = [
+    { label: 'n = 3:  1 2 3', A: '1 2 3' },
+    { label: 'n = 4:  1 2 3 4', A: '1 2 3 4' },
+    { label: 'n = 5:  1 2 3 4 5', A: '1 2 3 4 5' },
+    { label: 'n = 6:  1 2 3 4 5 6', A: '1 2 3 4 5 6' },
+    { label: 'n = 7:  1 2 3 4 5 6 7', A: '1 2 3 4 5 6 7' },
+    { label: 'n = 4:  A B C D', A: 'A B C D' },
+    { label: 'n = 3, prepared draws r = 2 0 1', A: '1 2 3', r: '2 0 1' }
+];
+function parseElems(s) { return s.split(/[\s,;]+/).map(x => x.trim()).filter(x => x.length); }
+function setMsg(t) { $('input-msg').textContent = t || ''; }
+function applySetup(n, elems, keepForced) {
+    n = Math.max(2, Math.min(7, n | 0 || 4));
+    if (!elems || elems.length !== n) elems = Array.from({ length: n }, (_, i) => String(i + 1));
+    if (new Set(elems).size !== elems.length) { elems = Array.from({ length: n }, (_, i) => String(i + 1)); setMsg('Entries must be distinct — using 1 … ' + n + '.'); }
     S.n = n; S.elems = elems;
-    document.getElementById('n-input').value = n;
-    document.getElementById('elems-input').value = elems.join(' ');
-    if (S.forced && S.forced.length !== n) S.forced = null;
+    $('n-input').value = n; $('elems-input').value = elems.join(' ');
+    if (!keepForced || (S.forced && S.forced.length !== n)) S.forced = null;
     rebuildAll();
 }
-function bumpN(d) {
-    const inp = document.getElementById('n-input');
-    inp.value = Math.max(2, Math.min(7, (+inp.value || 4) + d));
-    document.getElementById('elems-input').value = Array.from({ length: +inp.value }, (_, i) => String(i + 1)).join(' ');
-    S.forced = null;
-    applySetup();
+function setFromInputs() {
+    let elems = parseElems($('elems-input').value);
+    let n = +$('n-input').value || 4;
+    if (elems.length >= 2 && elems.length <= 7) n = elems.length;
+    applySetup(n, elems, false);
 }
-function preset(n, elems) {
-    document.getElementById('n-input').value = n;
-    document.getElementById('elems-input').value = elems || Array.from({ length: n }, (_, i) => String(i + 1)).join(' ');
-    S.forced = null;
-    applySetup();
+function bumpN(d) {
+    const n = Math.max(2, Math.min(7, S.n + d));
+    applySetup(n, null, false);
 }
 function rebuildAll() {
+    togglePlay(false); togglePatPlay(false); if (sampling) toggleSampling(false);
     renderCode();
     buildRunSvg();
     newRun();
-    chSample.build(FACT[S.n]); drawSample();
-    chExact.build(FACT[S.n]); drawExact();
+    S.pat = null; S.patK = 0; S.patSel = null;
+    $('view-pat').disabled = false;
+    refreshMode();
+}
+function refreshMode() {
+    const m = S.mode;
+    document.querySelectorAll('#mode-seg button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+    document.querySelectorAll('.pane-only').forEach(e => e.hidden = e.dataset.pane !== m);
+    document.querySelectorAll('#view-seg button').forEach(b => b.classList.toggle('on', b.dataset.view === S.view));
+    $('mode-note').innerHTML = m === 'run' ? 'one execution, step by step'
+        : m === 'sample' ? 'many independent executions with truly random draws'
+        : 'all sequences of draws, each equally likely';
+    if (m === 'run') { highlightLine(S.run.steps[S.step].line); layoutRun(); }
+    else highlightLine(3);
+    if (m === 'sample') drawSample();
+    if (m === 'exact') { drawExactPane(); updateExactText(); }
 }
 function setMode(m) {
+    if (m === 'exact' && !PAGE_BOTH) m = 'run';
     S.mode = m;
-    document.querySelectorAll('#mode-tabs .tab').forEach(t => t.classList.toggle('active', t.dataset.mode === m));
-    document.getElementById('pane-run').classList.toggle('on', m === 'run');
-    document.getElementById('pane-sample').classList.toggle('on', m === 'sample');
-    document.getElementById('pane-exact').classList.toggle('on', m === 'exact');
-    if (m !== 'run') { S.playing = false; document.getElementById('btn-play').textContent = '▶ Play'; }
-    if (m !== 'sample' && sampling) toggleSampling();
-    if (m === 'run') renderStep(false); else highlightLine(3);
-    if (m === 'sample') drawSample();
-    if (m === 'exact') drawExact();
+    if (m !== 'run') togglePlay(false);
+    if (m !== 'sample' && sampling) toggleSampling(false);
+    if (m !== 'exact') togglePatPlay(false);
+    refreshMode();
 }
 function setVariant(v) {
     S.variant = v;
-    document.querySelectorAll('#variant-tabs .tab').forEach(t => t.classList.toggle('active', t.dataset.variant === v));
-    if (sampling) toggleSampling();
+    document.querySelectorAll('#variant-seg button').forEach(b => b.classList.toggle('on', b.dataset.variant === v));
     rebuildAll();
-    if (S.mode !== 'run') highlightLine(3);
 }
-function setMsg(t) { document.getElementById('input-msg').textContent = t || ''; }
+function setView(v) {
+    S.view = v; togglePatPlay(false);
+    refreshMode();
+}
 
 function fillInputText() {
     const L = ['# prepared input', 'n = ' + S.n, 'A = ' + S.elems.join(' ')];
     if (S.run) L.push('r = ' + S.run.draws.join(' '));
     if (PAGE_BOTH) L.push('variant = ' + S.variant);
-    document.getElementById('input-text').value = L.join('\n');
+    L.push('mode = ' + S.mode);    /* exact only exists in the two-variant build */
+    if (S.mode === 'exact') L.push('view = ' + S.view);
+    if (S.mode === 'run' && S.step) L.push('step = ' + S.step);
+    if (S.mode === 'exact' && S.view === 'patterns' && S.patK) L.push('step = ' + S.patK);
+    $('input-text').value = L.join('\n');
     setMsg('');
 }
 function loadInputText() {
-    const txt = document.getElementById('input-text').value;
-    let n = null, A = null, r = null, variant = null;
+    const txt = $('input-text').value;
+    let n = null, A = null, r = null, variant = null, mode = null, view = null, step = null;
     for (let line of txt.split('\n')) {
         line = line.replace(/#.*$/, '').trim();
         if (!line) continue;
-        const m = line.match(/^([A-Za-z]+)\s*[:=]\s*(.*)$/);
-        if (!m) continue;
-        const key = m[1].toLowerCase(), val = m[2].trim();
+        const mm = line.match(/^([A-Za-z]+)\s*[:=]\s*(.*)$/);
+        if (!mm) continue;
+        const key = mm[1].toLowerCase(), val = mm[2].trim();
         if (key === 'n') n = +val;
         else if (key === 'a' || key === 'array') A = parseElems(val);
         else if (key === 'r' || key === 'draws') r = parseElems(val).map(Number);
         else if (key === 'variant' || key === 'algorithm') variant = /kfy|knuth|fisher|correct/i.test(val) ? 'kfy' : 'my';
+        else if (key === 'mode' || key === 'tab') mode = /samp/i.test(val) ? 'sample' : /exact|prob/i.test(val) ? 'exact' : 'run';
+        else if (key === 'view') view = /pat/i.test(val) ? 'patterns' : 'bars';
+        else if (key === 'step') step = parseInt(val, 10);
     }
-    if (A && A.length) { n = A.length; }
+    if (A && A.length) n = A.length;
     if (!n) n = S.n;
     n = Math.max(2, Math.min(7, n));
     if (!A || A.length !== n) A = Array.from({ length: n }, (_, i) => String(i + 1));
-    document.getElementById('n-input').value = n;
-    document.getElementById('elems-input').value = A.join(' ');
-    if (PAGE_BOTH && variant && variant !== S.variant) { setVariant(variant); }
-    S.n = n; S.elems = A;
+    if (PAGE_BOTH && variant) {
+        S.variant = variant;
+        document.querySelectorAll('#variant-seg button').forEach(b => b.classList.toggle('on', b.dataset.variant === variant));
+    }
+    let msg;
     if (r && r.length) {
-        if (r.length !== n || r.some(x => !Number.isInteger(x) || x < 0 || x >= n)) {
-            S.forced = null; setMsg('Ignoring r: need ' + n + ' integers in [0..' + n + ').');
-        } else { S.forced = r; setMsg('Loaded, r fixed to ' + r.join(' ') + '.'); }
-    } else { S.forced = null; setMsg('Loaded, r drawn at random.'); }
-    rebuildAll();
-    setMode('run');
+        const lo = i => lowerBound(S.variant, i);
+        if (r.length !== n || r.some((x, i) => !Number.isInteger(x) || x < lo(i) || x >= n)) {
+            S.forced = null; msg = 'Ignoring r: need ' + n + ' integers, the i-th in [' + (S.variant === 'kfy' ? 'i' : '0') + '..' + n + ').';
+        } else { S.forced = r; msg = 'Loaded; r fixed to ' + r.join(' ') + '.'; }
+    } else { S.forced = null; msg = 'Loaded; r drawn at random.'; }
+    if (view) S.view = view;
+    S.mode = PAGE_BOTH ? (mode || 'run') : (mode === 'sample' ? 'sample' : 'run');
+    applySetup(n, A, true);
+    setMsg(msg);
+    if (step != null && step >= 0) {
+        if (S.mode === 'run') stepTo(step);
+        else if (S.mode === 'exact' && S.view === 'patterns') patStepTo(step, false);
+    }
 }
 
 /* ── wiring ── */
-document.getElementById('step-slider').addEventListener('input', e => { S.step = +e.target.value; renderStep(false); });
-document.getElementById('sample-marks').addEventListener('change', drawSample);
-document.getElementById('elems-input').addEventListener('keydown', e => { if (e.key === 'Enter') applySetup(); });
+$('n-dec').onclick = () => bumpN(-1);
+$('n-inc').onclick = () => bumpN(1);
+$('n-input').addEventListener('change', () => applySetup(+$('n-input').value, null, false));
+$('apply-btn').onclick = setFromInputs;
+$('elems-input').addEventListener('keydown', e => { if (e.key === 'Enter') setFromInputs(); });
+const psel = $('preset-sel');
+psel.innerHTML = '<option value="">— choose —</option>' + PRESETS.map((p, i) => '<option value="' + i + '">' + p.label + '</option>').join('');
+psel.onchange = () => {
+    const p = PRESETS[+psel.value]; if (!p) return;
+    const A = parseElems(p.A);
+    if (p.r) { S.forced = p.r.split(' ').map(Number); applySetup(A.length, A, true); if (S.mode !== 'run') setMode('run'); }
+    else applySetup(A.length, A, false);
+    psel.value = '';
+};
+document.querySelectorAll('#variant-seg button').forEach(b => b.onclick = () => setVariant(b.dataset.variant));
+document.querySelectorAll('#mode-seg button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+document.querySelectorAll('#view-seg button').forEach(b => b.onclick = () => setView(b.dataset.view));
+$('run-reset').onclick = () => { togglePlay(false); stepTo(0); };
+$('run-back').onclick = () => { togglePlay(false); stepBy(-1); };
+$('run-step').onclick = () => { togglePlay(false); stepBy(1); };
+$('run-end').onclick = () => { togglePlay(false); stepTo(1e9); };
+$('run-play').onclick = () => togglePlay();
+$('run-new').onclick = () => { togglePlay(false); newRun(); };
+$('run-unforce').onclick = () => { S.forced = null; setMsg(''); newRun(); };
+$('run-scrub').addEventListener('input', e => { togglePlay(false); S.step = +e.target.value; renderStep(false); });
+document.querySelectorAll('[data-add]').forEach(b => b.onclick = () => addRuns(+b.dataset.add));
+$('sample-play').onclick = () => toggleSampling();
+$('sample-reset').onclick = resetSample;
+$('sample-marks').onchange = drawSample;
+$('exact-compute').onclick = computeExact;
+$('exact-marks').onchange = () => { if (S.view === 'patterns') renderPatState(false); else drawExactPane(); };
+$('pat-reset').onclick = () => { togglePatPlay(false); patStepTo(0, false); };
+$('pat-back').onclick = () => { togglePatPlay(false); patStepTo(S.patK - 1, false); };
+$('pat-step').onclick = () => { togglePatPlay(false); patStepTo(S.patK + 1, true); };
+$('pat-end').onclick = () => { togglePatPlay(false); patStepTo(1e9, false); };
+$('pat-play').onclick = () => togglePatPlay();
+$('pat-scrub').addEventListener('input', e => { togglePatPlay(false); patStepTo(+e.target.value, false); });
+$('trace-replay').onclick = () => {
+    const P = S.pat, k = S.patSel != null ? S.patSel : S.patK - 1;
+    if (!P || k < 0) return;
+    S.forced = Array.from(P.seq.subarray(k * P.n, k * P.n + P.n));
+    setMode('run'); newRun();
+};
+$('load-btn').onclick = loadInputText;
+$('fill-btn').onclick = fillInputText;
 document.addEventListener('keydown', e => {
-    if (/input|textarea/i.test(e.target.tagName)) return;
-    if (S.mode !== 'run') return;
-    if (e.key === 'ArrowRight') { stepBy(1); e.preventDefault(); }
-    else if (e.key === 'ArrowLeft') { stepBy(-1); e.preventDefault(); }
-    else if (e.key === 'Home') { stepTo(0); e.preventDefault(); }
-    else if (e.key === 'End') { stepTo(1e9); e.preventDefault(); }
-    else if (e.key === ' ') { togglePlay(); e.preventDefault(); }
+    if (/input|textarea|select/i.test(e.target.tagName) && e.target.type !== 'range' && e.target.type !== 'checkbox') return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (S.mode === 'run') {
+        if (e.key === 'ArrowRight') { togglePlay(false); stepBy(1); }
+        else if (e.key === 'ArrowLeft') { togglePlay(false); stepBy(-1); }
+        else if (e.key === 'Home') { togglePlay(false); stepTo(0); }
+        else if (e.key === 'End') { togglePlay(false); stepTo(1e9); }
+        else if (e.key === ' ') togglePlay();
+        else return;
+    } else if (S.mode === 'exact' && S.view === 'patterns' && S.pat) {
+        if (e.key === 'ArrowRight') { togglePatPlay(false); patStepTo(S.patK + 1, true); }
+        else if (e.key === 'ArrowLeft') { togglePatPlay(false); patStepTo(S.patK - 1, false); }
+        else if (e.key === 'Home') { togglePatPlay(false); patStepTo(0, false); }
+        else if (e.key === 'End') { togglePatPlay(false); patStepTo(1e9, false); }
+        else if (e.key === ' ') togglePatPlay();
+        else return;
+    } else if (S.mode === 'sample' && e.key === ' ') toggleSampling();
+    else return;
+    e.preventDefault();
 });
+window.addEventListener('resize', relayout);
+
+/* ── self-test (call __selftest() from the console) ── */
+window.__selftest = function () {
+    const out = [];
+    for (const v of ['my', 'kfy']) for (let n = 2; n <= PAT_MAX_N; n++) {
+        const P = enumeratePatterns(n, v), E = exactCounts(n, v);
+        let ok = P.T === E.total;
+        for (let r = 0; r < P.m; r++) ok = ok && P.counts[r] === E.counts[r];
+        /* every pattern replayed through traceShuffle lands where it was stacked */
+        for (let k = 0; k < P.T && ok; k++) {
+            const tr = traceShuffle(n, v, Array.from(P.seq.subarray(k * n, k * n + n)));
+            ok = lexRank(tr.steps[tr.steps.length - 1].arr) === P.rank[k];
+        }
+        if (v === 'kfy') for (let r = 0; r < P.m; r++) ok = ok && P.counts[r] === 1;
+        out.push(v + ' n=' + n + ': ' + (ok ? 'ok' : 'FAIL') + ' (min ' + P.minC + ', max ' + P.maxC + ')');
+    }
+    return out;
+};
 
 /* ── start ── */
-if (PAGE_BOTH) {
-    document.getElementById('variant-tabs').hidden = false;
-    document.getElementById('tab-exact').hidden = false;
-    document.getElementById('s-dev-box').hidden = false;
-    document.getElementById('s-chi-box').hidden = false;
-    document.getElementById('page-title').textContent = 'Random Shuffle — two variants';
-    document.title = 'Random Shuffle — two variants';
+document.querySelectorAll(PAGE_BOTH ? '.only-single' : '.only-both').forEach(e => e.hidden = true);
+if (!PAGE_BOTH) {
+    $('variant-ctl').hidden = true;
+    $('tab-exact').hidden = true;
+    document.title = 'Random shuffle';
+    $('s-dev-box').hidden = true;
+    $('s-chi-box').hidden = true;
+    $('page-title').textContent = 'Random shuffle';
+} else {
+    $('page-title').textContent = 'Random shuffle · two variants';
+    document.title = 'Random shuffle · two variants';
 }
-applySetup();
+applySetup(4, ['1', '2', '3', '4'], false);
 fillInputText();
 </script>
 </body>

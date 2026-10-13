@@ -8,8 +8,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Maximum Subarray — Animated</title>
+<script>
+window.MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+    chtml: { scale: 0.95 },
+    startup: { typeset: true }
+};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js"></script>
 <style>
     :root {
+        /* shared wild-inter.net tokens (also defined in /css/animations.css; repeated so the file works standalone) */
+        --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+        --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#9c866d;
+        --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+        --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577;
+        --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+        --wi-font-body:texgyrepagella, Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+        --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+        --wi-font-mono:ui-monospace, Menlo, Consolas, monospace;
+        --wi-radius:4px; --wi-radius-lg:5px;
+        --side-w:440px;
+
         --bg: #f5ebd9;
         --panel: #faf6ed;
         --panel-border: #d4c5b4;
@@ -44,7 +64,7 @@
     body {
         background-color: var(--bg);
         color: var(--ink);
-        font-family: var(--wi-font-body)"Segoe UI", Roboto, sans-serif;
+        font-family: var(--wi-font-body);
         margin: 0;
         padding: 22px 26px 60px;
         min-height: 100vh;
@@ -98,6 +118,49 @@
     .switch input:checked + .track { background: #6d180f; border-color: #7c2f25; }
     .switch input:checked + .track:before { transform: translateX(19px); }
 
+    /* ---- transport: scrubber with phase strip ---- */
+    .transport { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-start;
+                 background: var(--controls-bg); border: 1px solid var(--controls-border);
+                 border-radius: 6px; padding: 11px 20px 12px; margin-bottom: 18px; }
+    .transport .ctl-group { padding-top: 1px; }
+    button.icon { font-family: var(--wi-font-body); font-variant-emoji: text; font-size: 1.02rem;
+                  line-height: 1.1; padding: 4px 0; width: 2.5em; text-align: center; }
+    /* the slider thumb's centre stops half a thumb short of each end of the track;
+       the phase strip is inset by the same amount so its boundaries line up with the thumb */
+    .progress { flex: 1 1 320px; min-width: 220px; --thumb: 8px; }
+    .progress input[type=range] { display: block; width: 100%; margin: 0; }
+    .stepno { font-family: var(--wi-font-mono); font-size: .76rem; color: var(--title-muted);
+              white-space: nowrap; text-align: right; padding-top: 4px; min-width: 7em; }
+    .phasebar { display: flex; margin: 5px var(--thumb) 0; width: calc(100% - var(--thumb) - var(--thumb)); }
+    .phasebtn { position: relative; overflow: hidden; flex-grow: 1; flex-basis: 0; min-width: 0;
+                padding: 3px 4px; font-size: .68rem; line-height: 1.3; font-family: var(--wi-font-head);
+                letter-spacing: .03em; background: var(--panel); border: 1px solid var(--panel-border);
+                border-left-width: 0; border-radius: 0; color: var(--title-muted); cursor: pointer;
+                text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+    .phasebtn:hover:not(:disabled) { background: var(--panel); }
+    .phasebtn:first-child { border-left-width: 1px; border-radius: 4px 0 0 4px; }
+    .phasebtn:last-child { border-radius: 0 4px 4px 0; }
+    .phasebtn .fill { position: absolute; left: 0; top: 0; bottom: 0; background: #eedcd3;
+                      border-right: 1px solid #c28577; transition: width .12s linear; }
+    .phasebtn .fill.empty { border-right: 0; }
+    .phasebtn .lab { position: relative; }
+    .phasebtn.on { border-color: #c28577; color: #902015; font-weight: 700; }
+    .phasebtn.past { color: var(--ink); }
+    .phasebtn.past .fill { border-right-color: transparent; }
+
+    /* ---- draggable splitter and height grips ---- */
+    .hsplit { align-self: stretch; cursor: col-resize; position: relative; min-height: 120px; touch-action: none; }
+    .hsplit::before { content: ""; position: absolute; left: 6px; top: 4px; bottom: 4px; width: 2px; border-radius: 2px;
+                      background: var(--panel-border); transition: background .15s; }
+    .hsplit:hover::before, .hsplit.drag::before { background: #c28577; width: 3px; left: 5px; }
+    .vgrip { height: 12px; cursor: row-resize; position: relative; margin-top: 2px; touch-action: none; }
+    .vgrip::before { content: ""; position: absolute; left: 50%; top: 4px; width: 54px; height: 4px; margin-left: -27px;
+                     border-radius: 2px; background: var(--panel-border); transition: background .15s; }
+    .vgrip:hover::before, .vgrip.drag::before { background: #c28577; }
+    .svgbox { overflow-x: auto; overflow-y: hidden; background: var(--bg); border-radius: 4px; }
+    .keyhint { font-size: .74rem; color: var(--title-muted); margin-top: 12px; }
+    .status mjx-container, .vars mjx-container, table.cost mjx-container { font-size: 100% !important; }
+
     /* ---- panels ---- */
     .sim-box {
         background-color: var(--panel); border: 1px solid var(--panel-border); border-radius: 6px;
@@ -107,8 +170,8 @@
         font-size: .8rem; text-transform: uppercase; letter-spacing: 1px;
         color: var(--title-muted); margin: 0 0 12px; font-weight: 700;
     }
-    .stage { display: grid; grid-template-columns: minmax(0,1.6fr) minmax(340px,.95fr); gap: 18px; align-items: start; }
-    @media (max-width: 1050px) { .stage { grid-template-columns: 1fr; } }
+    .stage { display: grid; grid-template-columns: minmax(0,1fr) 14px minmax(0,var(--side-w)); align-items: start; }
+    @media (max-width: 1050px) { .stage { grid-template-columns: 1fr; gap: 16px; } .stage .hsplit { display: none; } }
     .side { display: flex; flex-direction: column; gap: 16px; }
 
     .status {
@@ -119,12 +182,16 @@
     .status b { color: #902015; }
 
     /* ---- code panel ---- */
-    .code { font-family: "SF Mono", var(--wi-font-mono); font-size: .84rem; line-height: 1.55; }
-    .code .ln { display: flex; gap: 10px; padding: 0 6px; border-radius: 3px; white-space: pre; }
+    .code { font-family: var(--wi-font-mono); font-size: .8rem; line-height: 1.6; overflow-x: auto; }
+    .code .ln { display: flex; gap: 10px; padding: 0 6px; white-space: pre; }
     .code .ln .no { color: #b9a793; min-width: 18px; text-align: right; user-select: none; }
-    .code .ln.hi { background: #f0d9cd; }
+    .code .ln { border-left: 3px solid transparent; border-radius: 0; }
+    .code .ln.hi { background: #f6e6df; border-left-color: var(--active); }
     .code .ln.hi .no { color: #6d180f; font-weight: 700; }
     .code .cm { color: #a2937a; font-style: italic; }
+    .code .kw { color: #902015; font-weight: 600; }
+    .code .fn { color: #b07d18; }
+    .code .nb { color: #2a6a63; }
     .code sub { font-size: .72em; }
 
     /* ---- variable readout ---- */
@@ -146,14 +213,14 @@
     .legend .item { display: flex; align-items: center; gap: 6px; }
     .swatch { width: 15px; height: 15px; border-radius: 3px; border: 1.5px solid; }
 
-    svg.view { display: block; width: 100%; background: var(--bg); border-radius: 4px; }
-    svg text { font-family: var(--wi-font-body)"Segoe UI", Roboto, sans-serif; }
+    svg.view { display: block; background: var(--bg); }
+    svg text { font-family: var(--wi-font-body); }
     .mv { transition: transform .18s ease, x .18s ease, width .18s ease, opacity .18s ease; }
 
     /* ---- plots ---- */
     .plots { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
     @media (max-width: 900px) { .plots { grid-template-columns: 1fr; } }
-    canvas.plot { display: block; width: 100%; height: 320px; background: var(--bg); border-radius: 4px; }
+    canvas.plot { display: block; width: 100%; height: var(--plot-h, 320px); background: var(--bg); border-radius: 4px; }
 
     /* ---- race ---- */
     .npresets { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -168,6 +235,7 @@
     .lhead .nm { font-size: .88rem; font-weight: 600; color: var(--ink-strong); }
     .lhead .nm .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 7px; }
     .lhead .nm .sub { color: var(--title-muted); font-weight: 500; }
+    .lane2.late .lhead .nm::after { content: " · late start"; font-size: .74rem; color: var(--title-muted); font-weight: 500; }
     .tbar { position: relative; height: 22px; background: #ecddc5; border: 1px solid var(--panel-border); border-radius: 11px; overflow: hidden; }
     .tbar .tfill { position: absolute; inset: 0 auto 0 0; width: 0; opacity: .34; border-radius: 11px; transition: width .1s linear; }
     .tbar .tick { position: absolute; top: 0; bottom: 0; width: 1px; background: #d4c5b4; }
@@ -207,7 +275,7 @@
     details.editor summary { cursor: pointer; font-size: .85rem; color: var(--title-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .6px; }
     .editor-body { margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
     textarea {
-        font-family: "SF Mono", var(--wi-font-mono); font-size: .85rem;
+        font-family: var(--wi-font-mono); font-size: .85rem;
         background: var(--panel); color: var(--ink-strong); border: 1px solid var(--panel-border);
         border-radius: 5px; padding: 10px; width: 340px; height: 120px; resize: vertical;
     }
@@ -230,7 +298,7 @@ body { font-family: var(--wi-font-body); }
 
 <h1>Maximum Subarray</h1>
 <p class="subtitle">
-    Four algorithms for <code>max { A[i] + … + A[j−1] : 0 ≤ i ≤ j ≤ n }</code> on the same input:
+    Four algorithms for $\max\bigl\{A[i] + \cdots + A[j-1] \;:\; 0 \;\le\; i \;\le\; j \;\le\; n\bigr\}$ on the same input:
     brute force, reusing sums, divide &amp; conquer, and the linear sweep.
     Step through them one operation at a time, measure them, or race them against each other.
     The cost measure throughout is the <b>number of additions</b>.
@@ -253,41 +321,44 @@ body { font-family: var(--wi-font-body); }
             <label for="presetSel">Input</label>
             <select id="presetSel" onchange="onPreset()"></select>
         </div>
-        <div class="btn-group">
-            <button id="backBtn" onclick="stepBack()">‹ Back</button>
-            <button id="stepBtn" class="primary" onclick="stepFwd()">Step ›</button>
-            <button id="playBtn" onclick="togglePlay()">Play</button>
-            <button onclick="resetRun()">Reset</button>
-        </div>
-        <div class="slider-group">
-            <span class="cap">Delay</span>
-            <input type="range" id="speedSlider" min="0" max="900" value="260" oninput="updateSpeed(this.value)">
-            <span class="val" id="speedVal">260ms</span>
-        </div>
         <div class="ctl-group">
             <label for="witnessToggle">Show (i,j)</label>
             <label class="switch"><input type="checkbox" id="witnessToggle" onchange="render()"><span class="track"></span></label>
         </div>
     </div>
 
-    <div class="controls" style="margin-top:-8px">
-        <div class="slider-group" style="flex:1;min-width:340px">
-            <span class="cap">Step</span>
-            <input type="range" id="frameSlider" min="0" max="0" value="0" style="flex:1" oninput="gotoFrame(+this.value)">
-            <span class="val" id="frameVal" style="min-width:96px">0 / 0</span>
+    <div class="transport">
+        <div class="ctl-group" style="gap:6px">
+            <button id="resetBtn" class="icon" onclick="resetRun()" title="Back to the first step  (Home)" aria-label="Back to the first step">&#x21BA;</button>
+            <button id="backBtn" class="icon" onclick="stopPlay(); stepBack()" title="One step back  (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+            <button id="stepBtn" class="icon primary" onclick="stopPlay(); stepFwd()" title="One step forward  (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+            <button id="playBtn" class="icon" onclick="togglePlay()" title="Play / pause  (space)" aria-label="Play">&#x25B6;&#xFE0E;</button>
+            <button id="endBtn" class="icon" onclick="stopPlay(); gotoFrame(frames.length - 1)" title="Jump to the end  (End)" aria-label="Jump to the end">&#x21E5;</button>
+        </div>
+        <div class="progress">
+            <input type="range" id="frameSlider" min="0" max="0" value="0" oninput="stopPlay(); gotoFrame(+this.value)" aria-label="step">
+            <div class="phasebar" id="phaseBar"></div>
+        </div>
+        <span class="stepno" id="frameVal">0 / 0</span>
+        <div class="slider-group">
+            <span class="cap">Delay</span>
+            <input type="range" id="speedSlider" min="0" max="900" value="260" oninput="updateSpeed(this.value)" style="width:90px" aria-label="delay between steps">
+            <span class="val stepno" id="speedVal" style="min-width:3.5em">260ms</span>
         </div>
     </div>
 
-    <div class="stage">
-        <div class="sim-box">
+    <div class="stage" id="stage">
+        <div class="sim-box" style="min-width:0">
             <div class="sim-title">Array A[0..n) &nbsp;·&nbsp; state of the algorithm</div>
-            <svg id="view" class="view" viewBox="0 0 900 460" preserveAspectRatio="xMidYMid meet"></svg>
+            <div class="svgbox" id="viewBox"><svg id="view" class="view"></svg></div>
+            <div class="vgrip" id="viewGrip" title="drag to make the bars taller or flatter · double-click to reset"></div>
             <div class="legend" id="legend"></div>
         </div>
-        <div class="side">
+        <div class="hsplit" id="hsplit" title="drag to resize · double-click to reset" role="separator" aria-orientation="vertical"></div>
+        <div class="side" style="min-width:0">
             <div class="sim-box">
                 <div class="sim-title">Status</div>
-                <div class="status"><span id="statusText">Press <b>&nbsp;Step&nbsp;</b> or <b>&nbsp;Play&nbsp;</b> to begin.</span></div>
+                <div class="status"><span id="statusText">Press step or play to begin.</span></div>
             </div>
             <div class="sim-box">
                 <div class="sim-title">Variables</div>
@@ -318,12 +389,13 @@ body { font-family: var(--wi-font-body); }
                     <code>31 -41 59 26 -53 58 97 -93 -23 84</code>.
                     <br><br>
                     Stepping is meant for small inputs — the brute-force trace has
-                    <code>n(n+1)(n+2)/6</code> additions, so <code>n = 30</code> already means about 5000 of them.
+                    $n(n+1)(n+2)/6$ additions, so $n \;=\; 30$ already means about 5000 of them.
                     Traces are cut off after 40 000 steps; for anything bigger, use the measure and race tabs.
                 </div>
             </div>
         </div>
     </details>
+    <div class="keyhint">← / → step · Home / End jump to start / end · space plays · click a segment of the phase strip to jump there · drag the grey handles to resize</div>
 </div>
 
 <!-- ================================================================= MEASURE -->
@@ -362,7 +434,7 @@ body { font-family: var(--wi-font-body); }
         </div>
     </div>
 
-    <div class="plots">
+    <div class="plots" id="plots">
         <div class="sim-box">
             <div class="sim-title">Abstract cost &nbsp;·&nbsp; number of additions</div>
             <canvas id="costPlot" class="plot"></canvas>
@@ -374,6 +446,7 @@ body { font-family: var(--wi-font-body); }
             <div class="note" id="timeNote"></div>
         </div>
     </div>
+    <div class="vgrip" id="plotGrip" title="drag to resize the plots · double-click to reset"></div>
 
     <div class="sim-box" style="margin-top:18px">
         <div class="sim-title">Last run</div>
@@ -538,6 +611,31 @@ const ALGS = {
     kadane: { name: "Linear sweep",       sub: "Θ(n)",       color: "var(--c-kadane)", cost: n => n,               formula: "n",             asym: "= n" }
 };
 const ALG_KEYS = ["brute", "reuse", "dc", "kadane"];
+/* the same, as TeX for MathJax (cost table, race lanes) */
+const ALG_TEX = {
+    brute:  { sub: "\\Theta(n^3)",      formula: "n(n+1)(n+2)/6",  asym: "\\sim n^3/6" },
+    reuse:  { sub: "\\Theta(n^2)",      formula: "n(n+1)/2",       asym: "\\sim n^2/2" },
+    dc:     { sub: "\\Theta(n \\log n)", formula: "C(\\lceil n/2\\rceil) + C(\\lfloor n/2\\rfloor) + n + 1", asym: "\\sim n \\log_2 n" },
+    kadane: { sub: "\\Theta(n)",        formula: "n",                        asym: "= n" }
+};
+
+/* ---- MathJax: typeset a node; calls during a running typeset are coalesced ---- */
+const mjBusy = new Map();
+function typeset(node) {
+    if (!(window.MathJax && MathJax.typesetPromise)) return;
+    if (mjBusy.get(node)) { mjBusy.set(node, 2); return; }
+    mjBusy.set(node, 1);
+    MathJax.typesetPromise([node]).catch(() => {}).then(() => {
+        const again = mjBusy.get(node) === 2;
+        mjBusy.delete(node);
+        if (again) typeset(node);
+    });
+}
+function setMath(node, html) {
+    if (window.MathJax && MathJax.typesetClear) MathJax.typesetClear([node]);
+    node.innerHTML = html;
+    typeset(node);
+}
 const CSS_COLOR = { brute: "#6d180f", reuse: "#b07d18", dc: "#3f7d86", kadane: "#1b6b45" };
 
 const _dcMemo = {0:0, 1:0};
@@ -551,61 +649,66 @@ function costDC(n) {
    ====================================================================== */
 function frame(line, msg, st) { return { line, msg, st }; }
 
+/* inline-math helpers for the status messages (typeset by MathJax);
+   relation symbols get extra space, as on the slides */
+const EQ = "\\;=\\;", AS = "\\;:=\\;", LEQ = "\\;\\le\\;", GTR = "\\;>\\;", NEQ = "\\;\\ne\\;";
+const rng = (a, b) => `$A[${a}..${b})$`;
+
 function* traceBrute(A) {
     const n = A.length;
     let s = 0, adds = 0, best = null;
-    yield frame(1, "Initialise the best sum found so far, <b>s := 0</b> (the empty subarray).",
+    yield frame(1, `Initialise the best sum found so far, <b>$s ${AS} 0$</b> (the empty subarray).`,
                 { s, adds, best });
     for (let i = 0; i < n; i++) {
-        yield frame(2, `Left endpoint <b>i = ${i}</b>.`, { i, s, adds, best });
+        yield frame(2, `Left endpoint <b>$i ${EQ} ${i}$</b>.`, { i, s, adds, best });
         for (let j = i; j <= n; j++) {
-            yield frame(3, `Right endpoint <b>j = ${j}</b> — consider the subarray A[${i}..${j}).`,
+            yield frame(3, `Right endpoint <b>$j ${EQ} ${j}$</b> — consider the subarray ${rng(i, j)}.`,
                         { i, j, s, adds, best });
             let t = 0;
-            yield frame(4, "Start the sum of this subarray from scratch: <b>t := 0</b>.",
+            yield frame(4, `Start the sum of this subarray from scratch: <b>$t ${AS} 0$</b>.`,
                         { i, j, t, s, adds, best });
             for (let k = i; k < j; k++) {
                 t += A[k]; adds++;
-                yield frame(6, `Add A[${k}] = ${A[k]} &nbsp;⟶&nbsp; t = ${t}.`,
+                yield frame(6, `Add $A[${k}] ${EQ} ${A[k]}$, giving $t ${EQ} ${t}$.`,
                             { i, j, k, t, s, adds, best });
             }
             if (t > s) {
                 s = t; best = [i, j];
-                yield frame(8, `t = ${t} beats the old best — <b>s := ${t}</b>, attained by A[${i}..${j}).`,
+                yield frame(8, `$t ${EQ} ${t}$ beats the old best — <b>$s ${AS} ${t}$</b>, attained by ${rng(i, j)}.`,
                             { i, j, t, s, adds, best, upd: true, sumTo: j - 1 });
             } else {
-                yield frame(8, `t = ${t} does not beat s = ${s}; keep s.`,
+                yield frame(8, `$t ${EQ} ${t}$ does not beat $s ${EQ} ${s}$; keep $s$.`,
                             { i, j, t, s, adds, best, sumTo: j - 1 });
             }
         }
     }
-    yield frame(10, `Done. Each of the ${n*(n+1)/2 + n} subarrays was summed from scratch: <b>s = ${s}</b>.`,
+    yield frame(10, `Done. Each of the ${n*(n+1)/2 + n} subarrays was summed from scratch: <b>$s ${EQ} ${s}$</b>.`,
                 { s, adds, best, done: true });
 }
 
 function* traceReuse(A) {
     const n = A.length;
     let s = 0, adds = 0, best = null;
-    yield frame(1, "Initialise <b>s := 0</b> (the empty subarray).", { s, adds, best });
+    yield frame(1, `Initialise <b>$s ${AS} 0$</b> (the empty subarray).`, { s, adds, best });
     for (let i = 0; i < n; i++) {
-        yield frame(2, `Left endpoint <b>i = ${i}</b>.`, { i, s, adds, best });
+        yield frame(2, `Left endpoint <b>$i ${EQ} ${i}$</b>.`, { i, s, adds, best });
         let t = 0;
-        yield frame(3, "<b>t := 0</b> — from here on we only ever extend this sum to the right.",
+        yield frame(3, `<b>$t ${AS} 0$</b> — from here on we only ever extend this sum to the right.`,
                     { i, t, s, adds, best });
         for (let j = i + 1; j <= n; j++) {
             t += A[j-1]; adds++;
-            yield frame(5, `Extend by A[${j-1}] = ${A[j-1]}: &nbsp;s(${i},${j}) = s(${i},${j-1}) + A[${j-1}] = ${t}. One addition, not ${j-i}.`,
+            yield frame(5, `Extend by $A[${j-1}] ${EQ} ${A[j-1]}$: &nbsp;$s(${i},${j}) ${EQ} s(${i},${j-1}) + A[${j-1}] ${EQ} ${t}$. One addition, not ${j-i}.`,
                         { i, j, t, s, adds, best });
             if (t > s) {
                 s = t; best = [i, j];
-                yield frame(6, `t = ${t} beats the old best — <b>s := ${t}</b>, attained by A[${i}..${j}).`,
+                yield frame(6, `$t ${EQ} ${t}$ beats the old best — <b>$s ${AS} ${t}$</b>, attained by ${rng(i, j)}.`,
                             { i, j, t, s, adds, best, upd: true });
             } else {
-                yield frame(6, `t = ${t} does not beat s = ${s}; keep s.`, { i, j, t, s, adds, best });
+                yield frame(6, `$t ${EQ} ${t}$ does not beat $s ${EQ} ${s}$; keep $s$.`, { i, j, t, s, adds, best });
             }
         }
     }
-    yield frame(8, `Done: <b>s = ${s}</b>, using one addition per pair (i,j).`,
+    yield frame(8, `Done: <b>$s ${EQ} ${s}$</b>, using one addition per pair $(i,j)$.`,
                 { s, adds, best, done: true });
 }
 
@@ -615,8 +718,22 @@ function* traceDC(A) {
     const nodes = [];
     const state = { adds: 0 };
 
+    /* Each frame must show the recursion as it was at that moment. Only the calls on the
+       stack still change; finished calls are frozen, and calls not yet made do not exist.
+       So a frame stores copies of the stacked nodes and the node count, and the full
+       picture is assembled when the frame is drawn. */
     function snap(extra) {
-        return Object.assign({ nodes, adds: state.adds, stack: stack.slice() }, extra);
+        const live = {};
+        for (const id of stack) live[id] = Object.assign({}, nodes[id]);
+        const count = nodes.length;
+        const st = Object.assign({ adds: state.adds, stack: stack.slice(),
+            /* which half of the top-level call we are in (for the phase strip) */
+            topHalf: stack.length >= 2 ? (nodes[stack[1]].l === nodes[0].l ? "a" : "b") : null }, extra);
+        Object.defineProperty(st, "nodes", {      /* rebuilt on access: nothing kept per frame */
+            get() { return nodes.slice(0, count).map((x, k) => live[k] || x); },
+            enumerable: true
+        });
+        return st;
     }
     const stack = [];
 
@@ -627,71 +744,71 @@ function* traceDC(A) {
                        witL: null, witR: null, scanI: null, scanJ: null, t: null };
         nodes.push(node);
         stack.push(id);
-        yield frame(1, `Call on A[${l}..${r}) &nbsp;(n = ${r-l}).`, snap({ cur: id }));
+        yield frame(1, `Call on ${rng(l, r)} &nbsp;($n ${EQ} ${r-l}$).`, snap({ cur: id }));
 
         if (r - l <= 0) {
-            yield frame(2, `r − ℓ = ${r-l} ≤ 0 — empty range.`, snap({ cur: id }));
+            yield frame(2, `$r - \\ell ${EQ} ${r-l} ${LEQ} 0$ — empty range.`, snap({ cur: id }));
             node.res = 0; node.wit = [l, l]; node.status = "done";
-            yield frame(3, "Return 0.", snap({ cur: id, ret: id }));
+            yield frame(3, "Return $0$.", snap({ cur: id, ret: id }));
             stack.pop();
             return 0;
         }
-        yield frame(2, `r − ℓ = ${r-l} &gt; 0.`, snap({ cur: id }));
+        yield frame(2, `$r - \\ell ${EQ} ${r-l} ${GTR} 0$.`, snap({ cur: id }));
         if (r - l === 1) {
             yield frame(4, "A single element — base case.", snap({ cur: id }));
             const v = Math.max(0, A[l]);
             node.res = v; node.wit = A[l] > 0 ? [l, l+1] : [l, l]; node.status = "done";
-            yield frame(5, `Return max{0, A[${l}]} = ${v}.`, snap({ cur: id, ret: id }));
+            yield frame(5, `Return $\\max\\{0, A[${l}]\\} ${EQ} ${v}$.`, snap({ cur: id, ret: id }));
             stack.pop();
             return v;
         }
-        yield frame(4, `r − ℓ = ${r-l} ≠ 1.`, snap({ cur: id }));
+        yield frame(4, `$r - \\ell ${EQ} ${r-l} ${NEQ} 1$.`, snap({ cur: id }));
         const m = Math.ceil((l + r) / 2);
         node.m = m;
-        yield frame(6, `Split at <b>m = ⌈(${l}+${r})/2⌉ = ${m}</b>.`, snap({ cur: id }));
+        yield frame(6, `Split at <b>$m ${EQ} \\lceil (${l}+${r})/2 \\rceil ${EQ} ${m}$</b>.`, snap({ cur: id }));
 
         yield frame(7, "Recurse on the left half — case (a).", snap({ cur: id }));
         const sa = yield* rec(l, m, depth + 1);
         node.sa = sa; node.witA = nodes.find(x => x.l === l && x.r === m && x.depth === depth+1).wit;
-        yield frame(7, `Left half returned s<sub>(a)</sub> = ${sa}.`, snap({ cur: id }));
+        yield frame(7, `Left half returned $s_{(a)} ${EQ} ${sa}$.`, snap({ cur: id }));
 
         yield frame(8, "Recurse on the right half — case (b).", snap({ cur: id }));
         const sb = yield* rec(m, r, depth + 1);
         node.sb = sb;
         const rightNode = nodes.filter(x => x.l === m && x.r === r && x.depth === depth+1).pop();
         node.witB = rightNode.wit;
-        yield frame(8, `Right half returned s<sub>(b)</sub> = ${sb}.`, snap({ cur: id }));
+        yield frame(8, `Right half returned $s_{(b)} ${EQ} ${sb}$.`, snap({ cur: id }));
 
         let sl = 0, t = 0, wl = m;
         node.sl = 0; node.witL = m; node.t = 0; node.scanI = null;
-        yield frame(10, "Case (c): a straddling subarray. First the best left endpoint — scan left from m.",
+        yield frame(10, `Case (c): a straddling subarray. First the best left endpoint — scan left from $m$.`,
                     snap({ cur: id }));
         for (let i = m - 1; i >= l; i--) {
             t = A[i] + t; state.adds++;
             node.t = t; node.scanI = i;
-            yield frame(12, `t := A[${i}] + t = ${t} &nbsp;— that is s(${i}, ${m}).`, snap({ cur: id }));
+            yield frame(12, `$t ${AS} A[${i}] + t ${EQ} ${t}$ &nbsp;— that is $s(${i}, ${m})$.`, snap({ cur: id }));
             if (t > sl) { sl = t; wl = i; }
             node.sl = sl; node.witL = wl;
-            yield frame(13, `s<sub>ℓ</sub> = max{s<sub>ℓ</sub>, t} = ${sl}.`, snap({ cur: id }));
+            yield frame(13, `$s_\\ell ${EQ} \\max\\{s_\\ell, t\\} ${EQ} ${sl}$.`, snap({ cur: id }));
         }
         node.scanI = null;
 
         let sr = 0, wr = m;
         t = 0; node.t = 0; node.sr = 0; node.witR = m; node.scanJ = null;
-        yield frame(16, "Now the best right endpoint — scan right from m.", snap({ cur: id }));
+        yield frame(16, "Now the best right endpoint — scan right from $m$.", snap({ cur: id }));
         for (let j = m + 1; j <= r; j++) {
             t = t + A[j-1]; state.adds++;
             node.t = t; node.scanJ = j;
-            yield frame(18, `t := t + A[${j-1}] = ${t} &nbsp;— that is s(${m}, ${j}).`, snap({ cur: id }));
+            yield frame(18, `$t ${AS} t + A[${j-1}] ${EQ} ${t}$ &nbsp;— that is $s(${m}, ${j})$.`, snap({ cur: id }));
             if (t > sr) { sr = t; wr = j; }
             node.sr = sr; node.witR = wr;
-            yield frame(19, `s<sub>r</sub> = max{s<sub>r</sub>, t} = ${sr}.`, snap({ cur: id }));
+            yield frame(19, `$s_r ${EQ} \\max\\{s_r, t\\} ${EQ} ${sr}$.`, snap({ cur: id }));
         }
         node.scanJ = null;
 
         const sc = sl + sr; state.adds++;
         node.sc = sc;
-        yield frame(21, `s<sub>(c)</sub> = s<sub>ℓ</sub> + s<sub>r</sub> = ${sl} + ${sr} = ${sc}. &nbsp;(the one extra addition)`,
+        yield frame(21, `$s_{(c)} ${EQ} s_\\ell + s_r ${EQ} ${sl} + ${sr} ${EQ} ${sc}$. &nbsp;(the one extra addition)`,
                     snap({ cur: id }));
 
         const res = Math.max(sa, sb, sc);
@@ -699,45 +816,45 @@ function* traceDC(A) {
         node.wit = res === sa ? node.witA : (res === sb ? node.witB : [wl, wr]);
         node.winner = res === sa ? "a" : (res === sb ? "b" : "c");
         node.status = "done";
-        yield frame(22, `Return max{${sa}, ${sb}, ${sc}} = <b>${res}</b> &nbsp;(case ${node.winner}).`,
+        yield frame(22, `Return <b>$\\max\\{${sa}, ${sb}, ${sc}\\} ${EQ} ${res}$</b> &nbsp;(case ${node.winner}).`,
                     snap({ cur: id, ret: id }));
         stack.pop();
         return res;
     }
 
     const res = yield* rec(0, n, 0);
-    yield frame(22, `Done: <b>s = ${res}</b>.`, snap({ done: true, result: res, cur: 0 }));
+    yield frame(22, `Done: <b>$s ${EQ} ${res}$</b>.`, snap({ done: true, result: res, cur: 0 }));
 }
 
 function* traceKadane(A) {
     const n = A.length;
     let suffixMax = 0, globalMax = 0, adds = 0, start = 0, best = null;
     yield frame(1, "Sweep the array once, keeping two numbers.", { suffixMax, globalMax, adds, start, best });
-    yield frame(2, "<b>suffixMax := 0</b> (best sum ending here) and <b>globalMax := 0</b> (best sum anywhere).",
+    yield frame(2, `<b>$\\mathit{suffixMax} ${AS} 0$</b> (best sum ending here) and <b>$\\mathit{globalMax} ${AS} 0$</b> (best sum anywhere).`,
                 { suffixMax, globalMax, adds, start, best, r: 0 });
     for (let r = 1; r <= n; r++) {
-        yield frame(3, `<b>r = ${r}</b> — extend the window to A[..${r}).`,
+        yield frame(3, `<b>$r ${EQ} ${r}$</b> — extend the window to $A[..${r})$.`,
                     { suffixMax, globalMax, adds, start, best, r });
         const sum = suffixMax + A[r-1]; adds++;
         let msg;
         if (sum > 0) {
             suffixMax = sum;
-            msg = `suffixMax + A[${r-1}] = ${sum} &gt; 0 — keep extending: the best subarray ending at ${r} is A[${start}..${r}).`;
+            msg = `$\\mathit{suffixMax} + A[${r-1}] ${EQ} ${sum} ${GTR} 0$ — keep extending: the best subarray ending at ${r} is ${rng(start, r)}.`;
         } else {
             suffixMax = 0; start = r;
-            msg = `suffixMax + A[${r-1}] = ${sum} ≤ 0 — a suffix with a negative sum can never help, so <b>drop it</b> and restart at ${r}.`;
+            msg = `$\\mathit{suffixMax} + A[${r-1}] ${EQ} ${sum} ${LEQ} 0$ — a suffix with a negative sum can never help, so <b>drop it</b> and restart at ${r}.`;
         }
         yield frame(4, msg, { suffixMax, globalMax, adds, start, best, r, reset: sum <= 0 });
         if (suffixMax > globalMax) {
             globalMax = suffixMax; best = [start, r];
-            yield frame(5, `New record: <b>globalMax := ${globalMax}</b>, attained by A[${start}..${r}).`,
+            yield frame(5, `New record: <b>$\\mathit{globalMax} ${AS} ${globalMax}$</b>, attained by ${rng(start, r)}.`,
                         { suffixMax, globalMax, adds, start, best, r, upd: true });
         } else {
-            yield frame(5, `globalMax stays ${globalMax}.`,
+            yield frame(5, `$\\mathit{globalMax}$ stays ${globalMax}.`,
                         { suffixMax, globalMax, adds, start, best, r });
         }
     }
-    yield frame(6, `Done after a single pass: <b>globalMax = ${globalMax}</b>.`,
+    yield frame(6, `Done after a single pass: <b>$\\mathit{globalMax} ${EQ} ${globalMax}$</b>.`,
                 { suffixMax, globalMax, adds, start, best, r: n, done: true });
 }
 
@@ -748,6 +865,7 @@ const TRACERS = { brute: traceBrute, reuse: traceReuse, dc: traceDC, kadane: tra
    ====================================================================== */
 let alg = "brute";
 let frames = [];
+let phases = [];
 let cur = 0;
 let timer = null, delay = 260;
 
@@ -766,8 +884,78 @@ function buildTrace() {
     cur = 0;
     const sl = document.getElementById("frameSlider");
     sl.max = frames.length - 1; sl.value = 0;
+    buildPhases();
     buildCode();
+    buildCost();
+    varKeys = null;
     render();
+}
+
+/* ------------------------------ phases: the strip under the scrubber -------------------- */
+/* brute force / reusing sums: one phase per left endpoint i; linear sweep: one per r;
+   divide & conquer: the parts of the top-level call (split, (a), (b), the two scans, combine) */
+function phaseOf(f) {
+    const st = f.st || {};
+    if (f.line === 0) return { key: "cut", name: "truncated" };
+    if (alg === "brute" || alg === "reuse") {
+        if (st.done) return { key: "done", name: "done" };
+        if (st.i === undefined) return { key: "init", name: "s := 0" };
+        return { key: "i" + st.i, name: "i = " + st.i, v: st.i, var: "i" };
+    }
+    if (alg === "kadane") {
+        if (st.done) return { key: "done", name: "done" };
+        if (!st.r) return { key: "init", name: "init" };
+        return { key: "r" + st.r, name: "r = " + st.r, v: st.r, var: "r" };
+    }
+    if (st.done) return { key: "comb", name: "combine" };
+    if (st.topHalf) return st.topHalf === "a" ? { key: "a", name: "(a) left half" } : { key: "b", name: "(b) right half" };
+    if (f.line === 7) return { key: "a", name: "(a) left half" };
+    if (f.line === 8) return { key: "b", name: "(b) right half" };
+    if (f.line >= 10 && f.line <= 13) return { key: "cl", name: "(c) scan left" };
+    if (f.line >= 16 && f.line <= 19) return { key: "cr", name: "(c) scan right" };
+    if (f.line >= 21) return { key: "comb", name: "combine" };
+    return { key: "split", name: (A.length > 1 ? "split" : "base case") };
+}
+function buildPhases() {
+    phases = [];
+    frames.forEach((f, q) => {
+        const p = phaseOf(f);
+        f.ph = p;
+        const last = phases[phases.length - 1];
+        if (last && last.key === p.key) last.to = q;
+        else phases.push(Object.assign({ from: q, to: q }, p));
+    });
+    /* too many loop phases for a readable strip: merge runs of consecutive i (or r) values */
+    const MAXP = 14;
+    const loop = phases.filter(p => p.v !== undefined);
+    if (loop.length > MAXP) {
+        const g = Math.ceil(loop.length / MAXP), out = [];
+        let grp = null;
+        for (const p of phases) {
+            if (p.v === undefined) { if (grp) { out.push(grp); grp = null; } out.push(p); continue; }
+            if (grp && grp.count < g) { grp.to = p.to; grp.vTo = p.v; grp.count++; }
+            else { if (grp) out.push(grp); grp = Object.assign({}, p, { vFrom: p.v, vTo: p.v, count: 1 }); }
+        }
+        if (grp) out.push(grp);
+        for (const p of out) if (p.count > 1) p.name = p.var + " = " + p.vFrom + "–" + p.vTo;
+        phases = out;
+    }
+}
+function renderPhases() {
+    const bar = document.getElementById("phaseBar");
+    bar.innerHTML = "";
+    for (const p of phases) {
+        const span = p.to - p.from + 1;
+        const pct = cur > p.to ? 100 : cur < p.from ? 0 : ((cur - p.from + 1) / span) * 100;
+        const b = document.createElement("button");
+        b.className = "phasebtn" + (cur >= p.from && cur <= p.to ? " on" : (cur > p.to ? " past" : ""));
+        b.style.flexGrow = String(Math.max(1, span));
+        b.innerHTML = '<span class="fill' + (pct === 0 ? " empty" : "") + '" style="width:' + pct.toFixed(2) +
+                      '%"></span><span class="lab">' + p.name + "</span>";
+        b.title = p.name + " — steps " + p.from + "–" + p.to;
+        b.addEventListener("click", () => { stopPlay(); gotoFrame(p.from); });
+        bar.appendChild(b);
+    }
 }
 
 function gotoFrame(i) {
@@ -787,13 +975,15 @@ function togglePlay() {
     else {
         if (cur >= frames.length - 1) gotoFrame(0);
         timer = setInterval(stepFwd, Math.max(16, delay));
-        document.getElementById("playBtn").textContent = "Pause";
+        const b = document.getElementById("playBtn");
+        b.innerHTML = "&#x23F8;&#xFE0E;"; b.setAttribute("aria-label", "Pause");
     }
 }
 function stopPlay() {
     if (timer) clearInterval(timer);
     timer = null;
-    document.getElementById("playBtn").textContent = "Play";
+    const b = document.getElementById("playBtn");
+    b.innerHTML = "&#x25B6;&#xFE0E;"; b.setAttribute("aria-label", "Play");
 }
 
 function onAlgChange() { stopPlay(); alg = document.getElementById("algSel").value; buildTrace(); }
@@ -821,10 +1011,26 @@ function randomInput() {
 }
 
 /* --------------------------- pseudocode panel -------------------------- */
+/* keywords / procedure names / built-ins are coloured; the text itself stays verbatim */
+function highlightLine(src) {
+    let inComment = false;
+    return src.split(/(<[^>]+>)/).map(part => {
+        if (part.startsWith("<")) {
+            if (/class=['"]cm['"]/.test(part)) inComment = true;
+            else if (part === "</span>") inComment = false;
+            return part;
+        }
+        if (inComment) return part;
+        return part
+            .replace(/\b(procedure|end for|for|if|then|return)\b/g, '<span class="kw">$1</span>')
+            .replace(/\b(findMaxSubarraySum)\b/g, '<span class="fn">$1</span>')
+            .replace(/\b(max)(?=\{)/g, '<span class="nb">$1</span>');
+    }).join("");
+}
 function buildCode() {
     const box = document.getElementById("codeView");
     box.innerHTML = CODE[alg].map((s, i) =>
-        `<div class="ln" data-line="${i+1}"><span class="no">${i+1}</span><span>${s}</span></div>`).join("");
+        `<div class="ln" data-line="${i+1}"><span class="no">${i+1}</span><span>${highlightLine(s)}</span></div>`).join("");
 }
 function highlightCode(line) {
     document.querySelectorAll("#codeView .ln").forEach(el => {
@@ -841,15 +1047,28 @@ function el(tag, attrs, txt) {
     return n;
 }
 
+/* the drawing is laid out in CSS pixels (1 SVG unit = 1 px), so its text matches the page;
+   the width follows the column, the vertical scale VSCALE follows the grip under it */
+let VSCALE = 1;
+function svgBoxWidth() {
+    const box = document.getElementById("viewBox");
+    return Math.max(360, Math.floor(box.clientWidth));
+}
+function sizeSvg(svg, W, H) {
+    svg.setAttribute("viewBox", "0 0 " + Math.round(W) + " " + Math.round(H));
+    svg.setAttribute("width", Math.round(W)); svg.setAttribute("height", Math.round(H));
+}
 function geom() {
     const n = A.length;
-    const W = 900, L = 46, R = 20;
-    const cw = Math.max(10, (W - L - R) / Math.max(1, n));
+    const avail = svgBoxWidth();
+    const cw = Math.min(72, Math.max(10, (avail - 66) / Math.max(1, n)));
+    const L = 46 + Math.max(0, (avail - 66 - n * cw) / 2), R = 20;     /* centre a short array */
+    const W = Math.max(avail, L + n * cw + R);
     const maxAbs = Math.max(1, ...A.map(Math.abs));
-    const barMid = 130, barH = 92;
+    const barH = Math.round(92 * VSCALE), barMid = 54 + barH;
     const idxY = barMid + barH + 30;
-    const sumsH = 80;
-    const sumsMid = idxY + 30 + sumsH;
+    const sumsH = Math.round(80 * VSCALE);
+    const sumsMid = idxY + 52 + sumsH;     /* room for the scan pointer under the indices */
     return { n, W, L, R, cw, maxAbs, barMid, barH, idxY, sumsH, sumsMid,
              bottom: sumsMid + sumsH + 26,
              x: i => L + i * cw, mid: barMid, H: barH };
@@ -898,6 +1117,24 @@ function drawArray(g, opts) {
     return out;
 }
 
+/* ---- labels in the drawing: variable names italic, subscripts lowered ---- */
+function richText(textEl, str) {
+    const parts = String(str).split(/(s\([abc]\)|s_[lr]|suffixMax|globalMax|\b[tsm]\b|A(?=\[))/);
+    for (const p of parts) {
+        if (!p) continue;
+        let m;
+        const span = (txt, attrs) => { const t = document.createElementNS(SVGNS, "tspan"); for (const k in attrs) t.setAttribute(k, attrs[k]); t.textContent = txt; textEl.appendChild(t); };
+        if ((m = p.match(/^s\(([abc])\)$/)) || (m = p.match(/^s_([lr])$/))) {
+            span("s", { "font-style": "italic" });
+            span(m[1] === "l" ? "ℓ" : (m[1] === "r" ? "r" : "(" + m[1] + ")"),
+                 { dy: 4, "font-size": "0.78em", "font-style": m[1] === "l" || m[1] === "r" ? "italic" : "normal" });
+            span("\u200a", { dy: -4 });
+        } else if (/^(suffixMax|globalMax|[tsmA])$/.test(p)) span(p, { "font-style": "italic" });
+        else span(p, {});
+    }
+    return textEl;
+}
+
 /* ---- the sum band: a horizontal bar over a range, height = its sum ---- */
 function drawSumAxis(g, title) {
     const out = [];
@@ -905,9 +1142,9 @@ function drawSumAxis(g, title) {
     out.push(el("line", { x1: g.L - 12, y1: g.sumsMid, x2, y2: g.sumsMid,
         stroke: "#b9a793", "stroke-width": 1, "stroke-dasharray": "3 4" }));
     out.push(el("text", { x: g.L - 16, y: g.sumsMid + 4, "text-anchor": "end",
-        "font-size": 10.5, fill: "#b9a793" }, "0"));
+        "font-size": 12, fill: "#9c866d" }, "0"));
     out.push(el("text", { x: g.L - 16, y: g.sumsMid - g.sumsH + 4, "text-anchor": "end",
-        "font-size": 10.5, fill: "#b9a793" }, String(SUMMAX)));
+        "font-size": 12, fill: "#9c866d" }, String(SUMMAX)));
     out.push(el("text", { x: 4, y: g.sumsMid - g.sumsH - 14, "font-size": 11.5,
         fill: "var(--title-muted)", "font-weight": 700, "letter-spacing": ".8" },
         title || "SUM OVER THE RANGE  ·  higher = better"));
@@ -930,9 +1167,9 @@ function sumBar(g, i, j, value, color, label, opts) {
     out.push(el("rect", { x: x1, y: y - th/2, width: x2 - x1, height: th, rx: 2,
         fill: color, opacity: op, class: "mv" }));
     if (label !== false) {
-        out.push(el("text", { x: (x1 + x2) / 2, y: value >= 0 ? y - 9 : y + 17,
-            "text-anchor": "middle", "font-size": 11.5, fill: color,
-            "font-weight": 700, opacity: op, class: "mv" },
+        out.push(richText(el("text", { x: (x1 + x2) / 2, y: (value >= 0) !== !!opts.below ? y - 9 : y + 17,
+            "text-anchor": "middle", "font-size": 13, fill: color,
+            "font-weight": 700, opacity: op, class: "mv" }),
             (label ? label + " = " : "") + value));
     }
     return out;
@@ -942,7 +1179,8 @@ function render() {
     if (!frames.length) return;
     const f = frames[cur];
     const st = f.st || {};
-    document.getElementById("statusText").innerHTML = f.msg;
+    setMath(document.getElementById("statusText"), f.msg);
+    renderPhases();
     document.getElementById("frameVal").textContent = cur + " / " + (frames.length - 1);
     document.getElementById("frameSlider").value = cur;
     highlightCode(f.line);
@@ -950,7 +1188,7 @@ function render() {
     const svg = document.getElementById("view");
     while (svg.firstChild) svg.removeChild(svg.firstChild);
     const g = geom();
-    svg.setAttribute("viewBox", "0 0 900 " + Math.round(g.bottom));
+    sizeSvg(svg, g.W, g.bottom);
     const showWit = document.getElementById("witnessToggle").checked;
 
     if (alg === "brute" || alg === "reuse") renderWindowAlg(svg, g, st, showWit);
@@ -981,7 +1219,7 @@ function renderWindowAlg(svg, g, st, showWit) {
     const ptr = alg === "brute" ? k : (j !== undefined ? j - 1 : undefined);
     if (ptr !== undefined && ptr >= 0 && ptr < g.n) {
         svg.appendChild(el("path", {
-            d: `M ${g.x(ptr)+g.cw/2} ${g.mid + g.H + 4} l -6 12 l 12 0 z`,
+            d: `M ${g.x(ptr)+g.cw/2} ${g.idxY + 8} l -6 12 l 12 0 z`,
             fill: "var(--active)", class: "mv"
         }));
     }
@@ -1031,6 +1269,37 @@ function renderKadane(svg, g, st, showWit) {
         fill: "var(--active)", "font-weight": 700 }, "↺ suffix dropped"));
 }
 
+/* case (c): where the scans are, and where the best endpoint found so far lies */
+function drawStraddle(svg, g, node, line) {
+    const BEST = "#8c6f3f";
+    const scanningL = line >= 10 && line <= 13, scanningR = line >= 16 && line <= 19;
+    const combining = line >= 21 && node.sc !== null;
+    /* the element just added: a pointer labelled with the loop variable */
+    const ptr = (idx, name) => {
+        const x = g.x(idx) + g.cw / 2, y = g.idxY + 8;
+        svg.appendChild(el("path", { d: `M ${x} ${y} l -6 12 l 12 0 z`, fill: "var(--active)" }));
+        svg.appendChild(richText(el("text", { x: x + 9, y: y + 12, "font-size": 14, fill: "var(--active)",
+            "font-weight": 700 }), name));
+    };
+    if (scanningL && node.scanI !== null) ptr(node.scanI, "i");
+    if (scanningR && node.scanJ !== null) ptr(node.scanJ - 1, "j");
+    /* the best left / right endpoint so far: a dashed boundary from the array down to the sum band */
+    const mark = (pos, label, side, strong) => {
+        const x = g.x(pos), top = g.mid - g.H - 16;
+        svg.appendChild(el("line", { x1: x, y1: top, x2: x, y2: g.sumsMid, stroke: BEST,
+            "stroke-width": strong ? 2.2 : 1.4, "stroke-dasharray": "5 3", opacity: strong ? 1 : .6 }));
+        svg.appendChild(el("path", { d: `M ${x} ${top + 7} l -6 -9 l 12 0 z`, fill: BEST, opacity: strong ? 1 : .6 }));
+        svg.appendChild(el("text", { x: x + (side < 0 ? -9 : 9), y: top + 1, "text-anchor": side < 0 ? "end" : "start",
+            "font-size": 13, fill: BEST, "font-weight": 700, opacity: strong ? 1 : .6 }, label + " " + pos));
+    };
+    const leftStarted = line >= 10 && node.sl !== null;
+    const rightStarted = line >= 16 && node.sr !== null;
+    if (leftStarted && (scanningL || scanningR || combining))
+        mark(node.witL, "best start", -1, scanningL || combining);
+    if (rightStarted && (scanningR || combining))
+        mark(node.witR, "best end", +1, scanningR || combining);
+}
+
 function renderDC(svg, g, st, showWit) {
     const { nodes = [], cur: curId, stack = [] } = st;
     const node = curId !== undefined ? nodes[curId] : null;
@@ -1050,11 +1319,12 @@ function renderDC(svg, g, st, showWit) {
             x1: g.x(node.m), y1: g.mid - g.H - 26, x2: g.x(node.m), y2: g.sumsMid + g.sumsH,
             stroke: "var(--active)", "stroke-width": 2, class: "mv"
         }));
-        svg.appendChild(el("text", { x: g.x(node.m) + 5, y: g.mid - g.H - 30, "font-size": 12,
-            fill: "var(--active)", "font-weight": 700 }, "m = " + node.m));
+        svg.appendChild(richText(el("text", { x: g.x(node.m) + 5, y: g.mid - g.H - 30, "font-size": 13,
+            fill: "var(--active)", "font-weight": 700 }), "m = " + node.m));
     }
 
     drawSumAxis(g).forEach(n => svg.appendChild(n));
+    if (node && node.m !== null) drawStraddle(svg, g, node, frames[cur].line);
     if (node) {
         const win = node.winner;
         if (node.sa !== null && node.sa !== undefined && node.m !== null)
@@ -1071,9 +1341,9 @@ function renderDC(svg, g, st, showWit) {
                 sumBar(g, node.m, node.scanJ, node.t, "var(--acc)", "t").forEach(n => svg.appendChild(n));
         }
         if (node.sl !== null && node.sl !== undefined && node.sc === null && node.witL !== null)
-            sumBar(g, node.witL, node.m, node.sl, "#8c6f3f", "s_l").forEach(n => svg.appendChild(n));
+            sumBar(g, node.witL, node.m, node.sl, "#8c6f3f", "s_l", { below: true }).forEach(n => svg.appendChild(n));
         if (node.sr !== null && node.sr !== undefined && node.sc === null && node.witR !== null)
-            sumBar(g, node.m, node.witR, node.sr, "#8c6f3f", "s_r").forEach(n => svg.appendChild(n));
+            sumBar(g, node.m, node.witR, node.sr, "#8c6f3f", "s_r", { below: true }).forEach(n => svg.appendChild(n));
         if (node.sc !== null && node.sc !== undefined)
             sumBar(g, node.witL, node.witR, node.sc, "var(--c-dc)", "s(c)", { faint: win !== undefined && win !== "c" })
                 .forEach(n => svg.appendChild(n));
@@ -1102,44 +1372,55 @@ function renderDC(svg, g, st, showWit) {
             svg.appendChild(el("text", { x: x + w/2, y: y + rowH - 12, "text-anchor": "middle",
                 "font-size": 11, fill: "var(--ink-strong)", "font-weight": 700 }, String(nd.res)));
     }
-    svg.setAttribute("viewBox", `0 0 900 ${Math.round(top + (maxDepth + 1) * rowH + 14)}`);
+    sizeSvg(svg, g.W, top + (maxDepth + 1) * rowH + 14);
 }
 
+/* the names are typeset by MathJax once (whenever the set of shown variables changes);
+   stepping only rewrites the values next to them */
+let varKeys = null;
 function renderVars(st) {
     const box = document.getElementById("varsView");
     const items = [];
-    const add = (k, v, cls) => { if (v !== undefined && v !== null) items.push(`<span class="var ${cls||''}"><i>${k}</i> = ${v}</span>`); };
+    const add = (k, v, cls, text) => { if (v !== undefined && v !== null) items.push({ k, v, cls: cls || "", text }); };
     if (alg === "brute" || alg === "reuse") {
         add("i", st.i); add("j", st.j); add("k", st.k);
         add("t", st.t, "hot"); add("s", st.s, "best-v");
     } else if (alg === "kadane") {
-        add("r", st.r); add("suffixMax", st.suffixMax, "hot"); add("globalMax", st.globalMax, "best-v");
-        if (st.start !== undefined) add("suffix starts at", st.start);
+        add("r", st.r); add("\\mathit{suffixMax}", st.suffixMax, "hot"); add("\\mathit{globalMax}", st.globalMax, "best-v");
+        if (st.start !== undefined) add("suffix starts at", st.start, "", true);
     } else {
         const node = st.cur !== undefined && st.nodes ? st.nodes[st.cur] : null;
         if (node) {
-            add("ℓ", node.l); add("r", node.r); add("m", node.m);
-            add("s(a)", node.sa); add("s(b)", node.sb);
-            add("s<sub>ℓ</sub>", node.sl); add("s<sub>r</sub>", node.sr);
-            add("t", node.t, "hot"); add("s(c)", node.sc);
-            add("result", node.res, "best-v");
+            add("\\ell", node.l); add("r", node.r); add("m", node.m);
+            add("s_{(a)}", node.sa); add("s_{(b)}", node.sb);
+            add("s_\\ell", node.sl); add("s_r", node.sr);
+            add("t", node.t, "hot"); add("s_{(c)}", node.sc);
+            add("result", node.res, "best-v", true);
         }
-        if (st.stack) items.push(`<span class="var"><i>call depth</i> = ${st.stack.length}</span>`);
+        if (st.stack) add("call depth", st.stack.length, "", true);
     }
     if (document.getElementById("witnessToggle").checked && st.best)
-        items.push(`<span class="var best-v"><i>(i,j)</i> = (${st.best[0]}, ${st.best[1]})</span>`);
-    box.innerHTML = items.join("");
+        add("(i,j)", "(" + st.best[0] + ", " + st.best[1] + ")", "best-v");
+    const sig = items.map(x => x.k + "|" + x.cls).join(",");
+    if (sig !== varKeys) {
+        varKeys = sig;
+        setMath(box, items.map((x, q) =>
+            `<span class="var ${x.cls}"><i>${x.text ? x.k : "$" + x.k + "$"}</i> = <span data-q="${q}"></span></span>`).join(""));
+    }
+    items.forEach((x, q) => { const sp = box.querySelector(`[data-q="${q}"]`); if (sp) sp.textContent = x.v; });
 }
 
+function buildCost() {
+    const n = A.length, a = ALGS[alg], tx = ALG_TEX[alg];
+    setMath(document.getElementById("costView"), `
+      <tr><td>additions so far</td><td id="costDone">0</td></tr>
+      <tr><td>additions in total</td><td>${a.cost(n)}</td></tr>
+      <tr><td>closed form</td><td>$${tx.formula}$</td></tr>
+      <tr><td>asymptotically</td><td>$${tx.asym} \\;=\\; ${tx.sub}$</td></tr>`);
+}
 function renderCost(st) {
-    const n = A.length, a = ALGS[alg];
-    const total = a.cost(n);
-    const done = st.adds || 0;
-    document.getElementById("costView").innerHTML = `
-      <tr><td>additions so far</td><td>${done}</td></tr>
-      <tr><td>additions in total</td><td>${total}</td></tr>
-      <tr><td>closed form</td><td>${a.formula}</td></tr>
-      <tr><td>asymptotically</td><td>${a.asym} &nbsp;=&nbsp; ${a.sub}</td></tr>`;
+    const c = document.getElementById("costDone");
+    if (c) c.textContent = st.adds || 0;
 }
 
 function renderLegend() {
@@ -1156,6 +1437,8 @@ function renderLegend() {
         L.push(`<div class="item">${sw('var(--window)','var(--window-border)')}active call / on the stack</div>`);
         L.push(`<div class="item">${sw('var(--acc-light)','var(--acc)')}straddle scan</div>`);
         L.push(`<div class="item">${sw('#dceadf','var(--best)')}call finished (value returned)</div>`);
+        L.push(`<div class="item"><span class="swatch" style="border:0;border-left:2px dashed #8c6f3f;border-radius:0;width:8px"></span>best start / end of the straddle so far</div>`);
+        L.push(`<div class="item"><span style="color:var(--active)">▲</span>&nbsp;element just added in the scan</div>`);
     }
     L.push(`<div class="item">${sw('var(--best)','var(--best)')}best sum so far (bar height = its value)</div>`);
     document.getElementById("legend").innerHTML = L.join("");
@@ -1286,7 +1569,7 @@ function plotSetup(canvas) {
     const ctx = canvas.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
-    return { ctx, w, h, pad: { l: 62, r: 14, t: 14, b: 34 } };
+    return { ctx, w, h, pad: { l: 62, r: 30, t: 14, b: 34 } };
 }
 
 function drawOnePlot(canvas, field, noteEl, label) {
@@ -1296,7 +1579,7 @@ function drawOnePlot(canvas, field, noteEl, label) {
     for (const k of ALG_KEYS) for (const p of points[k]) all.push(p);
     const note = noteEl;
     if (!all.length) {
-        ctx.fillStyle = "#b9a793"; ctx.font = "13px sans-serif";
+        ctx.fillStyle = "#b9a793"; ctx.font = "13px texgyrepagella, Palatino, serif";
         ctx.fillText("no measurements yet", pad.l, pad.t + 20);
         note.textContent = "";
         return;
@@ -1314,7 +1597,7 @@ function drawOnePlot(canvas, field, noteEl, label) {
 
     // axes + grid
     ctx.strokeStyle = "#d4c5b4"; ctx.lineWidth = 1;
-    ctx.fillStyle = "#a2937a"; ctx.font = "11px sans-serif";
+    ctx.fillStyle = "#a2937a"; ctx.font = "11px texgyrepagella, Palatino, serif";
     for (let q = 0; q <= 4; q++) {
         const y = pad.t + q * (h - pad.t - pad.b) / 4;
         ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke();
@@ -1368,7 +1651,7 @@ function drawOnePlot(canvas, field, noteEl, label) {
     }
     // legend
     let lx = pad.l + 8, ly = pad.t + 12;
-    ctx.font = "11.5px sans-serif"; ctx.textAlign = "left";
+    ctx.font = "11.5px texgyrepagella, Palatino, serif"; ctx.textAlign = "left";
     for (const k of ALG_KEYS) {
         if (!points[k].length) continue;
         ctx.fillStyle = CSS_COLOR[k];
@@ -1518,7 +1801,7 @@ function algoModule() {
 let race = null, raceRAF = null, workerURL = null;
 
 function blankRunner(k) {
-    return { key: k, enabled: true, on: false, done: false, ms: 0, ops: 0,
+    return { key: k, enabled: true, on: false, done: false, ms: 0, ops: 0, t0: 0, late: false,
              snap: { sum: 0, i: 0, j: 0, lo: 0, hi: 0, ops: 0 }, place: null,
              worker: null, gen: null };
 }
@@ -1572,11 +1855,28 @@ function setN(v) {
 
 function onModeChange() { stopRace(); if (race) race.mode = document.getElementById("modeSel").value; raceRedraw(); }
 
+/* ticking a contender while a race is underway sends it off right away, on its own clock
+   (so one can give brute force a head start); unticking a running one takes it out of the race */
 function toggleRunner(key, on) {
     const r = race.runners.find(x => x.key === key);
     if (!r) return;
     r.enabled = on;
+    if (race.running) {
+        if (on && !r.on && !r.done && !r.worker) {
+            r.late = true;
+            if (race.mode === "workers") startWorkers([r]); else startSliced([r]);
+        } else if (!on && !r.done && (r.on || r.worker)) {
+            abortRunner(r);
+            if (!race.runners.some(isActive)) endRace();
+        }
+    }
     raceRedraw();
+}
+function isActive(r) { return !r.done && (r.on || !!r.worker); }
+function abortRunner(r) {
+    if (r.worker) { r.worker.terminate(); r.worker = null; }
+    r.on = false; r.gen = null; r.ms = 0; r.late = false;
+    r.snap = { sum: 0, i: 0, j: 0, lo: 0, hi: 0, ops: 0 };
 }
 
 /* ------------------------------------------------------------ drawing --- */
@@ -1630,12 +1930,13 @@ function buildLanes() {
         <div class="lhead">
           <input type="checkbox" ${r.enabled ? "checked" : ""} onchange="toggleRunner('${r.key}', this.checked)">
           <span class="nm"><span class="dot" style="background:${CSS_COLOR[r.key]}"></span>${ALGS[r.key].name}
-            <span class="sub">${ALGS[r.key].sub}</span></span>
+            <span class="sub">$${ALG_TEX[r.key].sub}$</span></span>
           <div class="tbar">${tickHTML}<div class="tfill" style="background:${CSS_COLOR[r.key]}"></div><span class="tval"></span></div>
           <div class="res"></div>
         </div>
         <canvas class="lstrip" id="strip-${r.key}"></canvas>
       </div>`).join("");
+    typeset(document.getElementById("lanes"));
     for (const r of race.runners) {
         const c = document.getElementById("strip-" + r.key);
         const dpr = window.devicePixelRatio || 1;
@@ -1665,7 +1966,8 @@ function drawRace() {
         if (!lane) continue;
         lane.classList.toggle("off", !r.enabled && !r.done);
         lane.classList.toggle("fin", r.done);
-        const live = r.done ? r.ms : (r.on ? (race.mode === "sliced" ? r.ms : now - race.goTime) : 0);
+        lane.classList.toggle("late", r.late);
+        const live = r.done ? r.ms : (r.on ? (race.mode === "sliced" ? r.ms : now - r.t0) : 0);
         lane.querySelector(".tfill").style.width = (tFrac(live) * 100) + "%";
         lane.querySelector(".tval").textContent = live > 0 ? fmtMs(live) : "";
         const res = lane.querySelector(".res");
@@ -1689,7 +1991,8 @@ function drawRace() {
           "used, so the numbers stay comparable — but nothing runs simultaneously.";
     document.getElementById("raceNote").innerHTML =
         modeTxt + " Untick a contender to leave it out — useful once n gets large enough that the cubic one " +
-        "would hold up the class.";
+        "would hold up the class. Ticking a contender while a race is running sends it off at once, on its own " +
+        "clock: give brute force a head start and watch the others overtake it anyway.";
 }
 
 function drawLane(r) {
@@ -1728,7 +2031,7 @@ function drawPodium() {
         const who = occ.map(r =>
             `<div class="pod-occ"><span class="medal">${medals[place]}</span>` +
             `<span class="who" style="color:${CSS_COLOR[r.key]}">${ALGS[r.key].name}</span>` +
-            `<span class="tm">${fmtMs(r.ms)}${spoil ? " · " + r.ops.toLocaleString() + " additions" : ""}</span></div>`).join("");
+            `<span class="tm">${fmtMs(r.ms)}${r.late ? " (started +" + fmtMs(r.delay) + ")" : ""}${spoil ? " · " + r.ops.toLocaleString() + " additions" : ""}</span></div>`).join("");
         return `<div class="pod-col">${who}<div class="pod-block" style="height:${heights[place]}px">${place}</div></div>`;
     }).join("");
 }
@@ -1738,11 +2041,13 @@ function finish(r, ms, snap, ops) {
     r.done = true; r.on = false; r.ms = ms; r.ops = ops;
     r.snap = { sum: snap.sum, i: snap.i, j: snap.j, lo: 0, hi: race.n, ops };
     race.finished.push(r);
-    // medals go by measured time, not by the order the scheduler happened to
-    // hand out slices — in worker mode the two coincide anyway
+    // medals go by each contender's own measured running time — not by the order
+    // in which they crossed the line, which depends on the scheduler and on late
+    // starts. A head start therefore buys nothing; the delay is only shown.
+    r.delay = Math.max(0, r.t0 - race.goTime);
     race.finished.slice().sort((a, b) => a.ms - b.ms)
         .forEach((x, q) => { x.place = Math.min(4, q + 1); });
-    if (race.runners.every(x => x.done || !x.enabled)) endRace();
+    if (!race.runners.some(isActive)) endRace();
 }
 
 function startRace() {
@@ -1753,6 +2058,7 @@ function startRace() {
     if (!field.length) return;
     race.mode = document.getElementById("modeSel").value;
     race.running = true;
+    race.goTime = 0;
     document.getElementById("raceBtn").disabled = true;
     document.getElementById("stopBtn").disabled = false;
     if (race.mode === "workers") startWorkers(field); else startSliced(field);
@@ -1772,8 +2078,9 @@ function startWorkers(field) {
             if (d.type === "ready") {
                 ready++;
                 if (ready === field.length) {
-                    race.goTime = performance.now();
-                    for (const q of field) { q.on = true; q.worker.postMessage({ type: "go" }); }
+                    const t = performance.now();
+                    if (!race.goTime) race.goTime = t;
+                    for (const q of field) { if (!q.worker) continue; q.t0 = t; q.on = true; q.worker.postMessage({ type: "go" }); }
                 }
             } else if (d.type === "p") {
                 r.snap = { sum: d.sum, i: d.i, j: d.j, lo: d.lo, hi: d.hi, ops: d.ops };
@@ -1803,9 +2110,9 @@ function startSliced(field) {
     for (const r of field) {
         M.warmUp(r.key);
         r.gen = M.makeGen(r.key, race.A, M.pubFor(r.key, race.n));
-        r.on = true; r.ms = 0;
+        r.on = true; r.ms = 0; r.t0 = performance.now();
     }
-    race.goTime = performance.now();
+    if (!race.goTime) race.goTime = performance.now();
 }
 
 function raceLoop() {
@@ -1843,7 +2150,7 @@ function stopRace() {
     if (race) {
         for (const r of race.runners) {
             if (r.worker) { r.worker.terminate(); r.worker = null; }
-            if (!r.done) { r.on = false; r.gen = null; }
+            if (!r.done) { r.on = false; r.gen = null; r.late = false; }
         }
         race.running = false;
         drawRace();
@@ -1891,11 +2198,63 @@ function boot() {
     });
     document.addEventListener("keydown", e => {
         if (document.getElementById("panel-step").classList.contains("hidden")) return;
-        if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
-        if (e.key === "ArrowRight") { stepFwd(); e.preventDefault(); }
-        if (e.key === "ArrowLeft")  { stepBack(); e.preventDefault(); }
+        if (e.target.tagName === "TEXTAREA" || (e.target.tagName === "INPUT" && e.target.type !== "range" && e.target.type !== "checkbox")) return;
+        if (e.target.tagName === "SELECT" || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.key === "ArrowRight") { stopPlay(); stepFwd(); e.preventDefault(); }
+        if (e.key === "ArrowLeft")  { stopPlay(); stepBack(); e.preventDefault(); }
+        if (e.key === "Home")       { stopPlay(); gotoFrame(0); e.preventDefault(); }
+        if (e.key === "End")        { stopPlay(); gotoFrame(frames.length - 1); e.preventDefault(); }
         if (e.key === " ")          { togglePlay(); e.preventDefault(); }
     });
+    setupResizers();
+}
+
+/* ---- draggable column splitter (step tab) and height grips ---- */
+function dragHelper(handle, onStart, onMove) {
+    handle.addEventListener("pointerdown", ev => {
+        ev.preventDefault();
+        handle.setPointerCapture(ev.pointerId);
+        handle.classList.add("drag");
+        const st = onStart(ev);
+        const mv = e => onMove(e, st);
+        const up = () => {
+            handle.classList.remove("drag");
+            handle.removeEventListener("pointermove", mv);
+            handle.removeEventListener("pointerup", up);
+            handle.removeEventListener("pointercancel", up);
+        };
+        handle.addEventListener("pointermove", mv);
+        handle.addEventListener("pointerup", up);
+        handle.addEventListener("pointercancel", up);
+    });
+}
+function setupResizers() {
+    const root = document.documentElement, stage = document.getElementById("stage");
+    const sp = document.getElementById("hsplit");
+    dragHelper(sp, ev => ({ x: ev.clientX, w: stage.querySelector(".side").getBoundingClientRect().width }),
+        (e, st) => {
+            const total = stage.getBoundingClientRect().width;
+            root.style.setProperty("--side-w", Math.max(260, Math.min(total - 380, st.w - (e.clientX - st.x))) + "px");
+        });
+    sp.addEventListener("dblclick", () => root.style.removeProperty("--side-w"));
+    /* bars and sum band taller / flatter */
+    const vg = document.getElementById("viewGrip"), view = document.getElementById("view");
+    dragHelper(vg, ev => ({ y: ev.clientY, h: view.getBoundingClientRect().height, v: VSCALE }),
+        (e, st) => { VSCALE = Math.max(0.45, Math.min(3.5, st.v * (st.h + (e.clientY - st.y)) / st.h)); render(); });
+    vg.addEventListener("dblclick", () => { VSCALE = 1; render(); });
+    /* plot height */
+    const pg = document.getElementById("plotGrip");
+    dragHelper(pg, ev => ({ y: ev.clientY, h: document.getElementById("costPlot").getBoundingClientRect().height }),
+        (e, st) => { root.style.setProperty("--plot-h", Math.max(180, st.h + (e.clientY - st.y)) + "px"); drawPlots(); });
+    pg.addEventListener("dblclick", () => { root.style.removeProperty("--plot-h"); drawPlots(); });
+    /* the drawing follows the width of its column */
+    let lastW = 0, queued = false;
+    new ResizeObserver(() => {
+        const w = document.getElementById("viewBox").clientWidth;
+        if (w === lastW || queued) return;
+        lastW = w; queued = true;
+        requestAnimationFrame(() => { queued = false; render(); });
+    }).observe(document.getElementById("viewBox"));
 }
 boot();
 </script>

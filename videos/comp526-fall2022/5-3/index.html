@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <script>document.documentElement.className += ' js';</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><title>Video 5-3: §5.3 Parallel primitives, prefix sum, compaction</title>
+  <meta name="description" content="Website of Sebastian Wild, algorithms researcher">
+  <link rel="canonical" href="https://www.wild-inter.net/videos/comp526-fall2022/5-3/"><meta property="og:type" content="website">
+  <meta property="og:site_name" content="Sebastian Wild&#39;s Site">
+  <meta property="og:title" content="Video 5-3: §5.3 Parallel primitives, prefix sum, compaction">
+  <meta property="og:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta property="og:url" content="https://www.wild-inter.net/videos/comp526-fall2022/5-3/">
+  <meta property="og:image" content="https://www.wild-inter.net/assets/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Sebastian Wild">
+  <meta property="og:locale" content="en_GB">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Video 5-3: §5.3 Parallel primitives, prefix sum, compaction">
+  <meta name="twitter:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta name="twitter:image" content="https://www.wild-inter.net/assets/og-card.png">
+
+  <meta name="theme-color" content="#F5EBD9"><link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest"><link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/pagella/texgyrepagella-regular-webfont.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/epigrafica/epigrafica-entona-webfont.woff2">
+
+  <link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/fontawesome/fontawesome-all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+
+  <link rel="alternate" type="application/rss+xml" title="Sebastian Wild&#39;s Site"
+        href="https://www.wild-inter.net/feed.xml">
+
+  <script data-goatcounter="https://wild-inter-net.goatcounter.com/count"
+          async src="https://gc.zgo.at/count.js"></script>
+</head>
+
+
+  <body>
+
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header">
+
+  <div class="wrapper"><a class="site-title" href="/">
+      <img class="site-mark" src="/assets/two-pivots.svg"
+           alt="" width="100" height="100" aria-hidden="true">
+      <span class="site-wordmark">
+        <span class="site-name">Sebastian Wild</span>
+        <span class="site-tagline">Algorithms Group &middot; Universität Marburg</span>
+      </span>
+    </a>
+
+    <nav class="site-nav" aria-label="Main">
+
+      <button type="button" class="menu-icon" id="menu-toggle"
+              aria-expanded="false" aria-controls="site-nav-menu">
+        <svg viewBox="0 0 18 15" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="currentColor" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="currentColor" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+        <span class="visually-hidden">Menu</span>
+      </button>
+
+      <div class="trigger" id="site-nav-menu">
+          <a class="page-link" href="/research/"
+             >Research</a>
+          <a class="page-link" href="/teaching/"
+             >Teaching</a>
+          <a class="page-link" href="/posts/"
+             >Blog</a>
+          <a class="page-link" href="/about/"
+             >About</a>
+      </div>
+
+    </nav>
+
+  </div>
+
+</header>
+
+<script>
+  /* Mobile menu. Without JS the CSS leaves the menu permanently expanded,
+     so navigation still works — see the `.js` guard in _sass/_layout.scss. */
+  (function () {
+    var btn = document.getElementById('menu-toggle');
+    if (!btn) return;
+    var nav = btn.parentNode;
+
+    function setOpen(open) {
+      nav.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    btn.addEventListener('click', function () {
+      setOpen(!nav.classList.contains('is-open'));
+    });
+
+    document.addEventListener('click', function (e) {
+      if (nav.classList.contains('is-open') && !nav.contains(e.target)) setOpen(false);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && nav.classList.contains('is-open')) {
+        setOpen(false);
+        btn.focus();
+      }
+    });
+  })();
+</script>
+
+
+    <main id="content" class="page-content">
+      <div class="wrapper">
+        <article class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Video 5-3: §5.3 Parallel primitives, prefix sum, compaction</h1>
+  </header>
+
+  <div class="post-content">
+    
+
+    <style>
+  .vo-summary { font-size: 0.9em; }
+  .vo-scroll { overflow-x: auto; margin-bottom: 1.5em; }
+  .vo-table { border-collapse: collapse; font-size: 0.9em; width: 100%; font-variant-numeric: tabular-nums; }
+  .vo-table.vo-compact { width: auto; margin-left: 0; margin-right: auto; }
+  .vo-table.vo-compact th, .vo-table.vo-compact td { white-space: nowrap; }
+  .vo-table th, .vo-table td { padding: 0.2em 0.45em; vertical-align: baseline; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.08); }
+  .vo-table th { border-bottom: 2px solid rgba(0,0,0,0.25); white-space: nowrap; }
+  .vo-table tr.vo-newunit td { border-top: 2px solid rgba(0,0,0,0.2); }
+  .vo-table .vo-num { text-align: right; white-space: nowrap; padding-left: 0.9em; }
+  .vo-mono { font-family: Menlo, Consolas, monospace; font-size: 0.8em; }
+  .vo-table td.vo-small, .vo-table td .vo-small { font-size: inherit; }
+  .vo-table td .vo-note { font-size: 0.9em; opacity: 0.85; }
+  .vo-nowrap { white-space: nowrap; }
+  .vo-small { font-size: 0.9em; }
+  .vo-muted { opacity: 0.6; }
+
+  /* search */
+  .ts { margin: 1em 0 1.5em; }
+  .ts-input { font: inherit; width: min(100%, 28em); padding: 0.3em 0.5em; border: 1px solid rgba(0,0,0,0.3); border-radius: 4px; background: rgba(255,255,255,0.6); }
+  .ts-status { margin-left: 0.5em; opacity: 0.7; }
+  .ts-results { margin-top: 0.5em; }
+  .ts-hit { margin: 0.6em 0; }
+  .ts-hit-title { font-size: 0.95em; }
+  .ts-hit-ctx { font-size: 0.85em; margin: 0.1em 0 0 1em; }
+  .ts-hit-ctx a.ts-t { font-variant-numeric: tabular-nums; margin-right: 0.4em; }
+  .ts mark, .tp-text mark { background: rgba(255, 210, 0, 0.45); color: inherit; padding: 0 0.05em; }
+
+  /* transcript page: player sticks to the top while reading */
+  .tp-bar { position: sticky; top: 0; z-index: 5; background: #F5EBD9; padding: 4px 0 6px; }
+  .tp-player { position: relative; max-width: 560px; aspect-ratio: 16 / 9;
+               padding: 5px; box-sizing: content-box; width: calc(100% - 12px);
+               background: #faf6ed; border: 1px solid #aeaa9e; border-radius: 4px; }
+  .tp-player iframe, .tp-player > div, .tp-start { position: absolute; top: 5px; left: 5px; width: calc(100% - 10px); height: calc(100% - 10px); border: 0; margin: 0; padding: 0; background: #000; }
+  .tp-start { cursor: pointer; overflow: hidden; }
+  .tp-start img { width: 100%; height: 100%; object-fit: cover; display: block; margin: 0; padding: 0; border: 0; border-radius: 0; }
+  .tp-start .yt-lite-play { position: absolute; left: 50%; top: 50%; width: 68px; height: 48px; transform: translate(-50%, -50%); }
+  .tp-start .yt-lite-play-bg { fill: #212121; fill-opacity: 0.8; }
+  .tp-start:hover .yt-lite-play-bg, .tp-start:focus-visible .yt-lite-play-bg { fill: #902015; fill-opacity: 1; }
+  .tp-controls { margin: 0.3em 0 0; opacity: 0.8; }
+  .tp-disclaimer { margin: 0.6em 0 1.2em; padding: 0.4em 0.6em; border-left: 3px solid rgba(144, 32, 21, 0.35); background: rgba(255, 255, 255, 0.35); }
+  .tp-controls label { margin-left: 1em; white-space: nowrap; }
+  .tp-text p { position: relative; }
+  .tp-text [data-t] { cursor: pointer; border-radius: 2px; }
+  .tp-text span[data-t]:hover { background: rgba(144, 32, 21, 0.08); }
+  .tp-text span.tp-now { background: rgba(144, 32, 21, 0.16); box-shadow: 0 0 0 2px rgba(144, 32, 21, 0.16); }
+  .tp-text .tp-time { font-size: 0.75em; font-variant-numeric: tabular-nums; opacity: 0.6; margin-right: 0.3em; text-decoration: none; }
+  .tp-text .tp-chapter { font-size: 1.15em; margin-top: 1.5em; }
+  .tp-text .tp-chapter a { font-size: 0.7em; opacity: 0.6; font-variant-numeric: tabular-nums; text-decoration: none; }
+  .tp-nav { display: flex; justify-content: space-between; gap: 1em; margin-top: 2em; }
+  .tp-nav .tp-next { margin-left: auto; text-align: right; }
+</style>
+
+<p class="vo-summary">
+  <a href="/videos/comp526-fall2022/">COMP 526 – Efficient Algorithms (Fall 2022)</a> · <a href="/teaching/comp526/fall2022/05-parallel-algorithms">unit page</a>
+  · <a href="https://youtu.be/xCyy-1im7f8">YouTube</a>
+  <br/>2022-11-02, 39:23
+</p>
+
+<div class="tp" data-id="xCyy-1im7f8">
+  <div class="tp-bar"><div class="tp-player" id="tp-player">
+    <button type="button" class="tp-start" data-t="0" aria-label="Play video">
+      <img src="/assets/video-thumbs/xCyy-1im7f8.webp" alt="" width="640" height="360" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/xCyy-1im7f8/hqdefault.jpg'">
+      <svg class="yt-lite-play" viewBox="0 0 68 48" aria-hidden="true" focusable="false"><path class="yt-lite-play-bg" d="M66.5 7.7c-.8-2.9-2.5-5.4-5.4-6.2C55.8.1 34 0 34 0S12.2.1 6.9 1.6C4 2.3 2.3 4.8 1.5 7.7.1 13 0 24 0 24s.1 11 1.5 16.3c.8 2.9 2.5 5.4 5.4 6.2C12.2 47.9 34 48 34 48s21.8-.1 27.1-1.6c2.9-.7 4.6-3.2 5.4-6.1C67.9 35 68 24 68 24s-.1-11-1.5-16.3z"/><path d="M45 24 27 14v20z" fill="#fff"/></svg>
+    </button>
+  </div>
+  <p class="tp-controls vo-small">
+    <em>Click any sentence to play from there.</em>
+    <label><input type="checkbox" class="tp-follow" checked> follow along</label>
+  </p></div>
+  <p class="tp-disclaimer vo-small"><em>The transcript was generated automatically by YouTube's speech
+  recognition and is offered as is. It may contain errors, in particular in concerning technical terms,
+  names and formulas.</em></p>
+  <div class="tp-text" lang="en">
+<h2 class="tp-chapter" id="t0"><a href="#t=0" data-t="0">0:00</a> Introduction to primitives</h2>
+<p><a class="tp-time" href="#t=2" data-t="2">0:02</a> <span data-t="2">in the next subsection I want to show</span> <span data-t="3">you some Primitives that will be part of</span> <span data-t="6">of bigger parallel algorithms in</span> <span data-t="8">particular uh for for parallel sorting</span> <span data-t="11">but which also show</span> <span data-t="13">um that you have you have to learn some</span> <span data-t="15">new building blocks for for these kinds</span> <span data-t="17">of parallel algorithms</span></p>
+<p><a class="tp-time" href="#t=27" data-t="27">0:27</a> <span data-t="27">we&#39;ll we&#39;ll see that uh</span> <span data-t="27">most problems are not embarrassingly</span> <span data-t="29">paralleled but they contain some parts</span> <span data-t="31">that are almost embarrassingly parallel</span> <span data-t="35">so many many problems have this this</span> <span data-t="37">double nature there&#39;s there&#39;s parts that</span> <span data-t="39">are easy to parallelize but then there&#39;s</span> <span data-t="41">other bits where they seem to build on</span> <span data-t="44">previous results all the time and so you</span> <span data-t="45">need you need tricks</span> <span data-t="47">to get these these steps uh done</span> <span data-t="50">efficiently and still make use of the</span> <span data-t="52">parallelizable part</span> <span data-t="54">I know that&#39;s that&#39;s so big that it&#39;s um</span> <span data-t="56">close to useless maybe it&#39;ll make sense</span> <span data-t="59">after you&#39;ve seen the examples</span> <span data-t="62">uh there it turns out that luckily in a</span> <span data-t="65">way there are some building blocks that</span> <span data-t="66">are useful many many times and we&#39;ll</span> <span data-t="69">we&#39;ll study some of those</span> <span data-t="72">the first of these building blocks is</span> <span data-t="73">called the the prefix sum problem</span> <span data-t="77">and it&#39;s</span> <span data-t="79">formulated in an abstract way so that it</span> <span data-t="81">is useful and applicable to different</span> <span data-t="84">scenarios</span> <span data-t="85">it may look a little unmotivated at this</span> <span data-t="88">point but bear with me you&#39;ll you&#39;ll see</span> <span data-t="91">on Monday what it&#39;s good for</span> <span data-t="93">the input is an array of numbers</span> <span data-t="97">as so many times in in this module</span> <span data-t="100">the goal is to modify this array so</span> <span data-t="104">you&#39;re allowed to this in place</span> <span data-t="106">um to modify the array so that</span> <span data-t="108">afterwards</span> <span data-t="109">it contains the prefix sums which</span></p>
+<h2 class="tp-chapter" id="t72"><a href="#t=72" data-t="72">1:12</a> The prefix sum problem</h2>
+<p><a class="tp-time" href="#t=113" data-t="113">1:53</a> <span data-t="113">means at position I you&#39;re supposed to</span> <span data-t="116">have the sum of the first of the</span> <span data-t="118">elements up to and including position I</span> <span data-t="121">which are I plus one numbers I guess</span> <span data-t="124">so here&#39;s an example here&#39;s the input</span> <span data-t="126">here&#39;s the output</span> <span data-t="128">note that so we always have</span> <span data-t="131">um the first two entries are the same if</span> <span data-t="134">there&#39;s zeros that we means that means</span> <span data-t="136">some things stay constant in the other</span> <span data-t="138">array and an entry up to here so it just</span> <span data-t="142">sums up</span> <span data-t="143">all the numbers up there and uh</span> <span data-t="146">that matches it sums up to 15. I guess</span> <span data-t="150">the definition of the problem is</span> <span data-t="152">is easy enough</span> <span data-t="154">now again bear with me for the for why</span> <span data-t="158">this is a useful problem</span></p>
+<p><a class="tp-time" href="#t=165" data-t="165">2:45</a> <span data-t="165">without telling you much</span> <span data-t="165">let&#39;s have a see let&#39;s have a</span> <span data-t="168">vote on what you think is possible for</span> <span data-t="171">this and now first just sequential right</span> <span data-t="174">so you um</span> <span data-t="176">I&#39;ll maybe show the problem again</span> <span data-t="180">you&#39;re supposed to do this just</span> <span data-t="182">sequentially standard algorithm coded in</span> <span data-t="184">Python whatever you want how fast can</span> <span data-t="186">you do it</span></p>
+<p><a class="tp-time" href="#t=230" data-t="230">3:50</a> <span data-t="230">in a way there&#39;s no wrong answer to this</span> <span data-t="230">question or maybe there are some wrong</span> <span data-t="231">answers if it&#39;s impossible but if you if</span> <span data-t="235">you vote something</span> <span data-t="237">if you vote the the highest number and</span> <span data-t="240">Cubed is never wrong right because you</span> <span data-t="242">can&#39;t do it in that as an upper bound</span> <span data-t="248">but maybe that&#39;s not the most</span> <span data-t="248">interesting algorithm then</span></p>
+<p><a class="tp-time" href="#t=266" data-t="266">4:26</a> <span data-t="266">34.</span> <span data-t="267">do we get some more</span> <span data-t="268">35</span> <span data-t="294">I should have split this up and uh</span> <span data-t="294">now first show you the code and then</span> <span data-t="296">have you vote again in the interest of</span> <span data-t="298">time let&#39;s not do this though</span> <span data-t="300">um the the answers are very mixed</span> <span data-t="304">if you went for the say two went for the</span> <span data-t="306">safe option of n cubed uh I guarantee</span> <span data-t="308">you it&#39;s doable in N Cube time</span> <span data-t="311">a big O of n cubes the safe bet anyways</span> <span data-t="314">um</span> <span data-t="316">yeah if you can do it in login time</span> <span data-t="318">please find me for the thesis later</span> <span data-t="321">uh sequential time right</span> <span data-t="324">um oh sorry I&#39;m I&#39;m not supposed to</span> <span data-t="327">uh</span> <span data-t="328">to Mock You much for this</span> <span data-t="330">um so</span> <span data-t="332">linear time is what we can do uh</span> <span data-t="334">sequentially I think this is this is</span> <span data-t="336">inevitable because</span> <span data-t="338">you need to read the array to produce</span> <span data-t="341">the result</span> <span data-t="342">if you think about just the last last</span> <span data-t="344">entry</span> <span data-t="345">how are you supposed to do the sum of</span> <span data-t="349">the entire array right the last entry is</span> <span data-t="350">the sum of all the numbers</span> <span data-t="352">how are you supposed to get that sum</span> <span data-t="354">without inspecting every position in the</span> <span data-t="356">array I think this is not possible in</span> <span data-t="358">the worst case</span></p>
+<p><a class="tp-time" href="#t=362" data-t="362">6:02</a> <span data-t="362">um how can you do it in linear time</span> <span data-t="362">though</span> <span data-t="363">uh here&#39;s the code</span> <span data-t="365">is very nice and slick and simple</span> <span data-t="367">oh you don&#39;t see it</span> <span data-t="369">I forgot to switch back</span></p>
+<p><a class="tp-time" href="#t=377" data-t="377">6:17</a> <span data-t="377">there we go</span> <span data-t="377">so I was I was waving around on this</span> <span data-t="380">Slide the last entry in the array is the</span> <span data-t="383">sum of all numbers and you need linear</span> <span data-t="385">time to find that</span> <span data-t="387">and here&#39;s the code for the dramatic</span> <span data-t="390">effect it&#39;s just two lines really</span> <span data-t="393">uh</span> <span data-t="395">the the trick is you compute the sums</span> <span data-t="397">from left to right and then you all you</span> <span data-t="399">use that the next term is always the</span> <span data-t="401">previous sum plus one more element</span> <span data-t="403">that&#39;s how you can compute all those</span> <span data-t="405">sums even though if you wanted to do</span> <span data-t="408">those we&#39;ll come to that if you do it in</span> <span data-t="410">parallel if you wanted</span> <span data-t="411">to jump right in the middle and compute</span> <span data-t="413">one of the sums taken out in isolation</span> <span data-t="415">you always need</span> <span data-t="417">linear time in distance to the beginning</span> <span data-t="419">but if you do it sequentially you can</span> <span data-t="422">build on the previous result</span> <span data-t="425">that&#39;s great</span> <span data-t="427">um</span> <span data-t="427">it&#39;s it&#39;s actually very very cheap</span> <span data-t="431">you</span> <span data-t="433">do the number of additions that would be</span> <span data-t="435">needed for just Computing the last entry</span> <span data-t="438">in the array the total sum</span> <span data-t="440">but along the way you get for free all</span> <span data-t="442">the other partial sums it&#39;s just</span> <span data-t="445">convenient that you can leave them in</span> <span data-t="446">the array</span> <span data-t="448">now the big problem for parallelizing</span> <span data-t="450">this of course is that&#39;s maximal data</span> <span data-t="453">dependency every operation every</span> <span data-t="455">iteration of this Loop uses what was</span></p>
+<h2 class="tp-chapter" id="t448"><a href="#t=448" data-t="448">7:28</a> Parallelizing prefix sums</h2>
+<p><a class="tp-time" href="#t=459" data-t="459">7:39</a> <span data-t="459">just computed in the iteration before</span> <span data-t="462">so that&#39;s not gonna work for parallel</span> <span data-t="464">not if you want to get the parallel time</span> <span data-t="467">down</span> <span data-t="473">and to um to focus our mind let&#39;s</span> <span data-t="473">reduce the problem even further for a</span> <span data-t="475">moment to just Computing the sum of the</span> <span data-t="477">array</span> <span data-t="479">right</span> <span data-t="480">so this algorithm uh does this in one</span> <span data-t="485">particular order</span> <span data-t="487">and that&#39;s depicted in this tree</span> <span data-t="490">you have n inputs and numbers that you</span> <span data-t="493">want to sum up</span> <span data-t="495">and what we have is a binary addition</span> <span data-t="498">operation that can take two numbers and</span> <span data-t="499">compute its sum</span> <span data-t="501">so you inevitably have to do n minus one</span> <span data-t="504">additions because uh it&#39;s a binary tree</span> <span data-t="507">there&#39;s no way to get by with fewer</span> <span data-t="510">internal nodes</span> <span data-t="511">but what you can do is look at a</span> <span data-t="514">different binary tree</span> <span data-t="515">that&#39;s the binary tree that belongs to</span> <span data-t="517">this code</span> <span data-t="518">you always computed the the previous sum</span> <span data-t="522">and then add one more element to it</span> <span data-t="525">you don&#39;t have to do this tree you can</span> <span data-t="527">do a balance tree instead</span> <span data-t="530">and now if you compute this</span> <span data-t="534">bottom up</span> <span data-t="536">you notice that a lot of things the way</span> <span data-t="538">the tree is already drawn shows this a</span> <span data-t="540">lot of things can be done in parallel</span> <span data-t="542">without data dependencies</span> <span data-t="544">I can add these two and I can add these</span> <span data-t="546">two they don&#39;t interfere each other</span></p>
+<p><a class="tp-time" href="#t=548" data-t="548">9:08</a> <span data-t="548">so I can do level by level bottom up</span> <span data-t="551">this is the first time step</span> <span data-t="554">that&#39;s the second time step</span> <span data-t="557">and then there&#39;s one last time step</span> <span data-t="560">and you see it gets less and less busy</span> <span data-t="563">so here four PES were busy here just two</span> <span data-t="566">and then just one</span> <span data-t="568">but we reduced the height of the tree</span> <span data-t="570">here the height was uh was it seven</span> <span data-t="574">and here&#39;s just it&#39;s just uh three</span> <span data-t="578">okay</span></p>
+<p><a class="tp-time" href="#t=584" data-t="584">9:44</a> <span data-t="584">cool so we want to do that</span> <span data-t="584">um</span> <span data-t="586">and the only bit that&#39;s left is to do</span> <span data-t="588">this</span> <span data-t="589">not just for the sum of all numbers but</span> <span data-t="592">all the prefix sums as well</span> <span data-t="595">it turns out that you can do this with a</span> <span data-t="597">simple</span> <span data-t="598">um</span> <span data-t="599">a simple trick you you basically</span> <span data-t="601">simulate this algorithm for all the</span> <span data-t="603">prefixes all at the same time</span> <span data-t="606">and you can reuse some of the partial</span> <span data-t="609">examples</span> <span data-t="610">so I&#39;ll show you how this works on an</span> <span data-t="612">example and then we&#39;ll have some code</span> <span data-t="614">after that</span> <span data-t="616">here&#39;s your input</span> <span data-t="618">in round one you take adjacent Pairs and</span> <span data-t="622">add them up</span></p>
+<p><a class="tp-time" href="#t=628" data-t="628">10:28</a> <span data-t="628">so this this new cell is filled with</span> <span data-t="628">these two and there are some</span> <span data-t="631">and you do this for all uh the entries</span> <span data-t="634">note that the sums are overlapping and</span> <span data-t="636">all that will will come to it I want to</span> <span data-t="638">point out that this at this after this</span> <span data-t="640">first round already uh</span> <span data-t="643">the first entry is final well it was</span> <span data-t="646">ready right from the beginning</span> <span data-t="648">and the second entry is final it</span> <span data-t="650">contains its prefix sum</span> <span data-t="652">but all the others aren&#39;t</span> <span data-t="655">in the next round we&#39;ll do something</span> <span data-t="657">similar but this time we take the</span> <span data-t="661">element that&#39;s above us and two steps</span> <span data-t="663">back</span> <span data-t="665">and maybe you can just by pattern</span> <span data-t="667">matching guess what how this might</span> <span data-t="668">continue you double the distance you</span> <span data-t="670">jump jump back in each step</span> <span data-t="673">so here we went back one cell</span> <span data-t="676">minus one I guess</span></p>
+<p><a class="tp-time" href="#t=682" data-t="682">11:22</a> <span data-t="682">here we went back</span> <span data-t="682">two cells</span> <span data-t="684">four cells hard to draw</span> <span data-t="688">and and eight cells uh</span> <span data-t="697">uh whatever</span> <span data-t="697">um</span> <span data-t="698">the gray errors arrows are right and</span> <span data-t="701">whatever I&#39;m drawing may or may not be</span> <span data-t="705">if you pick out any specific element you</span> <span data-t="707">can</span> <span data-t="708">see the binary tree that we&#39;ve had for</span> <span data-t="711">just the sum embedded in this</span> <span data-t="714">there&#39;s uh</span></p>
+<p><a class="tp-time" href="#t=719" data-t="719">11:59</a> <span data-t="719">Maybe</span> <span data-t="719">thicker</span> <span data-t="721">so we have these two</span> <span data-t="729">and then the trick is that the final sum</span> <span data-t="729">consists of two sub trees Each of which</span> <span data-t="731">consists of further two sub trees</span> <span data-t="735">and what we&#39;ll have to see is that</span> <span data-t="737">eventually everything&#39;s covered</span> <span data-t="740">uh sorry I&#39;m</span> <span data-t="742">just blindly continuing here</span> <span data-t="744">not what I wanted</span> <span data-t="746">this one</span> <span data-t="748">and this one</span></p>
+<p><a class="tp-time" href="#t=760" data-t="760">12:40</a> <span data-t="760">now I will color in all the top rows one</span> <span data-t="760">day</span> <span data-t="766">apart from the last one</span> <span data-t="766">let&#39;s make that a bit more economically</span> <span data-t="768">okay I&#39;m totally messing up the picture</span> <span data-t="769">uh but maybe you can see the binary tree</span> <span data-t="772">a little nicer now and I forgot one</span></p>
+<p><a class="tp-time" href="#t=779" data-t="779">12:59</a> <span data-t="779">no no sorry Ah that&#39;s the only one uh</span> <span data-t="779">that shouldn&#39;t be in there</span> <span data-t="781">yeah that&#39;s subtle it&#39;s not a complete</span> <span data-t="783">binary tree that&#39;s why I picked the</span> <span data-t="785">second to last there&#39;s one one dangling</span> <span data-t="788">Leaf left here what you can see just</span> <span data-t="791">visually is that all the elements are in</span> <span data-t="793">there</span> <span data-t="794">and it&#39;s it&#39;s the same binary tree that</span> <span data-t="796">we&#39;ve seen before all right but doing it</span> <span data-t="800">this way you get all the binary trees at</span> <span data-t="803">the same time</span></p>
+<h2 class="tp-chapter" id="t805"><a href="#t=805" data-t="805">13:25</a> Analysis of parallel efficiency</h2>
+<p><a class="tp-time" href="#t=808" data-t="808">13:28</a> <span data-t="808">writing this in code is not too hard</span> <span data-t="808">it&#39;s just a little messy because you</span> <span data-t="809">have to keep track of the indices</span> <span data-t="813">uh but that&#39;s what it&#39;s like what it</span> <span data-t="814">looks like</span></p>
+<p><a class="tp-time" href="#t=822" data-t="822">13:42</a> <span data-t="822">we&#39;ll do the rounds these are round one</span> <span data-t="822">and so on that&#39;s the height of the tree</span> <span data-t="825">uh the rounds go from one up to log n</span> <span data-t="827">rounded up</span> <span data-t="829">step is how much do I jump back for my</span> <span data-t="831">single Edition</span> <span data-t="833">that&#39;s powers of two as hopefully you&#39;ve</span> <span data-t="836">noticed that pattern here as a computer</span> <span data-t="839">scientist</span> <span data-t="840">and so that&#39;s that&#39;s the the step size</span> <span data-t="843">and then the parallel part is just this</span> <span data-t="847">inner loop</span> <span data-t="848">in each in each round</span> <span data-t="851">we do for each of the positions in the</span> <span data-t="853">array</span> <span data-t="854">so in round two for each of the</span> <span data-t="856">positions that are not final</span> <span data-t="858">that&#39;s why this starts not at zero</span> <span data-t="861">you compute first the new sum</span> <span data-t="865">the pre the value that&#39;s above you and</span> <span data-t="867">the one a little further to the left you</span> <span data-t="870">compute that sum and then you store it</span> <span data-t="873">now I might have written these two lines</span> <span data-t="875">in one line right it&#39;s it&#39;s doing the</span> <span data-t="878">same thing</span> <span data-t="879">now I split it up in this case to point</span> <span data-t="883">out a subtlety here</span> <span data-t="885">which uh the pram model is essentially</span> <span data-t="888">fine doing it that way but you have to</span> <span data-t="891">be careful if you implement this on our</span> <span data-t="894">on real problem software or programming</span> <span data-t="897">languages with with parallel support</span> <span data-t="900">we have to make sure that all these</span> <span data-t="902">reads in that line from all the</span></p>
+<p><a class="tp-time" href="#t=905" data-t="905">15:05</a> <span data-t="905">processing elements are done before any</span> <span data-t="907">of the processing elements start writing</span> <span data-t="909">back their results</span> <span data-t="911">because otherwise you would read the new</span> <span data-t="914">value and they uh they would get out of</span> <span data-t="916">sync you have to make sure that all the</span> <span data-t="919">reads in round I are done before all the</span> <span data-t="921">rights in round I and then you can</span> <span data-t="923">continue with the next round</span> <span data-t="925">is it clear why</span></p>
+<p><a class="tp-time" href="#t=933" data-t="933">15:33</a> <span data-t="933">otherwise you um</span> <span data-t="933">you might end up having some numbers</span> <span data-t="935">some more than once</span> <span data-t="937">because one processing element ran ahead</span> <span data-t="939">and already did a bunch of additions now</span> <span data-t="941">you grab this and pretend it&#39;s the old</span> <span data-t="943">value but then you add things several</span> <span data-t="946">times</span> <span data-t="948">so that&#39;s one of the things that are</span> <span data-t="950">easy to write as a pram algorithm but</span> <span data-t="952">need explicit synchronization if you do</span> <span data-t="955">this in in most implementations</span> <span data-t="958">synchronization is implicit for us which</span> <span data-t="961">makes the code clean</span> <span data-t="963">um</span> <span data-t="964">but I wanted to point this out here</span></p>
+<p><a class="tp-time" href="#t=974" data-t="974">16:14</a> <span data-t="974">okay</span> <span data-t="974">we still have to analyze how fast that</span> <span data-t="976">is</span> <span data-t="977">remember we had sequential time linear</span> <span data-t="980">that&#39;s the goal for</span> <span data-t="983">um for the work now I know the answers</span> <span data-t="985">are here but let&#39;s um let&#39;s go slowly</span> <span data-t="987">over this</span> <span data-t="988">and I have two colors because we want</span> <span data-t="991">both</span> <span data-t="992">work and time</span></p>
+<p><a class="tp-time" href="#t=998" data-t="998">16:38</a> <span data-t="998">so let&#39;s first be in time mode so the</span> <span data-t="999">green one</span> <span data-t="1003">we run</span> <span data-t="1003">the overall the the outer loop is not</span> <span data-t="1005">parallelized so we have to do this</span> <span data-t="1008">sequentially</span> <span data-t="1010">so we have uh login times this this</span> <span data-t="1013">inner loop</span> <span data-t="1015">now</span> <span data-t="1017">um</span></p>
+<p><a class="tp-time" href="#t=1028" data-t="1028">17:08</a> <span data-t="1028">but then we have a for Loop that&#39;s</span> <span data-t="1028">parallelized so for the time we can</span> <span data-t="1030">ignore this</span> <span data-t="1033">we just look at how long each body takes</span> <span data-t="1036">and that&#39;s again constant time</span></p>
+<p><a class="tp-time" href="#t=1043" data-t="1043">17:23</a> <span data-t="1043">it&#39;s just two operations each or a bunch</span> <span data-t="1044">of reads an addition and a right</span> <span data-t="1047">so what does that mean for the overall</span> <span data-t="1049">loop it&#39;s log n times constant</span> <span data-t="1052">so we have log n overall</span></p>
+<p><a class="tp-time" href="#t=1058" data-t="1058">17:38</a> <span data-t="1058">that&#39;s the time</span> <span data-t="1058">okay</span> <span data-t="1060">it will turn out that this is basically</span> <span data-t="1061">best possible for this problem</span> <span data-t="1064">at least um</span> <span data-t="1066">or for the</span> <span data-t="1068">sum of the parallel models if we look at</span> <span data-t="1071">work</span></p>
+<p><a class="tp-time" href="#t=1078" data-t="1078">17:58</a> <span data-t="1078">the only difference so this is the same</span> <span data-t="1078">this is the same the difference is that</span> <span data-t="1081">this Loop now is done</span> <span data-t="1087">all the different pre-ease we sum that</span> <span data-t="1087">up</span> <span data-t="1088">so we have to sum up this and I&#39;ll be</span> <span data-t="1091">generous and say this is order n</span> <span data-t="1094">some iterations later are cheaper</span> <span data-t="1096">but um</span> <span data-t="1098">uh let&#39;s let&#39;s just do do a generous</span> <span data-t="1100">upper bound which turns out to be um a</span> <span data-t="1104">sharp Theta bound</span></p>
+<p><a class="tp-time" href="#t=1110" data-t="1110">18:30</a> <span data-t="1110">so you have linear in each iteration an</span> <span data-t="1110">overall n log n</span> <span data-t="1117">okay</span> <span data-t="1117">you could write this here more</span> <span data-t="1118">specifically by subtracting the step and</span> <span data-t="1120">then write it as a sum and you&#39;ll</span> <span data-t="1122">come to the same overall Theta</span> <span data-t="1124">conclusion</span></p>
+<p><a class="tp-time" href="#t=1129" data-t="1129">18:49</a> <span data-t="1129">so we have n log n work but the</span> <span data-t="1129">sequential algorithm</span> <span data-t="1130">that we&#39;ve seen before was linear</span> <span data-t="1132">so it&#39;s not quite work efficient yet</span> <span data-t="1135">it&#39;s a it&#39;s a bit worse</span> <span data-t="1137">but hey it&#39;s not not that bad either</span> <span data-t="1139">right it&#39;s uh it&#39;s a lock Factor</span> <span data-t="1141">overhead so um</span> <span data-t="1143">unless you have</span> <span data-t="1145">really few processing elements maybe</span> <span data-t="1148">that algorithm is still still a</span> <span data-t="1150">substantial Improvement</span> <span data-t="1152">because the sequential time is really</span> <span data-t="1154">fast it goes from linear to log</span></p>
+<p><a class="tp-time" href="#t=1165" data-t="1165">19:25</a> <span data-t="1165">uh the the best possible here comes in a</span> <span data-t="1165">way from just looking at the sun</span> <span data-t="1173">if you look at the simpler problem of</span> <span data-t="1173">just summing Up N numbers as long as all</span> <span data-t="1176">you can do is take two numbers and add</span> <span data-t="1178">them up you have to spend a login logger</span> <span data-t="1182">you have to spend a linear number of</span> <span data-t="1183">additions</span> <span data-t="1185">and you can you can work out that it&#39;s</span> <span data-t="1187">not possible to interleave them better</span> <span data-t="1189">the binary tree has to have login height</span></p>
+<p><a class="tp-time" href="#t=1202" data-t="1202">20:02</a> <span data-t="1202">in a way this is not atypical we often</span> <span data-t="1202">have a certain trade-off</span> <span data-t="1204">we can get a bit more parallelism but</span> <span data-t="1207">then uh blow up the work we&#39;ve seen that</span> <span data-t="1210">as an extreme case for our first string</span> <span data-t="1212">matching algorithms</span> <span data-t="1214">now sometimes though you can actually</span> <span data-t="1217">get the Best of Both Worlds by just</span> <span data-t="1218">thinking a little harder</span> <span data-t="1221">uh in this case you can you there&#39;s two</span> <span data-t="1224">ways how you can make our parallels</span> <span data-t="1226">prefix sums work efficient and keep the</span> <span data-t="1229">parallel time</span> <span data-t="1231">you can do it with doubling the parallel</span> <span data-t="1233">time</span> <span data-t="1234">which is a little more in involved so</span> <span data-t="1237">I&#39;m I&#39;m not doing that I&#39;ll show you</span> <span data-t="1239">something that effectively triples the</span> <span data-t="1241">uh triples the the parallel time</span> <span data-t="1244">but brings the work down so in in Theta</span> <span data-t="1247">world where we ignore the constant</span> <span data-t="1249">factors we keep the time but bring the</span> <span data-t="1252">work down to linear</span></p>
+<h2 class="tp-chapter" id="t1259"><a href="#t=1259" data-t="1259">20:59</a> Work-efficient parallelization</h2>
+<p><a class="tp-time" href="#t=1262" data-t="1262">21:02</a> <span data-t="1262">let&#39;s see how that works</span> <span data-t="1262">and that&#39;s again before we dive into the</span> <span data-t="1264">details I know it&#39;s a wall of text uh it</span> <span data-t="1267">should have split that up uh the the key</span> <span data-t="1270">thing is that</span> <span data-t="1272">this is a template that works more</span> <span data-t="1274">generally</span> <span data-t="1275">if you have an algorithm that&#39;s</span> <span data-t="1277">good in terms of parallel time but not</span> <span data-t="1279">work efficient</span> <span data-t="1282">try to find a way to break the problem</span> <span data-t="1285">into blocks where you can</span> <span data-t="1288">use an efficient sequential algorithm on</span> <span data-t="1290">small pieces</span> <span data-t="1292">and then on the aggregate results use</span> <span data-t="1295">your work inefficient parallel algorithm</span> <span data-t="1298">if you can reduce the size of the</span> <span data-t="1300">problem enough so that this work</span> <span data-t="1302">inefficiency doesn&#39;t carry through</span> <span data-t="1305">and the blocks are small enough for the</span> <span data-t="1307">sequential algorithm to still be fast</span> <span data-t="1309">you can improve overall</span> <span data-t="1311">uh</span> <span data-t="1313">again</span> <span data-t="1314">[Music]</span> <span data-t="1315">um</span> <span data-t="1316">as always I&#39;m not sure if it&#39;s useful to</span> <span data-t="1318">First give the general template and then</span> <span data-t="1320">the example or the other way around you</span> <span data-t="1322">usually understand things the other way</span> <span data-t="1324">around but I think warning you up front</span> <span data-t="1326">about what&#39;s to come is helpful</span> <span data-t="1329">you&#39;ll be my judge</span> <span data-t="1331">uh here&#39;s how we do it in this case we</span> <span data-t="1334">choose a block size of roughly log n</span> <span data-t="1337">so this this will just be um</span> <span data-t="1340">sub segments of the array of login</span> <span data-t="1342">elements</span></p>
+<p><a class="tp-time" href="#t=1345" data-t="1345">22:25</a> <span data-t="1345">we break the uh conceptually break the</span> <span data-t="1348">element into blocks no uh</span> <span data-t="1350">no sawing needed</span> <span data-t="1353">and then in parallel we compute the</span> <span data-t="1356">prefix sums on just the little pieces</span> <span data-t="1359">foreign</span> <span data-t="1361">use the sequential algorithm and then</span> <span data-t="1364">we&#39;ll use</span> <span data-t="1365">the sums of these in the work</span> <span data-t="1368">inefficient parallel prefix sum</span> <span data-t="1371">and let me show you</span> <span data-t="1373">um an example for that</span></p>
+<p><a class="tp-time" href="#t=1379" data-t="1379">22:59</a> <span data-t="1379">at least</span> <span data-t="1379">um</span> <span data-t="1380">like not not a fully worked one but a</span> <span data-t="1382">conceptual one</span> <span data-t="1387">I think that makes makes it a bit</span> <span data-t="1387">clearer</span> <span data-t="1389">so we start with</span> <span data-t="1392">um</span> <span data-t="1393">12 elements in our array</span> <span data-t="1396">and suppose the block size is four</span> <span data-t="1400">which it is if you take the log of 12.</span> <span data-t="1405">I didn&#39;t just make that up</span> <span data-t="1408">good</span> <span data-t="1409">so we&#39;ll have three blocks right if</span> <span data-t="1412">they&#39;re</span> <span data-t="1413">four elements each</span></p>
+<p><a class="tp-time" href="#t=1424" data-t="1424">23:44</a> <span data-t="1424">I&#39;m just trying to draw the array with</span> <span data-t="1424">cells we don&#39;t really care about the</span> <span data-t="1426">numbers in there that&#39;s why I said it&#39;s</span> <span data-t="1428">not a concrete work example</span> <span data-t="1429">we&#39;re just summing numbers up you can</span> <span data-t="1431">you can sum numbers uh we don&#39;t need to</span> <span data-t="1433">do that in detail</span> <span data-t="1435">so this is index 0 then 4 and then eight</span></p>
+<p><a class="tp-time" href="#t=1446" data-t="1446">24:06</a> <span data-t="1446">right so let&#39;s look at the different</span> <span data-t="1446">steps</span> <span data-t="1447">the first one is this local computation</span> <span data-t="1450">where we</span> <span data-t="1452">keep local to the blocks</span> <span data-t="1455">so we have conceptually broken the array</span> <span data-t="1458">into three pieces</span> <span data-t="1461">containing the same numbers</span> <span data-t="1464">and</span></p>
+<p><a class="tp-time" href="#t=1469" data-t="1469">24:29</a> <span data-t="1469">you know what let&#39;s make it a concrete</span> <span data-t="1469">example but a boring trivial one</span> <span data-t="1477">let&#39;s just say it&#39;s filled with ones</span> <span data-t="1477">it&#39;s easy to keep track of the sum then</span></p>
+<p><a class="tp-time" href="#t=1487" data-t="1487">24:47</a> <span data-t="1487">but it&#39;s a little little less opaque</span> <span data-t="1487">the local prefix sums they just compute</span> <span data-t="1489">the prefix sums in this in this block</span> <span data-t="1492">using the sequential algorithm so I will</span> <span data-t="1494">fill this all with one two three four</span></p>
+<p><a class="tp-time" href="#t=1515" data-t="1515">25:15</a> <span data-t="1515">the last element of each block</span> <span data-t="1515">namely these guys</span> <span data-t="1518">the rightmost element and compute the</span> <span data-t="1519">prefix sums for those</span> <span data-t="1522">using the new algorithm the one with the</span> <span data-t="1524">fancy binary trees embedded</span> <span data-t="1526">so we take this one</span> <span data-t="1529">this one and this one</span> <span data-t="1531">and uh well</span> <span data-t="1533">I guess pretend there&#39;s a huge array</span> <span data-t="1535">with</span></p>
+<p><a class="tp-time" href="#t=1540" data-t="1540">25:40</a> <span data-t="1540">just the</span> <span data-t="1540">the force in there</span> <span data-t="1548">and compute the prefix sums of these so</span> <span data-t="1548">that will give us</span> <span data-t="1549">that&#39;s before</span> <span data-t="1551">and then after</span> <span data-t="1554">you get this okay that used up much of</span> <span data-t="1556">the slides</span> <span data-t="1557">space we&#39;ll see</span></p>
+<p><a class="tp-time" href="#t=1564" data-t="1564">26:04</a> <span data-t="1564">and then we come back to</span> <span data-t="1564">the blocks</span> <span data-t="1571">and</span> <span data-t="1571">and add the</span> <span data-t="1573">the global prefix before that block to</span> <span data-t="1576">all the values within the block</span> <span data-t="1579">so what that&#39;s supposed to mean is we</span> <span data-t="1582">copy our orange part</span></p>
+<p><a class="tp-time" href="#t=1594" data-t="1594">26:34</a> <span data-t="1594">okay I went too far with this one let&#39;s</span> <span data-t="1594">um</span> <span data-t="1595">make this a bit smaller</span> <span data-t="1603">this step says</span> <span data-t="1603">to all elements in here add the four</span> <span data-t="1607">to all elements in this block add the</span> <span data-t="1609">eight</span></p>
+<p><a class="tp-time" href="#t=1614" data-t="1614">26:54</a> <span data-t="1614">I can do this in parallel over the</span> <span data-t="1614">blocks</span> <span data-t="1615">so what I&#39;ll get is these stay the same</span> <span data-t="1626">then these get to 5 6 7 8 and these get</span> <span data-t="1626">to 9 10</span> <span data-t="1628">11 and 12. that&#39;s the 12.</span></p>
+<p><a class="tp-time" href="#t=1633" data-t="1633">27:13</a> <span data-t="1633">okay which is the correct prefix sum</span> <span data-t="1635">obvious to check in this case because we</span> <span data-t="1637">started with all ones if you sum up as</span> <span data-t="1640">many ones as you have then it should be</span> <span data-t="1642">the</span> <span data-t="1642">just the numbers 1 through 12.</span> <span data-t="1646">that was the last step so that correctly</span> <span data-t="1648">computes the prefix sums at least it</span> <span data-t="1650">worked in this example</span> <span data-t="1652">now let&#39;s let&#39;s see uh what the time and</span> <span data-t="1656">span for this and work for this is</span> <span data-t="1661">[Music]</span> <span data-t="1661">um</span></p>
+<p><a class="tp-time" href="#t=1674" data-t="1674">27:54</a> <span data-t="1674">time here and work there</span> <span data-t="1674">then I can keep using my colors for the</span> <span data-t="1676">different phases</span> <span data-t="1678">how much time do I need inside each</span> <span data-t="1681">block with a sequential algorithm</span> <span data-t="1684">well how long is a block it&#39;s B long</span> <span data-t="1689">so for the orange part</span> <span data-t="1691">I need Theta B time</span> <span data-t="1694">which is log n</span></p>
+<p><a class="tp-time" href="#t=1700" data-t="1700">28:20</a> <span data-t="1700">then I have the blue part</span> <span data-t="1700">which</span> <span data-t="1702">uses the</span> <span data-t="1704">fast sequential sorry the fast parallel</span> <span data-t="1707">prefix</span> <span data-t="1708">some algorithm that we&#39;ve just discussed</span> <span data-t="1710">and its time was log n</span> <span data-t="1719">but I&#39;m using it on N Prime which is not</span> <span data-t="1719">n but n divided the block size</span></p>
+<p><a class="tp-time" href="#t=1727" data-t="1727">28:47</a> <span data-t="1727">rounded up so in terms of theta it&#39;s n</span> <span data-t="1727">divided B</span> <span data-t="1730">and that again is undivided login</span> <span data-t="1744">um</span> <span data-t="1744">should I do the computation</span> <span data-t="1746">if you take</span> <span data-t="1748">uh sorry this is a log n Prime</span> <span data-t="1751">I didn&#39;t write this</span> <span data-t="1753">that&#39;s the size of the input but the</span> <span data-t="1755">time for the blue part</span> <span data-t="1757">is log n Prime</span> <span data-t="1761">if you insert this definition of n Prime</span> <span data-t="1764">into n into log n Prime</span> <span data-t="1767">then you get log n minus log log n</span> <span data-t="1771">that&#39;s the same as Theta login</span></p>
+<p><a class="tp-time" href="#t=1784" data-t="1784">29:44</a> <span data-t="1784">and finally the green part</span> <span data-t="1784">that&#39;s a bunch of additions again each</span> <span data-t="1786">processing element deals with one block</span> <span data-t="1789">so it&#39;s only linear in the size of the</span> <span data-t="1791">block again</span> <span data-t="1798">so the overall time if you sum this up</span> <span data-t="1798">is something like three times the</span> <span data-t="1802">previous time</span></p>
+<p><a class="tp-time" href="#t=1807" data-t="1807">30:07</a> <span data-t="1807">and well I don&#39;t have to copy this so</span> <span data-t="1807">this is um summarized here again I think</span> <span data-t="1811">the explanation is is better explained</span> <span data-t="1813">step by step</span> <span data-t="1815">so the time is in terms of theta is</span> <span data-t="1818">still the same log n as we had it before</span> <span data-t="1821">let&#39;s look at the work because the work</span> <span data-t="1823">was where we weren&#39;t happy previously</span> <span data-t="1826">so work for the orange part we&#39;re using</span> <span data-t="1830">the efficient sequential algorithm</span> <span data-t="1832">and it&#39;s a effectively the same as the</span> <span data-t="1835">Span in this time</span> <span data-t="1836">every little piece just executes on</span> <span data-t="1840">its block</span> <span data-t="1842">so that&#39;s log n in terms of the work uh</span> <span data-t="1845">sorry that&#39;s per block</span></p>
+<p><a class="tp-time" href="#t=1855" data-t="1855">30:55</a> <span data-t="1855">and we have</span> <span data-t="1855">n over B blocks</span> <span data-t="1866">so that&#39;s linear work overall</span> <span data-t="1866">for the orange part the local sums</span> <span data-t="1870">well the blue part we&#39;re using the work</span> <span data-t="1871">inefficient algorithm from before</span> <span data-t="1875">so the work there was n Prime Times log</span> <span data-t="1878">n Prime</span></p>
+<p><a class="tp-time" href="#t=1884" data-t="1884">31:24</a> <span data-t="1884">if we insert what our n Prime is</span> <span data-t="1884">we see that this nicely cancels so it&#39;s</span> <span data-t="1887">n divided log n</span> <span data-t="1890">Times log n Prime which we&#39;ve already</span> <span data-t="1894">seen is log n</span> <span data-t="1896">minus this small term</span> <span data-t="1898">so that cancels and becomes also Theta</span> <span data-t="1902">of n</span> <span data-t="1904">so we&#39;ve reduced the work by making the</span> <span data-t="1906">problem a little smaller we reduced it</span> <span data-t="1908">by a log Factor</span> <span data-t="1910">that was enough</span> <span data-t="1913">to bring the work to linear</span> <span data-t="1916">and then the green part is as before we</span> <span data-t="1918">use</span> <span data-t="1920">n over B blocks and each block costs us</span> <span data-t="1923">B so that&#39;s linear again</span> <span data-t="1926">so the overall work is is linear for all</span> <span data-t="1929">steps</span> <span data-t="1930">and that&#39;s work efficient because we</span> <span data-t="1933">know</span> <span data-t="1933">that&#39;s the best sequential algorithm</span> <span data-t="1936">okay</span></p>
+<p><a class="tp-time" href="#t=1941" data-t="1941">32:21</a> <span data-t="1941">so that&#39;s probably the most involved</span> <span data-t="1941">algorithm we&#39;ll discuss in this in this</span> <span data-t="1943">section</span> <span data-t="1944">uh it&#39;s more involved because it builds</span> <span data-t="1947">on other things right it uses previous</span> <span data-t="1949">algorithms as a black box</span> <span data-t="1952">the nice thing about this though is</span> <span data-t="1954">you get an overall much faster algorithm</span> <span data-t="1957">without thinking too hard you&#39;re just</span> <span data-t="1960">putting pieces together in a clever way</span> <span data-t="1963">and that&#39;s much of the beauty in</span> <span data-t="1964">algorithms and data structures almost</span> <span data-t="1966">all the time you do just this you take</span> <span data-t="1969">pieces and put them together in a in a</span> <span data-t="1972">more clever slightly more creative way</span> <span data-t="1975">and that that gives you a better result</span> <span data-t="1977">at the end</span> <span data-t="1978">the</span> <span data-t="1980">the magic or the the skill is to know</span> <span data-t="1983">good pieces to put together and to see</span> <span data-t="1986">how they fit which is</span> <span data-t="1988">sometimes incredibly hard uh even with</span> <span data-t="1991">it with a lot of practice you sometimes</span> <span data-t="1993">don&#39;t see it as someone else does</span> <span data-t="1997">uh but practice does help a bit</span></p>
+<h2 class="tp-chapter" id="t2005"><a href="#t=2005" data-t="2005">33:25</a> Compacting subsequences</h2>
+<p><a class="tp-time" href="#t=2010" data-t="2010">33:30</a> <span data-t="2010">I have one last ingredient for this uh</span> <span data-t="2010">for this building block section</span> <span data-t="2013">and that&#39;s that&#39;s this problem which</span> <span data-t="2015">again uh sounds maybe a bit esoteric at</span> <span data-t="2019">first but this will literally be used in</span> <span data-t="2021">the Sorting part then</span></p>
+<p><a class="tp-time" href="#t=2027" data-t="2027">33:47</a> <span data-t="2027">suppose we have an array of numbers we</span> <span data-t="2027">always have arrays of numbers but we</span> <span data-t="2029">have a second array that tells us some</span> <span data-t="2032">of the elements are not interesting</span> <span data-t="2034">I&#39;m only interested in the elements that</span> <span data-t="2035">have a one</span> <span data-t="2037">and the ones with a zero I&#39;d like to not</span> <span data-t="2039">have there</span> <span data-t="2041">so I&#39;d like to copy out</span> <span data-t="2043">only the elements that have a one above</span> <span data-t="2045">them</span> <span data-t="2047">we call that compacting a subsequence</span> <span data-t="2049">from an array</span> <span data-t="2051">so you have a subsequence is</span> <span data-t="2053">a selection of the indices so it&#39;s not a</span> <span data-t="2056">contiguous part but could be spread out</span> <span data-t="2059">as you want but subsequence means we</span> <span data-t="2062">want to keep the order as they appear in</span> <span data-t="2064">the original array</span> <span data-t="2066">now again doing this sequentially is</span> <span data-t="2068">very easy right you go left to right you</span> <span data-t="2071">keep a pointer to the next cell that&#39;s</span> <span data-t="2073">free</span> <span data-t="2074">if you see zeros you skip it if you see</span> <span data-t="2076">a one you copy it out and move one cell</span> <span data-t="2079">further</span> <span data-t="2080">easy peasy sequentially</span> <span data-t="2082">how do you do this in parallel</span> <span data-t="2085">it&#39;s not so clear at first because it</span> <span data-t="2088">seems that say this four</span> <span data-t="2090">where this goes in the output seems to</span> <span data-t="2093">depend on what happened before in the</span> <span data-t="2095">sequential algorithm</span> <span data-t="2097">but if you think about it for a moment</span> <span data-t="2099">uh this is really just reusing what</span> <span data-t="2102">we&#39;ve just done</span></p>
+<p><a class="tp-time" href="#t=2104" data-t="2104">35:04</a> <span data-t="2104">you can use prefix sums on this bit</span> <span data-t="2107">Vector B</span> <span data-t="2109">to figure out where the elements should</span> <span data-t="2110">go</span> <span data-t="2112">precisely for this four say</span> <span data-t="2114">if we check where it comes from</span> <span data-t="2117">the position in the array is essentially</span> <span data-t="2119">the number of ones</span> <span data-t="2121">in B to the left of that point</span> <span data-t="2124">so we would like to sum up the number of</span> <span data-t="2126">ones here</span> <span data-t="2128">if we sum that up</span> <span data-t="2130">as five</span> <span data-t="2132">and four is The Fifth Element so apart</span> <span data-t="2134">from the plus minus one because we start</span> <span data-t="2136">indices with zero that&#39;s the answer</span></p>
+<p><a class="tp-time" href="#t=2144" data-t="2144">35:44</a> <span data-t="2144">so you can you can put this into code by</span> <span data-t="2144">this little algorithm</span> <span data-t="2146">you have this B given as an array</span> <span data-t="2149">we copy that out because we need B and</span> <span data-t="2152">we need to mess with it so</span> <span data-t="2154">we copy it into C and compute the</span> <span data-t="2156">parallel prefix sums there we&#39;re using</span> <span data-t="2158">one of the lovely algorithms you&#39;ve just</span> <span data-t="2161">learned</span> <span data-t="2162">and then we can do the following in</span> <span data-t="2165">parallel</span> <span data-t="2166">if our processing element has one of</span> <span data-t="2169">those positions assigned that has a one</span> <span data-t="2173">then it gets active otherwise it sleeps</span> <span data-t="2176">and what does it do it copies its</span> <span data-t="2178">element a of J</span> <span data-t="2180">into</span> <span data-t="2182">wherever C of J says it should go</span> <span data-t="2185">minus one for you know the off by one we</span> <span data-t="2187">start indices at zero</span> <span data-t="2189">okay</span></p>
+<p><a class="tp-time" href="#t=2192" data-t="2192">36:32</a> <span data-t="2192">so the trick here is this we know how to</span> <span data-t="2195">do properly in parallel</span> <span data-t="2197">and we can use that to pre-compute where</span> <span data-t="2200">the elements should go</span> <span data-t="2202">and then we do the actual data movement</span> <span data-t="2203">in the second step in the second phase</span> <span data-t="2207">that way we have decoupled the the</span> <span data-t="2210">computation like the the previous the</span> <span data-t="2212">sequential algorithm would go through</span> <span data-t="2213">this step by step and have this data</span> <span data-t="2216">dependency the place where the element</span> <span data-t="2218">goes depends on the past we have</span> <span data-t="2221">decoupled this by first Computing with</span> <span data-t="2224">where everyone goes and then moving them</span> <span data-t="2226">there in just one step</span> <span data-t="2228">across parallel across all the</span> <span data-t="2230">processing elements</span></p>
+<p><a class="tp-time" href="#t=2241" data-t="2241">37:21</a> <span data-t="2241">so let&#39;s see if you digested that part</span> <span data-t="2241">how fast can we do this compacting</span> <span data-t="2276">it&#39;s also interesting that it doesn&#39;t</span> <span data-t="2276">depend on how many elements you copy out</span> <span data-t="2279">it&#39;s kind of um Irrelevant for the time</span> <span data-t="2282">and work in this case</span></p>
+<p><a class="tp-time" href="#t=2319" data-t="2319">38:39</a> <span data-t="2319">probably have to cut</span> <span data-t="2319">cut it here and reveal the answers</span> <span data-t="2324">here though maybe it didn&#39;t have a</span> <span data-t="2325">chance to vote</span> <span data-t="2327">but most of you got this right so maybe</span> <span data-t="2329">this is a easy enough</span> <span data-t="2332">the answer is is login time and and</span> <span data-t="2334">linear work</span> <span data-t="2335">and the reason for that is</span> <span data-t="2339">look at this algorithm and analyze it</span> <span data-t="2342">it basically does the prefix sum and not</span> <span data-t="2344">much else around it</span> <span data-t="2346">what comes afterwards in terms of time</span> <span data-t="2348">is a constant step</span> <span data-t="2350">and linear work because we spread it</span> <span data-t="2352">across all the PES</span> <span data-t="2354">but both is dominated by the computation</span> <span data-t="2357">of the parallel prefix sums</span></p>
+
+  </div>
+</div>
+
+<p class="tp-nav vo-small"><a href="/videos/comp526-fall2022/5-2/">← Video 5-2: §5.2 Parallel string matching</a><a class="tp-next" href="/videos/comp526-fall2022/5-4/">Video 5-4: §5.4 Parallel sorting →</a>
+</p>
+
+<script src="/assets/js/transcript-player.js" defer></script>
+
+  </div>
+
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Sebastian Wild</h2>
+
+    <div class="footer-col-wrapper">
+
+      <div class="footer-col footer-col-1">
+        <p>Contact:</p>
+
+        <ul class="link-group">
+          <li><a href="mailto:%77%69%6C%64@%69%6E%66%6F%72%6D%61%74%69%6B.%75%6E%69-%6D%61%72%62%75%72%67.%64%65" title="Contact me">wild at informatik.uni-marburg.de</a></li>
+          <li><a href="mailto:%77%69%6C%64@%6C%69%76%65%72%70%6F%6F%6C.%61%63.%75%6B" title="Contact me">wild at liverpool.ac.uk</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x34EE39A78B149255">PGP</a></li>
+          <li><a href="mailto:%73%65%62%61%77%69%6C%64@%67%6D%61%69%6C.%63%6F%6D" title="Contact me">sebawild at gmail</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x38600ABC14973198">PGP</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://www.uni-marburg.de/de/fb12/arbeitsgruppen/algorith/team/sebastian-wild">Website at UMR</a></li>
+          <li><a href="https://www.liverpool.ac.uk/computer-science/staff/sebastian-wild">Website at UoL</a></li>
+          <li><a href="https://tcs.csc.liv.ac.uk">TCS @ Liverpool</a></li>
+        </ul>
+
+        <p class="footer-note">
+          Retired addresses (no longer read):
+          <span class="retired">wild at uwaterloo.ca</span>,
+          <span class="retired">wild at cs.uni-kl.de</span>.
+        </p>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <p>Elsewhere:</p>
+
+        <ul class="link-group">
+          <li><a href="https://github.com/sebawild" title="GitHub sebawild"><i class="fab fa-github" aria-hidden="true"></i> GitHub sebawild</a></li>
+          <li><a rel="me" href="https://mathstodon.xyz/@wild" title="Mastodon @wild@mathstodon.xyz"><i class="fab fa-mastodon" aria-hidden="true"></i> @wild@mathstodon.xyz</a></li>
+          <li><a href="https://bsky.app/profile/sebastianwild.bsky.social" title="Bluesky @sebastianwild.bsky.social"><span aria-hidden="true">🦋</span> @sebastianwild</a></li>
+          <li><a href="https://www.linkedin.com/in/sebastian-wild-liverpool/"><i class="fab fa-linkedin" aria-hidden="true"></i> LinkedIn profile</a></li>
+          <li><a href="https://www.youtube.com/c/SebastianWildLectures"><i class="fab fa-youtube" aria-hidden="true"></i> YouTube channel</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://orcid.org/0000-0002-6061-9177" title="ORCID: 0000-0002-6061-9177"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-orcid"/></svg>
+ 0000-0002-6061-9177</a></li>
+          <li><a href="https://scholar.google.de/citations?user=aMyZiK0AAAAJ"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-google-scholar"/></svg>
+ Google Scholar</a></li>
+          <li><a href="https://dblp.uni-trier.de/pers/hd/w/Wild:Sebastian"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-dblp"/></svg>
+ dblp</a></li>
+          <li><a href="https://www.semanticscholar.org/author/3124206"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-semantic-scholar"/></svg>
+ Semantic Scholar</a></li>
+          <li><a href="https://arxiv.org/a/wild_s_2"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-arxiv"/></svg>
+ arXiv</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>Quick links:</p>
+        <ul class="link-group">
+          <li><a href="/publications/">my publications</a></li>
+          <li><a href="/cv.html">my CV</a></li>
+          <li><a href="/feed.xml">RSS feed</a></li>
+          <li><a href="https://disk.wild-inter.net/sharing/WwXHITc2j">my library</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

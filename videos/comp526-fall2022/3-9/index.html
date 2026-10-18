@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <script>document.documentElement.className += ' js';</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><title>Video 3-9: §3.7 Order statistics, quickselect, median of medians</title>
+  <meta name="description" content="Website of Sebastian Wild, algorithms researcher">
+  <link rel="canonical" href="https://www.wild-inter.net/videos/comp526-fall2022/3-9/"><meta property="og:type" content="website">
+  <meta property="og:site_name" content="Sebastian Wild&#39;s Site">
+  <meta property="og:title" content="Video 3-9: §3.7 Order statistics, quickselect, median of medians">
+  <meta property="og:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta property="og:url" content="https://www.wild-inter.net/videos/comp526-fall2022/3-9/">
+  <meta property="og:image" content="https://www.wild-inter.net/assets/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Sebastian Wild">
+  <meta property="og:locale" content="en_GB">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Video 3-9: §3.7 Order statistics, quickselect, median of medians">
+  <meta name="twitter:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta name="twitter:image" content="https://www.wild-inter.net/assets/og-card.png">
+
+  <meta name="theme-color" content="#F5EBD9"><link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest"><link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/pagella/texgyrepagella-regular-webfont.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/epigrafica/epigrafica-entona-webfont.woff2">
+
+  <link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/fontawesome/fontawesome-all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+
+  <link rel="alternate" type="application/rss+xml" title="Sebastian Wild&#39;s Site"
+        href="https://www.wild-inter.net/feed.xml">
+
+  <script data-goatcounter="https://wild-inter-net.goatcounter.com/count"
+          async src="https://gc.zgo.at/count.js"></script>
+</head>
+
+
+  <body>
+
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header">
+
+  <div class="wrapper"><a class="site-title" href="/">
+      <img class="site-mark" src="/assets/two-pivots.svg"
+           alt="" width="100" height="100" aria-hidden="true">
+      <span class="site-wordmark">
+        <span class="site-name">Sebastian Wild</span>
+        <span class="site-tagline">Algorithms Group &middot; Universität Marburg</span>
+      </span>
+    </a>
+
+    <nav class="site-nav" aria-label="Main">
+
+      <button type="button" class="menu-icon" id="menu-toggle"
+              aria-expanded="false" aria-controls="site-nav-menu">
+        <svg viewBox="0 0 18 15" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="currentColor" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="currentColor" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+        <span class="visually-hidden">Menu</span>
+      </button>
+
+      <div class="trigger" id="site-nav-menu">
+          <a class="page-link" href="/research/"
+             >Research</a>
+          <a class="page-link" href="/teaching/"
+             >Teaching</a>
+          <a class="page-link" href="/posts/"
+             >Blog</a>
+          <a class="page-link" href="/about/"
+             >About</a>
+      </div>
+
+    </nav>
+
+  </div>
+
+</header>
+
+<script>
+  /* Mobile menu. Without JS the CSS leaves the menu permanently expanded,
+     so navigation still works — see the `.js` guard in _sass/_layout.scss. */
+  (function () {
+    var btn = document.getElementById('menu-toggle');
+    if (!btn) return;
+    var nav = btn.parentNode;
+
+    function setOpen(open) {
+      nav.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    btn.addEventListener('click', function () {
+      setOpen(!nav.classList.contains('is-open'));
+    });
+
+    document.addEventListener('click', function (e) {
+      if (nav.classList.contains('is-open') && !nav.contains(e.target)) setOpen(false);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && nav.classList.contains('is-open')) {
+        setOpen(false);
+        btn.focus();
+      }
+    });
+  })();
+</script>
+
+
+    <main id="content" class="page-content">
+      <div class="wrapper">
+        <article class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Video 3-9: §3.7 Order statistics, quickselect, median of medians</h1>
+  </header>
+
+  <div class="post-content">
+    
+
+    <style>
+  .vo-summary { font-size: 0.9em; }
+  .vo-scroll { overflow-x: auto; margin-bottom: 1.5em; }
+  .vo-table { border-collapse: collapse; font-size: 0.9em; width: 100%; font-variant-numeric: tabular-nums; }
+  .vo-table.vo-compact { width: auto; margin-left: 0; margin-right: auto; }
+  .vo-table.vo-compact th, .vo-table.vo-compact td { white-space: nowrap; }
+  .vo-table th, .vo-table td { padding: 0.2em 0.45em; vertical-align: baseline; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.08); }
+  .vo-table th { border-bottom: 2px solid rgba(0,0,0,0.25); white-space: nowrap; }
+  .vo-table tr.vo-newunit td { border-top: 2px solid rgba(0,0,0,0.2); }
+  .vo-table .vo-num { text-align: right; white-space: nowrap; padding-left: 0.9em; }
+  .vo-mono { font-family: Menlo, Consolas, monospace; font-size: 0.8em; }
+  .vo-table td.vo-small, .vo-table td .vo-small { font-size: inherit; }
+  .vo-table td .vo-note { font-size: 0.9em; opacity: 0.85; }
+  .vo-nowrap { white-space: nowrap; }
+  .vo-small { font-size: 0.9em; }
+  .vo-muted { opacity: 0.6; }
+
+  /* search */
+  .ts { margin: 1em 0 1.5em; }
+  .ts-input { font: inherit; width: min(100%, 28em); padding: 0.3em 0.5em; border: 1px solid rgba(0,0,0,0.3); border-radius: 4px; background: rgba(255,255,255,0.6); }
+  .ts-status { margin-left: 0.5em; opacity: 0.7; }
+  .ts-results { margin-top: 0.5em; }
+  .ts-hit { margin: 0.6em 0; }
+  .ts-hit-title { font-size: 0.95em; }
+  .ts-hit-ctx { font-size: 0.85em; margin: 0.1em 0 0 1em; }
+  .ts-hit-ctx a.ts-t { font-variant-numeric: tabular-nums; margin-right: 0.4em; }
+  .ts mark, .tp-text mark { background: rgba(255, 210, 0, 0.45); color: inherit; padding: 0 0.05em; }
+
+  /* transcript page: player sticks to the top while reading */
+  .tp-bar { position: sticky; top: 0; z-index: 5; background: #F5EBD9; padding: 4px 0 6px; }
+  .tp-player { position: relative; max-width: 560px; aspect-ratio: 16 / 9;
+               padding: 5px; box-sizing: content-box; width: calc(100% - 12px);
+               background: #faf6ed; border: 1px solid #aeaa9e; border-radius: 4px; }
+  .tp-player iframe, .tp-player > div, .tp-start { position: absolute; top: 5px; left: 5px; width: calc(100% - 10px); height: calc(100% - 10px); border: 0; margin: 0; padding: 0; background: #000; }
+  .tp-start { cursor: pointer; overflow: hidden; }
+  .tp-start img { width: 100%; height: 100%; object-fit: cover; display: block; margin: 0; padding: 0; border: 0; border-radius: 0; }
+  .tp-start .yt-lite-play { position: absolute; left: 50%; top: 50%; width: 68px; height: 48px; transform: translate(-50%, -50%); }
+  .tp-start .yt-lite-play-bg { fill: #212121; fill-opacity: 0.8; }
+  .tp-start:hover .yt-lite-play-bg, .tp-start:focus-visible .yt-lite-play-bg { fill: #902015; fill-opacity: 1; }
+  .tp-controls { margin: 0.3em 0 0; opacity: 0.8; }
+  .tp-disclaimer { margin: 0.6em 0 1.2em; padding: 0.4em 0.6em; border-left: 3px solid rgba(144, 32, 21, 0.35); background: rgba(255, 255, 255, 0.35); }
+  .tp-controls label { margin-left: 1em; white-space: nowrap; }
+  .tp-text p { position: relative; }
+  .tp-text [data-t] { cursor: pointer; border-radius: 2px; }
+  .tp-text span[data-t]:hover { background: rgba(144, 32, 21, 0.08); }
+  .tp-text span.tp-now { background: rgba(144, 32, 21, 0.16); box-shadow: 0 0 0 2px rgba(144, 32, 21, 0.16); }
+  .tp-text .tp-time { font-size: 0.75em; font-variant-numeric: tabular-nums; opacity: 0.6; margin-right: 0.3em; text-decoration: none; }
+  .tp-text .tp-chapter { font-size: 1.15em; margin-top: 1.5em; }
+  .tp-text .tp-chapter a { font-size: 0.7em; opacity: 0.6; font-variant-numeric: tabular-nums; text-decoration: none; }
+  .tp-nav { display: flex; justify-content: space-between; gap: 1em; margin-top: 2em; }
+  .tp-nav .tp-next { margin-left: auto; text-align: right; }
+</style>
+
+<p class="vo-summary">
+  <a href="/videos/comp526-fall2022/">COMP 526 – Efficient Algorithms (Fall 2022)</a> · <a href="/teaching/comp526/fall2022/03-sorting">unit page</a>
+  · <a href="https://youtu.be/kKAvJ6SXFpU">YouTube</a>
+  <br/>2022-10-24, 36:47
+</p>
+
+<div class="tp" data-id="kKAvJ6SXFpU">
+  <div class="tp-bar"><div class="tp-player" id="tp-player">
+    <button type="button" class="tp-start" data-t="0" aria-label="Play video">
+      <img src="/assets/video-thumbs/kKAvJ6SXFpU.webp" alt="" width="640" height="360" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/kKAvJ6SXFpU/hqdefault.jpg'">
+      <svg class="yt-lite-play" viewBox="0 0 68 48" aria-hidden="true" focusable="false"><path class="yt-lite-play-bg" d="M66.5 7.7c-.8-2.9-2.5-5.4-5.4-6.2C55.8.1 34 0 34 0S12.2.1 6.9 1.6C4 2.3 2.3 4.8 1.5 7.7.1 13 0 24 0 24s.1 11 1.5 16.3c.8 2.9 2.5 5.4 5.4 6.2C12.2 47.9 34 48 34 48s21.8-.1 27.1-1.6c2.9-.7 4.6-3.2 5.4-6.1C67.9 35 68 24 68 24s-.1-11-1.5-16.3z"/><path d="M45 24 27 14v20z" fill="#fff"/></svg>
+    </button>
+  </div>
+  <p class="tp-controls vo-small">
+    <em>Click any sentence to play from there.</em>
+    <label><input type="checkbox" class="tp-follow" checked> follow along</label>
+  </p></div>
+  <p class="tp-disclaimer vo-small"><em>The transcript was generated automatically by YouTube's speech
+  recognition and is offered as is. It may contain errors, in particular in concerning technical terms,
+  names and formulas.</em></p>
+  <div class="tp-text" lang="en">
+<h2 class="tp-chapter" id="t0"><a href="#t=0" data-t="0">0:00</a> Divide and conquer overview</h2>
+<p><a class="tp-time" href="#t=5" data-t="5">0:05</a> <span data-t="5">in this in this last part of unit three</span> <span data-t="5">we&#39;ll talk about this design principle</span> <span data-t="8">for algorithms divide and conquer</span> <span data-t="10">a little bit more outside of the narrow</span> <span data-t="12">context of sorting where we&#39;ve seen it</span> <span data-t="15">again some uh some really basic</span> <span data-t="18">fundamental questions that we will</span> <span data-t="20">tackle and it will be just a brief</span> <span data-t="23">Glimpse at it</span> <span data-t="25">but I think these are these are worth</span> <span data-t="27">knowing and it&#39;s helpful to keep in mind</span> <span data-t="29">if you design algorithms there are</span> <span data-t="31">certain principles that work across</span> <span data-t="34">different algorithms and dividing</span> <span data-t="36">conquerors one you may have if you had</span> <span data-t="39">an undergraduate algorithms class you</span> <span data-t="40">may have seen others there&#39;s there&#39;s</span> <span data-t="42">greedy algorithms there&#39;s branch and</span> <span data-t="44">Bound for optimization problems and</span> <span data-t="48">dynamic programming is another big one</span> <span data-t="50">we&#39;ll only really talk about dividing</span> <span data-t="52">concrete here because that fits well</span> <span data-t="54">into uh into the topics we discuss</span> <span data-t="57">anyways</span> <span data-t="58">if you want to learn a bit more about</span> <span data-t="60">this and you&#39;re eligible for this</span> <span data-t="62">there&#39;s a follow-up module on on</span> <span data-t="65">Advanced algorithmic Techniques in the</span> <span data-t="66">second semester</span> <span data-t="68">for here we&#39;ll keep it with divide and</span> <span data-t="71">conquer</span> <span data-t="73">and you&#39;ve actually seen this before</span> <span data-t="76">we uh we pointed I pointed this out for</span> <span data-t="79">both quicksort and merge sort</span> <span data-t="82">so um let&#39;s see where this comes from</span> <span data-t="84">the the name just comes from this this</span> <span data-t="86">Latin phrase that at least Julius Caesar</span></p>
+<p><a class="tp-time" href="#t=90" data-t="90">1:30</a> <span data-t="90">was using and many other people used uh</span> <span data-t="93">like uh one one definition from from a</span> <span data-t="97">dictionary for dividing Congress to make</span> <span data-t="100">a group of people disagree and fight</span> <span data-t="101">each other so that they will not join</span> <span data-t="105">against you</span> <span data-t="106">I guess you see this in in politics in</span> <span data-t="109">in many ways it&#39;s not exactly the nicest</span> <span data-t="112">way to proceed</span> <span data-t="114">uh it seems effective though sadly or</span> <span data-t="118">as a matter of fact</span> <span data-t="119">uh for algorithms it&#39;s much less</span> <span data-t="122">controversial</span> <span data-t="124">I think often it&#39;s it&#39;s just a little a</span> <span data-t="127">cheeky piece of terminology you&#39;ll find</span> <span data-t="130">this in algorithms often that people</span> <span data-t="133">think it&#39;s funny to call things that</span> <span data-t="136">provoke provoke associations to other</span> <span data-t="139">fields and sometimes it&#39;s helpful just</span> <span data-t="142">to build a metaphor and sometimes it&#39;s</span> <span data-t="144">uh just a little silly I&#39;ll leave it to</span> <span data-t="147">you if you uh which which category this</span> <span data-t="149">one is</span> <span data-t="150">but the computer science perspective</span> <span data-t="152">question</span></p>
+<p><a class="tp-time" href="#t=180" data-t="180">3:00</a> <span data-t="180">yeah I agree so uh the uh the comment</span> <span data-t="180">was that binary search might not be the</span> <span data-t="182">cleanest uh example</span> <span data-t="185">I&#39;ll come back to this uh I I agree and</span> <span data-t="188">disagree in a way it&#39;s it&#39;s</span> <span data-t="190">okay it&#39;s a soft definition right this</span> <span data-t="193">is not a mathematical definition it&#39;s</span> <span data-t="195">it&#39;s a vague thing and so we can live</span> <span data-t="197">with both agreeing and disagreeing in a</span> <span data-t="199">sense</span> <span data-t="200">uh what I would say in computer science</span> <span data-t="202">what what is dividing conquer for us for</span> <span data-t="204">algorithms is some</span> <span data-t="207">some method that breaks things into</span> <span data-t="209">smaller parts and you can recursively</span> <span data-t="211">solve those</span> <span data-t="213">usually we think of these recursive</span> <span data-t="215">parts of non-overlapping in some in some</span> <span data-t="218">sense</span> <span data-t="220">and there must be a way to assemble the</span> <span data-t="223">solution for the entire problem from the</span> <span data-t="225">solution of the sub problems</span> <span data-t="228">I think undeniable examples are merged</span> <span data-t="231">sword in quicksort where you do exactly</span> <span data-t="232">that you uh merge sword is the most</span> <span data-t="235">classic one the the poster child of</span> <span data-t="238">divide and conquer you cut exactly in</span> <span data-t="240">half you have two equal problems you</span> <span data-t="242">recursively solve those and then there&#39;s</span> <span data-t="244">a bit of</span> <span data-t="245">um of a step afterwards merging them to</span> <span data-t="248">get the solution for the entire problem</span> <span data-t="250">quicksort is slightly different you</span> <span data-t="251">spend a little more time before you</span> <span data-t="253">recurse and after the recursion actually</span> <span data-t="255">nothing needs to be done</span></p>
+<p><a class="tp-time" href="#t=257" data-t="257">4:17</a> <span data-t="257">binary search in a way is not the</span> <span data-t="261">cleanest dividing concrete because you</span> <span data-t="263">only really solve one of the sub</span> <span data-t="264">problems</span> <span data-t="265">uh in a way I would still say it can be</span> <span data-t="268">can be classed as this you uh you break</span> <span data-t="272">the problem into two parts and then you</span> <span data-t="274">discover that you only need to solve one</span> <span data-t="275">of them</span> <span data-t="276">eyes as I said I was</span> <span data-t="280">maybe similar for towers of Hanoi uh</span> <span data-t="284">you kind of use a solution for sub</span> <span data-t="288">problems twice</span> <span data-t="289">it&#39;s still in a way breaking the problem</span> <span data-t="292">into smaller pieces I think the exact</span> <span data-t="295">boundaries of this are super vague so</span> <span data-t="297">don&#39;t don&#39;t get too obsessed with the</span> <span data-t="299">term it&#39;s more if you&#39;re if you have to</span> <span data-t="302">solve a new algorithmic problem</span> <span data-t="305">take it as inspiration maybe something</span> <span data-t="307">dividing conquery works and if it does</span> <span data-t="311">great then you solve the problem and if</span> <span data-t="313">what comes out is not the nicest</span> <span data-t="316">cleanest example of divide and conquer</span> <span data-t="318">who cares you solve the problem</span></p>
+<p><a class="tp-time" href="#t=324" data-t="324">5:24</a> <span data-t="324">I just want to show you a few other</span> <span data-t="324">examples</span> <span data-t="325">and um</span> <span data-t="327">actually one of them will be of the</span> <span data-t="329">binary search type so you might might</span> <span data-t="332">disagree again that this is maybe not</span> <span data-t="334">dividing Concrete in the cleanest form</span></p>
+<h2 class="tp-chapter" id="t338"><a href="#t=338" data-t="338">5:38</a> Introduction to order stats</h2>
+<p><a class="tp-time" href="#t=340" data-t="340">5:40</a> <span data-t="340">the first part I want to show you is</span> <span data-t="340">order statistics so that&#39;s a another</span> <span data-t="343">classical comparison based problem</span> <span data-t="347">and let me motivate this a little bit</span> <span data-t="349">before I show you what the concrete</span> <span data-t="351">problem is</span> <span data-t="352">uh if you if you do some data science</span> <span data-t="355">task you have numerical data yeah a lot</span> <span data-t="359">of it</span> <span data-t="360">and uh you would like to see a quick</span> <span data-t="362">summary uh what does this data look like</span> <span data-t="366">a standard thing and it&#39;s so standard</span> <span data-t="368">that pandas this this python library for</span> <span data-t="370">data science has actually a</span> <span data-t="372">a simple call for this I think it&#39;s</span> <span data-t="374">called describe on a date of on a data</span> <span data-t="377">sequence or data frame column so it&#39;s</span> <span data-t="380">this uh is something that people do a</span> <span data-t="382">lot if you have a lot of numerical data</span> <span data-t="385">and you&#39;d like to have a concise summary</span> <span data-t="387">of what is it like</span> <span data-t="389">a standard thing is to do all of these</span> <span data-t="391">and look at those together</span> <span data-t="393">you want to compute the mean so the</span> <span data-t="396">average value and the standard deviation</span> <span data-t="398">to have an some feeling of where where&#39;s</span> <span data-t="401">the data</span> <span data-t="403">on average I guess and how much does it</span> <span data-t="405">deviate from that</span> <span data-t="407">uh you may also want the minimum and</span> <span data-t="409">maximum to have some more tight bounds</span> <span data-t="411">on the Range so what&#39;s the uh the</span> <span data-t="414">outliers if you like where are they</span></p>
+<p><a class="tp-time" href="#t=417" data-t="417">6:57</a> <span data-t="417">you can have a little closer look with a</span> <span data-t="419">histogram if you know the range you can</span> <span data-t="421">break the range up into say 10 pieces</span> <span data-t="423">and look how many of the data points lie</span> <span data-t="426">in each of these 10 pieces then you get</span> <span data-t="428">a histogram</span> <span data-t="429">and then the last bit that people often</span> <span data-t="431">like as well is uh quantiles or</span> <span data-t="436">as the special cases the median which is</span> <span data-t="439">the value so that half of the data is</span> <span data-t="442">smaller and half of the data is bigger</span> <span data-t="445">and quartiles is the same with it&#39;s a</span> <span data-t="447">point where a quarter of the data is</span> <span data-t="449">smaller and three quarters is bigger or</span> <span data-t="451">the symmetric version the the third</span> <span data-t="454">quartile where you have three quarters</span> <span data-t="456">smaller one quarter bigger that just</span> <span data-t="459">gives you another angle of</span> <span data-t="461">seeing whether where the range is for</span> <span data-t="463">the majority of the data</span> <span data-t="465">right that&#39;s that&#39;s what um</span> <span data-t="467">what the describe function usually shows</span> <span data-t="469">here in pandas and what often helps you</span> <span data-t="472">to just see</span> <span data-t="473">uh a rough picture of of the entire data</span> <span data-t="478">you may have seen uh</span> <span data-t="480">these box plots</span> <span data-t="483">uh whisker box whisker charts they are</span> <span data-t="486">all variations of that</span> <span data-t="488">so the question is how can we compute</span> <span data-t="490">this if you wanted to implement such a</span> <span data-t="491">function the describe function you you</span> <span data-t="494">start thinking about how to compute all</span></p>
+<p><a class="tp-time" href="#t=495" data-t="495">8:15</a> <span data-t="495">these and it turns out for the first</span> <span data-t="498">three it&#39;s quite easy to do in a linear</span> <span data-t="501">scan over the data in one way or another</span> <span data-t="504">um</span> <span data-t="505">okay maybe for standard deviation you</span> <span data-t="507">have to think a little bit uh but</span> <span data-t="509">there&#39;s formulas to do it even in online</span> <span data-t="512">mode you can add one point at a time and</span> <span data-t="514">you can keep a current</span> <span data-t="516">a running standard deviation it&#39;s</span> <span data-t="518">trivial for the mean almost but you can</span> <span data-t="521">do it for standard deviation as well</span> <span data-t="523">and for the others is also easy</span> <span data-t="526">but there&#39;s the fourth one</span> <span data-t="528">ways maybe not so clear if you can do it</span> <span data-t="530">in linear time</span></p>
+<p><a class="tp-time" href="#t=537" data-t="537">8:57</a> <span data-t="537">uh this this fourth uh Computing</span> <span data-t="537">computing quantiles</span> <span data-t="539">now uh</span> <span data-t="541">okay let me first formally Define what</span> <span data-t="544">the problem is in the general case</span> <span data-t="546">I call this finding order statistics so</span> <span data-t="549">these these guys are called order</span> <span data-t="551">statistics</span> <span data-t="552">because they&#39;re statistics from the data</span> <span data-t="554">summary points of the data that depend</span> <span data-t="557">on the order only</span> <span data-t="559">and the algorithmic problem I called it</span> <span data-t="562">selection by rank sometimes is also just</span> <span data-t="564">called selection but that&#39;s it&#39;s a bit</span> <span data-t="567">unspecific what you really have is you</span> <span data-t="569">want the so and so smallest data item</span> <span data-t="573">that&#39;s why uh what what we called rank</span> <span data-t="575">before</span> <span data-t="576">so you give it an array of numbers and a</span> <span data-t="580">number K an index in that array if you</span> <span data-t="582">like</span> <span data-t="583">and the goal is to find the value that</span> <span data-t="586">goes into this position if the whole</span> <span data-t="588">array was sorted</span> <span data-t="591">now we could obviously solve this</span> <span data-t="594">problem by just sorting the entire array</span> <span data-t="597">and we&#39;ve seen many methods to do that</span> <span data-t="599">and maybe the array is partially sorted</span> <span data-t="602">right then you could even</span> <span data-t="604">take advantage of that as I&#39;ve shown you</span> <span data-t="606">last last week</span> <span data-t="608">but there&#39;s also a way to avoid sorting</span> <span data-t="611">all together at least most of it</span> <span data-t="614">some special cases for K is the things</span> <span data-t="617">we mentioned before it actually</span> <span data-t="619">generalizes Min and Max as well which is</span> <span data-t="622">Nifty</span></p>
+<p><a class="tp-time" href="#t=623" data-t="623">10:23</a> <span data-t="623">uh</span> <span data-t="624">which also shows you for minimum and</span> <span data-t="626">maximum the problem is very easy a</span> <span data-t="628">linear scan is enough you just keep the</span> <span data-t="630">current minimum whereas for the general</span> <span data-t="632">K version if you if you want the median</span> <span data-t="635">it seems less clear how to do this</span> <span data-t="636">without sorting all right</span> <span data-t="639">question</span></p>
+<p><a class="tp-time" href="#t=657" data-t="657">10:57</a> <span data-t="657">all right</span> <span data-t="657">um</span> <span data-t="662">I should have put a slider question here</span> <span data-t="662">on on how many people have seen this</span> <span data-t="664">already</span> <span data-t="665">I guess quite a few will have</span> <span data-t="668">uh as always in this class I guess it&#39;s</span> <span data-t="671">a rough it&#39;s roughly two uh two-thirds</span> <span data-t="674">so I&#39;ve seen it and a third is puzzled</span> <span data-t="676">so same same problem as always</span> <span data-t="679">but let me show you a solution</span></p>
+<h2 class="tp-chapter" id="t683"><a href="#t=683" data-t="683">11:23</a> Quick select algorithm</h2>
+<p><a class="tp-time" href="#t=685" data-t="685">11:25</a> <span data-t="685">and the solution goes by the name of</span> <span data-t="685">quick select</span> <span data-t="687">anyone remembers quick selects</span> <span data-t="689">the quick slido free version who</span> <span data-t="692">remembers quick select quick hands</span> <span data-t="695">who has never heard quick select</span></p>
+<p><a class="tp-time" href="#t=704" data-t="704">11:44</a> <span data-t="704">and the the remaining 90 uh</span> <span data-t="704">are unsure</span> <span data-t="706">so</span> <span data-t="708">it&#39;s it&#39;s a classical algorithm</span> <span data-t="711">um and you&#39;ll you&#39;ll like it once you&#39;ve</span> <span data-t="713">remembered it</span> <span data-t="715">the key observation</span> <span data-t="716">is if we if we have an element It&#39;s</span> <span data-t="721">relatively easy to find its rank you can</span> <span data-t="723">just take the element compare it to all</span> <span data-t="725">the others and count how many were</span> <span data-t="726">smaller that&#39;s the rank</span> <span data-t="728">if you have a rank and want to find the</span> <span data-t="730">element that has this rank that&#39;s a</span> <span data-t="732">little less clear how to do it</span> <span data-t="735">but</span> <span data-t="737">you can take this easy task and move</span> <span data-t="740">your way through until you found</span> <span data-t="743">something well okay that explanation</span> <span data-t="746">wasn&#39;t too great</span> <span data-t="747">uh what you do is you pick an arbitrary</span> <span data-t="750">element</span> <span data-t="750">and you find its rank suppose that rank</span> <span data-t="753">is J what you wanted was the rank k</span> <span data-t="757">there&#39;s really just three possible cases</span> <span data-t="760">now</span> <span data-t="761">if you found exactly by chance you</span> <span data-t="763">picked an element and it was the one you</span> <span data-t="765">were looking for uh lucky you and you&#39;re</span> <span data-t="768">done</span> <span data-t="769">not usually the case</span> <span data-t="771">so if if the element you found is</span> <span data-t="773">smaller its rank is smaller than k</span> <span data-t="776">you still learn something because all</span> <span data-t="779">the elements that are even smaller than</span> <span data-t="780">this element</span> <span data-t="781">are definitely not the element of rank k</span> <span data-t="785">this one was already too small the</span> <span data-t="786">others are even smaller so uh throw them</span></p>
+<p><a class="tp-time" href="#t=789" data-t="789">13:09</a> <span data-t="789">away</span> <span data-t="790">and similarly if the element you found</span> <span data-t="792">is larger in rank than the element</span> <span data-t="795">you&#39;re looking for all the elements that</span> <span data-t="796">are even larger are not needed anymore</span> <span data-t="800">so far so good</span></p>
+<p><a class="tp-time" href="#t=806" data-t="806">13:26</a> <span data-t="806">now how can we make make use of that</span> <span data-t="806">uh</span> <span data-t="808">is this really really something we&#39;ve</span> <span data-t="810">solved already</span> <span data-t="812">taking an element and finding its rank</span> <span data-t="814">we call this partitioning in quicksort</span> <span data-t="817">but it&#39;s actually the same thing</span> <span data-t="819">quicksort pick the pivots and found for</span> <span data-t="821">every element is a smaller or larger</span> <span data-t="823">and it returned the rank</span> <span data-t="825">it returned the position of the pivot</span> <span data-t="828">now the partition function has the nice</span> <span data-t="831">side effect that it doesn&#39;t just find</span> <span data-t="833">the rank it also changes the array so</span> <span data-t="836">that everything smaller is on the left</span> <span data-t="837">everything bigger is on the right</span> <span data-t="839">and that&#39;s convenient because</span> <span data-t="842">to do this elimination step we don&#39;t</span> <span data-t="845">just want to know that we can illuminate</span> <span data-t="848">some elements we want to know which ones</span> <span data-t="851">right</span> <span data-t="853">so what we do in in terms of code is is</span> <span data-t="858">exactly that spelled out</span> <span data-t="860">we choose our pivot as before and uh</span> <span data-t="862">there&#39;s an asterisk to ask before that</span> <span data-t="866">we&#39;ll come back to but suppose for now</span> <span data-t="868">we just pick some random element as our</span> <span data-t="870">pivot</span> <span data-t="871">we do the partitioning step</span> <span data-t="873">and that comes back with the rank of the</span> <span data-t="876">chosen element we have no control over J</span> <span data-t="878">really</span> <span data-t="879">but we can distinguish the cases we</span> <span data-t="881">could be lucky then we return it</span> <span data-t="883">or we could have an element that&#39;s too</span> <span data-t="885">small in rank remember too small means</span></p>
+<p><a class="tp-time" href="#t=888" data-t="888">14:48</a> <span data-t="888">everything that&#39;s even smaller can be</span> <span data-t="889">thrown away</span> <span data-t="891">so we can recurse</span> <span data-t="893">on just the elements that are larger</span> <span data-t="895">which is the right part of the array</span> <span data-t="898">and so the only bit here the tricky bit</span> <span data-t="901">is you have to adjust the rank you&#39;re</span> <span data-t="903">looking for</span> <span data-t="904">if you were looking for the case in the</span> <span data-t="906">entire array if you now throw away some</span> <span data-t="908">small elements you have to just subtract</span> <span data-t="911">the number of elements you threw away</span> <span data-t="914">and that&#39;s that&#39;s what What&#39;s Happening</span> <span data-t="916">Here</span> <span data-t="917">I guess it would have been nicer to</span> <span data-t="919">write K minus J plus 1 in parenthesis</span> <span data-t="923">of course the same thing</span> <span data-t="926">and the other case if the element you</span> <span data-t="928">found is too big then you throw away all</span> <span data-t="930">the even bigger ones so you recurs on</span> <span data-t="933">the left part in this case the rank</span> <span data-t="934">stays</span> <span data-t="936">okay</span></p>
+<p><a class="tp-time" href="#t=944" data-t="944">15:44</a> <span data-t="944">and that&#39;s that&#39;s quick select notice</span> <span data-t="944">that it&#39;s quite similar to quicksort</span> <span data-t="946">hence the name</span> <span data-t="948">but it only recurses on one side</span> <span data-t="951">you never need to go on both sides</span> <span data-t="953">because you&#39;re only looking for a single</span> <span data-t="955">element which can either left be to the</span> <span data-t="957">left or to the right of the pivot</span> <span data-t="959">okay</span> <span data-t="961">because of that because you only have a</span> <span data-t="963">single recursive call you can rewrite</span> <span data-t="965">the code</span> <span data-t="966">to just uh avoid the recursion and make</span> <span data-t="970">one big loop out of it</span> <span data-t="972">if you&#39;ve seen similar things that&#39;s not</span> <span data-t="974">too surprising that&#39;s that&#39;s usually the</span> <span data-t="976">way you want to implement it because</span> <span data-t="977">it&#39;s more efficient</span> <span data-t="979">but just for presenting the code I think</span> <span data-t="981">this is easier</span></p>
+<p><a class="tp-time" href="#t=994" data-t="994">16:34</a> <span data-t="994">how good is quick select and the form</span> <span data-t="994">I&#39;ve shown and shown to you now</span> <span data-t="997">unfortunately the worst case is really</span> <span data-t="999">poor and this the reason is just the</span> <span data-t="1002">same as in quicksort</span> <span data-t="1003">you could get repeatedly unlucky by</span> <span data-t="1007">always picking as pivot the element</span> <span data-t="1009">that&#39;s largest</span> <span data-t="1011">suppose for the sake of the argument</span> <span data-t="1012">you&#39;re looking for the minimum in the</span> <span data-t="1014">array and you call Quick select for that</span> <span data-t="1017">which is not what you should do but</span> <span data-t="1019">suppose well if if you implement the</span> <span data-t="1022">library functions users will call it</span> <span data-t="1024">even with nonsensical arguments get used</span> <span data-t="1027">to it so suppose you try to find the</span> <span data-t="1030">minimum and you always get the maximum</span> <span data-t="1031">as the pivot then you always exclude</span> <span data-t="1035">just a single element and you spend</span> <span data-t="1036">linear time in partitioning each time so</span> <span data-t="1038">you get this quadratic worst case again</span> <span data-t="1041">is the same argument as in quicksort and</span> <span data-t="1043">that&#39;s terrible</span> <span data-t="1046">however you can prove that this is kind</span> <span data-t="1049">of an isolated unlucky case most of the</span> <span data-t="1053">time in a similar senses for quicksort</span> <span data-t="1056">on average and more</span> <span data-t="1058">you only need linear time</span> <span data-t="1062">and linear time is probably the best you</span> <span data-t="1064">can hope for</span> <span data-t="1065">because even if I gave the element to</span> <span data-t="1068">you just to check that this actually has</span> <span data-t="1070">rank K would take you linear time</span> <span data-t="1073">so there&#39;s no way to get it faster</span></p>
+<p><a class="tp-time" href="#t=1077" data-t="1077">17:57</a> <span data-t="1077">uh what&#39;s what&#39;s nice is we don&#39;t need</span> <span data-t="1079">any extra space not even the recursion</span> <span data-t="1081">stack if you get rid of the recursion</span> <span data-t="1087">um</span> <span data-t="1087">you can tweak this same idea to find</span> <span data-t="1090">more than a single uh</span> <span data-t="1093">order statistic in one go</span> <span data-t="1096">the reason I&#39;m listing this here is if</span> <span data-t="1099">you do a box plot you want to find the</span> <span data-t="1100">median and the lower and upper quartile</span> <span data-t="1104">you could call Quick select three times</span> <span data-t="1105">that&#39;s fine you can also modify the code</span> <span data-t="1108">to find those three in one go which is a</span> <span data-t="1111">slightly a slight bit faster</span> <span data-t="1113">so if you do this many times it might be</span> <span data-t="1115">worthwhile doing so I listed it as a</span> <span data-t="1118">positive because quick select makes this</span> <span data-t="1120">fairly easy</span> <span data-t="1123">um it&#39;s not not relevant for the module</span> <span data-t="1125">to know exactly the details</span> <span data-t="1128">foreign</span></p>
+<p><a class="tp-time" href="#t=1135" data-t="1135">18:55</a> <span data-t="1135">I&#39;ve used these two personas</span> <span data-t="1135">um a lot in the next chapter so here</span> <span data-t="1137">they they already come up this is the</span> <span data-t="1139">programmer who is the the practitioner&#39;s</span> <span data-t="1141">point of view</span> <span data-t="1142">which really says I&#39;m using quick sword</span> <span data-t="1144">to sort all the time I might as well</span> <span data-t="1146">just use Quick select for finding order</span> <span data-t="1148">statistics</span> <span data-t="1150">is probably more likely that some</span> <span data-t="1152">someone uh some sunstorm flips bits in</span> <span data-t="1155">your memory then that you see this</span> <span data-t="1158">quadratic worst case</span> <span data-t="1160">uh whereas this guy is the theoretician</span> <span data-t="1163">who is interested in the internal truths</span> <span data-t="1165">and the worst case things and so on</span> <span data-t="1167">uh and he&#39;s uh he&#39;s worried about uh</span> <span data-t="1170">this worst case</span> <span data-t="1172">and so it&#39;s as an academic question for</span> <span data-t="1175">sure and maybe for security reasons</span> <span data-t="1178">sometimes as well in practice</span> <span data-t="1180">it might be worth knowing if you can do</span> <span data-t="1182">it in worst case linear time</span> <span data-t="1184">this gave us only expected linear time</span> <span data-t="1188">okay</span> <span data-t="1189">we can do worst case n log n by sorting</span> <span data-t="1193">that&#39;s at least close but that&#39;s a bit</span> <span data-t="1195">lame I guess uh</span> <span data-t="1198">the repetition won&#39;t be happy</span></p>
+<p><a class="tp-time" href="#t=1210" data-t="1210">20:10</a> <span data-t="1210">okay if you need multiple order</span> <span data-t="1210">statistics I think the question is how</span> <span data-t="1211">many</span> <span data-t="1213">if it&#39;s a constant number say three</span> <span data-t="1216">uh three times linear is still linear</span> <span data-t="1219">it&#39;s still better to do that as opposed</span> <span data-t="1221">to sorting if you need</span> <span data-t="1223">a lot of them I guess log in right then</span> <span data-t="1227">uh then there&#39;s a point for for sorting</span> <span data-t="1231">if you&#39;re smart if you this is this is</span> <span data-t="1234">really tough to quantify</span> <span data-t="1236">however if you run quick select</span> <span data-t="1239">it will make the array slightly sorted</span> <span data-t="1242">because it partitions at some points and</span> <span data-t="1245">it leaves that as such</span> <span data-t="1247">so you can</span> <span data-t="1249">if you remember the pivot Points that</span> <span data-t="1251">you already had</span> <span data-t="1253">then you can try to speed up future</span> <span data-t="1255">calls to Quick select so that you never</span> <span data-t="1258">do more than this full sorting work</span> <span data-t="1261">but you can do just as much as you need</span> <span data-t="1263">it organically that&#39;s a</span> <span data-t="1266">okay that&#39;s a side remark like again</span> <span data-t="1268">it&#39;s a Nifty thing you can do</span> <span data-t="1272">um</span> <span data-t="1273">well won&#39;t be on the exam if that&#39;s what</span> <span data-t="1275">you want to hear</span></p>
+<h2 class="tp-chapter" id="t1289"><a href="#t=1289" data-t="1289">21:29</a> Median of medians method</h2>
+<p><a class="tp-time" href="#t=1291" data-t="1291">21:31</a> <span data-t="1291">now coming back to this question can you</span> <span data-t="1291">do it in worst case linear time</span> <span data-t="1295">the answer is uh yes we can do it</span> <span data-t="1299">um</span> <span data-t="1300">what we need is better pivots to avoid</span> <span data-t="1303">this worst case</span> <span data-t="1305">so far so obvious</span> <span data-t="1307">for example if the pivot we got was the</span> <span data-t="1310">exact median all the time</span> <span data-t="1312">we&#39;d be fine because we would cut</span> <span data-t="1315">the remaining number of elements in half</span> <span data-t="1317">in each step at least maybe we&#39;re even</span> <span data-t="1320">lucky and get the element we&#39;re looking</span> <span data-t="1322">for earlier</span> <span data-t="1323">but we definitely get away uh with we</span> <span data-t="1326">would get rid of half the elements each</span> <span data-t="1329">time</span> <span data-t="1329">and um</span></p>
+<p><a class="tp-time" href="#t=1335" data-t="1335">22:15</a> <span data-t="1335">that&#39;s uh okay I wanted to show</span> <span data-t="1335">this picture first</span> <span data-t="1338">uh suppose we could get rid of a</span> <span data-t="1341">constant fraction each each time</span> <span data-t="1343">and this picture is for getting rid of</span> <span data-t="1345">half of the elements each time</span> <span data-t="1347">it&#39;s a visual proof</span> <span data-t="1350">for the fact that the geometric series</span> <span data-t="1352">converges to a constant</span> <span data-t="1354">but if you&#39;re more visually inclined</span> <span data-t="1358">one times n that&#39;s the</span> <span data-t="1361">starting State you have all the elements</span> <span data-t="1364">you cut it down to one half in the first</span> <span data-t="1366">step</span> <span data-t="1367">then you cut it down to a quarter to an</span> <span data-t="1369">eighth and so on</span> <span data-t="1371">that&#39;s why you follow this spiral in</span> <span data-t="1374">and you see you always have enough space</span> <span data-t="1376">to fit the next one half in the</span> <span data-t="1378">remaining little bit so the overall box</span> <span data-t="1381">that you need is just two times the</span> <span data-t="1383">starting point</span></p>
+<p><a class="tp-time" href="#t=1389" data-t="1389">23:09</a> <span data-t="1389">I think this picture is is more valuable</span> <span data-t="1389">than</span> <span data-t="1391">quantifying this more more precisely</span> <span data-t="1395">whenever you design algorithms if you</span> <span data-t="1397">can somehow make it so that the</span> <span data-t="1399">recursive call is on just</span></p>
+<p><a class="tp-time" href="#t=1405" data-t="1405">23:25</a> <span data-t="1405">0.9 the number of elements that you had</span> <span data-t="1405">before</span> <span data-t="1407">and you don&#39;t spend more than linear</span> <span data-t="1409">time for each step</span> <span data-t="1410">your overall cost will be linear</span> <span data-t="1413">and this is the the visual proof for</span> <span data-t="1416">that</span> <span data-t="1417">if you don&#39;t have a factor one half</span> <span data-t="1420">you get a different constant than two</span></p>
+<p><a class="tp-time" href="#t=1428" data-t="1428">23:48</a> <span data-t="1428">yeah foreign</span> <span data-t="1428">yeah if you spell if you write this down</span> <span data-t="1430">uh</span> <span data-t="1431">it would be</span> <span data-t="1437">some geometric series of this type</span> <span data-t="1437">you would normally stop at some end but</span> <span data-t="1440">you might as well extend it to Infinity</span></p>
+<p><a class="tp-time" href="#t=1447" data-t="1447">24:07</a> <span data-t="1447">and in this case that&#39;s two and if you</span> <span data-t="1447">have some other Factor here</span> <span data-t="1450">sorry</span> <span data-t="1456">if I put this</span> <span data-t="1456">um</span> <span data-t="1458">if I put this Alpha here</span> <span data-t="1462">the general is 1 over 1 minus Alpha</span> <span data-t="1466">so you can can work that out</span></p>
+<p><a class="tp-time" href="#t=1478" data-t="1478">24:38</a> <span data-t="1478">so</span> <span data-t="1478">that&#39;s kind of the visual proof if we</span> <span data-t="1480">had in each case the median as our pivot</span> <span data-t="1483">we&#39;d be fine</span> <span data-t="1485">but of course that&#39;s uh not not too</span> <span data-t="1489">helpful if we&#39;re trying to design an</span> <span data-t="1491">algorithm to find the median in the</span> <span data-t="1492">first place</span> <span data-t="1494">we already need our own solution</span> <span data-t="1496">and in this case recursion doesn&#39;t save</span> <span data-t="1498">us because it would be recursing on the</span> <span data-t="1501">very same problem</span> <span data-t="1503">I want to find the median of these n</span> <span data-t="1504">elements oh I can do a quick select I&#39;ll</span> <span data-t="1506">just find the median of these n elements</span> <span data-t="1508">quickly and then oh hold on right so it</span> <span data-t="1511">doesn&#39;t help us you would recurse on the</span> <span data-t="1512">very same problem</span></p>
+<p><a class="tp-time" href="#t=1518" data-t="1518">25:18</a> <span data-t="1518">but if we could do something like this</span> <span data-t="1518">that would be good</span> <span data-t="1521">and this remark says it doesn&#39;t have to</span> <span data-t="1523">be the exact median as long as you can</span> <span data-t="1525">guarantee</span> <span data-t="1526">it&#39;s a in graphical speak so</span></p>
+<p><a class="tp-time" href="#t=1531" data-t="1531">25:31</a> <span data-t="1531">as long as you can guarantee that the</span> <span data-t="1534">pivot is in here</span> <span data-t="1536">and this part is Epsilon times n</span> <span data-t="1544">for a fixed constant Epsilon then that&#39;s</span> <span data-t="1544">enough for this kind of argument to go</span> <span data-t="1547">through</span> <span data-t="1549">so can we somehow do this can we find</span> <span data-t="1552">not the exact median cheaply but somehow</span> <span data-t="1555">something not too far away from it</span></p>
+<p><a class="tp-time" href="#t=1562" data-t="1562">26:02</a> <span data-t="1562">and it turns out we can</span> <span data-t="1562">it&#39;s a little</span> <span data-t="1563">a little more convoluted some</span> <span data-t="1572">the idea is uh</span> <span data-t="1572">we split the elements up into groups of</span> <span data-t="1574">five</span> <span data-t="1576">and from these five elements we just</span> <span data-t="1579">sort those</span> <span data-t="1581">and we take the middle one</span></p>
+<p><a class="tp-time" href="#t=1587" data-t="1587">26:27</a> <span data-t="1587">five five is the smallest constant so</span> <span data-t="1587">that this works you can do a slightly</span> <span data-t="1589">larger one</span> <span data-t="1590">uh that&#39;s the smallest where it goes</span> <span data-t="1593">through</span> <span data-t="1594">where you can make it you can do it with</span> <span data-t="1596">17 if you prefer</span></p>
+<p><a class="tp-time" href="#t=1611" data-t="1611">26:51</a> <span data-t="1611">the middle one out of five</span> <span data-t="1611">and uh on that you recurse so let me go</span> <span data-t="1615">a little slower</span> <span data-t="1617">this code basically does this</span> <span data-t="1620">split the elements into groups of five</span> <span data-t="1623">so there&#39;s a loop</span> <span data-t="1625">M will be the number of Pfeiffer groups</span> <span data-t="1628">and that might be one one left over</span> <span data-t="1630">where we don&#39;t have five elements right</span> <span data-t="1633">uh for each of these groups of five we</span> <span data-t="1636">we sort these five elements so that&#39;s</span> <span data-t="1638">just a tiny section of the array we sort</span> <span data-t="1640">this with whatever method I don&#39;t care</span> <span data-t="1642">too much at this point</span> <span data-t="1644">uh it&#39;s so it&#39;s only affecting the</span> <span data-t="1646">constant Factor at the end so you can</span> <span data-t="1648">can be smart about this</span> <span data-t="1651">and then we take the middle one so five</span> <span data-t="1655">I plus two that&#39;s this this black guy</span> <span data-t="1657">and we swap it to the beginning of the</span> <span data-t="1659">array that&#39;s just to keep all these</span> <span data-t="1661">middle ones together</span> <span data-t="1664">so</span> <span data-t="1665">I&#39;ll take these</span> <span data-t="1667">um</span> <span data-t="1669">and put them at the beginning of the</span> <span data-t="1670">array</span> <span data-t="1672">and all the others are behind that okay</span></p>
+<p><a class="tp-time" href="#t=1680" data-t="1680">28:00</a> <span data-t="1680">and then I&#39;m calling the quick select</span> <span data-t="1680">algorithm recursively on this bit and</span> <span data-t="1683">find the median</span> <span data-t="1690">now that is again something like we&#39;re</span> <span data-t="1690">using ourself but this time on a smaller</span> <span data-t="1693">problem and that&#39;s why it&#39;s going to</span> <span data-t="1694">work at the end</span> <span data-t="1695">it&#39;s a problem that has at most every</span> <span data-t="1699">Fifth Element</span> <span data-t="1701">okay</span> <span data-t="1703">amazingly the rest of the algorithm is</span> <span data-t="1705">unchanged uh</span> <span data-t="1707">instead of picking some random pivot we</span> <span data-t="1710">call this function</span> <span data-t="1712">which chooses</span> <span data-t="1714">the median of this</span> <span data-t="1715">prefix</span></p>
+<p><a class="tp-time" href="#t=1718" data-t="1718">28:38</a> <span data-t="1718">and then the rest is as in quick select</span> <span data-t="1720">we use that as in pivot we partition</span> <span data-t="1723">and we do what we&#39;ve done before</span> <span data-t="1727">the amazing bit is that this is good</span> <span data-t="1728">enough</span> <span data-t="1729">and that it&#39;s linear time</span></p>
+<h2 class="tp-chapter" id="t1734"><a href="#t=1734" data-t="1734">28:54</a> Analysis and refinements</h2>
+<p><a class="tp-time" href="#t=1737" data-t="1737">28:57</a> <span data-t="1737">let me point out that this is</span> <span data-t="1737">um</span> <span data-t="1738">that this is a mutually recursive</span> <span data-t="1741">function now we have two functions and</span> <span data-t="1744">they both call each other</span> <span data-t="1746">this one calls choose pivot and this one</span> <span data-t="1748">calls that one again</span> <span data-t="1750">so it&#39;s not visible from just looking at</span> <span data-t="1752">the at the lower function but we</span> <span data-t="1754">actually have two recursive calls</span> <span data-t="1756">the first one from choosing the pivot</span> <span data-t="1759">and then later from the main the main</span> <span data-t="1762">recursion</span> <span data-t="1764">okay</span> <span data-t="1766">so the first recursive call has at most</span> <span data-t="1768">n over five elements</span> <span data-t="1771">that&#39;s just by choice</span> <span data-t="1773">so that was the that&#39;s the easy one to</span> <span data-t="1775">analyze</span></p>
+<p><a class="tp-time" href="#t=1781" data-t="1781">29:41</a> <span data-t="1781">for the second recursive call we&#39;ll have</span> <span data-t="1781">to work a little harder to see on how</span> <span data-t="1783">many elements it can in the worst case</span> <span data-t="1786">work</span> <span data-t="1787">uh here&#39;s here&#39;s the picture I started</span> <span data-t="1789">drawing uh slightly more nicely</span> <span data-t="1792">so these are our groups of five</span> <span data-t="1795">and there might be one group left over</span> <span data-t="1798">from all the groups of five that are</span> <span data-t="1800">complete we take this middle element</span> <span data-t="1803">and from all those middle elements we</span> <span data-t="1805">select the median</span> <span data-t="1807">that&#39;s why the algorithm is called</span> <span data-t="1809">median of medians algorithm</span> <span data-t="1812">so here&#39;s here&#39;s our median and notice</span> <span data-t="1815">that if if you have an even number of</span> <span data-t="1817">elements you have to break ties there&#39;s</span> <span data-t="1818">actually two elements that could count</span> <span data-t="1820">as a median I&#39;m choosing the smaller one</span> <span data-t="1823">arbitrarily that&#39;s why it&#39;s rounding</span> <span data-t="1824">down here</span> <span data-t="1825">so this m that&#39;s the pivot element</span> <span data-t="1828">that&#39;s the one that determines</span> <span data-t="1831">how we partition and how we recurse</span> <span data-t="1834">now how many elements can in the worst</span> <span data-t="1836">case be in this recursive call in either</span> <span data-t="1838">of these recursive calls</span> <span data-t="1841">and for that you have to look at these</span> <span data-t="1843">shaded areas</span></p>
+<p><a class="tp-time" href="#t=1850" data-t="1850">30:50</a> <span data-t="1850">we know that all the elements above</span> <span data-t="1850">the median in the five are smaller than</span> <span data-t="1852">the black one the middle one because</span> <span data-t="1854">they&#39;re sorted so in each column the two</span> <span data-t="1857">topmosts are smaller than the middle one</span> <span data-t="1861">we also know that</span> <span data-t="1863">these are all smaller than this median</span> <span data-t="1865">because that&#39;s the median so</span> <span data-t="1868">if we arrange them in sorted order of</span> <span data-t="1871">these middle elements</span> <span data-t="1873">then</span></p>
+<p><a class="tp-time" href="#t=1879" data-t="1879">31:19</a> <span data-t="1879">okay zooming too fast is dangerous but</span> <span data-t="1879">it worked so this is smaller than the</span> <span data-t="1881">median this is smaller than median this</span> <span data-t="1883">is smaller than the median</span> <span data-t="1884">which means transitively</span> <span data-t="1887">these are all smaller than the median</span> <span data-t="1889">and these and these and these two</span> <span data-t="1893">anyways because it&#39;s in its column okay</span></p>
+<p><a class="tp-time" href="#t=1900" data-t="1900">31:40</a> <span data-t="1900">so</span> <span data-t="1900">we can in each recursive call we either</span> <span data-t="1902">get rid of this blob of elements or of</span> <span data-t="1905">this blob</span> <span data-t="1907">and the smaller is is this top this is</span> <span data-t="1909">left upper one</span> <span data-t="1912">so how many elements are in there</span> <span data-t="1913">roughly</span> <span data-t="1915">it&#39;s half of each uh</span> <span data-t="1918">so it&#39;s half of the columns because it&#39;s</span> <span data-t="1921">the median and in each column we get rid</span> <span data-t="1923">of three elements</span> <span data-t="1925">so it works out to 3 over 10</span> <span data-t="1928">as a fraction of all elements</span></p>
+<p><a class="tp-time" href="#t=1942" data-t="1942">32:22</a> <span data-t="1942">and if you use this in</span> <span data-t="1942">a recursion for the cost so you can</span> <span data-t="1944">write C of n as</span> <span data-t="1947">the overall cost for the algorithm again</span> <span data-t="1949">in some abstract cost measure</span> <span data-t="1951">you have a linear term for the</span> <span data-t="1954">partitioning</span> <span data-t="1956">that&#39;s that&#39;s this call and you have the</span> <span data-t="1958">two recursive calls</span> <span data-t="1961">um you&#39;re using the the worst case size</span> <span data-t="1963">question</span></p>
+<p><a class="tp-time" href="#t=1981" data-t="1981">33:01</a> <span data-t="1981">so if we use the larger number if we</span> <span data-t="1981">make the columns taller more than five</span> <span data-t="1983">elements</span> <span data-t="1992">I don&#39;t think that this this part</span> <span data-t="1992">improves much uh so the the red blob</span> <span data-t="1996">actually gets smaller</span> <span data-t="1999">but the recursive call up here gets</span> <span data-t="2002">smaller because you&#39;re just recursing on</span> <span data-t="2004">every 17th element instead of every</span> <span data-t="2006">fifth</span> <span data-t="2008">uh but you have to balance it out with</span> <span data-t="2011">the Sorting cost for each column which</span> <span data-t="2013">can which grows</span> <span data-t="2015">so uh as long as you keep The Columns of</span> <span data-t="2017">constant size it only affects the</span> <span data-t="2020">overall constant</span> <span data-t="2021">and there&#39;s there&#39;s some trade-off the</span> <span data-t="2023">original paper where the</span> <span data-t="2026">um well the researchers proposed this</span> <span data-t="2027">algorithm they tried to optimize for</span> <span data-t="2031">this this</span> <span data-t="2032">size of the column I think it was</span> <span data-t="2035">there was something around a dozen</span> <span data-t="2037">elements worked out best but that</span> <span data-t="2038">depends on the Assumption of the cost</span> <span data-t="2041">uh there&#39;s different types of costs you</span> <span data-t="2042">have to trade against each other</span> <span data-t="2045">if you stay with the five elements then</span> <span data-t="2049">you&#39;re left with this recurrence</span> <span data-t="2051">and uh</span> <span data-t="2053">a simple way to argue why this is linear</span> <span data-t="2055">is</span> <span data-t="2056">uh just to just</span> <span data-t="2059">start with the assumption that the cost</span> <span data-t="2061">is linear and then proof that this is a</span> <span data-t="2063">correct solution</span> <span data-t="2065">the details are a bit more messy and so</span> <span data-t="2068">I left those out</span> <span data-t="2070">but you can you can formally prove that</span></p>
+<p><a class="tp-time" href="#t=2072" data-t="2072">34:32</a> <span data-t="2072">this recurrence</span> <span data-t="2073">is upper bounded by some recurrence like</span> <span data-t="2076">this</span> <span data-t="2077">so you have linear cost for the</span> <span data-t="2080">partitioning and you have recursion on</span> <span data-t="2083">total size ninety percent of what you</span> <span data-t="2085">had</span> <span data-t="2086">and remember from the last slide that&#39;s</span> <span data-t="2088">that&#39;s good enough to guarantee overall</span> <span data-t="2090">linear time</span> <span data-t="2092">as long as you can have a constant</span> <span data-t="2095">strictly less than one</span> <span data-t="2096">uh you get linear time and so that&#39;s</span> <span data-t="2098">that&#39;s worst case</span> <span data-t="2100">so uh human theoreticians happy now</span></p>
+<p><a class="tp-time" href="#t=2113" data-t="2113">35:13</a> <span data-t="2113">uh I I can mention that there&#39;s</span> <span data-t="2113">an intermediate version between those</span> <span data-t="2115">two extremes picking some arbitrary</span> <span data-t="2117">pivots and picking this really really</span> <span data-t="2119">good one where you can guarantee that it</span> <span data-t="2121">excludes a fixed fraction of the</span> <span data-t="2123">elements</span> <span data-t="2124">uh where you just you take a larger</span> <span data-t="2126">sample of the elements and pick the</span> <span data-t="2128">median from there</span> <span data-t="2130">but you you use a much smaller</span> <span data-t="2133">set than every Fifth Element</span> <span data-t="2135">you can pick something like square root</span> <span data-t="2137">elements from the randomly chosen from</span> <span data-t="2140">the array and find the median from there</span> <span data-t="2143">then uh</span> <span data-t="2145">theoretically speaking in the worst case</span> <span data-t="2147">you&#39;re still quadratic or close to it</span> <span data-t="2150">but you&#39;re even even less likely to ever</span> <span data-t="2153">see a bad run time and you can</span> <span data-t="2156">you can improve the expected case</span> <span data-t="2157">further</span></p>
+<p><a class="tp-time" href="#t=2169" data-t="2169">36:09</a> <span data-t="2169">you can still uh so the question is why</span> <span data-t="2169">why is it still quadratic if you use</span> <span data-t="2171">such a large sample I guess you can</span> <span data-t="2174">still have the largest element</span> <span data-t="2176">in the sample so say the sample is the</span> <span data-t="2179">square root and largest elements so you</span> <span data-t="2181">would just exclude square root and</span> <span data-t="2182">elements but you&#39;re left with n minus</span> <span data-t="2184">square root n which is by and large not</span> <span data-t="2186">much better than n</span></p>
+<p><a class="tp-time" href="#t=2196" data-t="2196">36:36</a> <span data-t="2196">okay so much for this that&#39;s uh still an</span> <span data-t="2196">application of dividing conquer but a</span> <span data-t="2198">little more sophisticated</span> <span data-t="2200">in in the way they interact</span> <span data-t="2204">it&#39;s no longer just splitting in half</span></p>
+
+  </div>
+</div>
+
+<p class="tp-nav vo-small"><a href="/videos/comp526-fall2022/3-8/">← Video 3-8: §3.6 Python's list sort & Powersort</a><a class="tp-next" href="/videos/comp526-fall2022/3-10/">Video 3-10: §3.8 Further divide & conquer algorithms →</a>
+</p>
+
+<script src="/assets/js/transcript-player.js" defer></script>
+
+  </div>
+
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Sebastian Wild</h2>
+
+    <div class="footer-col-wrapper">
+
+      <div class="footer-col footer-col-1">
+        <p>Contact:</p>
+
+        <ul class="link-group">
+          <li><a href="mailto:%77%69%6C%64@%69%6E%66%6F%72%6D%61%74%69%6B.%75%6E%69-%6D%61%72%62%75%72%67.%64%65" title="Contact me">wild at informatik.uni-marburg.de</a></li>
+          <li><a href="mailto:%77%69%6C%64@%6C%69%76%65%72%70%6F%6F%6C.%61%63.%75%6B" title="Contact me">wild at liverpool.ac.uk</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x34EE39A78B149255">PGP</a></li>
+          <li><a href="mailto:%73%65%62%61%77%69%6C%64@%67%6D%61%69%6C.%63%6F%6D" title="Contact me">sebawild at gmail</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x38600ABC14973198">PGP</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://www.uni-marburg.de/de/fb12/arbeitsgruppen/algorith/team/sebastian-wild">Website at UMR</a></li>
+          <li><a href="https://www.liverpool.ac.uk/computer-science/staff/sebastian-wild">Website at UoL</a></li>
+          <li><a href="https://tcs.csc.liv.ac.uk">TCS @ Liverpool</a></li>
+        </ul>
+
+        <p class="footer-note">
+          Retired addresses (no longer read):
+          <span class="retired">wild at uwaterloo.ca</span>,
+          <span class="retired">wild at cs.uni-kl.de</span>.
+        </p>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <p>Elsewhere:</p>
+
+        <ul class="link-group">
+          <li><a href="https://github.com/sebawild" title="GitHub sebawild"><i class="fab fa-github" aria-hidden="true"></i> GitHub sebawild</a></li>
+          <li><a rel="me" href="https://mathstodon.xyz/@wild" title="Mastodon @wild@mathstodon.xyz"><i class="fab fa-mastodon" aria-hidden="true"></i> @wild@mathstodon.xyz</a></li>
+          <li><a href="https://bsky.app/profile/sebastianwild.bsky.social" title="Bluesky @sebastianwild.bsky.social"><span aria-hidden="true">🦋</span> @sebastianwild</a></li>
+          <li><a href="https://www.linkedin.com/in/sebastian-wild-liverpool/"><i class="fab fa-linkedin" aria-hidden="true"></i> LinkedIn profile</a></li>
+          <li><a href="https://www.youtube.com/c/SebastianWildLectures"><i class="fab fa-youtube" aria-hidden="true"></i> YouTube channel</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://orcid.org/0000-0002-6061-9177" title="ORCID: 0000-0002-6061-9177"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-orcid"/></svg>
+ 0000-0002-6061-9177</a></li>
+          <li><a href="https://scholar.google.de/citations?user=aMyZiK0AAAAJ"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-google-scholar"/></svg>
+ Google Scholar</a></li>
+          <li><a href="https://dblp.uni-trier.de/pers/hd/w/Wild:Sebastian"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-dblp"/></svg>
+ dblp</a></li>
+          <li><a href="https://www.semanticscholar.org/author/3124206"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-semantic-scholar"/></svg>
+ Semantic Scholar</a></li>
+          <li><a href="https://arxiv.org/a/wild_s_2"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-arxiv"/></svg>
+ arXiv</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>Quick links:</p>
+        <ul class="link-group">
+          <li><a href="/publications/">my publications</a></li>
+          <li><a href="/cv.html">my CV</a></li>
+          <li><a href="/feed.xml">RSS feed</a></li>
+          <li><a href="https://disk.wild-inter.net/sharing/WwXHITc2j">my library</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

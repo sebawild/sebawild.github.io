@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <script>document.documentElement.className += ' js';</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><title>Video 6-1: §6.1 Motivation, inverted indices, tries</title>
+  <meta name="description" content="Website of Sebastian Wild, algorithms researcher">
+  <link rel="canonical" href="https://www.wild-inter.net/videos/comp526-fall2022/6-1/"><meta property="og:type" content="website">
+  <meta property="og:site_name" content="Sebastian Wild&#39;s Site">
+  <meta property="og:title" content="Video 6-1: §6.1 Motivation, inverted indices, tries">
+  <meta property="og:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta property="og:url" content="https://www.wild-inter.net/videos/comp526-fall2022/6-1/">
+  <meta property="og:image" content="https://www.wild-inter.net/assets/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Sebastian Wild">
+  <meta property="og:locale" content="en_GB">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Video 6-1: §6.1 Motivation, inverted indices, tries">
+  <meta name="twitter:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta name="twitter:image" content="https://www.wild-inter.net/assets/og-card.png">
+
+  <meta name="theme-color" content="#F5EBD9"><link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest"><link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/pagella/texgyrepagella-regular-webfont.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/epigrafica/epigrafica-entona-webfont.woff2">
+
+  <link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/fontawesome/fontawesome-all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+
+  <link rel="alternate" type="application/rss+xml" title="Sebastian Wild&#39;s Site"
+        href="https://www.wild-inter.net/feed.xml">
+
+  <script data-goatcounter="https://wild-inter-net.goatcounter.com/count"
+          async src="https://gc.zgo.at/count.js"></script>
+</head>
+
+
+  <body>
+
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header">
+
+  <div class="wrapper"><a class="site-title" href="/">
+      <img class="site-mark" src="/assets/two-pivots.svg"
+           alt="" width="100" height="100" aria-hidden="true">
+      <span class="site-wordmark">
+        <span class="site-name">Sebastian Wild</span>
+        <span class="site-tagline">Algorithms Group &middot; Universität Marburg</span>
+      </span>
+    </a>
+
+    <nav class="site-nav" aria-label="Main">
+
+      <button type="button" class="menu-icon" id="menu-toggle"
+              aria-expanded="false" aria-controls="site-nav-menu">
+        <svg viewBox="0 0 18 15" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="currentColor" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="currentColor" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+        <span class="visually-hidden">Menu</span>
+      </button>
+
+      <div class="trigger" id="site-nav-menu">
+          <a class="page-link" href="/research/"
+             >Research</a>
+          <a class="page-link" href="/teaching/"
+             >Teaching</a>
+          <a class="page-link" href="/posts/"
+             >Blog</a>
+          <a class="page-link" href="/about/"
+             >About</a>
+      </div>
+
+    </nav>
+
+  </div>
+
+</header>
+
+<script>
+  /* Mobile menu. Without JS the CSS leaves the menu permanently expanded,
+     so navigation still works — see the `.js` guard in _sass/_layout.scss. */
+  (function () {
+    var btn = document.getElementById('menu-toggle');
+    if (!btn) return;
+    var nav = btn.parentNode;
+
+    function setOpen(open) {
+      nav.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    btn.addEventListener('click', function () {
+      setOpen(!nav.classList.contains('is-open'));
+    });
+
+    document.addEventListener('click', function (e) {
+      if (nav.classList.contains('is-open') && !nav.contains(e.target)) setOpen(false);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && nav.classList.contains('is-open')) {
+        setOpen(false);
+        btn.focus();
+      }
+    });
+  })();
+</script>
+
+
+    <main id="content" class="page-content">
+      <div class="wrapper">
+        <article class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Video 6-1: §6.1 Motivation, inverted indices, tries</h1>
+  </header>
+
+  <div class="post-content">
+    
+
+    <style>
+  .vo-summary { font-size: 0.9em; }
+  .vo-scroll { overflow-x: auto; margin-bottom: 1.5em; }
+  .vo-table { border-collapse: collapse; font-size: 0.9em; width: 100%; font-variant-numeric: tabular-nums; }
+  .vo-table.vo-compact { width: auto; margin-left: 0; margin-right: auto; }
+  .vo-table.vo-compact th, .vo-table.vo-compact td { white-space: nowrap; }
+  .vo-table th, .vo-table td { padding: 0.2em 0.45em; vertical-align: baseline; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.08); }
+  .vo-table th { border-bottom: 2px solid rgba(0,0,0,0.25); white-space: nowrap; }
+  .vo-table tr.vo-newunit td { border-top: 2px solid rgba(0,0,0,0.2); }
+  .vo-table .vo-num { text-align: right; white-space: nowrap; padding-left: 0.9em; }
+  .vo-mono { font-family: Menlo, Consolas, monospace; font-size: 0.8em; }
+  .vo-table td.vo-small, .vo-table td .vo-small { font-size: inherit; }
+  .vo-table td .vo-note { font-size: 0.9em; opacity: 0.85; }
+  .vo-nowrap { white-space: nowrap; }
+  .vo-small { font-size: 0.9em; }
+  .vo-muted { opacity: 0.6; }
+
+  /* search */
+  .ts { margin: 1em 0 1.5em; }
+  .ts-input { font: inherit; width: min(100%, 28em); padding: 0.3em 0.5em; border: 1px solid rgba(0,0,0,0.3); border-radius: 4px; background: rgba(255,255,255,0.6); }
+  .ts-status { margin-left: 0.5em; opacity: 0.7; }
+  .ts-results { margin-top: 0.5em; }
+  .ts-hit { margin: 0.6em 0; }
+  .ts-hit-title { font-size: 0.95em; }
+  .ts-hit-ctx { font-size: 0.85em; margin: 0.1em 0 0 1em; }
+  .ts-hit-ctx a.ts-t { font-variant-numeric: tabular-nums; margin-right: 0.4em; }
+  .ts mark, .tp-text mark { background: rgba(255, 210, 0, 0.45); color: inherit; padding: 0 0.05em; }
+
+  /* transcript page: player sticks to the top while reading */
+  .tp-bar { position: sticky; top: 0; z-index: 5; background: #F5EBD9; padding: 4px 0 6px; }
+  .tp-player { position: relative; max-width: 560px; aspect-ratio: 16 / 9;
+               padding: 5px; box-sizing: content-box; width: calc(100% - 12px);
+               background: #faf6ed; border: 1px solid #aeaa9e; border-radius: 4px; }
+  .tp-player iframe, .tp-player > div, .tp-start { position: absolute; top: 5px; left: 5px; width: calc(100% - 10px); height: calc(100% - 10px); border: 0; margin: 0; padding: 0; background: #000; }
+  .tp-start { cursor: pointer; overflow: hidden; }
+  .tp-start img { width: 100%; height: 100%; object-fit: cover; display: block; margin: 0; padding: 0; border: 0; border-radius: 0; }
+  .tp-start .yt-lite-play { position: absolute; left: 50%; top: 50%; width: 68px; height: 48px; transform: translate(-50%, -50%); }
+  .tp-start .yt-lite-play-bg { fill: #212121; fill-opacity: 0.8; }
+  .tp-start:hover .yt-lite-play-bg, .tp-start:focus-visible .yt-lite-play-bg { fill: #902015; fill-opacity: 1; }
+  .tp-controls { margin: 0.3em 0 0; opacity: 0.8; }
+  .tp-disclaimer { margin: 0.6em 0 1.2em; padding: 0.4em 0.6em; border-left: 3px solid rgba(144, 32, 21, 0.35); background: rgba(255, 255, 255, 0.35); }
+  .tp-controls label { margin-left: 1em; white-space: nowrap; }
+  .tp-text p { position: relative; }
+  .tp-text [data-t] { cursor: pointer; border-radius: 2px; }
+  .tp-text span[data-t]:hover { background: rgba(144, 32, 21, 0.08); }
+  .tp-text span.tp-now { background: rgba(144, 32, 21, 0.16); box-shadow: 0 0 0 2px rgba(144, 32, 21, 0.16); }
+  .tp-text .tp-time { font-size: 0.75em; font-variant-numeric: tabular-nums; opacity: 0.6; margin-right: 0.3em; text-decoration: none; }
+  .tp-text .tp-chapter { font-size: 1.15em; margin-top: 1.5em; }
+  .tp-text .tp-chapter a { font-size: 0.7em; opacity: 0.6; font-variant-numeric: tabular-nums; text-decoration: none; }
+  .tp-nav { display: flex; justify-content: space-between; gap: 1em; margin-top: 2em; }
+  .tp-nav .tp-next { margin-left: auto; text-align: right; }
+</style>
+
+<p class="vo-summary">
+  <a href="/videos/comp526-fall2022/">COMP 526 – Efficient Algorithms (Fall 2022)</a> · <a href="/teaching/comp526/fall2022/06-text-indexing">unit page</a>
+  · <a href="https://youtu.be/91OyahQvrc4">YouTube</a>
+  <br/>2022-11-09, 35:25
+</p>
+
+<div class="tp" data-id="91OyahQvrc4">
+  <div class="tp-bar"><div class="tp-player" id="tp-player">
+    <button type="button" class="tp-start" data-t="0" aria-label="Play video">
+      <img src="/assets/video-thumbs/91OyahQvrc4.webp" alt="" width="640" height="360" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/91OyahQvrc4/hqdefault.jpg'">
+      <svg class="yt-lite-play" viewBox="0 0 68 48" aria-hidden="true" focusable="false"><path class="yt-lite-play-bg" d="M66.5 7.7c-.8-2.9-2.5-5.4-5.4-6.2C55.8.1 34 0 34 0S12.2.1 6.9 1.6C4 2.3 2.3 4.8 1.5 7.7.1 13 0 24 0 24s.1 11 1.5 16.3c.8 2.9 2.5 5.4 5.4 6.2C12.2 47.9 34 48 34 48s21.8-.1 27.1-1.6c2.9-.7 4.6-3.2 5.4-6.1C67.9 35 68 24 68 24s-.1-11-1.5-16.3z"/><path d="M45 24 27 14v20z" fill="#fff"/></svg>
+    </button>
+  </div>
+  <p class="tp-controls vo-small">
+    <em>Click any sentence to play from there.</em>
+    <label><input type="checkbox" class="tp-follow" checked> follow along</label>
+  </p></div>
+  <p class="tp-disclaimer vo-small"><em>The transcript was generated automatically by YouTube's speech
+  recognition and is offered as is. It may contain errors, in particular in concerning technical terms,
+  names and formulas.</em></p>
+  <div class="tp-text" lang="en">
+<h2 class="tp-chapter" id="t0"><a href="#t=0" data-t="0">0:00</a> &lt;Untitled Chapter 1&gt;</h2>
+<p><a class="tp-time" href="#t=2" data-t="2">0:02</a> <span data-t="2">welcome back to com526 efficient</span> <span data-t="2">algorithms and a new exciting unit unit</span> <span data-t="5">6 we&#39;ll talk about text indexing</span> <span data-t="9">and that&#39;s it in a way a problem we&#39;ve</span> <span data-t="12">looked at before string matching finding</span> <span data-t="14">a pattern in a long string</span> <span data-t="16">but flipped on its head where this time</span> <span data-t="18">we spent time on the text and then try</span> <span data-t="20">to be really fast with the pattern</span> <span data-t="23">it&#39;s also apart from this uh</span> <span data-t="26">another area where we&#39;ll we&#39;ll dig</span> <span data-t="28">relatively deep but we can build we can</span> <span data-t="30">go there by little individual steps that</span> <span data-t="33">uh where each step is is really easy to</span> <span data-t="36">follow or is very fundamental but if you</span> <span data-t="38">put them all together and you take a</span> <span data-t="39">step back and say oof how do we get</span> <span data-t="41">there this is amazing</span> <span data-t="42">is some some of the the smartest and</span> <span data-t="45">coolest ideas we&#39;ll see so I hope you</span> <span data-t="47">enjoy this as well</span> <span data-t="49">uh but we&#39;ll go slow and we&#39;ll we&#39;ll</span> <span data-t="52">spend some time on it</span></p>
+<h2 class="tp-chapter" id="t56"><a href="#t=56" data-t="56">0:56</a> Learning Outcomes</h2>
+<p><a class="tp-time" href="#t=61" data-t="61">1:01</a> <span data-t="61">uh we&#39;ll cover some things that uh may</span> <span data-t="61">have heard of so uh briefly inverted</span> <span data-t="64">indices but then mostly suffix trees and</span> <span data-t="66">their friends</span> <span data-t="68">um if you haven&#39;t heard of those like</span> <span data-t="70">then don&#39;t worry you will</span> <span data-t="72">uh there&#39;s some generalizations of that</span> <span data-t="74">I don&#39;t know I&#39;m</span> <span data-t="76">um I&#39;m just listing these at the</span> <span data-t="78">beginning so you can at the end refer</span> <span data-t="80">back but some of them might not help you</span> <span data-t="82">too much at this point</span> <span data-t="84">as always I want you to know not just</span> <span data-t="86">that these things exist but when they</span> <span data-t="88">are good</span> <span data-t="90">and what limitations they may have</span> <span data-t="92">and we&#39;ll look at for some of these data</span> <span data-t="96">structures mostly</span> <span data-t="97">there are some nice tricks to use them</span> <span data-t="100">for for more than the initial thing we</span> <span data-t="103">designed them for</span></p>
+<p><a class="tp-time" href="#t=114" data-t="114">1:54</a> <span data-t="114">let&#39;s start with um setting the stage a</span> <span data-t="114">bit for this</span> <span data-t="124">um it&#39;s also sometimes called offline</span> <span data-t="124">text search</span> <span data-t="126">the idea is as in in string matching we</span> <span data-t="128">have a text and we have a pattern we try</span> <span data-t="130">to find in the easiest way exact matches</span> <span data-t="133">exact occurrences of the pattern as a</span> <span data-t="135">substring of the text but we pre-process</span> <span data-t="138">the text and</span> <span data-t="139">assume that we can reuse that index that</span> <span data-t="143">we built many times so searching for</span> <span data-t="145">many patterns</span></p>
+<h2 class="tp-chapter" id="t118"><a href="#t=118" data-t="118">1:58</a> Text indexing</h2>
+<p><a class="tp-time" href="#t=152" data-t="152">2:32</a> <span data-t="152">This this term index like index finger</span> <span data-t="152">is is a very old one uh it&#39;s it has the</span> <span data-t="157">word pointer in it which is really neat</span> <span data-t="159">from a computer science perspective</span> <span data-t="161">uh it&#39;s in a way</span> <span data-t="164">um trying to to build something that</span> <span data-t="166">points you to the right position right</span> <span data-t="169">away</span> <span data-t="170">and um</span></p>
+<p><a class="tp-time" href="#t=175" data-t="175">2:55</a> <span data-t="175">okay I think I&#39;ll have this later again</span> <span data-t="175">but um traditional books uh at least</span> <span data-t="178">monographs textbooks they often have an</span> <span data-t="180">index at the end where they have certain</span> <span data-t="182">uh key topics or key terms that are</span> <span data-t="186">listed and then there&#39;s the pages on on</span> <span data-t="189">which they occur</span> <span data-t="191">that&#39;s very close to our task</span> <span data-t="194">except that it&#39;s a bit more narrow and</span> <span data-t="196">some person has to sit down to build the</span> <span data-t="198">index meticulously</span> <span data-t="201">the whole idea is much more more General</span> <span data-t="203">all search engines basically do that uh</span> <span data-t="207">if you if you look up some more specific</span> <span data-t="209">databases pretty much everything now has</span> <span data-t="211">a search and people expect that to be</span> <span data-t="214">blazingly fast you type and you you</span> <span data-t="217">expect within milliseconds to see some</span> <span data-t="220">results</span> <span data-t="221">it goes further than that these days you</span> <span data-t="224">expect it to pick up mistakes you made</span> <span data-t="226">in typing</span> <span data-t="228">or you expected to find things if enough</span> <span data-t="231">other people found</span> <span data-t="233">the same thing by mistyping it the same</span> <span data-t="236">way or using a synonymous word even</span> <span data-t="239">it goes much beyond that for search</span> <span data-t="241">engines uh we&#39;ll stay at the exact</span> <span data-t="244">matching part for this unit</span> <span data-t="247">all right another important area that</span> <span data-t="249">during the pandemic has risen to much</span> <span data-t="251">more Fame is is all the bioinformatics</span> <span data-t="254">applications of this</span> <span data-t="256">you can you can identify certain areas</span> <span data-t="259">in genomes genes genes areas that get</span></p>
+<p><a class="tp-time" href="#t=264" data-t="264">4:24</a> <span data-t="264">translated to proteins and many other</span> <span data-t="267">parts</span> <span data-t="268">um now one one just as a fun fact if you</span> <span data-t="272">want uh</span> <span data-t="274">one week after the release of the</span> <span data-t="278">sequence of the the Corona virus SARS</span> <span data-t="281">covered II uh the virus genome</span> <span data-t="285">uh one week after that moderna started</span> <span data-t="288">basically putting their vaccine trials</span> <span data-t="290">into production it took them one week to</span> <span data-t="294">tailor their approach that they had</span> <span data-t="295">developed to a new virus there&#39;s lots of</span> <span data-t="298">computer science involved in that of</span> <span data-t="300">course a lot a lot of other techniques</span> <span data-t="302">and a lot of biology lab wet lab</span> <span data-t="304">techniques as well</span> <span data-t="307">um</span> <span data-t="307">but there&#39;s uh</span> <span data-t="309">a lot of searching going on for for</span> <span data-t="311">pattern and comparing strings</span></p>
+<h2 class="tp-chapter" id="t317"><a href="#t=317" data-t="317">5:17</a> Inverted indices</h2>
+<p><a class="tp-time" href="#t=321" data-t="321">5:21</a> <span data-t="321">a classic solution is what in computer</span> <span data-t="321">science we would call an inverted index</span> <span data-t="324">it&#39;s inverted in the sense that uh</span> <span data-t="328">a normal book has</span> <span data-t="331">easy ways to jump to a certain page say</span> <span data-t="335">and then you can find what&#39;s on the page</span> <span data-t="337">and the inverted index says where do I</span> <span data-t="340">find a certain word and it tells you</span> <span data-t="342">where the page is</span> <span data-t="344">so it&#39;s the opposite the normal normal</span> <span data-t="345">book you go from page number to text</span> <span data-t="348">what&#39;s on page seven</span> <span data-t="350">and now you can ask I&#39;m looking for this</span> <span data-t="353">word on what page do I find it</span> <span data-t="356">uh so that&#39;s a simple mapping of say a</span> <span data-t="359">list of keywords to the pages where they</span> <span data-t="361">occur that&#39;s in the classic book or of</span> <span data-t="363">course computer science we might not</span> <span data-t="365">just have the page but the exact index</span> <span data-t="367">if that&#39;s one long string we can jump to</span> <span data-t="370">a specific position in that string</span></p>
+<p><a class="tp-time" href="#t=376" data-t="376">6:16</a> <span data-t="376">there&#39;s some assumption that comes with</span> <span data-t="376">this which is totally fine for many</span> <span data-t="378">applications</span> <span data-t="379">namely we know what strings are</span> <span data-t="382">potentially searched for</span> <span data-t="383">if you think about books again someone</span> <span data-t="385">has to decide which words to put in the</span> <span data-t="387">index and and the and all these uh</span> <span data-t="392">like um</span> <span data-t="394">very frequent words that also don&#39;t have</span> <span data-t="396">a very specific meaning they are not</span> <span data-t="398">usually included and if you would</span> <span data-t="400">include them they would occur so many</span> <span data-t="402">times it&#39;s basically useless</span> <span data-t="405">and so</span> <span data-t="406">um it assumes that someone decides what</span> <span data-t="409">what words to put in</span> <span data-t="411">and it assumes that there are words to</span> <span data-t="414">start with</span> <span data-t="416">so inverted indices usually go through</span> <span data-t="418">the text</span> <span data-t="420">somehow have a mechanism to split that</span> <span data-t="422">into words say in the usual sense white</span> <span data-t="424">space separates words for natural</span> <span data-t="427">language text or say English text that</span> <span data-t="429">would work fine</span> <span data-t="430">and</span> <span data-t="432">often we do an additional step that we</span> <span data-t="436">won&#39;t talk further about it but there&#39;s</span> <span data-t="438">libraries that do that for English</span> <span data-t="439">fairly well automatically you go from a</span> <span data-t="442">certain occurrence of a</span> <span data-t="445">reflected word to the stem</span> <span data-t="448">go from plural plural to singular go</span> <span data-t="451">from conjugated verbs to the standard</span> <span data-t="454">form you may know your grammar better</span> <span data-t="456">than I do what the appropriate terms are</span> <span data-t="459">in each case</span> <span data-t="460">this is just to make sure that if you if</span></p>
+<p><a class="tp-time" href="#t=463" data-t="463">7:43</a> <span data-t="463">you look for go you also find all these</span> <span data-t="465">other occurrences that are logically the</span> <span data-t="468">same same word</span> <span data-t="473">um now in terms of a data structure</span> <span data-t="473">question how would you store this so</span> <span data-t="476">suppose you have collected the list of</span> <span data-t="478">words that you would like to find in</span> <span data-t="480">your text</span> <span data-t="481">and you&#39;re going through the text while</span> <span data-t="483">you do this so whenever you find a word</span> <span data-t="485">you know where it was because you&#39;re</span> <span data-t="487">just reading that position in the text</span> <span data-t="490">have you seen some data structure that</span> <span data-t="492">would potentially be useful for that</span></p>
+<p><a class="tp-time" href="#t=506" data-t="506">8:26</a> <span data-t="506">yeah for example some binary tree</span> <span data-t="506">uh in a way it&#39;s it&#39;s just a dictionary</span> <span data-t="511">so you can use whatever whatever type of</span> <span data-t="513">implementation for a dictionary you want</span> <span data-t="515">it&#39;s a mapping right it&#39;s a mapping from</span> <span data-t="517">words to say a list of indices of all</span> <span data-t="521">the occurrences</span> <span data-t="523">so for example</span> <span data-t="525">a binary search tree would be one</span> <span data-t="528">implementation</span> <span data-t="530">and of course because you&#39;re all</span> <span data-t="532">starting to prepare for the exam already</span> <span data-t="535">you know that in the expected case at</span> <span data-t="537">least that means logarithmic time</span> <span data-t="541">or side node if you want that to be</span> <span data-t="543">worst case you can use a balanced binary</span> <span data-t="545">search trees binary search tree I</span> <span data-t="547">haven&#39;t discussed how these work but I</span> <span data-t="549">mentioned that they exist</span></p>
+<p><a class="tp-time" href="#t=554" data-t="554">9:14</a> <span data-t="554">and so okay just to make That explicit</span> <span data-t="554">the keys are the words</span> <span data-t="557">and the values are</span> <span data-t="566">lists of indices okay as uh on a list of</span> <span data-t="566">offsets maybe I don&#39;t want to use the</span> <span data-t="568">word index again</span></p>
+<p><a class="tp-time" href="#t=574" data-t="574">9:34</a> <span data-t="574">so the starting position of An</span> <span data-t="574">Occurrence of that word that&#39;s what it&#39;s</span> <span data-t="577">what it&#39;s meant</span> <span data-t="589">cool done so that&#39;s a short unit right</span> <span data-t="589">there&#39;s a few things where we can</span> <span data-t="591">improve on this</span></p>
+<p><a class="tp-time" href="#t=596" data-t="596">9:56</a> <span data-t="596">first of all we are having a very</span> <span data-t="597">specific dictionary now I&#39;ve already</span> <span data-t="598">asked this question last time</span> <span data-t="600">so let me maybe just</span> <span data-t="602">pull it up again</span> <span data-t="605">but you you will have answered it</span> <span data-t="607">already</span> <span data-t="609">and we already know what the result was</span> <span data-t="610">namely a lot of you don&#39;t know tries</span> <span data-t="614">okay you&#39;re changing your mind now</span> <span data-t="616">you&#39;ve looked it up</span></p>
+<p><a class="tp-time" href="#t=623" data-t="623">10:23</a> <span data-t="623">so uh why don&#39;t we stop with a binary</span> <span data-t="623">search tree</span> <span data-t="624">login is not too bad but we will be able</span> <span data-t="627">to do better</span> <span data-t="628">and the reason we can do better in this</span> <span data-t="630">case is that we have a specific type of</span> <span data-t="632">key we have strings as Keys the words</span> <span data-t="636">and so we can exploit that this</span> <span data-t="638">um</span> <span data-t="639">this type of key is special</span> <span data-t="641">to speed up the searches</span> <span data-t="644">the simplest way to do that is called a</span> <span data-t="646">try and so let me go over this slowly</span> <span data-t="649">it&#39;s uh</span> <span data-t="651">it&#39;s it&#39;s in principle a very harmless</span> <span data-t="653">and simple data structure</span> <span data-t="655">and it&#39;s worth understanding how it</span> <span data-t="657">works and what the trade-offs are</span> <span data-t="660">even though I mean the plain form we&#39;re</span> <span data-t="662">discussing now nobody uses and I&#39;ll show</span> <span data-t="664">you why in a second</span> <span data-t="666">uh</span> <span data-t="668">first of all it&#39;s a it&#39;s a dictionary</span> <span data-t="669">data structure that has strings as keys</span> <span data-t="672">I&#39;ve already commented on this slightly</span> <span data-t="675">uh slightly uh</span> <span data-t="677">awkward naming convention it&#39;s spelled</span> <span data-t="680">like in retrieval but pronounced like</span> <span data-t="683">try</span> <span data-t="684">to not have another word that sounds</span> <span data-t="687">like tree</span> <span data-t="689">um and uh it it&#39;s based on character</span> <span data-t="691">comparisons with simple comparisons as</span> <span data-t="694">we had it for for string matching</span> <span data-t="696">now there&#39;s an assumption to make our</span> <span data-t="698">life a little easier</span> <span data-t="700">namely that all the strings that we</span> <span data-t="702">store are prefix free which just means</span></p>
+<p><a class="tp-time" href="#t=706" data-t="706">11:46</a> <span data-t="706">no string is a prefix of another string</span> <span data-t="709">you can either get this if all the</span> <span data-t="711">strings happen to have the same length</span> <span data-t="714">then no string can be a prefix of the</span> <span data-t="717">other if they&#39;re all the same length</span> <span data-t="718">they they</span> <span data-t="720">they just can&#39;t be</span> <span data-t="722">the other option is you make it a</span> <span data-t="726">convention and say there&#39;s an end of</span> <span data-t="727">string marker</span> <span data-t="729">and um depending on on how much</span> <span data-t="733">experience you have with low level</span> <span data-t="734">programming this is actually not too far</span> <span data-t="737">from what C represents strings like</span> <span data-t="740">there&#39;s a specific character in The</span> <span data-t="743">ASCII character data in the ASCII</span> <span data-t="745">character set the zero as a character</span> <span data-t="748">doesn&#39;t map to any real character it</span> <span data-t="750">maps to the the null character</span> <span data-t="752">and in in low-level C programs strings</span> <span data-t="756">are represented as null terminated</span> <span data-t="758">strings so you have a list of all your</span> <span data-t="760">characters and then there&#39;s a special</span> <span data-t="762">character saying you that&#39;s the end</span> <span data-t="765">other languages represent strings</span> <span data-t="767">differently they explicitly store an</span> <span data-t="769">integer saying that&#39;s the length that&#39;s</span> <span data-t="771">the number of characters and then</span> <span data-t="772">there&#39;s the sequence of characters</span> <span data-t="773">coming</span> <span data-t="775">both exists</span> <span data-t="777">now Java uses the version with the</span> <span data-t="779">length</span></p>
+<p><a class="tp-time" href="#t=782" data-t="782">13:02</a> <span data-t="782">what does python do uh</span> <span data-t="785">not 100 sure I would suspect that a</span> <span data-t="788">string might just be</span> <span data-t="790">an array at the end I&#39;m not sure what</span> <span data-t="793">they do I&#39;m not sure</span> <span data-t="794">I can look that up</span> <span data-t="797">either way on the theory side both is</span> <span data-t="800">fine it&#39;s not a real</span> <span data-t="802">um restriction we can always add such an</span> <span data-t="804">end of word character</span> <span data-t="805">and you&#39;ll see this dollar many many</span> <span data-t="808">times in this unit so get used to it</span> <span data-t="810">that&#39;s just</span> <span data-t="811">a way to write this end of word</span> <span data-t="813">character it&#39;s a character that doesn&#39;t</span> <span data-t="815">occur in strings too often it&#39;s common</span> <span data-t="818">used to use the dollar for this</span> <span data-t="821">uh and it&#39;s much more convenient to have</span> <span data-t="823">this as some something you can draw as</span> <span data-t="826">opposed to this null character that</span> <span data-t="827">doesn&#39;t have a printing A visual</span> <span data-t="831">representation but of course you could</span> <span data-t="833">just replace this with something else</span> <span data-t="836">here&#39;s an example of such a set of</span> <span data-t="838">strings where we added the character at</span> <span data-t="841">the end so they&#39;re all prefix free</span> <span data-t="843">and now what is a try a try is a tree</span> <span data-t="848">where we have a root and then uh the</span> <span data-t="852">child edges of each root are labeled</span> <span data-t="854">with one character</span> <span data-t="856">so in this case the alphabet for these</span> <span data-t="859">strings is just a and b</span> <span data-t="862">so all the edges here are labeled with</span></p>
+<p><a class="tp-time" href="#t=865" data-t="865">14:25</a> <span data-t="865">either a b or the dollar we add that to</span> <span data-t="867">the alphabet</span> <span data-t="874">I&#39;ll just write it as this in this weird</span> <span data-t="874">way to emphasize there&#39;s an alphabet</span> <span data-t="876">where uh the symbol doesn&#39;t occur and</span> <span data-t="879">then we add it to that it must be a new</span> <span data-t="881">character</span> <span data-t="883">right so okay we have nodes and we have</span> <span data-t="886">edges with labels and what&#39;s the deal</span> <span data-t="888">with the labels if you follow down some</span> <span data-t="890">path in this in this tree let me Mark it</span> <span data-t="893">maybe</span></p>
+<p><a class="tp-time" href="#t=898" data-t="898">14:58</a> <span data-t="898">then you arrive at some leaf and if you</span> <span data-t="898">read allow the letters a b b dollar you</span> <span data-t="902">get the string that&#39;s stored at this</span> <span data-t="904">leaf</span> <span data-t="908">uh the fact that we assume this prefix</span> <span data-t="908">freeness means we always end in a leaf</span> <span data-t="912">if we had one string that was a prefix</span> <span data-t="914">of some other string then we would stop</span> <span data-t="917">stop reading and still be in the middle</span> <span data-t="919">of the try</span> <span data-t="920">if we add this dollar marker we always</span> <span data-t="923">end the leaf so that&#39;s a bit more</span> <span data-t="924">convenient then we can always say the</span> <span data-t="926">internal nodes are never the end of the</span> <span data-t="928">string and the the leaves are</span> <span data-t="931">representing the actual</span> <span data-t="933">strings in the set</span> <span data-t="936">so far so good</span> <span data-t="939">that&#39;s also all uh that&#39;s that&#39;s a try</span> <span data-t="941">or a standard try</span> <span data-t="944">as you can see there are some notes that</span> <span data-t="946">only have a single child</span> <span data-t="948">and there sometimes is a long chain of</span> <span data-t="950">such that just goes down to one leaf</span> <span data-t="953">so um maybe already smell that there&#39;s</span> <span data-t="956">room for improvement</span> <span data-t="957">but that&#39;s that&#39;s one way to do it</span> <span data-t="961">now if we wanted to find a string in</span> <span data-t="965">this remember it&#39;s a dictionary we&#39;re</span> <span data-t="967">supposed to be able to find a string</span> <span data-t="970">what we would do is just take the new</span> <span data-t="972">string we&#39;re looking for start at the</span> <span data-t="974">root and Traverse pattern well character</span></p>
+<p><a class="tp-time" href="#t=976" data-t="976">16:16</a> <span data-t="976">by character</span> <span data-t="978">following the edge that&#39;s labeled with</span> <span data-t="979">that character</span> <span data-t="981">if we ever get stuck that way it means</span> <span data-t="983">there the key is not contained in the</span> <span data-t="985">dictionary</span> <span data-t="987">so one example</span> <span data-t="989">um</span> <span data-t="991">so we&#39;re we&#39;re checking</span> <span data-t="994">is b b</span></p>
+<p><a class="tp-time" href="#t=1006" data-t="1006">16:46</a> <span data-t="1006">I would start at the root</span> <span data-t="1006">I guess I have to add the dollar for for</span> <span data-t="1008">that to make sense</span> <span data-t="1010">so I would start at the root and follow</span> <span data-t="1012">down this path reading the first B</span> <span data-t="1015">I would follow another B reading the</span> <span data-t="1017">second B</span> <span data-t="1018">and now I want to read a dollar sign but</span> <span data-t="1021">there&#39;s no edge with the dollar</span> <span data-t="1023">so at this point I&#39;m falling out of the</span> <span data-t="1025">tree</span> <span data-t="1027">and so the answer must be no because I</span> <span data-t="1029">couldn&#39;t complete my search</span> <span data-t="1031">had we been able to continue all the way</span> <span data-t="1033">down to a leaf we would have found the</span> <span data-t="1035">string</span> <span data-t="1036">and then again as for dictionaries for</span> <span data-t="1039">binary search trees the leaves will have</span> <span data-t="1041">another pointer storing the value that&#39;s</span> <span data-t="1043">associated with this the inverted index</span> <span data-t="1046">the list of all occurrences</span> <span data-t="1049">but that&#39;s just</span> <span data-t="1050">baggage we carry around so I won&#39;t</span> <span data-t="1053">usually draw it</span></p>
+<p><a class="tp-time" href="#t=1060" data-t="1060">17:40</a> <span data-t="1060">so far so good that&#39;s tries</span> <span data-t="1060">let&#39;s see</span> <span data-t="1069">unlike some of these questions I had in</span> <span data-t="1069">the past</span> <span data-t="1071">um all you need to answer this question</span> <span data-t="1073">was on the previous slide</span> <span data-t="1075">and you could see the question Etc on</span> <span data-t="1078">the on the thing so um</span> <span data-t="1080">going back there</span></p>
+<p><a class="tp-time" href="#t=1087" data-t="1087">18:07</a> <span data-t="1087">so this just requires</span> <span data-t="1087">uh thinking and understanding of the</span> <span data-t="1089">structures um</span> <span data-t="1090">I&#39;m trying to test you on this</span> <span data-t="1156">I have 25 loads but how many people</span> <span data-t="1156">voted earlier 50.</span> <span data-t="1159">foreign</span></p>
+<p><a class="tp-time" href="#t=1187" data-t="1187">19:47</a> <span data-t="1187">but I want to show the results already a</span> <span data-t="1187">bit</span> <span data-t="1188">so it shows you that there is</span> <span data-t="1190">uh there&#39;s some favorite questions uh</span> <span data-t="1193">some favorite answers but a lot of</span> <span data-t="1194">questions have</span> <span data-t="1196">got some votes</span></p>
+<p><a class="tp-time" href="#t=1223" data-t="1223">20:23</a> <span data-t="1223">I know it&#39;s a lot of fun lots of answers</span> <span data-t="1223">if I keep this open for too long will</span> <span data-t="1225">you all gravitate towards whatever is</span> <span data-t="1227">the current majority</span> <span data-t="1229">I&#39;m not saying that that&#39;s the right</span> <span data-t="1230">answer guys</span></p>
+<p><a class="tp-time" href="#t=1236" data-t="1236">20:36</a> <span data-t="1236">in fact</span> <span data-t="1236">right answer is there</span> <span data-t="1239">so the um</span> <span data-t="1248">yeah you know you know it&#39;s</span> <span data-t="1248">not useful to change your answer now</span> <span data-t="1252">um the right the right answer is uh</span> <span data-t="1255">linear in the length of the pattern</span> <span data-t="1258">that we&#39;re looking for</span> <span data-t="1261">and let&#39;s let&#39;s briefly</span></p>
+<p><a class="tp-time" href="#t=1267" data-t="1267">21:07</a> <span data-t="1267">examine that again on the example that</span> <span data-t="1267">we&#39;ve just done</span> <span data-t="1268">we can just reuse the blue part</span> <span data-t="1271">so Q in this case would be three</span> <span data-t="1274">and by and large you look at three nodes</span> <span data-t="1276">and then you know</span> <span data-t="1278">you start at the root and then you read</span> <span data-t="1280">one character from the pattern that</span> <span data-t="1282">decides which child you go to or if</span> <span data-t="1284">you&#39;re already falling out of the tree</span> <span data-t="1287">um</span></p>
+<p><a class="tp-time" href="#t=1296" data-t="1296">21:36</a> <span data-t="1296">query string occurs I didn&#39;t say that</span> <span data-t="1296">I might I might have to make this into a</span> <span data-t="1299">an O right</span> <span data-t="1301">but we could say worst case</span> <span data-t="1304">the worst case is uh it it</span> <span data-t="1307">has to go all the way</span> <span data-t="1309">to the length of the pattern you don&#39;t</span> <span data-t="1311">fall out of the tree early</span> <span data-t="1314">so you consume one character at a time</span> <span data-t="1315">and visit one more note</span> <span data-t="1318">that&#39;s why it&#39;s it&#39;s roughly the length</span> <span data-t="1320">of the pattern that you need you might</span> <span data-t="1322">get lucky and fall out of the tree early</span> <span data-t="1324">that can happen in the worst case you</span> <span data-t="1327">have to follow down and then you&#39;re</span> <span data-t="1329">either</span> <span data-t="1330">you can either stop in the middle of the</span> <span data-t="1332">tree</span> <span data-t="1334">but if you append the dollar sign you</span> <span data-t="1336">will always either find a leaf or you</span> <span data-t="1338">fall out</span> <span data-t="1340">okay</span> <span data-t="1341">so that&#39;s the cool thing about tries let</span> <span data-t="1343">me emphasize that like um outside of the</span> <span data-t="1347">concrete question</span> <span data-t="1349">search and tries is linear in the length</span> <span data-t="1352">of the pattern you&#39;re looking up</span> <span data-t="1354">it&#39;s independent of the size of the try</span> <span data-t="1357">even if the try is the entire web you</span> <span data-t="1360">can search for a tree with just fours</span> <span data-t="1363">four steps down this huge try it&#39;s</span> <span data-t="1365">completely irrelevant how big the try is</span> <span data-t="1368">I think that needs a bit emphasis</span> <span data-t="1370">because it&#39;s really amazing and it&#39;s</span> <span data-t="1372">completely impossible to do that with a</span></p>
+<p><a class="tp-time" href="#t=1374" data-t="1374">22:54</a> <span data-t="1374">binary search tree</span> <span data-t="1376">it&#39;s only possible because we have</span> <span data-t="1378">strings here and we&#39;re we&#39;re doing a lot</span> <span data-t="1380">of pre-computation</span> <span data-t="1382">right</span> <span data-t="1384">okay so</span> <span data-t="1386">um</span> <span data-t="1387">if we&#39;re trying to find a pattern what</span> <span data-t="1389">determines the search time is the length</span> <span data-t="1391">of the pattern and only the length of</span> <span data-t="1393">the pattern</span> <span data-t="1394">maybe the size of the alphabet</span> <span data-t="1397">um</span> <span data-t="1398">I&#39;m assuming that&#39;s fixed here</span></p>
+<p><a class="tp-time" href="#t=1403" data-t="1403">23:23</a> <span data-t="1403">that sounds great now I have another</span> <span data-t="1403">question for you</span> <span data-t="1406">yeah we&#39;re making a lot of progress</span> <span data-t="1409">today I know</span> <span data-t="1412">just clicking on buttons</span> <span data-t="1418">it&#39;s the same setup but this time we&#39;re</span> <span data-t="1418">focusing on the space usage</span></p>
+<p><a class="tp-time" href="#t=1426" data-t="1426">23:46</a> <span data-t="1426">again you have the answer on the slides</span> <span data-t="1426">on the phones maybe it&#39;s more useful to</span> <span data-t="1429">show the slide instead</span> <span data-t="1496">this one seems more clear to you so</span> <span data-t="1496">maybe I can can start showing</span></p>
+<p><a class="tp-time" href="#t=1506" data-t="1506">25:06</a> <span data-t="1506">at the danger of influencing the rest of</span> <span data-t="1506">you</span> <span data-t="1511">we have a peek for this answer and</span> <span data-t="1511">that&#39;s the correct one</span> <span data-t="1518">so uh Theta of n times M for the worst</span> <span data-t="1518">case</span></p>
+<p><a class="tp-time" href="#t=1525" data-t="1525">25:25</a> <span data-t="1525">what&#39;s more important for me is is to</span> <span data-t="1525">point out uh a how comes and B what does</span> <span data-t="1527">it mean</span> <span data-t="1529">so if I&#39;m I&#39;m going back to the picture</span> <span data-t="1534">the the worst case would be that</span> <span data-t="1537">essentially all strings look like look</span> <span data-t="1540">like this one long chain</span> <span data-t="1542">of unary notes single child notes all</span> <span data-t="1546">the way down to a leaf</span> <span data-t="1548">you can get essentially that if you have</span> <span data-t="1551">a lot of differences in the early few</span> <span data-t="1553">characters of the strings and then long</span> <span data-t="1555">chains of whatever strings that just</span> <span data-t="1558">have to go all the way down so by and</span> <span data-t="1561">large you have for each string roughly</span> <span data-t="1564">its length in unary notes</span> <span data-t="1567">and that brings the the total space to n</span> <span data-t="1570">times m</span> <span data-t="1571">the absolute worst case probably is if</span> <span data-t="1575">every string has a unique first</span> <span data-t="1577">character that only occurs in this</span> <span data-t="1579">string and then the rest can be</span> <span data-t="1581">arbitrary it would just be appended it</span> <span data-t="1584">would look like one one big jellyfish or</span> <span data-t="1586">I don&#39;t know a star</span> <span data-t="1590">uh dandelion okay enough weird Botanical</span></p>
+<p><a class="tp-time" href="#t=1595" data-t="1595">26:35</a> <span data-t="1595">metaphors</span> <span data-t="1604">so is this good or is this fat uh it&#39;s a</span> <span data-t="1604">bit um depends on the point of view</span> <span data-t="1607">that&#39;s the total number of characters</span> <span data-t="1609">together in all strings</span> <span data-t="1612">and we need to store the strings somehow</span> <span data-t="1614">so in a way it&#39;s probably not easy to</span> <span data-t="1617">avoid spending n times m space</span> <span data-t="1620">times times the size of the alphabet in</span> <span data-t="1623">a way where log of the size of the</span> <span data-t="1625">alphabet will come to the compression</span> <span data-t="1627">encoding bits next time</span> <span data-t="1629">next unit</span> <span data-t="1631">the number of nodes is n times M now</span> <span data-t="1635">if you assume that we store the strings</span> <span data-t="1636">separately and then build this try on</span> <span data-t="1639">top just for searching</span> <span data-t="1640">then it&#39;s suddenly not so great then we</span> <span data-t="1643">have this additional so we just</span> <span data-t="1645">double the space or likely is that the</span> <span data-t="1649">constant Factor hidden in this is is</span> <span data-t="1651">actually a good deal bigger because</span> <span data-t="1654">these pointers these nodes have to be</span> <span data-t="1656">represented with pointers and they need</span> <span data-t="1658">to store the The Edge labels there&#39;s a</span> <span data-t="1661">lot of overhead going into this so</span> <span data-t="1663">probably this this constant factor is is</span> <span data-t="1665">much bigger than one</span> <span data-t="1667">so we&#39;re storing our our strings and</span> <span data-t="1670">then we&#39;re storing a lot more on top</span> <span data-t="1672">just to facilitate these searches</span> <span data-t="1675">that&#39;s not going to work if the size of</span> <span data-t="1678">the thing you have is is really big if</span></p>
+<h2 class="tp-chapter" id="t1598"><a href="#t=1598" data-t="1598">26:38</a> Clicker Question</h2>
+<p><a class="tp-time" href="#t=1681" data-t="1681">28:01</a> <span data-t="1681">you&#39;re trying to index the web you can&#39;t</span> <span data-t="1683">afford to</span> <span data-t="1684">uh store something that&#39;s a multiple</span> <span data-t="1687">times that size</span> <span data-t="1689">and luckily it&#39;s not not necessary for</span> <span data-t="1691">this</span> <span data-t="1696">so that&#39;s the the next jump in the</span> <span data-t="1696">evolution of these data structures</span> <span data-t="1698">from standard tries to compact tries</span> <span data-t="1702">and the trick is really</span> <span data-t="1704">not not that complicated</span> <span data-t="1707">uh if you if you look at the situation</span> <span data-t="1709">from before this worst case was all</span> <span data-t="1711">these long chains of unary notes hanging</span> <span data-t="1713">down</span> <span data-t="1714">uh and if there&#39;s a few in this example</span> <span data-t="1718">let&#39;s just get rid of only those</span> <span data-t="1722">and there in a way we we do that by just</span> <span data-t="1725">Contracting them so it&#39;s these two</span> <span data-t="1728">that&#39;s squished into one Edge that&#39;s</span> <span data-t="1730">this Edge</span> <span data-t="1732">uh and this this long thing here is is</span> <span data-t="1735">squished into just this Edge</span> <span data-t="1738">so the the trees you can basically lay</span> <span data-t="1740">them on top of each other you would</span> <span data-t="1741">still find how uh each node corresponds</span> <span data-t="1744">to one node in the in the standard try</span> <span data-t="1747">but of course now uh we&#39;re we&#39;re losing</span> <span data-t="1749">some information we just replace the</span> <span data-t="1752">long Edge that contains the whole string</span> <span data-t="1753">by A Single Character edge here</span> <span data-t="1756">so what how do we know that the second B</span> <span data-t="1758">is is there or how do we even know how</span> <span data-t="1760">long this chain of</span> <span data-t="1762">of things we now push together into a</span></p>
+<h2 class="tp-chapter" id="t1693"><a href="#t=1693" data-t="1693">28:13</a> Compact tries</h2>
+<p><a class="tp-time" href="#t=1765" data-t="1765">29:25</a> <span data-t="1765">single edge how long that was</span> <span data-t="1767">to recover that information the notes</span> <span data-t="1769">the internal nodes in the compact try</span> <span data-t="1771">store a number</span> <span data-t="1772">and that&#39;s the index in the string that</span> <span data-t="1776">the children compare</span> <span data-t="1779">so the root always has zero which says</span> <span data-t="1781">the first</span> <span data-t="1783">well index 0 character is what</span> <span data-t="1785">determines the child of the root</span> <span data-t="1788">but from then on it could either go one</span> <span data-t="1790">with one further up like in this case or</span> <span data-t="1793">it could jump to two where we say all</span> <span data-t="1796">the strings in our dictionary actually</span> <span data-t="1797">agreed on</span> <span data-t="1799">if they have a B in the first place they</span> <span data-t="1802">all agreed on the second place on index</span> <span data-t="1805">one</span> <span data-t="1806">okay</span></p>
+<p><a class="tp-time" href="#t=1812" data-t="1812">30:12</a> <span data-t="1812">so if you have this compact try first of</span> <span data-t="1812">all if you start with the standard try I</span> <span data-t="1814">think it&#39;s relatively clear how to get</span> <span data-t="1815">to this compact one you identify all the</span> <span data-t="1818">chains of unary nodes and you replace</span> <span data-t="1820">them with a single edge</span> <span data-t="1822">and the the numbers in these nodes is</span> <span data-t="1825">just the original depth this node was a</span> <span data-t="1828">depth 2 1 2 so it gets a number two</span></p>
+<p><a class="tp-time" href="#t=1836" data-t="1836">30:36</a> <span data-t="1836">uh maybe this is another example that&#39;s</span> <span data-t="1836">one two three and so it gets a three</span> <span data-t="1840">how do you search in the compact try if</span> <span data-t="1843">if you don&#39;t have this anymore if that&#39;s</span> <span data-t="1845">gone</span> <span data-t="1846">how do you do the same search as before</span> <span data-t="1849">suppose we search for</span> <span data-t="1852">uh b a b</span> <span data-t="1854">so</span> <span data-t="1856">we would start at the root that tells us</span> <span data-t="1859">compare the zero index character so</span> <span data-t="1862">that&#39;s a b</span> <span data-t="1863">we follow the edge that matches</span> <span data-t="1866">now we&#39;re comparing the second carry the</span> <span data-t="1869">character at position two index two</span> <span data-t="1871">another B brilliant so we go down here</span> <span data-t="1875">and we have found our pattern</span> <span data-t="1878">except that that&#39;s not the string that&#39;s</span> <span data-t="1881">stored because we didn&#39;t compare this</span> <span data-t="1883">index one character</span> <span data-t="1885">so in a way we can do the search as</span> <span data-t="1887">before but when we reach the leaf we</span> <span data-t="1890">still have to check the missing</span> <span data-t="1891">characters because we have skipped some</span> <span data-t="1893">we may have skipped some</span> <span data-t="1895">so we still have to check if these do</span> <span data-t="1897">also match</span> <span data-t="1899">otherwise it&#39;s a spurious hit</span></p>
+<p><a class="tp-time" href="#t=1905" data-t="1905">31:45</a> <span data-t="1905">but that&#39;s the only that&#39;s the only</span> <span data-t="1905">caveat otherwise the search works the</span> <span data-t="1908">same as before</span> <span data-t="1909">it even got cheaper or it at least</span> <span data-t="1912">didn&#39;t get more expensive we don&#39;t visit</span> <span data-t="1914">more nodes we just got rid of some nodes</span> <span data-t="1917">so the same same statement as before</span> <span data-t="1919">holds you can search in a compact Tri</span> <span data-t="1921">independent of the size of the thing</span> <span data-t="1924">the only thing that matters is the</span> <span data-t="1925">length of the search pattern</span></p>
+<p><a class="tp-time" href="#t=1932" data-t="1932">32:12</a> <span data-t="1932">and now uh</span> <span data-t="1932">as a computer scientist this is this is</span> <span data-t="1934">something that it pops up so often but I</span> <span data-t="1938">want to spell this out in detail if you</span> <span data-t="1940">have a tree and all the nodes are at</span> <span data-t="1943">least binary have at least two children</span> <span data-t="1946">then the number of nodes is never more</span> <span data-t="1948">than the number of leaves in that tree</span> <span data-t="1952">that&#39;s a it&#39;s a simple counting argument</span> <span data-t="1954">if if every node has has slots for</span> <span data-t="1957">children and consumes one slot because</span> <span data-t="1960">it has a parent pointer</span> <span data-t="1962">you can set up an equation how many</span> <span data-t="1964">internal nodes do you have how many</span> <span data-t="1966">leaves do you have by matching up the</span> <span data-t="1968">number of slots taking into account that</span> <span data-t="1970">there&#39;s the root that doesn&#39;t consume</span> <span data-t="1972">one</span> <span data-t="1972">so in a binary tree it&#39;s always exactly</span> <span data-t="1975">one more Leaf than internal nodes</span> <span data-t="1977">and in the general case if you can have</span> <span data-t="1979">even more than two children</span> <span data-t="1981">uh it&#39;s just an inequality the number of</span> <span data-t="1984">internal nodes is at most the number of</span> <span data-t="1986">leaves</span> <span data-t="1987">minus one</span> <span data-t="1988">and the number of leaves was the number</span> <span data-t="1990">of strings</span> <span data-t="1992">that&#39;s the number of strings our try</span> <span data-t="1994">stores</span> <span data-t="1995">so now we have a really useful bound the</span> <span data-t="1998">number of internal nodes these</span> <span data-t="1999">additional things we have to store to</span> <span data-t="2001">search quickly</span> <span data-t="2003">that&#39;s now linear in the number of</span> <span data-t="2005">strings not in the total length of all</span></p>
+<p><a class="tp-time" href="#t=2007" data-t="2007">33:27</a> <span data-t="2007">strings</span> <span data-t="2009">so that&#39;s a bit more manageable</span> <span data-t="2015">so in in</span> <span data-t="2015">I should probably have put this</span> <span data-t="2017">properly so it&#39;s speed of n space</span> <span data-t="2021">independent of M which was the length of</span> <span data-t="2023">the strings</span></p>
+<p><a class="tp-time" href="#t=2031" data-t="2031">33:51</a> <span data-t="2031">so</span> <span data-t="2031">tries are good because they can search</span> <span data-t="2033">fast but they might may use a lot of</span> <span data-t="2035">space compact tries make this the</span> <span data-t="2038">structure a little more intricate with</span> <span data-t="2040">these</span> <span data-t="2041">contracted edges</span> <span data-t="2043">other than that the rest works the same</span> <span data-t="2046">and they get the space down to at least</span> <span data-t="2048">linear in the number of strings</span> <span data-t="2051">so that&#39;s the two key bits</span> <span data-t="2055">and so let&#39;s wrap up with how well this</span> <span data-t="2058">works we can use such a try as an</span> <span data-t="2060">inverted index</span> <span data-t="2062">It&#39;s relatively simple to code that up</span> <span data-t="2064">uh if you want to be really really</span> <span data-t="2066">efficient maybe you have to spend some</span> <span data-t="2067">thought but it&#39;s it&#39;s relatively</span> <span data-t="2070">straightforward still</span> <span data-t="2072">and it&#39;s quite fast to look up</span> <span data-t="2075">well our original problem there may be</span> <span data-t="2077">some things left open if we</span> <span data-t="2080">if we just have a list of words and</span> <span data-t="2083">we&#39;re storing a fancy dictionary this is</span> <span data-t="2085">okay</span> <span data-t="2087">uh if we&#39;re trying to search for just a</span> <span data-t="2090">part</span> <span data-t="2091">a segment of a string just a substring</span> <span data-t="2094">what we want to find the occurrences of</span> <span data-t="2097">several strings uh after each other</span> <span data-t="2100">then the tries don&#39;t don&#39;t really help</span> <span data-t="2103">as much</span> <span data-t="2104">and even worse if we have biological</span> <span data-t="2107">sequences or other others more General</span> <span data-t="2110">binary data without a specific</span> <span data-t="2112">separation into words</span> <span data-t="2115">then the try doesn&#39;t help us because we</span> <span data-t="2118">don&#39;t know what to put into it</span></p>
+<h2 class="tp-chapter" id="t2055"><a href="#t=2055" data-t="2055">34:15</a> Tries as inverted index</h2>
+<p><a class="tp-time" href="#t=2120" data-t="2120">35:20</a> <span data-t="2120">is not so clear</span></p>
+
+  </div>
+</div>
+
+<p class="tp-nav vo-small"><a href="/videos/comp526-fall2022/5-4/">← Video 5-4: §5.4 Parallel sorting</a><a class="tp-next" href="/videos/comp526-fall2022/6-2/">Video 6-2: §6.2 Suffix trees →</a>
+</p>
+
+<script src="/assets/js/transcript-player.js" defer></script>
+
+  </div>
+
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Sebastian Wild</h2>
+
+    <div class="footer-col-wrapper">
+
+      <div class="footer-col footer-col-1">
+        <p>Contact:</p>
+
+        <ul class="link-group">
+          <li><a href="mailto:%77%69%6C%64@%69%6E%66%6F%72%6D%61%74%69%6B.%75%6E%69-%6D%61%72%62%75%72%67.%64%65" title="Contact me">wild at informatik.uni-marburg.de</a></li>
+          <li><a href="mailto:%77%69%6C%64@%6C%69%76%65%72%70%6F%6F%6C.%61%63.%75%6B" title="Contact me">wild at liverpool.ac.uk</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x34EE39A78B149255">PGP</a></li>
+          <li><a href="mailto:%73%65%62%61%77%69%6C%64@%67%6D%61%69%6C.%63%6F%6D" title="Contact me">sebawild at gmail</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x38600ABC14973198">PGP</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://www.uni-marburg.de/de/fb12/arbeitsgruppen/algorith/team/sebastian-wild">Website at UMR</a></li>
+          <li><a href="https://www.liverpool.ac.uk/computer-science/staff/sebastian-wild">Website at UoL</a></li>
+          <li><a href="https://tcs.csc.liv.ac.uk">TCS @ Liverpool</a></li>
+        </ul>
+
+        <p class="footer-note">
+          Retired addresses (no longer read):
+          <span class="retired">wild at uwaterloo.ca</span>,
+          <span class="retired">wild at cs.uni-kl.de</span>.
+        </p>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <p>Elsewhere:</p>
+
+        <ul class="link-group">
+          <li><a href="https://github.com/sebawild" title="GitHub sebawild"><i class="fab fa-github" aria-hidden="true"></i> GitHub sebawild</a></li>
+          <li><a rel="me" href="https://mathstodon.xyz/@wild" title="Mastodon @wild@mathstodon.xyz"><i class="fab fa-mastodon" aria-hidden="true"></i> @wild@mathstodon.xyz</a></li>
+          <li><a href="https://bsky.app/profile/sebastianwild.bsky.social" title="Bluesky @sebastianwild.bsky.social"><span aria-hidden="true">🦋</span> @sebastianwild</a></li>
+          <li><a href="https://www.linkedin.com/in/sebastian-wild-liverpool/"><i class="fab fa-linkedin" aria-hidden="true"></i> LinkedIn profile</a></li>
+          <li><a href="https://www.youtube.com/c/SebastianWildLectures"><i class="fab fa-youtube" aria-hidden="true"></i> YouTube channel</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://orcid.org/0000-0002-6061-9177" title="ORCID: 0000-0002-6061-9177"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-orcid"/></svg>
+ 0000-0002-6061-9177</a></li>
+          <li><a href="https://scholar.google.de/citations?user=aMyZiK0AAAAJ"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-google-scholar"/></svg>
+ Google Scholar</a></li>
+          <li><a href="https://dblp.uni-trier.de/pers/hd/w/Wild:Sebastian"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-dblp"/></svg>
+ dblp</a></li>
+          <li><a href="https://www.semanticscholar.org/author/3124206"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-semantic-scholar"/></svg>
+ Semantic Scholar</a></li>
+          <li><a href="https://arxiv.org/a/wild_s_2"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-arxiv"/></svg>
+ arXiv</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>Quick links:</p>
+        <ul class="link-group">
+          <li><a href="/publications/">my publications</a></li>
+          <li><a href="/cv.html">my CV</a></li>
+          <li><a href="/feed.xml">RSS feed</a></li>
+          <li><a href="https://disk.wild-inter.net/sharing/WwXHITc2j">my library</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

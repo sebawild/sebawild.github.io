@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <script>document.documentElement.className += ' js';</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><title>Video 7-6: §7.5 Run-length encoding</title>
+  <meta name="description" content="Website of Sebastian Wild, algorithms researcher">
+  <link rel="canonical" href="https://www.wild-inter.net/videos/comp526-fall2022/7-6/"><meta property="og:type" content="website">
+  <meta property="og:site_name" content="Sebastian Wild&#39;s Site">
+  <meta property="og:title" content="Video 7-6: §7.5 Run-length encoding">
+  <meta property="og:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta property="og:url" content="https://www.wild-inter.net/videos/comp526-fall2022/7-6/">
+  <meta property="og:image" content="https://www.wild-inter.net/assets/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Sebastian Wild">
+  <meta property="og:locale" content="en_GB">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Video 7-6: §7.5 Run-length encoding">
+  <meta name="twitter:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta name="twitter:image" content="https://www.wild-inter.net/assets/og-card.png">
+
+  <meta name="theme-color" content="#F5EBD9"><link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest"><link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/pagella/texgyrepagella-regular-webfont.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/epigrafica/epigrafica-entona-webfont.woff2">
+
+  <link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/fontawesome/fontawesome-all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+
+  <link rel="alternate" type="application/rss+xml" title="Sebastian Wild&#39;s Site"
+        href="https://www.wild-inter.net/feed.xml">
+
+  <script data-goatcounter="https://wild-inter-net.goatcounter.com/count"
+          async src="https://gc.zgo.at/count.js"></script>
+</head>
+
+
+  <body>
+
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header">
+
+  <div class="wrapper"><a class="site-title" href="/">
+      <img class="site-mark" src="/assets/two-pivots.svg"
+           alt="" width="100" height="100" aria-hidden="true">
+      <span class="site-wordmark">
+        <span class="site-name">Sebastian Wild</span>
+        <span class="site-tagline">Algorithms Group &middot; Universität Marburg</span>
+      </span>
+    </a>
+
+    <nav class="site-nav" aria-label="Main">
+
+      <button type="button" class="menu-icon" id="menu-toggle"
+              aria-expanded="false" aria-controls="site-nav-menu">
+        <svg viewBox="0 0 18 15" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="currentColor" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="currentColor" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+        <span class="visually-hidden">Menu</span>
+      </button>
+
+      <div class="trigger" id="site-nav-menu">
+          <a class="page-link" href="/research/"
+             >Research</a>
+          <a class="page-link" href="/teaching/"
+             >Teaching</a>
+          <a class="page-link" href="/posts/"
+             >Blog</a>
+          <a class="page-link" href="/about/"
+             >About</a>
+      </div>
+
+    </nav>
+
+  </div>
+
+</header>
+
+<script>
+  /* Mobile menu. Without JS the CSS leaves the menu permanently expanded,
+     so navigation still works — see the `.js` guard in _sass/_layout.scss. */
+  (function () {
+    var btn = document.getElementById('menu-toggle');
+    if (!btn) return;
+    var nav = btn.parentNode;
+
+    function setOpen(open) {
+      nav.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    btn.addEventListener('click', function () {
+      setOpen(!nav.classList.contains('is-open'));
+    });
+
+    document.addEventListener('click', function (e) {
+      if (nav.classList.contains('is-open') && !nav.contains(e.target)) setOpen(false);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && nav.classList.contains('is-open')) {
+        setOpen(false);
+        btn.focus();
+      }
+    });
+  })();
+</script>
+
+
+    <main id="content" class="page-content">
+      <div class="wrapper">
+        <article class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Video 7-6: §7.5 Run-length encoding</h1>
+  </header>
+
+  <div class="post-content">
+    
+
+    <style>
+  .vo-summary { font-size: 0.9em; }
+  .vo-scroll { overflow-x: auto; margin-bottom: 1.5em; }
+  .vo-table { border-collapse: collapse; font-size: 0.9em; width: 100%; font-variant-numeric: tabular-nums; }
+  .vo-table.vo-compact { width: auto; margin-left: 0; margin-right: auto; }
+  .vo-table.vo-compact th, .vo-table.vo-compact td { white-space: nowrap; }
+  .vo-table th, .vo-table td { padding: 0.2em 0.45em; vertical-align: baseline; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.08); }
+  .vo-table th { border-bottom: 2px solid rgba(0,0,0,0.25); white-space: nowrap; }
+  .vo-table tr.vo-newunit td { border-top: 2px solid rgba(0,0,0,0.2); }
+  .vo-table .vo-num { text-align: right; white-space: nowrap; padding-left: 0.9em; }
+  .vo-mono { font-family: Menlo, Consolas, monospace; font-size: 0.8em; }
+  .vo-table td.vo-small, .vo-table td .vo-small { font-size: inherit; }
+  .vo-table td .vo-note { font-size: 0.9em; opacity: 0.85; }
+  .vo-nowrap { white-space: nowrap; }
+  .vo-small { font-size: 0.9em; }
+  .vo-muted { opacity: 0.6; }
+
+  /* search */
+  .ts { margin: 1em 0 1.5em; }
+  .ts-input { font: inherit; width: min(100%, 28em); padding: 0.3em 0.5em; border: 1px solid rgba(0,0,0,0.3); border-radius: 4px; background: rgba(255,255,255,0.6); }
+  .ts-status { margin-left: 0.5em; opacity: 0.7; }
+  .ts-results { margin-top: 0.5em; }
+  .ts-hit { margin: 0.6em 0; }
+  .ts-hit-title { font-size: 0.95em; }
+  .ts-hit-ctx { font-size: 0.85em; margin: 0.1em 0 0 1em; }
+  .ts-hit-ctx a.ts-t { font-variant-numeric: tabular-nums; margin-right: 0.4em; }
+  .ts mark, .tp-text mark { background: rgba(255, 210, 0, 0.45); color: inherit; padding: 0 0.05em; }
+
+  /* transcript page: player sticks to the top while reading */
+  .tp-bar { position: sticky; top: 0; z-index: 5; background: #F5EBD9; padding: 4px 0 6px; }
+  .tp-player { position: relative; max-width: 560px; aspect-ratio: 16 / 9;
+               padding: 5px; box-sizing: content-box; width: calc(100% - 12px);
+               background: #faf6ed; border: 1px solid #aeaa9e; border-radius: 4px; }
+  .tp-player iframe, .tp-player > div, .tp-start { position: absolute; top: 5px; left: 5px; width: calc(100% - 10px); height: calc(100% - 10px); border: 0; margin: 0; padding: 0; background: #000; }
+  .tp-start { cursor: pointer; overflow: hidden; }
+  .tp-start img { width: 100%; height: 100%; object-fit: cover; display: block; margin: 0; padding: 0; border: 0; border-radius: 0; }
+  .tp-start .yt-lite-play { position: absolute; left: 50%; top: 50%; width: 68px; height: 48px; transform: translate(-50%, -50%); }
+  .tp-start .yt-lite-play-bg { fill: #212121; fill-opacity: 0.8; }
+  .tp-start:hover .yt-lite-play-bg, .tp-start:focus-visible .yt-lite-play-bg { fill: #902015; fill-opacity: 1; }
+  .tp-controls { margin: 0.3em 0 0; opacity: 0.8; }
+  .tp-disclaimer { margin: 0.6em 0 1.2em; padding: 0.4em 0.6em; border-left: 3px solid rgba(144, 32, 21, 0.35); background: rgba(255, 255, 255, 0.35); }
+  .tp-controls label { margin-left: 1em; white-space: nowrap; }
+  .tp-text p { position: relative; }
+  .tp-text [data-t] { cursor: pointer; border-radius: 2px; }
+  .tp-text span[data-t]:hover { background: rgba(144, 32, 21, 0.08); }
+  .tp-text span.tp-now { background: rgba(144, 32, 21, 0.16); box-shadow: 0 0 0 2px rgba(144, 32, 21, 0.16); }
+  .tp-text .tp-time { font-size: 0.75em; font-variant-numeric: tabular-nums; opacity: 0.6; margin-right: 0.3em; text-decoration: none; }
+  .tp-text .tp-chapter { font-size: 1.15em; margin-top: 1.5em; }
+  .tp-text .tp-chapter a { font-size: 0.7em; opacity: 0.6; font-variant-numeric: tabular-nums; text-decoration: none; }
+  .tp-nav { display: flex; justify-content: space-between; gap: 1em; margin-top: 2em; }
+  .tp-nav .tp-next { margin-left: auto; text-align: right; }
+</style>
+
+<p class="vo-summary">
+  <a href="/videos/comp526-fall2022/">COMP 526 – Efficient Algorithms (Fall 2022)</a> · <a href="/teaching/comp526/fall2022/07-compression">unit page</a>
+  · <a href="https://youtu.be/19j0dkTUZyk">YouTube</a>
+  <br/>2022-11-30, 22:48
+</p>
+
+<div class="tp" data-id="19j0dkTUZyk">
+  <div class="tp-bar"><div class="tp-player" id="tp-player">
+    <button type="button" class="tp-start" data-t="0" aria-label="Play video">
+      <img src="/assets/video-thumbs/19j0dkTUZyk.webp" alt="" width="640" height="360" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/19j0dkTUZyk/hqdefault.jpg'">
+      <svg class="yt-lite-play" viewBox="0 0 68 48" aria-hidden="true" focusable="false"><path class="yt-lite-play-bg" d="M66.5 7.7c-.8-2.9-2.5-5.4-5.4-6.2C55.8.1 34 0 34 0S12.2.1 6.9 1.6C4 2.3 2.3 4.8 1.5 7.7.1 13 0 24 0 24s.1 11 1.5 16.3c.8 2.9 2.5 5.4 5.4 6.2C12.2 47.9 34 48 34 48s21.8-.1 27.1-1.6c2.9-.7 4.6-3.2 5.4-6.1C67.9 35 68 24 68 24s-.1-11-1.5-16.3z"/><path d="M45 24 27 14v20z" fill="#fff"/></svg>
+    </button>
+  </div>
+  <p class="tp-controls vo-small">
+    <em>Click any sentence to play from there.</em>
+    <label><input type="checkbox" class="tp-follow" checked> follow along</label>
+  </p></div>
+  <p class="tp-disclaimer vo-small"><em>The transcript was generated automatically by YouTube's speech
+  recognition and is offered as is. It may contain errors, in particular in concerning technical terms,
+  names and formulas.</em></p>
+  <div class="tp-text" lang="en">
+<h2 class="tp-chapter" id="t0"><a href="#t=0" data-t="0">0:00</a> &lt;Untitled Chapter 1&gt;</h2>
+<p><a class="tp-time" href="#t=5" data-t="5">0:05</a> <span data-t="5">foreign</span> <span data-t="5">to part two of the compression unit</span> <span data-t="8">where we&#39;ll look at uh repetitive texts</span> <span data-t="12">and basically part one was fairly short</span> <span data-t="16">and simple because it had a definitive</span> <span data-t="18">answer there we looked at the character</span> <span data-t="20">frequencies and Huffman codes gave the</span> <span data-t="23">best possible answer with little really</span> <span data-t="26">to um</span> <span data-t="27">really little open to wish for</span> <span data-t="31">uh so in this part</span> <span data-t="33">that will be not quite the state</span> <span data-t="36">um it&#39;s it&#39;s even having a definitive</span> <span data-t="40">lower bound that would be the equivalent</span> <span data-t="42">of entropy is is not quite available yet</span> <span data-t="46">but we&#39;ll see which parts we can uh</span> <span data-t="49">say something definitive about</span></p>
+<h2 class="tp-chapter" id="t52"><a href="#t=52" data-t="52">0:52</a> Beyond Character Encoding</h2>
+<p><a class="tp-time" href="#t=55" data-t="55">0:55</a> <span data-t="55">to motivate this</span> <span data-t="55">let&#39;s look at a text like this uh you</span> <span data-t="58">may know where it comes from but it</span> <span data-t="60">doesn&#39;t matter</span> <span data-t="61">uh maybe this is not the most natural</span> <span data-t="63">text but it&#39;s</span> <span data-t="65">um somewhat prototypical</span> <span data-t="68">if you look at the character frequencies</span> <span data-t="70">it would be relatively even</span> <span data-t="73">there are some characters a bit more</span> <span data-t="74">often than others but overall you don&#39;t</span> <span data-t="77">save so much from exploiting that</span> <span data-t="79">whereas this kind of text in the extreme</span> <span data-t="82">example definitely has a lot of</span> <span data-t="84">repetition or a lot of redundancy that</span> <span data-t="86">we could try to exploit with a</span> <span data-t="88">compression method</span> <span data-t="90">and half man just won&#39;t cut it here it</span> <span data-t="93">doesn&#39;t seem to catch that type of</span> <span data-t="95">redundancy at all</span></p>
+<p><a class="tp-time" href="#t=105" data-t="105">1:45</a> <span data-t="105">and um it seems as long as we stick to</span> <span data-t="105">encoding each character out of one</span> <span data-t="107">character at a time and each character</span> <span data-t="108">the same no matter</span> <span data-t="110">where it occurs so in what context it</span> <span data-t="113">occurs</span> <span data-t="114">uh we seem to be stuck in this so the</span> <span data-t="116">only the only option that we have is to</span> <span data-t="119">look at more than a single character at</span> <span data-t="122">a time for encoding</span></p>
+<p><a class="tp-time" href="#t=130" data-t="130">2:10</a> <span data-t="130">as a first warm-up for this we&#39;ll look</span> <span data-t="130">at run length encoding which will show</span> <span data-t="133">you the the spirit of some of these but</span> <span data-t="135">it&#39;s</span> <span data-t="136">relatively restricted in the type of</span> <span data-t="139">redundancy it can pick up on</span></p>
+<p><a class="tp-time" href="#t=148" data-t="148">2:28</a> <span data-t="148">it&#39;s a repetition in the simplest form</span> <span data-t="148">namely</span> <span data-t="149">runs of characters so just which just</span> <span data-t="152">means the same character repeated many</span> <span data-t="154">many times</span> <span data-t="156">for Simplicity in this this section</span> <span data-t="159">we&#39;ll look at just the binary input but</span> <span data-t="162">you can generalize this a bit</span> <span data-t="165">um and so here&#39;s some example that might</span> <span data-t="167">show where this is relevant if you have</span> <span data-t="169">a black white scanned image</span> <span data-t="172">you represent this as individual pixels</span> <span data-t="174">on or off then you might may have really</span> <span data-t="177">long stretches of all zeros or all ones</span> <span data-t="181">and I think at least some old formats</span> <span data-t="184">use run length encoding for that</span></p>
+<p><a class="tp-time" href="#t=191" data-t="191">3:11</a> <span data-t="191">what run length encoding then does is</span> <span data-t="191">say look there&#39;s</span> <span data-t="193">instead of zero zero zero zero zero</span> <span data-t="195">there&#39;s five zeros three ones four zeros</span> <span data-t="199">so you compress the runs by saying how</span> <span data-t="202">long it is</span> <span data-t="203">and what symbol comes</span> <span data-t="207">because we&#39;re in a binary alphabet we</span> <span data-t="208">can actually do slightly better we can</span> <span data-t="210">store the first bit once and for all</span> <span data-t="214">and after that only the length of the</span> <span data-t="217">rung because we know it&#39;s always</span> <span data-t="219">alternating between zero and one there&#39;s</span> <span data-t="220">no other character</span> <span data-t="223">if you had a larger alphabet you</span> <span data-t="225">couldn&#39;t do that then each run would</span> <span data-t="227">have to say what is the character that</span> <span data-t="229">is repeated now</span> <span data-t="231">uh but for binary it&#39;s it&#39;s particularly</span> <span data-t="233">convenient</span> <span data-t="234">so we don&#39;t have to really store which</span> <span data-t="236">grid it is</span> <span data-t="237">let&#39;s look at an example</span> <span data-t="240">um which is this one from buff</span> <span data-t="242">it would start with a zero because the</span> <span data-t="245">zero bit is the first</span> <span data-t="247">then we have a runoff length five five</span> <span data-t="249">zeros then we have a round of length</span> <span data-t="251">three must be ones and then another four</span> <span data-t="254">another round of zeros</span> <span data-t="256">okay</span></p>
+<p><a class="tp-time" href="#t=263" data-t="263">4:23</a> <span data-t="263">but again</span> <span data-t="263">um like before that shifts the problem</span> <span data-t="266">how would you encode uh the length of</span> <span data-t="269">such a run without making assumptions</span> <span data-t="272">about an A maximal number that you can</span> <span data-t="275">represent</span></p>
+<p><a class="tp-time" href="#t=282" data-t="282">4:42</a> <span data-t="282">and so I asked this question uh already</span> <span data-t="282">during the break</span> <span data-t="284">how would you represent an arbitrary</span> <span data-t="286">string</span> <span data-t="287">that can be arbitrarily long</span> <span data-t="290">run length run length well what&#39;s the</span> <span data-t="293">run one way that we discussed before is</span> <span data-t="296">you could store the length of the string</span> <span data-t="297">and then all the characters</span> <span data-t="299">but again how do you store a number that</span> <span data-t="302">could be arbitrarily long</span></p>
+<p><a class="tp-time" href="#t=314" data-t="314">5:14</a> <span data-t="314">yeah it&#39;s most mostly that idea in</span> <span data-t="314">various forms</span> <span data-t="338">exactly that&#39;s the the other option that</span> <span data-t="338">we have we can have uh we can reserve</span> <span data-t="341">one specific character as the end of</span> <span data-t="343">string symbol we&#39;ve used that all the</span> <span data-t="346">time in unit 6 right</span> <span data-t="348">so it has its pros and cons the</span> <span data-t="351">the benefit is we don&#39;t have to worry</span> <span data-t="353">about encoding arbitrarily sized numbers</span> <span data-t="355">the downside is we have to reserve an</span> <span data-t="358">extra symbol</span> <span data-t="359">it&#39;s also a bit like what the morse code</span> <span data-t="362">did right</span> <span data-t="364">so basically these two options store the</span> <span data-t="366">length or store a Terminator symbol and</span> <span data-t="371">both are used in programming languages</span> <span data-t="372">for Strings I think Java Pascal is more</span></p>
+<p><a class="tp-time" href="#t=378" data-t="378">6:18</a> <span data-t="378">don&#39;t ask me about python Springs in</span> <span data-t="380">Java and and Pascal are essentially</span> <span data-t="383">length and then an array of that length</span> <span data-t="386">of characters and C C plus plus</span> <span data-t="390">they use these null terminated strings</span> <span data-t="392">zero terminated there&#39;s a special</span> <span data-t="394">character the zero character that</span> <span data-t="396">signals end of string</span> <span data-t="400">now</span> <span data-t="402">if we want to use this in in run length</span> <span data-t="405">encoding and want to store an integer</span> <span data-t="407">that could be arbitrarily long we can&#39;t</span> <span data-t="410">really use this or we don&#39;t want to use</span> <span data-t="412">this end of string symbol because then</span> <span data-t="414">we don&#39;t have a binary encoding</span> <span data-t="417">but it turns out there&#39;s a really nice</span> <span data-t="419">and clean solution</span> <span data-t="421">which works well for this use case</span> <span data-t="425">where we get a prefix free encoding for</span> <span data-t="427">all integers</span> <span data-t="429">unbounded it works with arbitrarily big</span> <span data-t="433">integers</span> <span data-t="435">so that&#39;s the um that&#39;s the wish list we</span> <span data-t="438">want to be able to store any integer</span> <span data-t="441">well the natural numbers I should say</span> <span data-t="445">and we must know it must be</span> <span data-t="447">instantaneously decodable we have to</span> <span data-t="449">know when we have to stop</span></p>
+<h2 class="tp-chapter" id="t402"><a href="#t=402" data-t="402">6:42</a> Elias codes</h2>
+<p><a class="tp-time" href="#t=455" data-t="455">7:35</a> <span data-t="455">now there is a very simple such encoding</span> <span data-t="455">it&#39;s actually super easy</span> <span data-t="457">just the unary encoding seven becomes</span> <span data-t="460">zero seven zeros and then one</span> <span data-t="463">that&#39;s essentially using an end of</span> <span data-t="466">string character but I use only one</span> <span data-t="468">character for the number</span> <span data-t="470">which works fine it&#39;s just a bit long</span> <span data-t="474">right</span> <span data-t="476">so that&#39;s not a really good encoding</span> <span data-t="478">but it is one that fulfills the</span> <span data-t="481">requirements here so at least it proves</span> <span data-t="483">it&#39;s possible</span> <span data-t="485">but it&#39;s a really poor encoding way too</span> <span data-t="487">long</span> <span data-t="489">so we can store some numbers but it only</span> <span data-t="493">really is useful on small numbers</span> <span data-t="496">if n is too big maybe log n is not too</span> <span data-t="499">big</span> <span data-t="500">why do I say login</span> <span data-t="502">the trick is we can use</span></p>
+<p><a class="tp-time" href="#t=507" data-t="507">8:27</a> <span data-t="507">we can write a number in binary but</span> <span data-t="509">before we write the binary digits we use</span> <span data-t="511">the unary encoding for the length of</span> <span data-t="513">that binary representation</span> <span data-t="517">so we first say in this really stupid</span> <span data-t="520">silly code this is the number of digits</span> <span data-t="523">that will come</span> <span data-t="524">then there&#39;s the binary digits</span></p>
+<p><a class="tp-time" href="#t=532" data-t="532">8:52</a> <span data-t="532">that&#39;s known as as Elias gamma code</span> <span data-t="532">the gamma comes from the fact so this</span> <span data-t="535">this is essentially the first one you</span> <span data-t="537">could keep iterating this you could say</span> <span data-t="540">um</span> <span data-t="540">instead of storing the length of the</span> <span data-t="542">binary representation I could store the</span> <span data-t="544">length of the length of the binary</span> <span data-t="545">representation if I store the length in</span> <span data-t="547">binary and you can keep keep going like</span> <span data-t="550">this we will not do it we&#39;ll just use</span> <span data-t="552">the this version</span> <span data-t="555">we store the length of the binary</span> <span data-t="557">representation in unary</span> <span data-t="559">and then follow that by the normal</span> <span data-t="561">binary representation of the number</span> <span data-t="565">there&#39;s a few twists if you look at this</span> <span data-t="568">closely you see you can shave off a few</span> <span data-t="570">bits at a few places</span> <span data-t="573">first trick is in our scenario we know</span> <span data-t="577">the numbers start at one</span> <span data-t="579">so a normal binary encoding</span> <span data-t="583">um</span> <span data-t="584">uh well we can we can just subtract one</span> <span data-t="587">from L and store L minus one instead for</span> <span data-t="590">the length because every number we are</span> <span data-t="592">interested in will have at least one bit</span> <span data-t="595">so no need to say oh it&#39;s always one uh</span> <span data-t="598">you can just start with one less</span> <span data-t="601">the other trick is the binary</span> <span data-t="604">representation of any number if you</span> <span data-t="606">leave out trailing zeros it has to start</span> <span data-t="608">with a one</span> <span data-t="610">and so the binary representation starts</span></p>
+<p><a class="tp-time" href="#t=613" data-t="613">10:13</a> <span data-t="613">with the one that means we don&#39;t need</span> <span data-t="614">this terminating one in the unary</span> <span data-t="616">representation</span> <span data-t="618">because that&#39;s there&#39;s implicitly a one</span> <span data-t="621">coming next anyways</span> <span data-t="623">so that&#39;s two bits uh kind of saved</span></p>
+<p><a class="tp-time" href="#t=631" data-t="631">10:31</a> <span data-t="631">and that&#39;s the final Elias gamma code</span> <span data-t="631">it&#39;s the length of the number in binary</span> <span data-t="633">minus one that many zeros</span> <span data-t="636">followed by the binary representation</span> <span data-t="639">so example</span> <span data-t="641">the number one written in binary is just</span> <span data-t="643">one it has length one but we store one</span> <span data-t="646">minus one many zeros so zero zeros and</span> <span data-t="648">one one</span> <span data-t="649">just a one</span> <span data-t="652">number three in binary is one one has</span> <span data-t="655">length two I store one zero and then the</span> <span data-t="658">number zero one one</span> <span data-t="660">Fife is 101 in binary length is 3 take</span> <span data-t="665">away one two zeros and then 101. there</span> <span data-t="669">you go</span> <span data-t="669">and 30 uh well</span> <span data-t="672">I know that 32 is a power of 2 so 31 is</span> <span data-t="677">five ones if I take on one that&#39;s Thirty</span> <span data-t="681">one one one four ones and one zero</span> <span data-t="683">that&#39;s five I take one away four zeros</span> <span data-t="686">and then this thing okay</span> <span data-t="689">all you needs for this really is to</span> <span data-t="691">convert between binary and decimal</span> <span data-t="694">uh which I&#39;m I&#39;m confident you&#39;re you&#39;re</span> <span data-t="696">in principle able to do with the</span> <span data-t="698">question is how quickly or how slowly uh</span> <span data-t="701">I&#39;m also not the fastest in this</span></p>
+<p><a class="tp-time" href="#t=709" data-t="709">11:49</a> <span data-t="709">let&#39;s practice this a bit and I made it</span> <span data-t="709">a little harder I don&#39;t show you the end</span> <span data-t="710">of the number so you have to figure this</span> <span data-t="712">out for yourself</span></p>
+<p><a class="tp-time" href="#t=728" data-t="728">12:08</a> <span data-t="728">so this is some stream of bits and uh it</span> <span data-t="728">starts with an encoding of a number</span> <span data-t="730">your task is to find that first number</span> <span data-t="799">oh boy some of you came up with really</span> <span data-t="799">big numbers</span> <span data-t="800">you must you must think I&#39;m cruel</span></p>
+<p><a class="tp-time" href="#t=841" data-t="841">14:01</a> <span data-t="841">all right let&#39;s wait a little bit uh</span> <span data-t="841">maybe for 20 people</span> <span data-t="913">all right there&#39;s my 20. let me show</span> <span data-t="913">show what people send in</span> <span data-t="915">like this is</span> <span data-t="916">I&#39;m I&#39;m not such a mean person right who</span> <span data-t="919">would want to convert that to binary</span> <span data-t="922">that&#39;s really really cruel no</span> <span data-t="926">um let&#39;s briefly do it together</span> <span data-t="929">um</span> <span data-t="930">I didn&#39;t tell you how decoding works I</span> <span data-t="933">was a bit of a meanie right but um I</span> <span data-t="935">showed you how encoding works and you</span> <span data-t="937">just have to do that in Reverse of</span> <span data-t="939">course always</span> <span data-t="941">um</span> <span data-t="941">so encoding took a number and then first</span> <span data-t="945">wrote the length minus one in zero so we</span> <span data-t="949">start looking at how many zeros there</span> <span data-t="951">are three zeros but that means I have to</span> <span data-t="954">read four bits for the length of the</span> <span data-t="956">number for the for the number</span> <span data-t="959">so</span> <span data-t="960">that means four bits</span> <span data-t="963">and the next four bits are one one zero</span> <span data-t="966">one otherwise known as thirteen in</span> <span data-t="968">binary right it&#39;s eight plus four plus</span> <span data-t="970">one</span></p>
+<h2 class="tp-chapter" id="t925"><a href="#t=925" data-t="925">15:25</a> Clicker Question</h2>
+<p><a class="tp-time" href="#t=975" data-t="975">16:15</a> <span data-t="975">so</span> <span data-t="975">one one zero one base two that&#39;s that&#39;s</span> <span data-t="978">how I learned write things in base two</span> <span data-t="980">but yeah just annotation</span> <span data-t="983">now of course you can continue decoding</span> <span data-t="986">things from there on</span> <span data-t="990">um and maybe a little uh little thing</span> <span data-t="992">for you to think about</span> <span data-t="994">is the code subjective is</span> <span data-t="997">can you always find in a in an arbitrary</span> <span data-t="1001">spit sequence some prefix that decodes</span> <span data-t="1003">to a properly encoded number</span> <span data-t="1006">that&#39;s that&#39;s for you to think about</span> <span data-t="1009">um</span> <span data-t="1010">not so relevant for this</span> <span data-t="1012">but so we know now how to encode an</span> <span data-t="1015">arbitrary sized natural number in binary</span> <span data-t="1018">as a prefix free code</span> <span data-t="1020">the rest is simple now we just include</span> <span data-t="1024">that in our run length encoding</span> <span data-t="1026">so here&#39;s an example for encoding we</span> <span data-t="1029">have this one this long uh binary string</span> <span data-t="1032">with lots of redundancy</span> <span data-t="1034">runlink encoding says first the first</span> <span data-t="1037">bit is what&#39;s the first bit</span> <span data-t="1041">it&#39;s a one so we store a one</span> <span data-t="1043">that was this one exceptional bit</span> <span data-t="1046">and now we have to count the next the</span> <span data-t="1049">length of the run which uh</span> <span data-t="1051">the counting has conveniently be done on</span> <span data-t="1053">the slides so it&#39;s seven ones</span> <span data-t="1056">so we have to store seven in Elias gamma</span> <span data-t="1059">code I won&#39;t do that in in the full</span> <span data-t="1061">detail again all the time but seven is</span> <span data-t="1064">one one length is three two ones uh two</span></p>
+<h2 class="tp-chapter" id="t1010"><a href="#t=1010" data-t="1010">16:50</a> Run-length encoding - Examples</h2>
+<p><a class="tp-time" href="#t=1067" data-t="1067">17:47</a> <span data-t="1067">zeros in front</span> <span data-t="1069">okay</span> <span data-t="1071">uh one more then the next run is of</span> <span data-t="1074">length two</span> <span data-t="1075">two zeros so we store two inelias gamma</span> <span data-t="1078">code two in binary is one zero one less</span> <span data-t="1082">zero in front gives you one zero one one</span> <span data-t="1085">zero one zero sorry</span></p>
+<p><a class="tp-time" href="#t=1094" data-t="1094">18:14</a> <span data-t="1094">one more the next run is a single one</span> <span data-t="1094">and that in Elias gamma code gives us a</span> <span data-t="1097">single one</span> <span data-t="1099">we&#39;ve seen that example a few slides</span> <span data-t="1101">back</span> <span data-t="1103">now here&#39;s a really long run 20</span> <span data-t="1105">apparently here&#39;s one zero one zero zero</span> <span data-t="1109">in binary and then four zeros at front</span> <span data-t="1111">tells you how long it is</span> <span data-t="1114">foreign</span> <span data-t="1116">last run 11 11 written in binary is one</span> <span data-t="1120">zero one one</span> <span data-t="1121">that&#39;s length four so three zeros going</span> <span data-t="1124">to run</span></p>
+<p><a class="tp-time" href="#t=1131" data-t="1131">18:51</a> <span data-t="1131">now you can work out the compression</span> <span data-t="1131">ratio in this case but already visibly</span> <span data-t="1134">it got got smaller of course because of</span> <span data-t="1136">these really long runs it&#39;s quite</span> <span data-t="1137">effective</span> <span data-t="1139">let&#39;s also look at an example for</span> <span data-t="1141">decoding</span></p>
+<p><a class="tp-time" href="#t=1147" data-t="1147">19:07</a> <span data-t="1147">so for the full run length decoding</span> <span data-t="1147">the first bit is special remember that&#39;s</span> <span data-t="1150">just telling you whether you start with</span> <span data-t="1151">zeros or ones the first bit is zero so</span> <span data-t="1155">we start with a run of zeros</span> <span data-t="1157">and now we start Elias gamma decoding</span> <span data-t="1161">we find three zeros in a row that means</span> <span data-t="1164">the length of the binary number we are</span> <span data-t="1166">reading is one more than that four</span> <span data-t="1170">the next four bits of this which is</span> <span data-t="1173">again 13.</span> <span data-t="1175">so we produce 13 zeros in the output</span> <span data-t="1179">then we go to the next run we flip the</span> <span data-t="1182">bit now we produce a run of ones</span> <span data-t="1185">we see two zeros in a row there so we</span> <span data-t="1188">will have to read three more bits for</span> <span data-t="1189">the number</span> <span data-t="1191">that&#39;s one zero zero that&#39;s four so we</span> <span data-t="1194">produce a round of four Once</span></p>
+<p><a class="tp-time" href="#t=1200" data-t="1200">20:00</a> <span data-t="1200">and one more time</span> <span data-t="1200">the next will be a run of zeros</span> <span data-t="1203">there&#39;s no zero before the next one so</span> <span data-t="1207">we&#39;ll read just a single bit</span> <span data-t="1209">and that&#39;ll decode to a run of just</span> <span data-t="1212">length one</span></p>
+<p><a class="tp-time" href="#t=1218" data-t="1218">20:18</a> <span data-t="1218">and last round</span> <span data-t="1218">we again have a random length of ones</span> <span data-t="1221">we find one zero so the length we have</span> <span data-t="1224">to read is two</span> <span data-t="1226">so these two encode the number two as</span> <span data-t="1228">well so we uh</span> <span data-t="1230">finish off with a run of length two of</span> <span data-t="1232">ones</span> <span data-t="1234">okay</span></p>
+<h2 class="tp-chapter" id="t1239"><a href="#t=1239" data-t="1239">20:39</a> Run-length encoding - Discussion</h2>
+<p><a class="tp-time" href="#t=1243" data-t="1243">20:43</a> <span data-t="1243">as I mentioned before you can use it on</span> <span data-t="1243">larger alphabets but then you have to</span> <span data-t="1245">say which which character is repeated</span> <span data-t="1247">that makes the compression ratio a bit</span> <span data-t="1249">worse</span> <span data-t="1251">okay this is the image format I</span> <span data-t="1253">mentioned before I don&#39;t think it&#39;s used</span> <span data-t="1255">much anymore but it used to be a format</span> <span data-t="1257">for fax machines</span> <span data-t="1259">uh I mean no one&#39;s using these anymore</span> <span data-t="1263">it&#39;s a very simple and also quite fast</span> <span data-t="1266">encoding scheme</span> <span data-t="1268">and</span> <span data-t="1269">it achieves something that Huffman was</span> <span data-t="1271">never really able to</span> <span data-t="1273">in the extreme case of an input that&#39;s</span> <span data-t="1276">all zeros of all ones you can get</span> <span data-t="1279">exponential compression with running</span> <span data-t="1281">encoding</span> <span data-t="1283">because you can encode</span> <span data-t="1285">n all zero bits with a single zero at</span> <span data-t="1288">the beginning and then</span> <span data-t="1290">essentially the number n written down</span> <span data-t="1293">it&#39;s two log n Bits that you need</span> <span data-t="1295">because we have the length and the</span> <span data-t="1297">number but it&#39;s still uh within Theta</span> <span data-t="1299">log n Bits that&#39;s a really dramatic</span> <span data-t="1302">reduction</span> <span data-t="1303">however it&#39;s for only this very extreme</span> <span data-t="1306">case of all zeros</span> <span data-t="1309">when you go away from that and have</span> <span data-t="1311">something more interesting you very</span> <span data-t="1313">quickly get much much worse compression</span> <span data-t="1317">indeed for many types of of data that</span> <span data-t="1320">occurs uh the compression is negligible</span> <span data-t="1322">and</span> <span data-t="1324">remember the no free lunch theorems it&#39;s</span> <span data-t="1327">not possible to have a code that always</span> <span data-t="1329">gets every bit string shorter</span></p>
+<p><a class="tp-time" href="#t=1331" data-t="1331">22:11</a> <span data-t="1331">so at some point we have to suffer we</span> <span data-t="1334">have to make some bit strings longer</span> <span data-t="1336">and it turns out the the the</span> <span data-t="1339">bitter spot the the the place where it</span> <span data-t="1343">gets longer is when we have</span> <span data-t="1346">run lengths</span> <span data-t="1347">two or six</span> <span data-t="1350">that&#39;s the two numbers where the gamma</span> <span data-t="1352">code is strictly longer than the number</span> <span data-t="1356">written out in unary</span> <span data-t="1358">and so if if your input has lots of runs</span> <span data-t="1361">of these lengths then it will get longer</span> <span data-t="1363">by this compression algorithm</span></p>
+
+  </div>
+</div>
+
+<p class="tp-nav vo-small"><a href="/videos/comp526-fall2022/7-5/">← Video 7-5: §7.4 Entropy and Huffman codes</a><a class="tp-next" href="/videos/comp526-fall2022/7-7/">Video 7-7: §7.6 Lempel-Ziv-Welch encoding →</a>
+</p>
+
+<script src="/assets/js/transcript-player.js" defer></script>
+
+  </div>
+
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Sebastian Wild</h2>
+
+    <div class="footer-col-wrapper">
+
+      <div class="footer-col footer-col-1">
+        <p>Contact:</p>
+
+        <ul class="link-group">
+          <li><a href="mailto:%77%69%6C%64@%69%6E%66%6F%72%6D%61%74%69%6B.%75%6E%69-%6D%61%72%62%75%72%67.%64%65" title="Contact me">wild at informatik.uni-marburg.de</a></li>
+          <li><a href="mailto:%77%69%6C%64@%6C%69%76%65%72%70%6F%6F%6C.%61%63.%75%6B" title="Contact me">wild at liverpool.ac.uk</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x34EE39A78B149255">PGP</a></li>
+          <li><a href="mailto:%73%65%62%61%77%69%6C%64@%67%6D%61%69%6C.%63%6F%6D" title="Contact me">sebawild at gmail</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x38600ABC14973198">PGP</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://www.uni-marburg.de/de/fb12/arbeitsgruppen/algorith/team/sebastian-wild">Website at UMR</a></li>
+          <li><a href="https://www.liverpool.ac.uk/computer-science/staff/sebastian-wild">Website at UoL</a></li>
+          <li><a href="https://tcs.csc.liv.ac.uk">TCS @ Liverpool</a></li>
+        </ul>
+
+        <p class="footer-note">
+          Retired addresses (no longer read):
+          <span class="retired">wild at uwaterloo.ca</span>,
+          <span class="retired">wild at cs.uni-kl.de</span>.
+        </p>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <p>Elsewhere:</p>
+
+        <ul class="link-group">
+          <li><a href="https://github.com/sebawild" title="GitHub sebawild"><i class="fab fa-github" aria-hidden="true"></i> GitHub sebawild</a></li>
+          <li><a rel="me" href="https://mathstodon.xyz/@wild" title="Mastodon @wild@mathstodon.xyz"><i class="fab fa-mastodon" aria-hidden="true"></i> @wild@mathstodon.xyz</a></li>
+          <li><a href="https://bsky.app/profile/sebastianwild.bsky.social" title="Bluesky @sebastianwild.bsky.social"><span aria-hidden="true">🦋</span> @sebastianwild</a></li>
+          <li><a href="https://www.linkedin.com/in/sebastian-wild-liverpool/"><i class="fab fa-linkedin" aria-hidden="true"></i> LinkedIn profile</a></li>
+          <li><a href="https://www.youtube.com/c/SebastianWildLectures"><i class="fab fa-youtube" aria-hidden="true"></i> YouTube channel</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://orcid.org/0000-0002-6061-9177" title="ORCID: 0000-0002-6061-9177"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-orcid"/></svg>
+ 0000-0002-6061-9177</a></li>
+          <li><a href="https://scholar.google.de/citations?user=aMyZiK0AAAAJ"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-google-scholar"/></svg>
+ Google Scholar</a></li>
+          <li><a href="https://dblp.uni-trier.de/pers/hd/w/Wild:Sebastian"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-dblp"/></svg>
+ dblp</a></li>
+          <li><a href="https://www.semanticscholar.org/author/3124206"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-semantic-scholar"/></svg>
+ Semantic Scholar</a></li>
+          <li><a href="https://arxiv.org/a/wild_s_2"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-arxiv"/></svg>
+ arXiv</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>Quick links:</p>
+        <ul class="link-group">
+          <li><a href="/publications/">my publications</a></li>
+          <li><a href="/cv.html">my CV</a></li>
+          <li><a href="/feed.xml">RSS feed</a></li>
+          <li><a href="https://disk.wild-inter.net/sharing/WwXHITc2j">my library</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

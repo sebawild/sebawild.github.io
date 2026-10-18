@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <script>document.documentElement.className += ' js';</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><title>Video 7-4: Cache-oblivious B-trees, vEB layout, file-maintenance</title>
+  <meta name="description" content="Website of Sebastian Wild, algorithms researcher">
+  <link rel="canonical" href="https://www.wild-inter.net/videos/advds/7-4/"><meta property="og:type" content="website">
+  <meta property="og:site_name" content="Sebastian Wild&#39;s Site">
+  <meta property="og:title" content="Video 7-4: Cache-oblivious B-trees, vEB layout, file-maintenance">
+  <meta property="og:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta property="og:url" content="https://www.wild-inter.net/videos/advds/7-4/">
+  <meta property="og:image" content="https://www.wild-inter.net/assets/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Sebastian Wild">
+  <meta property="og:locale" content="en_GB">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Video 7-4: Cache-oblivious B-trees, vEB layout, file-maintenance">
+  <meta name="twitter:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta name="twitter:image" content="https://www.wild-inter.net/assets/og-card.png">
+
+  <meta name="theme-color" content="#F5EBD9"><link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest"><link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/pagella/texgyrepagella-regular-webfont.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/epigrafica/epigrafica-entona-webfont.woff2">
+
+  <link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/fontawesome/fontawesome-all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+
+  <link rel="alternate" type="application/rss+xml" title="Sebastian Wild&#39;s Site"
+        href="https://www.wild-inter.net/feed.xml">
+
+  <script data-goatcounter="https://wild-inter-net.goatcounter.com/count"
+          async src="https://gc.zgo.at/count.js"></script>
+</head>
+
+
+  <body>
+
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header">
+
+  <div class="wrapper"><a class="site-title" href="/">
+      <img class="site-mark" src="/assets/two-pivots.svg"
+           alt="" width="100" height="100" aria-hidden="true">
+      <span class="site-wordmark">
+        <span class="site-name">Sebastian Wild</span>
+        <span class="site-tagline">Algorithms Group &middot; Universität Marburg</span>
+      </span>
+    </a>
+
+    <nav class="site-nav" aria-label="Main">
+
+      <button type="button" class="menu-icon" id="menu-toggle"
+              aria-expanded="false" aria-controls="site-nav-menu">
+        <svg viewBox="0 0 18 15" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="currentColor" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="currentColor" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+        <span class="visually-hidden">Menu</span>
+      </button>
+
+      <div class="trigger" id="site-nav-menu">
+          <a class="page-link" href="/research/"
+             >Research</a>
+          <a class="page-link" href="/teaching/"
+             >Teaching</a>
+          <a class="page-link" href="/posts/"
+             >Blog</a>
+          <a class="page-link" href="/about/"
+             >About</a>
+      </div>
+
+    </nav>
+
+  </div>
+
+</header>
+
+<script>
+  /* Mobile menu. Without JS the CSS leaves the menu permanently expanded,
+     so navigation still works — see the `.js` guard in _sass/_layout.scss. */
+  (function () {
+    var btn = document.getElementById('menu-toggle');
+    if (!btn) return;
+    var nav = btn.parentNode;
+
+    function setOpen(open) {
+      nav.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    btn.addEventListener('click', function () {
+      setOpen(!nav.classList.contains('is-open'));
+    });
+
+    document.addEventListener('click', function (e) {
+      if (nav.classList.contains('is-open') && !nav.contains(e.target)) setOpen(false);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && nav.classList.contains('is-open')) {
+        setOpen(false);
+        btn.focus();
+      }
+    });
+  })();
+</script>
+
+
+    <main id="content" class="page-content">
+      <div class="wrapper">
+        <article class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Video 7-4: Cache-oblivious B-trees, vEB layout, file-maintenance</h1>
+  </header>
+
+  <div class="post-content">
+    
+
+    <style>
+  .vo-summary { font-size: 0.9em; }
+  .vo-scroll { overflow-x: auto; margin-bottom: 1.5em; }
+  .vo-table { border-collapse: collapse; font-size: 0.9em; width: 100%; font-variant-numeric: tabular-nums; }
+  .vo-table.vo-compact { width: auto; margin-left: 0; margin-right: auto; }
+  .vo-table.vo-compact th, .vo-table.vo-compact td { white-space: nowrap; }
+  .vo-table th, .vo-table td { padding: 0.2em 0.45em; vertical-align: baseline; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.08); }
+  .vo-table th { border-bottom: 2px solid rgba(0,0,0,0.25); white-space: nowrap; }
+  .vo-table tr.vo-newunit td { border-top: 2px solid rgba(0,0,0,0.2); }
+  .vo-table .vo-num { text-align: right; white-space: nowrap; padding-left: 0.9em; }
+  .vo-mono { font-family: Menlo, Consolas, monospace; font-size: 0.8em; }
+  .vo-table td.vo-small, .vo-table td .vo-small { font-size: inherit; }
+  .vo-table td .vo-note { font-size: 0.9em; opacity: 0.85; }
+  .vo-nowrap { white-space: nowrap; }
+  .vo-small { font-size: 0.9em; }
+  .vo-muted { opacity: 0.6; }
+
+  /* search */
+  .ts { margin: 1em 0 1.5em; }
+  .ts-input { font: inherit; width: min(100%, 28em); padding: 0.3em 0.5em; border: 1px solid rgba(0,0,0,0.3); border-radius: 4px; background: rgba(255,255,255,0.6); }
+  .ts-status { margin-left: 0.5em; opacity: 0.7; }
+  .ts-results { margin-top: 0.5em; }
+  .ts-hit { margin: 0.6em 0; }
+  .ts-hit-title { font-size: 0.95em; }
+  .ts-hit-ctx { font-size: 0.85em; margin: 0.1em 0 0 1em; }
+  .ts-hit-ctx a.ts-t { font-variant-numeric: tabular-nums; margin-right: 0.4em; }
+  .ts mark, .tp-text mark { background: rgba(255, 210, 0, 0.45); color: inherit; padding: 0 0.05em; }
+
+  /* transcript page: player sticks to the top while reading */
+  .tp-bar { position: sticky; top: 0; z-index: 5; background: #F5EBD9; padding: 4px 0 6px; }
+  .tp-player { position: relative; max-width: 560px; aspect-ratio: 16 / 9;
+               padding: 5px; box-sizing: content-box; width: calc(100% - 12px);
+               background: #faf6ed; border: 1px solid #aeaa9e; border-radius: 4px; }
+  .tp-player iframe, .tp-player > div, .tp-start { position: absolute; top: 5px; left: 5px; width: calc(100% - 10px); height: calc(100% - 10px); border: 0; margin: 0; padding: 0; background: #000; }
+  .tp-start { cursor: pointer; overflow: hidden; }
+  .tp-start img { width: 100%; height: 100%; object-fit: cover; display: block; margin: 0; padding: 0; border: 0; border-radius: 0; }
+  .tp-start .yt-lite-play { position: absolute; left: 50%; top: 50%; width: 68px; height: 48px; transform: translate(-50%, -50%); }
+  .tp-start .yt-lite-play-bg { fill: #212121; fill-opacity: 0.8; }
+  .tp-start:hover .yt-lite-play-bg, .tp-start:focus-visible .yt-lite-play-bg { fill: #902015; fill-opacity: 1; }
+  .tp-controls { margin: 0.3em 0 0; opacity: 0.8; }
+  .tp-disclaimer { margin: 0.6em 0 1.2em; padding: 0.4em 0.6em; border-left: 3px solid rgba(144, 32, 21, 0.35); background: rgba(255, 255, 255, 0.35); }
+  .tp-controls label { margin-left: 1em; white-space: nowrap; }
+  .tp-text p { position: relative; }
+  .tp-text [data-t] { cursor: pointer; border-radius: 2px; }
+  .tp-text span[data-t]:hover { background: rgba(144, 32, 21, 0.08); }
+  .tp-text span.tp-now { background: rgba(144, 32, 21, 0.16); box-shadow: 0 0 0 2px rgba(144, 32, 21, 0.16); }
+  .tp-text .tp-time { font-size: 0.75em; font-variant-numeric: tabular-nums; opacity: 0.6; margin-right: 0.3em; text-decoration: none; }
+  .tp-text .tp-chapter { font-size: 1.15em; margin-top: 1.5em; }
+  .tp-text .tp-chapter a { font-size: 0.7em; opacity: 0.6; font-variant-numeric: tabular-nums; text-decoration: none; }
+  .tp-nav { display: flex; justify-content: space-between; gap: 1em; margin-top: 2em; }
+  .tp-nav .tp-next { margin-left: auto; text-align: right; }
+</style>
+
+<p class="vo-summary">
+  <a href="/videos/advds/">CS 650 – Advanced Data Structures (Summer 2026)</a> · <a href="/teaching/advds/07-external-memory">unit page</a>
+  · <a href="https://youtu.be/aDp8O3352LY">YouTube</a>
+  <br/>2026-07-07, 35:20
+</p>
+
+<div class="tp" data-id="aDp8O3352LY">
+  <div class="tp-bar"><div class="tp-player" id="tp-player">
+    <button type="button" class="tp-start" data-t="0" aria-label="Play video">
+      <img src="/assets/video-thumbs/aDp8O3352LY.webp" alt="" width="640" height="360" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/aDp8O3352LY/hqdefault.jpg'">
+      <svg class="yt-lite-play" viewBox="0 0 68 48" aria-hidden="true" focusable="false"><path class="yt-lite-play-bg" d="M66.5 7.7c-.8-2.9-2.5-5.4-5.4-6.2C55.8.1 34 0 34 0S12.2.1 6.9 1.6C4 2.3 2.3 4.8 1.5 7.7.1 13 0 24 0 24s.1 11 1.5 16.3c.8 2.9 2.5 5.4 5.4 6.2C12.2 47.9 34 48 34 48s21.8-.1 27.1-1.6c2.9-.7 4.6-3.2 5.4-6.1C67.9 35 68 24 68 24s-.1-11-1.5-16.3z"/><path d="M45 24 27 14v20z" fill="#fff"/></svg>
+    </button>
+  </div>
+  <p class="tp-controls vo-small">
+    <em>Click any sentence to play from there.</em>
+    <label><input type="checkbox" class="tp-follow" checked> follow along</label>
+  </p></div>
+  <p class="tp-disclaimer vo-small"><em>The transcript was generated automatically by YouTube's speech
+  recognition and is offered as is. It may contain errors, in particular in concerning technical terms,
+  names and formulas.</em></p>
+  <div class="tp-text" lang="en">
+<p><a class="tp-time" href="#t=2" data-t="2">0:02</a> <span data-t="2">In the last little bit of this unit on</span> <span data-t="2">external memory, I want to look at a um</span> <span data-t="5">a theoretical curiosity with some um sip</span> <span data-t="10">over to practice. I think it&#39;s uh full</span> <span data-t="13">of some beautiful constructions and</span> <span data-t="15">that&#39;s the idea of a cache oblivious</span> <span data-t="17">algorithm or data structure. Uh as the</span> <span data-t="20">name suggests, this is uh designs that</span> <span data-t="24">should somehow not need to know that</span> <span data-t="26">there&#39;s a cache. But of course, that&#39;s</span> <span data-t="28">easy. you just ignore it and be slow.</span> <span data-t="30">The point is you want to not be</span> <span data-t="33">specifically tied to a particular</span> <span data-t="35">architecture but still be fast. And you</span> <span data-t="38">can do this in a surprisingly strong</span> <span data-t="40">sense. Uh the the cache oblivious model</span> <span data-t="44">I guess I should say the CEO model cache</span> <span data-t="47">oblivious model is like the external</span> <span data-t="49">memory model that we&#39;ve worked on in</span> <span data-t="51">this unit all the time. But the</span> <span data-t="53">algorithm is not allowed to know the</span> <span data-t="56">values of B and M. And that&#39;s it. It&#39;s a</span> <span data-t="59">pretty clever simple idea. Um, and then</span> <span data-t="63">of course the hope is that the algorithm</span> <span data-t="66">is uh optimal simultaneously for all</span> <span data-t="70">choices of M and B.</span></p>
+<p><a class="tp-time" href="#t=73" data-t="73">1:13</a> <span data-t="73">Parenthesis maybe with some restrictions</span> <span data-t="75">on on suitable choices. Maybe you don&#39;t</span> <span data-t="77">want M divided by B to be tiny or so.</span> <span data-t="81">But uh for for sensible choices we want</span> <span data-t="84">the algorithm to do well no matter what</span> <span data-t="86">M andB are. And uh so whether you look</span> <span data-t="90">at the boundary between CPU little cache</span> <span data-t="93">and main memory or main memory and disk</span> <span data-t="95">or whatever level you pick if the</span> <span data-t="98">algorithm can&#39;t tune itself to the</span> <span data-t="100">parameters but has to be simultaneously</span> <span data-t="102">good for all of them it will be</span> <span data-t="104">simultaneously good for all of them.</span> <span data-t="108">kind of a tautology club statement.</span></p>
+<p><a class="tp-time" href="#t=113" data-t="113">1:53</a> <span data-t="113">Now, of course, you could qu you could</span> <span data-t="114">ask cool, but why would that even be</span> <span data-t="116">possible? This sounds like asking for a</span> <span data-t="118">lot. And we&#39;ve seen a simple example</span> <span data-t="120">where it is possible scanning an</span> <span data-t="122">elements, the algorithm didn&#39;t need to</span> <span data-t="124">know the block size. You just read one</span> <span data-t="126">element after the other and it so</span> <span data-t="130">happens that uh you fully use one block</span> <span data-t="133">before you go to the next and that&#39;s</span> <span data-t="135">optimal. So these things in principle</span> <span data-t="137">can exist at least if your problem is</span> <span data-t="139">sufficiently boring. Okay.</span></p>
+<p><a class="tp-time" href="#t=143" data-t="143">2:23</a> <span data-t="143">Um</span> <span data-t="145">to make the model theoretically sound uh</span> <span data-t="148">there&#39;s a few terms and conditions.</span> <span data-t="150">Uh we&#39;re assuming an ideal cache. Part</span> <span data-t="154">of it is to make the arguments easier.</span> <span data-t="156">Part of it is crucial. Um first of all</span> <span data-t="159">we we&#39;ll assume a fully associative</span> <span data-t="161">cache. If you&#39;ve not done some technical</span> <span data-t="163">computer science, maybe you don&#39;t even</span> <span data-t="164">know what I&#39;m talking about. uh then</span> <span data-t="166">forget about it. The point is that every</span> <span data-t="169">position in the uh cache is supposed to</span> <span data-t="172">be able to be eligible to hold any block</span> <span data-t="174">of main me of the external memory. Uh</span> <span data-t="178">this is standard if you look at memory</span> <span data-t="180">to disk but is not standard for</span> <span data-t="182">low-level caches. There is kind of a</span> <span data-t="184">lie. Uh but we assume this either way</span> <span data-t="186">and we assume that the decision um</span> <span data-t="191">if you load a new block you usually have</span> <span data-t="193">to evict another block because your</span> <span data-t="195">memory is already full. Maybe initially</span> <span data-t="197">that&#39;s not the case but after running</span> <span data-t="198">for a bit. Um we haven&#39;t talked about</span> <span data-t="201">this at all for external memory</span> <span data-t="202">algorithms. And the reason there is that</span> <span data-t="204">we assume we know M andB we tune</span> <span data-t="207">everything to the hardware. So we decide</span> <span data-t="209">exactly what block is evicted. It&#39;s part</span> <span data-t="211">of the algorithm to say, I&#39;m loading</span> <span data-t="213">this block and I&#39;m kicking out that one.</span></p>
+<p><a class="tp-time" href="#t=216" data-t="216">3:36</a> <span data-t="216">Now, here, this seems not to go well</span> <span data-t="219">with the spirit of cache obliviousness.</span> <span data-t="222">Uh, if the algorithm can&#39;t even know how</span> <span data-t="224">big the blocks are are, how is it</span> <span data-t="226">supposed to say which block to evict? It</span> <span data-t="228">doesn&#39;t know there&#39;s a cache. So</span> <span data-t="230">instead, we&#39;ll make this bold assumption</span> <span data-t="232">that the cache uses an optimal offline</span> <span data-t="236">eviction policy,</span> <span data-t="238">which is 100% unrealistic.</span> <span data-t="241">For the analysis, we can do that, right?</span> <span data-t="243">We can just pretend. Suppose the</span> <span data-t="245">algorithm for the cache knows the future</span> <span data-t="248">and knows which page is going to be</span> <span data-t="250">needed the furthest into the future.</span> <span data-t="252">Again, kick that out. That&#39;s optimal.</span></p>
+<p><a class="tp-time" href="#t=257" data-t="257">4:17</a> <span data-t="257">Uh questionable. Um I&#39;ll I&#39;ll come to</span> <span data-t="259">that in a bit. Uh actually right now um</span> <span data-t="263">this is not as bad as it first sounds</span> <span data-t="266">for the following classical problem or</span> <span data-t="268">classical results that um uh we touched</span> <span data-t="274">indirectly on but not really. There&#39;s</span> <span data-t="276">this uh online algorithm the least</span> <span data-t="278">recently used algorithm and</span> <span data-t="282">that of course is not as good as the</span> <span data-t="284">optimal offline. However, if you give it</span> <span data-t="286">twice as much memory, then it&#39;s only</span> <span data-t="289">twice as bad as OP, even though OP knows</span> <span data-t="292">the future. This is a pretty pretty cool</span> <span data-t="295">uh kind of powerful result because it</span> <span data-t="297">tells you this this least recently used</span> <span data-t="299">is really a sensible choice. And in the</span> <span data-t="302">context of this cache oblivious model,</span> <span data-t="304">we&#39;ll ignore constant factors all over</span> <span data-t="307">the place because we don&#39;t really have a</span> <span data-t="310">choice.</span> <span data-t="311">uh you&#39;ll see in in in short bit why</span> <span data-t="315">and so here um if you allow a constant</span> <span data-t="319">factor blow up in the memory size or</span> <span data-t="322">tune the parameter divide by two in the</span> <span data-t="325">analysis result then you get essentially</span> <span data-t="327">the same if you use LRU</span> <span data-t="329">uh compared to this. So this is easier</span> <span data-t="331">to analyze or work with. Um and if in</span> <span data-t="335">practice you want to realize this, you</span> <span data-t="336">should rely on LRU.</span></p>
+<p><a class="tp-time" href="#t=339" data-t="339">5:39</a> <span data-t="339">Okay,</span> <span data-t="345">there&#39;s another thing um another</span> <span data-t="345">property that um I won&#39;t formally prove</span> <span data-t="349">is a bit tricky. Uh but I think it&#39;s</span> <span data-t="351">it&#39;s useful to know at least the</span> <span data-t="353">informal version of it because it gives</span> <span data-t="356">the whole model even more power. So far</span> <span data-t="359">I&#39;ve said a cache oblivious optimal</span> <span data-t="361">algorithm that&#39;s this part means no</span> <span data-t="365">matter what M and B are it&#39;s going to be</span> <span data-t="367">within a constant factor of the best</span> <span data-t="369">possible algorithm in terms of IO cost</span> <span data-t="373">and uh this this is true for every</span> <span data-t="375">single choice of M and B. But this</span> <span data-t="377">informal theorem says if you have some</span> <span data-t="380">uh assumptions on how the caches work</span> <span data-t="383">which are not unrealistic in this case</span> <span data-t="386">then the same algorithm is also optimal</span> <span data-t="389">across a multi-level hierarchy like you</span> <span data-t="392">have in real computers where there&#39;s not</span> <span data-t="394">focusing on a single level but rather</span> <span data-t="396">you have all of them at the same time.</span> <span data-t="398">There&#39;s level one cache, level two</span> <span data-t="400">cache, level three cache, main memory,</span> <span data-t="401">SSD, hard disk, data center, what else</span> <span data-t="404">not, right? And if all of these work</span> <span data-t="407">according to some some principles,</span> <span data-t="410">uh inclusive means lower levels are</span> <span data-t="413">cached in the next level above. So a</span> <span data-t="416">block load here always goes to one level</span> <span data-t="418">above. It doesn&#39;t skip the hierarchy.</span></p>
+<p><a class="tp-time" href="#t=421" data-t="421">7:01</a> <span data-t="421">H and consistent paging means that the</span> <span data-t="423">eviction policy needs to be coordinated.</span> <span data-t="425">This is more tricky, but it&#39;s somewhat</span> <span data-t="428">reasonable to assume this and then it</span> <span data-t="431">means that the algorithm is is even</span> <span data-t="432">optimal in this multi-level scenario if</span> <span data-t="435">you analyze it all the way through.</span> <span data-t="437">That&#39;s what makes these algorithms more</span> <span data-t="439">promising than that first thing might</span> <span data-t="440">seem even. Okay.</span></p>
+<p><a class="tp-time" href="#t=444" data-t="444">7:24</a> <span data-t="444">Now, still it seems like a bold claim</span> <span data-t="446">that for something more interesting than</span> <span data-t="448">scanning, this should even exist. Now,</span> <span data-t="450">I&#39;m going to show you uh two short</span> <span data-t="452">examples of what you can do. And both of</span> <span data-t="455">them are kind of clever and mind when I</span> <span data-t="458">saw first saw them I felt woof something</span> <span data-t="461">someone had a real real proper insight.</span> <span data-t="463">This is cool. Okay.</span></p>
+<p><a class="tp-time" href="#t=471" data-t="471">7:51</a> <span data-t="471">The first really clever idea that uh</span> <span data-t="471">fits in this in this regime is called</span> <span data-t="473">the van mas layout. That&#39;s what VB</span> <span data-t="476">stands for</span> <span data-t="478">named after beta 1 m doas.</span></p>
+<p><a class="tp-time" href="#t=490" data-t="490">8:10</a> <span data-t="490">It&#39;s abbreviated because uh we&#39;ll use it</span> <span data-t="490">so much. Um he essentially is known</span> <span data-t="494">vanamea&#39;s trees are an integer data</span> <span data-t="497">structure of the kind like Wi-Fi tries.</span> <span data-t="500">Um they&#39;re the historically first of</span> <span data-t="502">these that&#39;s why it&#39;s also named after</span> <span data-t="504">this. there&#39;s a similarity to the data</span> <span data-t="506">structure because I chose not to explain</span> <span data-t="509">venom deboas trees because the Wi-Fi</span> <span data-t="512">tries are nicer and and simpler</span> <span data-t="514">um you will not see the connection maybe</span> <span data-t="517">so this just is a definition for us um</span> <span data-t="521">but kind of that you know where it comes</span> <span data-t="523">from that&#39;s what BB stands for</span> <span data-t="526">the problem we&#39;ll look at is essentially</span> <span data-t="528">binary search we have a sorted list uh</span> <span data-t="531">sorted array of elements and we want to</span> <span data-t="534">find a certain element by by</span> <span data-t="536">comparisons. [snorts] Of course, in</span> <span data-t="538">internal memory, you just do binary</span> <span data-t="540">search and that&#39;s best possible. We know</span> <span data-t="542">in external memory, we should be doing a</span> <span data-t="544">B tree like search. We want the log</span> <span data-t="546">divided log base B of N. But how should</span> <span data-t="551">we do this if we don&#39;t know B, right? Um</span> <span data-t="554">the the trick of B trees is okay, I&#39;m</span> <span data-t="557">going to load B elements</span> <span data-t="559">and the B elements are formed in a tiny</span> <span data-t="562">search tree. I&#39;m going to follow some</span> <span data-t="564">path through this. I loaded B keys</span> <span data-t="569">and I&#39;ve used log B the height of the</span> <span data-t="572">thing.</span></p>
+<p><a class="tp-time" href="#t=574" data-t="574">9:34</a> <span data-t="574">Not perfect, but we know best possible</span> <span data-t="576">in this sense.</span> <span data-t="577">Can we at least do that? Well, how if we</span> <span data-t="581">don&#39;t know B? So we have to somehow find</span> <span data-t="584">an arrangement of the elements in the in</span> <span data-t="587">the array so that we can pretend to do a</span> <span data-t="590">binary search and happen to have the</span> <span data-t="593">elements that we touch next close by</span> <span data-t="597">without knowing what close by means. And</span> <span data-t="600">it turns turns out you can do this with</span> <span data-t="602">a recursive scheme.</span> <span data-t="605">Um</span> <span data-t="612">I mean the van deoas layout but</span> <span data-t="612">uh let me try to sketch what this looks</span> <span data-t="615">like.</span></p>
+<p><a class="tp-time" href="#t=626" data-t="626">10:26</a> <span data-t="626">It&#39;s a recursive definition and I&#39;m I&#39;m</span> <span data-t="626">going to define it over a hypothetical</span> <span data-t="629">binary search tree, a balanced binary</span> <span data-t="631">search tree. So you have your array</span> <span data-t="635">and then on top of that sits a binary</span> <span data-t="638">search tree</span> <span data-t="640">and that has the usual meaning, right?</span> <span data-t="642">There&#39;s an element that&#39;s the middle</span> <span data-t="643">one. This is the search tree that you</span> <span data-t="645">would use implicitly if you do a</span> <span data-t="648">standard binary search in an array</span> <span data-t="658">and so on and so forth. Now uh I know</span> <span data-t="658">what positions I&#39;m going to touch in a</span> <span data-t="659">binary search. This is this is going to</span> <span data-t="662">be the middle one n /2. These two are</span> <span data-t="665">going to be n over4 and 3 n over4</span> <span data-t="670">and so on. Right? In principle, we know</span> <span data-t="672">this. Now, if I leave them where they</span> <span data-t="674">are in the array, every uh suppose I</span> <span data-t="677">follow this path down, every node here</span> <span data-t="680">is a cashmiz because they&#39;re in entirely</span> <span data-t="683">different locations in the array. The</span> <span data-t="684">first one sits here. This guy sits here.</span></p>
+<p><a class="tp-time" href="#t=687" data-t="687">11:27</a> <span data-t="687">So, I&#39;m jumping all over the place. Bad.</span> <span data-t="691">Instead, let me define um a recursive</span> <span data-t="695">layout.</span> <span data-t="697">If I have a single element, I&#39;m just</span> <span data-t="699">going to how do I write this?</span></p>
+<p><a class="tp-time" href="#t=708" data-t="708">11:48</a> <span data-t="708">Let me be a bit sloppy. If I have a</span> <span data-t="708">single element, the layout for that</span> <span data-t="711">single element uh is just that single</span> <span data-t="713">element. There&#39;s no choice. That&#39;s the</span> <span data-t="716">base case. Now if I have</span> <span data-t="720">a larger tree</span> <span data-t="732">of height h. So I&#39;m uh looking at this</span> <span data-t="732">tree height h.</span> <span data-t="735">Then I&#39;m going to split this.</span> <span data-t="738">Me draw it again. Uh a bit wider maybe.</span> <span data-t="742">That&#39;s my tree. Now uh it has a certain</span> <span data-t="745">height. I&#39;m going to cut the height in</span> <span data-t="747">half.</span></p>
+<p><a class="tp-time" href="#t=750" data-t="750">12:30</a> <span data-t="750">And you round it somehow.</span> <span data-t="753">There&#39;s the top part and the bottom</span> <span data-t="754">part.</span> <span data-t="760">The top part is one single tree of</span> <span data-t="760">roughly square&amp;lt;unk&amp;gt; nodes.</span> <span data-t="762">If you cut the height in half, that&#39;s</span> <span data-t="764">1/2 log n. The total number of nodes in</span> <span data-t="768">a tree of height half log n is 2 to the</span> <span data-t="771">power of that. the square root n.</span></p>
+<p><a class="tp-time" href="#t=783" data-t="783">13:03</a> <span data-t="783">So almost all nodes are in the bottom</span> <span data-t="783">part. Of course, because it&#39;s uh not</span> <span data-t="786">drawing to scale, it would be extremely</span> <span data-t="788">wide. But the this here has many more of</span> <span data-t="792">these triangles that are roughly the</span> <span data-t="793">same size as the top one. Let&#39;s call</span> <span data-t="796">these T1 and so on up to TK.</span></p>
+<p><a class="tp-time" href="#t=802" data-t="802">13:22</a> <span data-t="802">Uh now I need space.</span> <span data-t="811">We define the layout of of the the order</span> <span data-t="811">in which we want to list the nodes in</span> <span data-t="813">this tree in an in an array or in a</span> <span data-t="816">piece of memory by recursively laying</span> <span data-t="819">out with the van deboas layout the first</span> <span data-t="822">tree</span> <span data-t="824">the the root tree if you like and then</span> <span data-t="826">all the children after that</span> <span data-t="835">and that is</span> <span data-t="835">That is the simple idea you need. Um,</span> <span data-t="839">and I&#39;m going to show you some</span> <span data-t="840">animations for how and why that works.</span> <span data-t="844">Now, because this is um, the recursion</span> <span data-t="848">is cutting the height of the tree in</span> <span data-t="850">half. So, in terms of the number of</span> <span data-t="852">elements we touch, this is doubly</span> <span data-t="854">exponential. So, you cannot show too</span> <span data-t="857">many iterations of this recursion</span> <span data-t="858">without this whole thing being extremely</span> <span data-t="861">big.</span> <span data-t="862">So um let me try here. The largest that</span> <span data-t="866">you can still reasonably show the</span> <span data-t="869">individual elements is maybe that size.</span> <span data-t="872">So it&#39;s um</span> <span data-t="874">uh why is it 63? Fine. It&#39;s 63 elements.</span></p>
+<p><a class="tp-time" href="#t=878" data-t="878">14:38</a> <span data-t="878">Um because we count the internal nodes.</span> <span data-t="882">Um the first level of the recursion cuts</span> <span data-t="886">the height in half. So you have this top</span> <span data-t="888">tree and the bottom trees.</span> <span data-t="890">And you see in the array if you choose</span> <span data-t="893">as page size as as B as block size the</span> <span data-t="897">number of nodes that fit into either</span> <span data-t="899">either of these trees it perfectly</span> <span data-t="902">aligns and the top part comes first and</span> <span data-t="903">then all the others. Now what happens</span> <span data-t="906">within one block? You go one recursion</span> <span data-t="908">level down and now uh the first level is</span> <span data-t="912">kind of an even split. The height six is</span> <span data-t="914">an even number so you can properly do</span> <span data-t="916">it. For the second recursion, we split</span> <span data-t="918">the top part which has height three. So</span> <span data-t="921">the um t0 has height two and the others</span> <span data-t="924">have height one single nodes.</span> <span data-t="927">And so you see the within this first</span> <span data-t="930">block that corresponded to the first</span> <span data-t="932">three levels. I first put the first</span> <span data-t="935">three nodes. They correspond to the</span> <span data-t="937">recursive top part and then in order</span> <span data-t="940">these children which are individual</span> <span data-t="942">elements in this case.</span></p>
+<p><a class="tp-time" href="#t=945" data-t="945">15:45</a> <span data-t="945">Okay. I know it&#39;s a bit um brain</span> <span data-t="949">Uh the recursive sub trees are the same.</span> <span data-t="953">They come after and so here you have the</span> <span data-t="955">top part first. Nominally you have</span> <span data-t="958">another level of recursion for these</span> <span data-t="959">three nodes. They just say do the root</span> <span data-t="962">first then left then right. Uh you can</span> <span data-t="964">of course draw the colors but then</span> <span data-t="967">nothing is more is visible anymore.</span> <span data-t="970">Okay.</span> <span data-t="972">Now, uh</span> <span data-t="974">why is this um the right thing to do?</span></p>
+<p><a class="tp-time" href="#t=985" data-t="985">16:25</a> <span data-t="985">The analysis is is really clever.</span> <span data-t="985">We don&#39;t know what B is in the</span> <span data-t="986">algorithm, but in the analysis, we know.</span> <span data-t="996">Good point.</span> <span data-t="996">Um for the analysis we&#39;ll use that there</span> <span data-t="999">is some level of recursion</span> <span data-t="1009">of this VB layout</span> <span data-t="1009">with pieces. So these sub trees</span> <span data-t="1019">of height</span> <span data-t="1019">delta where delta is roughly the right</span> <span data-t="1022">height. So um the height of a block with</span> <span data-t="1026">the proper block size should be log B</span> <span data-t="1029">because we fit B nodes in a block. But</span> <span data-t="1032">we may not get exactly that. Um we may</span> <span data-t="1035">be a bit too small with our cutting in</span> <span data-t="1039">half. So it might be half the block size</span> <span data-t="1042">uh the the height of the tree if we&#39;re</span> <span data-t="1044">unlucky.</span> <span data-t="1046">Um let me try to show maybe this part</span> <span data-t="1049">briefly. So, uh, let me stick it to</span> <span data-t="1052">this, but mess with the block size.</span></p>
+<p><a class="tp-time" href="#t=1057" data-t="1057">17:37</a> <span data-t="1057">Uh, I might make the block size a little</span> <span data-t="1059">smaller. So, now, um, it&#39;s the other way</span> <span data-t="1063">around. I need to make it bigger, right?</span> <span data-t="1065">So, now say 10, uh, elements fit in one</span> <span data-t="1068">block. Uh, I would want to have sub</span> <span data-t="1072">trees that are log 10 high. I can&#39;t</span> <span data-t="1075">really get that in my recursion. And I</span> <span data-t="1077">only have one where the height is three,</span> <span data-t="1079">not log 10, whatever that is. And so I</span> <span data-t="1082">always find one that is slightly below</span> <span data-t="1085">this log 10, the ideal height, but is</span> <span data-t="1088">not more than a factor two away in</span> <span data-t="1090">height</span> <span data-t="1096">because I have I cut the height in half</span> <span data-t="1096">at each recursive level. So say you</span> <span data-t="1099">start at the top. If your current height</span> <span data-t="1101">for the tree is too much, you cut it in</span> <span data-t="1103">half. If it&#39;s still too much, you cut it</span> <span data-t="1105">in half. after some amount of cutting in</span> <span data-t="1108">half, you&#39;ll be too small. And so then</span> <span data-t="1110">you have a range and that&#39;s the delta</span> <span data-t="1113">where you stop.</span></p>
+<p><a class="tp-time" href="#t=1116" data-t="1116">18:36</a> <span data-t="1116">So there&#39;s there&#39;s some delta that falls</span> <span data-t="1118">in this range and that has um two</span> <span data-t="1121">consequences.</span> <span data-t="1128">For one, um,</span> <span data-t="1128">the way Venom Debo&#39;s layout works,</span> <span data-t="1131">there&#39;s this level delta where I put the</span> <span data-t="1133">pieces contiguous.</span></p>
+<p><a class="tp-time" href="#t=1151" data-t="1151">19:11</a> <span data-t="1151">So reading such a piece costs a constant</span> <span data-t="1151">number of block transfers.</span> <span data-t="1167">is uh I guess at most two in real life,</span> <span data-t="1167">right? It could be that just that the</span> <span data-t="1169">boundary of a block, but that&#39;s all</span> <span data-t="1172">less than equal two is is true.</span></p>
+<p><a class="tp-time" href="#t=1180" data-t="1180">19:40</a> <span data-t="1180">And um</span> <span data-t="1180">well, this is maybe one step in between.</span> <span data-t="1183">um it&#39;s contiguous in memory and it&#39;s</span> <span data-t="1185">not very big because how many elements</span> <span data-t="1187">do I have in a delta piece?</span></p>
+<p><a class="tp-time" href="#t=1196" data-t="1196">19:56</a> <span data-t="1196">Well, it&#39;s at most two to the height and</span> <span data-t="1196">the upper bound to the height is this.</span> <span data-t="1207">So the number of elements in a piece is</span> <span data-t="1208">at most B.</span> <span data-t="1210">Touching B contiguous things costs at</span> <span data-t="1213">most two IO&#39;s. Right?</span></p>
+<p><a class="tp-time" href="#t=1218" data-t="1218">20:18</a> <span data-t="1218">Now the second consequence is because of</span> <span data-t="1220">the lower bound</span> <span data-t="1223">any search path.</span> <span data-t="1230">Um</span> <span data-t="1230">you should think of um this now looking</span> <span data-t="1233">a bit like I have an animation of this</span> <span data-t="1235">shortly. Uh you&#39;re searching from the</span> <span data-t="1238">root down through this and you somehow</span> <span data-t="1241">end up at a leaf. How many such pieces</span> <span data-t="1244">can you traverse through? Well,</span> <span data-t="1255">the total height</span> <span data-t="1255">divided by the height of each piece and</span> <span data-t="1257">that&#39;s delta.</span></p>
+<p><a class="tp-time" href="#t=1265" data-t="1265">21:05</a> <span data-t="1265">And uh if we insert the lower bound for</span> <span data-t="1265">delta,</span> <span data-t="1267">you get log n /ed 12 log b.</span> <span data-t="1273">But ignoring the constant factor that&#39;s</span> <span data-t="1275">log</span> <span data-t="1277">come on log base b of n. So b tree</span> <span data-t="1282">access time without knowing b right.</span></p>
+<p><a class="tp-time" href="#t=1287" data-t="1287">21:27</a> <span data-t="1287">Um</span> <span data-t="1296">and here&#39;s here&#39;s an animation showing</span> <span data-t="1296">that part. Uh again this is drawn a bit</span> <span data-t="1300">bigger. Now uh we have 4,000 something</span> <span data-t="1303">keys and the recursion level is block</span> <span data-t="1307">size is seven. And so you see any search</span> <span data-t="1310">path crosses through only a bunch of</span> <span data-t="1312">these elements. Um and</span> <span data-t="1322">uh there&#39;s a a zoomed in view on the</span> <span data-t="1322">actual blocks because the overall blocks</span> <span data-t="1324">is now 4,000.</span></p>
+<p><a class="tp-time" href="#t=1331" data-t="1331">22:11</a> <span data-t="1331">And if you see the first few are only</span> <span data-t="1331">touching this part and then you&#39;re</span> <span data-t="1333">touching another small part and another</span> <span data-t="1335">small part. You&#39;re even within these</span> <span data-t="1337">parts always staying very local.</span> <span data-t="1340">And that&#39;s that&#39;s the magic of this VB</span> <span data-t="1342">layout.</span></p>
+<p><a class="tp-time" href="#t=1358" data-t="1358">22:38</a> <span data-t="1358">I think with that um uh we we move again</span> <span data-t="1358">to high altitude for the last bit. Um</span> <span data-t="1361">the ban deer boss layout is cool but you</span> <span data-t="1364">can only do it with static arrays. So</span> <span data-t="1366">far I cannot insert that completely</span> <span data-t="1368">messes up my my uh layout etc.</span></p>
+<p><a class="tp-time" href="#t=1373" data-t="1373">22:53</a> <span data-t="1373">In the last little section let me uh</span> <span data-t="1376">point to what you can do with this van</span> <span data-t="1378">deoas layout beyond what we&#39;ve seen so</span> <span data-t="1380">far. Um what we&#39;ve seen is is a layout</span> <span data-t="1384">for a static array of elements so that I</span> <span data-t="1386">can search uh so that my my standard</span> <span data-t="1389">binary search happens to have optimal IO</span> <span data-t="1392">cost. That&#39;s really what it does. Uh but</span> <span data-t="1395">we can&#39;t really support any insertions</span> <span data-t="1397">as is.</span> <span data-t="1399">And there is a way to build on top of</span> <span data-t="1403">that something that can be called or has</span> <span data-t="1405">been called the cache oblivious B tree.</span> <span data-t="1408">The name is a bit misleading because it</span> <span data-t="1410">doesn&#39;t use B. it needs to be cache</span> <span data-t="1411">oblivious and it&#39;s also not properly a B</span> <span data-t="1414">tree in any way. Instead, um it stores</span> <span data-t="1418">the data in sorted order</span> <span data-t="1421">conceptually like what what we&#39;ve done</span> <span data-t="1423">so far and on top of that an index a</span> <span data-t="1425">search tree that navigates in the same</span> <span data-t="1428">way as we&#39;ve just seen. Uh but we need</span> <span data-t="1432">for supporting insertion deletions we</span> <span data-t="1433">need two changes. Number one, this is</span> <span data-t="1436">not really an array. It&#39;s a packed</span> <span data-t="1438">memory array. I&#39;ll try to very briefly</span> <span data-t="1441">show you the glimpse of that. Um it&#39;s a</span> <span data-t="1444">magical data structure that uh uses a</span> <span data-t="1447">constant factor more memory than you</span> <span data-t="1449">should need for the elements.</span></p>
+<p><a class="tp-time" href="#t=1451" data-t="1451">24:11</a> <span data-t="1451">Um but it and so it stores them with</span> <span data-t="1454">gaps but allows you to insert at any</span> <span data-t="1456">point in time. Um and if needed you move</span> <span data-t="1459">elements a bit around. Now this is this</span> <span data-t="1462">is always possible if the moving around</span> <span data-t="1465">cost is high but you can do it with poly</span> <span data-t="1468">logarithmic move cost amortized. So some</span> <span data-t="1471">insertions might mess up the array</span> <span data-t="1473">entirely but most don&#39;t. And so you can</span> <span data-t="1476">insert into this low part at a</span> <span data-t="1478">reasonable cost.</span></p>
+<p><a class="tp-time" href="#t=1481" data-t="1481">24:41</a> <span data-t="1481">And for the tree on top, we use what</span> <span data-t="1483">we&#39;ve just seen</span> <span data-t="1485">um where we apply it to the nodes of a</span> <span data-t="1487">balanced binary search tree because it</span> <span data-t="1489">needs to be dynamic now as well. So the</span> <span data-t="1492">layout uses the nodes of a tree and the</span> <span data-t="1495">content of the nodes might change if the</span> <span data-t="1498">tree gets reorganized.</span> <span data-t="1500">uh and with that you get this overall IO</span> <span data-t="1503">bound and you should note that this one</span> <span data-t="1505">over B factor here probably means this</span> <span data-t="1508">is in practice uh not as not the</span> <span data-t="1511">dominant part and you&#39;re left with</span> <span data-t="1513">essentially the B tree uh complexity but</span> <span data-t="1515">again without knowing what B is because</span> <span data-t="1518">neither of these uh constructions uses</span> <span data-t="1521">the block parameters or the memory size</span> <span data-t="1526">you&#39;ve seen the second part um and I</span> <span data-t="1528">want to give you a brief glimpse of how</span> <span data-t="1529">this is supposed to work.</span></p>
+<p><a class="tp-time" href="#t=1536" data-t="1536">25:36</a> <span data-t="1536">So, a packed memory array is is</span> <span data-t="1536">essentially an array with gaps.</span> <span data-t="1539">And</span> <span data-t="1541">um in the interest of time, let me maybe</span> <span data-t="1544">only show this uh here.</span></p>
+<p><a class="tp-time" href="#t=1553" data-t="1553">25:53</a> <span data-t="1553">So, what can you see? There&#39;s an array</span> <span data-t="1553">of elements here.</span> <span data-t="1555">These are initially evenly spread out</span> <span data-t="1557">but you&#39;ll see this is um it&#39;s just one</span> <span data-t="1560">starting configuration. The actual array</span> <span data-t="1562">is the numbers here below which is a</span> <span data-t="1563">constant factor larger. It&#39;s half full</span> <span data-t="1566">at this point. Now on top of every</span> <span data-t="1569">element there&#39;s um a segment tree if you</span> <span data-t="1572">like. So there&#39;s a root that covers the</span> <span data-t="1574">entire array. Then there&#39;s a left and</span> <span data-t="1577">right half. Each of these just define</span> <span data-t="1579">ranges uh subranges of the of the actual</span> <span data-t="1583">physical array. And the ranges remember</span> <span data-t="1586">a few things. They remember for example</span> <span data-t="1588">that they can hold</span> <span data-t="1590">up to a certain number of elements and</span> <span data-t="1593">they currently hold a certain smaller</span> <span data-t="1595">number of elements.</span> <span data-t="1597">And uh the magic of this data structure</span> <span data-t="1600">consists in the following um definition.</span> <span data-t="1603">Each of these ranges defines a density.</span> <span data-t="1605">How many of my slots can be occupied</span> <span data-t="1608">before I decide oh I&#39;m I&#39;m unhappy now.</span></p>
+<p><a class="tp-time" href="#t=1611" data-t="1611">26:51</a> <span data-t="1611">I uh need to rebalance all the elements</span> <span data-t="1613">in my range and this density is chosen</span> <span data-t="1617">to be um</span> <span data-t="1625">uh sorry there&#39;s the current density but</span> <span data-t="1625">then uh there&#39;s a threshold density</span> <span data-t="1628">that&#39;s what I meant the density if I</span> <span data-t="1631">reach that I want to rebalance myself</span> <span data-t="1633">because I&#39;m unhappy</span> <span data-t="1635">at the root this unhappiness balance uh</span> <span data-t="1639">is is 1/2 and It gets more and more</span> <span data-t="1642">strict the further you go down. And let</span> <span data-t="1645">me do it once smaller. The numbers are</span> <span data-t="1647">around. It&#39;s 1 point 0.5 at the top 0</span> <span data-t="1651">0.6 0.7 0.8 0.9. So it linearly decre</span> <span data-t="1657">increases from some starting thresholds</span> <span data-t="1660">that you can choose. Here is 1/2 down to</span> <span data-t="1664">essentially one at the leaf level.</span> <span data-t="1668">And what this does is if I now insert an</span> <span data-t="1671">element after this this element here,</span> <span data-t="1674">it&#39;s going to be added in the middle</span> <span data-t="1676">between these two.</span> <span data-t="1678">Now um each element uh is now</span> <span data-t="1682">contributing another occupi occupied</span> <span data-t="1685">element in all the ranges that contain</span> <span data-t="1687">this position right all all of them</span> <span data-t="1689">above it.</span></p>
+<p><a class="tp-time" href="#t=1691" data-t="1691">28:11</a> <span data-t="1691">And uh if I do another insertion</span> <span data-t="1694">then here</span> <span data-t="1696">I&#39;m completely packed.</span> <span data-t="1698">So if I do one more insertion we have to</span> <span data-t="1701">spread things out.</span></p>
+<p><a class="tp-time" href="#t=1709" data-t="1709">28:29</a> <span data-t="1709">And at this point you bubble up until</span> <span data-t="1709">you find the first interval that is</span> <span data-t="1711">still happy. And that spreads everything</span> <span data-t="1714">out.</span> <span data-t="1716">And now you see in this case we have</span> <span data-t="1718">another range that&#39;s just before</span> <span data-t="1720">overflowing.</span> <span data-t="1722">So if I hammer another insertion into</span> <span data-t="1724">this tightly occupied range, it&#39;ll</span> <span data-t="1726">bubble up even more.</span> <span data-t="1729">And so this was costly. Now I&#39;ve</span> <span data-t="1731">rearranged a lot. On the other hand, all</span> <span data-t="1733">of them are green again.</span> <span data-t="1735">Okay. Now let me um let me reset this</span> <span data-t="1739">and show you the other part. There&#39;s an</span> <span data-t="1742">amortization going on. And uh in the</span> <span data-t="1744">animation is completely baked in. Um we</span> <span data-t="1748">had some fun. So uh every insertion pays</span> <span data-t="1754">remember the goal is to show log squared</span> <span data-t="1757">amortized cost per insertion. It&#39;s quite</span> <span data-t="1760">a lot. So log is of course the height of</span> <span data-t="1763">this tree. Log is the height of uh the</span> <span data-t="1766">number of of ranges. So I can pay the</span> <span data-t="1770">height in coins for each range that I&#39;m</span> <span data-t="1774">inserted into. So here the height is</span> <span data-t="1776">five. If I insert an element, each of</span> <span data-t="1779">these ranges</span> <span data-t="1781">will will receive five coins.</span></p>
+<p><a class="tp-time" href="#t=1785" data-t="1785">29:45</a> <span data-t="1785">Okay, it&#39;s going to ended up it ended up</span> <span data-t="1787">here. So here I get five coins. Five</span> <span data-t="1790">coins. Five coins. Five coins. Five</span> <span data-t="1792">coins.</span> <span data-t="1794">Five because that&#39;s the height.</span> <span data-t="1797">Uh then there&#39;s a um</span> <span data-t="1800">there&#39;s uh you need you need to multiply</span> <span data-t="1804">the coins with a certain constant factor</span> <span data-t="1806">to translate between coins and number of</span> <span data-t="1810">elements I&#39;m allowed to move when I do a</span> <span data-t="1812">rebalance.</span> <span data-t="1814">And you can show that whenever an</span> <span data-t="1817">insertion inserts login coins in each</span> <span data-t="1820">range, any future rebalancing operation</span> <span data-t="1823">is paid only by the coins.</span> <span data-t="1826">And so the amortized cost because every</span> <span data-t="1829">element uh is equipped with these lock</span> <span data-t="1832">squared n coins initially</span> <span data-t="1835">uh you never run out of coins. So that&#39;s</span> <span data-t="1837">the amortized cost. Okay.</span></p>
+<p><a class="tp-time" href="#t=1841" data-t="1841">30:41</a> <span data-t="1841">Um</span> <span data-t="1844">what else can I show? Um let&#39;s do one</span> <span data-t="1846">round and we see how the coins um</span> <span data-t="1849">accumulate a bit. So if I insert one</span> <span data-t="1852">more element here, now I got five coins</span> <span data-t="1855">in these ranges.</span> <span data-t="1858">But the the top has accumulated 10 coins</span> <span data-t="1860">because it got five from this side and</span> <span data-t="1862">five from this side.</span> <span data-t="1865">Okay, let&#39;s hammer another insertion</span> <span data-t="1866">into this tidy pack range. So something</span> <span data-t="1868">has to happen.</span></p>
+<p><a class="tp-time" href="#t=1874" data-t="1874">31:14</a> <span data-t="1874">And maybe this is another interesting</span> <span data-t="1874">part. So this is now over its threshold</span> <span data-t="1878">because it&#39;s completely packed. So</span> <span data-t="1881">rebalancing this one would do nothing. I</span> <span data-t="1883">have to go one level up. And if I go to</span> <span data-t="1886">the next level up, this element is still</span> <span data-t="1888">happy with its current density. So</span> <span data-t="1891">that&#39;s the one that is rebalanced. And</span> <span data-t="1894">at this point, I&#39;m looking at its number</span> <span data-t="1896">of coins.</span> <span data-t="1898">And</span> <span data-t="1906">um it received 10 coins, two inserts.</span> <span data-t="1906">Uh the 10, this was five a second</span> <span data-t="1908">before. The five came from the current</span> <span data-t="1910">new insertion that we just did. It&#39;s a</span> <span data-t="1913">bit um well</span> <span data-t="1917">uh and in this setup with the initial um</span> <span data-t="1921">with the root threshold at 1/2, each</span> <span data-t="1924">coin pays for moving four elements. But</span> <span data-t="1926">that&#39;s a universal constant. And so I</span> <span data-t="1929">could have paid for 40 moves and I only</span> <span data-t="1932">need two. So you see there&#39;s a lot of</span> <span data-t="1934">slack in that analysis. Uh but for the</span> <span data-t="1937">low ranges</span> <span data-t="1939">maybe that&#39;s expected.</span></p>
+<p><a class="tp-time" href="#t=1941" data-t="1941">32:21</a> <span data-t="1941">Uh let&#39;s do one more and then um we&#39;ll</span> <span data-t="1943">finish for today. So here I need to</span> <span data-t="1945">bubble up one more step.</span> <span data-t="1948">And uh so this one was still all over</span> <span data-t="1951">threshold.</span> <span data-t="1953">The first one that was not is this. It</span> <span data-t="1956">has received 10 coins up to this point.</span> <span data-t="1958">So it uh could pay so sorry another</span> <span data-t="1962">again it receives the five coins only at</span> <span data-t="1965">this point from the newly inserted</span> <span data-t="1967">elements. Um so it could have paid for</span> <span data-t="1970">60 elements moved uh but it only needs</span> <span data-t="1973">to move four.</span> <span data-t="1975">You could probably skew the coins to be</span> <span data-t="1977">distributed more towards the top.</span></p>
+<p><a class="tp-time" href="#t=1981" data-t="1981">33:01</a> <span data-t="1981">Okay,</span> <span data-t="1983">so with that you can implement this</span> <span data-t="1985">packed memory array where the memory</span> <span data-t="1988">cells are the numbers at the bottom.</span> <span data-t="1990">That&#39;s the physical locations of your</span> <span data-t="1992">elements of your sorted sequence. The</span> <span data-t="1995">positions that are occupied by these</span> <span data-t="1997">elements here, that&#39;s the actual</span> <span data-t="1999">positions that store some some element.</span> <span data-t="2002">And um you can use this range tree also</span> <span data-t="2005">to guide you. So if you if you have a</span> <span data-t="2007">key uh the top range tree can store</span> <span data-t="2010">what&#39;s the um the key at this boundary.</span> <span data-t="2014">So you can use the range itself to</span> <span data-t="2016">binary search in the packed memory</span> <span data-t="2018">array. But you don&#39;t really have to. You</span> <span data-t="2021">could also just jump in the middle</span> <span data-t="2022">because you&#39;re only touching a constant</span> <span data-t="2024">number of elements before you reach</span> <span data-t="2026">another one.</span> <span data-t="2028">If you want it worst case uh you need to</span> <span data-t="2031">use the range tree annotation. Again</span> <span data-t="2035">um you can store in each range the</span> <span data-t="2038">number of elements that are in the</span> <span data-t="2039">range. We already do that. So you can do</span> <span data-t="2041">select and you can store the maximum in</span> <span data-t="2044">the range as a key. Then you can do</span> <span data-t="2046">searches for a key in logarithmic time.</span></p>
+<p><a class="tp-time" href="#t=2052" data-t="2052">34:12</a> <span data-t="2052">So it behaves just like a binary search</span> <span data-t="2054">tree but it&#39;s tightly packed in a</span> <span data-t="2056">contiguous range of memory. So if you</span> <span data-t="2060">lay out um if you do the the actual</span> <span data-t="2063">searches with this vanim deboas layout</span> <span data-t="2066">you get the log base b of n searches.</span></p>
+<p><a class="tp-time" href="#t=2077" data-t="2077">34:37</a> <span data-t="2077">All right. Uh I think that&#39;s a nice kind</span> <span data-t="2077">of climax for the module. Um of course</span> <span data-t="2081">you&#39;re not you&#39;re not expected to know</span> <span data-t="2083">more of the details of this data</span> <span data-t="2085">structure than what I&#39;ve uh managed to</span> <span data-t="2087">show you now.</span> <span data-t="2088">But I think the the construction itself</span> <span data-t="2090">is rather clean and clear. The analysis</span> <span data-t="2092">is is a bit subtle. Um I can uh give you</span> <span data-t="2097">some material if you want to read more</span> <span data-t="2098">about it.</span></p>
+<p><a class="tp-time" href="#t=2103" data-t="2103">35:03</a> <span data-t="2103">As a last point, let me just point out</span> <span data-t="2103">that I managed to smuggle five different</span> <span data-t="2105">projects of our own research into this</span> <span data-t="2108">module. And maybe you noticed [laughter]</span> <span data-t="2112">in case you didn&#39;t, here they are again.</span> <span data-t="2115">And maybe you can add some future</span> <span data-t="2116">entries to this uh as well.</span></p>
+
+  </div>
+</div>
+
+<p class="tp-nav vo-small"><a href="/videos/advds/7-3/">← Video 7-3: Basic External Memory Data Structures</a>
+</p>
+
+<script src="/assets/js/transcript-player.js" defer></script>
+
+  </div>
+
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Sebastian Wild</h2>
+
+    <div class="footer-col-wrapper">
+
+      <div class="footer-col footer-col-1">
+        <p>Contact:</p>
+
+        <ul class="link-group">
+          <li><a href="mailto:%77%69%6C%64@%69%6E%66%6F%72%6D%61%74%69%6B.%75%6E%69-%6D%61%72%62%75%72%67.%64%65" title="Contact me">wild at informatik.uni-marburg.de</a></li>
+          <li><a href="mailto:%77%69%6C%64@%6C%69%76%65%72%70%6F%6F%6C.%61%63.%75%6B" title="Contact me">wild at liverpool.ac.uk</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x34EE39A78B149255">PGP</a></li>
+          <li><a href="mailto:%73%65%62%61%77%69%6C%64@%67%6D%61%69%6C.%63%6F%6D" title="Contact me">sebawild at gmail</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x38600ABC14973198">PGP</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://www.uni-marburg.de/de/fb12/arbeitsgruppen/algorith/team/sebastian-wild">Website at UMR</a></li>
+          <li><a href="https://www.liverpool.ac.uk/computer-science/staff/sebastian-wild">Website at UoL</a></li>
+          <li><a href="https://tcs.csc.liv.ac.uk">TCS @ Liverpool</a></li>
+        </ul>
+
+        <p class="footer-note">
+          Retired addresses (no longer read):
+          <span class="retired">wild at uwaterloo.ca</span>,
+          <span class="retired">wild at cs.uni-kl.de</span>.
+        </p>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <p>Elsewhere:</p>
+
+        <ul class="link-group">
+          <li><a href="https://github.com/sebawild" title="GitHub sebawild"><i class="fab fa-github" aria-hidden="true"></i> GitHub sebawild</a></li>
+          <li><a rel="me" href="https://mathstodon.xyz/@wild" title="Mastodon @wild@mathstodon.xyz"><i class="fab fa-mastodon" aria-hidden="true"></i> @wild@mathstodon.xyz</a></li>
+          <li><a href="https://bsky.app/profile/sebastianwild.bsky.social" title="Bluesky @sebastianwild.bsky.social"><span aria-hidden="true">🦋</span> @sebastianwild</a></li>
+          <li><a href="https://www.linkedin.com/in/sebastian-wild-liverpool/"><i class="fab fa-linkedin" aria-hidden="true"></i> LinkedIn profile</a></li>
+          <li><a href="https://www.youtube.com/c/SebastianWildLectures"><i class="fab fa-youtube" aria-hidden="true"></i> YouTube channel</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://orcid.org/0000-0002-6061-9177" title="ORCID: 0000-0002-6061-9177"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-orcid"/></svg>
+ 0000-0002-6061-9177</a></li>
+          <li><a href="https://scholar.google.de/citations?user=aMyZiK0AAAAJ"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-google-scholar"/></svg>
+ Google Scholar</a></li>
+          <li><a href="https://dblp.uni-trier.de/pers/hd/w/Wild:Sebastian"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-dblp"/></svg>
+ dblp</a></li>
+          <li><a href="https://www.semanticscholar.org/author/3124206"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-semantic-scholar"/></svg>
+ Semantic Scholar</a></li>
+          <li><a href="https://arxiv.org/a/wild_s_2"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-arxiv"/></svg>
+ arXiv</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>Quick links:</p>
+        <ul class="link-group">
+          <li><a href="/publications/">my publications</a></li>
+          <li><a href="/cv.html">my CV</a></li>
+          <li><a href="/feed.xml">RSS feed</a></li>
+          <li><a href="https://disk.wild-inter.net/sharing/WwXHITc2j">my library</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

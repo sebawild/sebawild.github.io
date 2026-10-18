@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <script>document.documentElement.className += ' js';</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><title>Video 4-5: §4.5 The Knuth-Morris-Pratt algorithm</title>
+  <meta name="description" content="Website of Sebastian Wild, algorithms researcher">
+  <link rel="canonical" href="https://www.wild-inter.net/videos/comp526-fall2022/4-5/"><meta property="og:type" content="website">
+  <meta property="og:site_name" content="Sebastian Wild&#39;s Site">
+  <meta property="og:title" content="Video 4-5: §4.5 The Knuth-Morris-Pratt algorithm">
+  <meta property="og:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta property="og:url" content="https://www.wild-inter.net/videos/comp526-fall2022/4-5/">
+  <meta property="og:image" content="https://www.wild-inter.net/assets/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Sebastian Wild">
+  <meta property="og:locale" content="en_GB">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Video 4-5: §4.5 The Knuth-Morris-Pratt algorithm">
+  <meta name="twitter:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta name="twitter:image" content="https://www.wild-inter.net/assets/og-card.png">
+
+  <meta name="theme-color" content="#F5EBD9"><link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest"><link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/pagella/texgyrepagella-regular-webfont.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/epigrafica/epigrafica-entona-webfont.woff2">
+
+  <link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/fontawesome/fontawesome-all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+
+  <link rel="alternate" type="application/rss+xml" title="Sebastian Wild&#39;s Site"
+        href="https://www.wild-inter.net/feed.xml">
+
+  <script data-goatcounter="https://wild-inter-net.goatcounter.com/count"
+          async src="https://gc.zgo.at/count.js"></script>
+</head>
+
+
+  <body>
+
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header">
+
+  <div class="wrapper"><a class="site-title" href="/">
+      <img class="site-mark" src="/assets/two-pivots.svg"
+           alt="" width="100" height="100" aria-hidden="true">
+      <span class="site-wordmark">
+        <span class="site-name">Sebastian Wild</span>
+        <span class="site-tagline">Algorithms Group &middot; Universität Marburg</span>
+      </span>
+    </a>
+
+    <nav class="site-nav" aria-label="Main">
+
+      <button type="button" class="menu-icon" id="menu-toggle"
+              aria-expanded="false" aria-controls="site-nav-menu">
+        <svg viewBox="0 0 18 15" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="currentColor" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="currentColor" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+        <span class="visually-hidden">Menu</span>
+      </button>
+
+      <div class="trigger" id="site-nav-menu">
+          <a class="page-link" href="/research/"
+             >Research</a>
+          <a class="page-link" href="/teaching/"
+             >Teaching</a>
+          <a class="page-link" href="/posts/"
+             >Blog</a>
+          <a class="page-link" href="/about/"
+             >About</a>
+      </div>
+
+    </nav>
+
+  </div>
+
+</header>
+
+<script>
+  /* Mobile menu. Without JS the CSS leaves the menu permanently expanded,
+     so navigation still works — see the `.js` guard in _sass/_layout.scss. */
+  (function () {
+    var btn = document.getElementById('menu-toggle');
+    if (!btn) return;
+    var nav = btn.parentNode;
+
+    function setOpen(open) {
+      nav.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    btn.addEventListener('click', function () {
+      setOpen(!nav.classList.contains('is-open'));
+    });
+
+    document.addEventListener('click', function (e) {
+      if (nav.classList.contains('is-open') && !nav.contains(e.target)) setOpen(false);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && nav.classList.contains('is-open')) {
+        setOpen(false);
+        btn.focus();
+      }
+    });
+  })();
+</script>
+
+
+    <main id="content" class="page-content">
+      <div class="wrapper">
+        <article class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Video 4-5: §4.5 The Knuth-Morris-Pratt algorithm</h1>
+  </header>
+
+  <div class="post-content">
+    
+
+    <style>
+  .vo-summary { font-size: 0.9em; }
+  .vo-scroll { overflow-x: auto; margin-bottom: 1.5em; }
+  .vo-table { border-collapse: collapse; font-size: 0.9em; width: 100%; font-variant-numeric: tabular-nums; }
+  .vo-table.vo-compact { width: auto; margin-left: 0; margin-right: auto; }
+  .vo-table.vo-compact th, .vo-table.vo-compact td { white-space: nowrap; }
+  .vo-table th, .vo-table td { padding: 0.2em 0.45em; vertical-align: baseline; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.08); }
+  .vo-table th { border-bottom: 2px solid rgba(0,0,0,0.25); white-space: nowrap; }
+  .vo-table tr.vo-newunit td { border-top: 2px solid rgba(0,0,0,0.2); }
+  .vo-table .vo-num { text-align: right; white-space: nowrap; padding-left: 0.9em; }
+  .vo-mono { font-family: Menlo, Consolas, monospace; font-size: 0.8em; }
+  .vo-table td.vo-small, .vo-table td .vo-small { font-size: inherit; }
+  .vo-table td .vo-note { font-size: 0.9em; opacity: 0.85; }
+  .vo-nowrap { white-space: nowrap; }
+  .vo-small { font-size: 0.9em; }
+  .vo-muted { opacity: 0.6; }
+
+  /* search */
+  .ts { margin: 1em 0 1.5em; }
+  .ts-input { font: inherit; width: min(100%, 28em); padding: 0.3em 0.5em; border: 1px solid rgba(0,0,0,0.3); border-radius: 4px; background: rgba(255,255,255,0.6); }
+  .ts-status { margin-left: 0.5em; opacity: 0.7; }
+  .ts-results { margin-top: 0.5em; }
+  .ts-hit { margin: 0.6em 0; }
+  .ts-hit-title { font-size: 0.95em; }
+  .ts-hit-ctx { font-size: 0.85em; margin: 0.1em 0 0 1em; }
+  .ts-hit-ctx a.ts-t { font-variant-numeric: tabular-nums; margin-right: 0.4em; }
+  .ts mark, .tp-text mark { background: rgba(255, 210, 0, 0.45); color: inherit; padding: 0 0.05em; }
+
+  /* transcript page: player sticks to the top while reading */
+  .tp-bar { position: sticky; top: 0; z-index: 5; background: #F5EBD9; padding: 4px 0 6px; }
+  .tp-player { position: relative; max-width: 560px; aspect-ratio: 16 / 9;
+               padding: 5px; box-sizing: content-box; width: calc(100% - 12px);
+               background: #faf6ed; border: 1px solid #aeaa9e; border-radius: 4px; }
+  .tp-player iframe, .tp-player > div, .tp-start { position: absolute; top: 5px; left: 5px; width: calc(100% - 10px); height: calc(100% - 10px); border: 0; margin: 0; padding: 0; background: #000; }
+  .tp-start { cursor: pointer; overflow: hidden; }
+  .tp-start img { width: 100%; height: 100%; object-fit: cover; display: block; margin: 0; padding: 0; border: 0; border-radius: 0; }
+  .tp-start .yt-lite-play { position: absolute; left: 50%; top: 50%; width: 68px; height: 48px; transform: translate(-50%, -50%); }
+  .tp-start .yt-lite-play-bg { fill: #212121; fill-opacity: 0.8; }
+  .tp-start:hover .yt-lite-play-bg, .tp-start:focus-visible .yt-lite-play-bg { fill: #902015; fill-opacity: 1; }
+  .tp-controls { margin: 0.3em 0 0; opacity: 0.8; }
+  .tp-disclaimer { margin: 0.6em 0 1.2em; padding: 0.4em 0.6em; border-left: 3px solid rgba(144, 32, 21, 0.35); background: rgba(255, 255, 255, 0.35); }
+  .tp-controls label { margin-left: 1em; white-space: nowrap; }
+  .tp-text p { position: relative; }
+  .tp-text [data-t] { cursor: pointer; border-radius: 2px; }
+  .tp-text span[data-t]:hover { background: rgba(144, 32, 21, 0.08); }
+  .tp-text span.tp-now { background: rgba(144, 32, 21, 0.16); box-shadow: 0 0 0 2px rgba(144, 32, 21, 0.16); }
+  .tp-text .tp-time { font-size: 0.75em; font-variant-numeric: tabular-nums; opacity: 0.6; margin-right: 0.3em; text-decoration: none; }
+  .tp-text .tp-chapter { font-size: 1.15em; margin-top: 1.5em; }
+  .tp-text .tp-chapter a { font-size: 0.7em; opacity: 0.6; font-variant-numeric: tabular-nums; text-decoration: none; }
+  .tp-nav { display: flex; justify-content: space-between; gap: 1em; margin-top: 2em; }
+  .tp-nav .tp-next { margin-left: auto; text-align: right; }
+</style>
+
+<p class="vo-summary">
+  <a href="/videos/comp526-fall2022/">COMP 526 – Efficient Algorithms (Fall 2022)</a> · <a href="/teaching/comp526/fall2022/04-string-matching">unit page</a>
+  · <a href="https://youtu.be/gZJloopbHFQ">YouTube</a>
+  <br/>2022-10-26, 13:28
+</p>
+
+<div class="tp" data-id="gZJloopbHFQ">
+  <div class="tp-bar"><div class="tp-player" id="tp-player">
+    <button type="button" class="tp-start" data-t="0" aria-label="Play video">
+      <img src="/assets/video-thumbs/gZJloopbHFQ.webp" alt="" width="640" height="360" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/gZJloopbHFQ/hqdefault.jpg'">
+      <svg class="yt-lite-play" viewBox="0 0 68 48" aria-hidden="true" focusable="false"><path class="yt-lite-play-bg" d="M66.5 7.7c-.8-2.9-2.5-5.4-5.4-6.2C55.8.1 34 0 34 0S12.2.1 6.9 1.6C4 2.3 2.3 4.8 1.5 7.7.1 13 0 24 0 24s.1 11 1.5 16.3c.8 2.9 2.5 5.4 5.4 6.2C12.2 47.9 34 48 34 48s21.8-.1 27.1-1.6c2.9-.7 4.6-3.2 5.4-6.1C67.9 35 68 24 68 24s-.1-11-1.5-16.3z"/><path d="M45 24 27 14v20z" fill="#fff"/></svg>
+    </button>
+  </div>
+  <p class="tp-controls vo-small">
+    <em>Click any sentence to play from there.</em>
+    <label><input type="checkbox" class="tp-follow" checked> follow along</label>
+  </p></div>
+  <p class="tp-disclaimer vo-small"><em>The transcript was generated automatically by YouTube's speech
+  recognition and is offered as is. It may contain errors, in particular in concerning technical terms,
+  names and formulas.</em></p>
+  <div class="tp-text" lang="en">
+<h2 class="tp-chapter" id="t0"><a href="#t=0" data-t="0">0:00</a> Intro</h2>
+<p><a class="tp-time" href="#t=4" data-t="4">0:04</a> <span data-t="4">in the next subset subsection I want to</span> <span data-t="4">show you the full knuth Mori spread</span> <span data-t="6">algorithm</span> <span data-t="7">the essence of which you have seen</span> <span data-t="10">previously the the way to construct this</span> <span data-t="12">string matching automaton is most of</span> <span data-t="15">what knuth Mori spread is there&#39;s just</span> <span data-t="19">this this little blemish that you had to</span> <span data-t="21">store the transition function</span> <span data-t="23">the edges for this automaton for every</span> <span data-t="26">possible input character</span> <span data-t="28">even if most of those never occurred in</span> <span data-t="30">your pattern</span> <span data-t="32">and so the canoe with more spread</span> <span data-t="34">algorithm is a modification of that that</span> <span data-t="36">avoids this this overhead in space</span></p>
+<h2 class="tp-chapter" id="t40"><a href="#t=40" data-t="40">0:40</a> Failure Links</h2>
+<p><a class="tp-time" href="#t=44" data-t="44">0:44</a> <span data-t="44">and the idea for that is</span> <span data-t="44">to modify the type of automata we look</span> <span data-t="47">at</span> <span data-t="48">we Define a new type of transition which</span> <span data-t="51">doesn&#39;t have an exact correspondence in</span> <span data-t="53">the automata in the automaton world</span> <span data-t="56">but it&#39;s very convenient in at least in</span> <span data-t="59">this case</span> <span data-t="61">so um the third inside of those three</span> <span data-t="65">I don&#39;t think it was one inside per</span> <span data-t="67">person I think I said</span> <span data-t="69">it was basically invented independently</span> <span data-t="72">by two groups of them anyways that&#39;s the</span> <span data-t="76">historical the historical bit</span> <span data-t="78">uh</span> <span data-t="80">remember how we constructed the</span> <span data-t="82">automaton we always kept track of this</span> <span data-t="84">state X where we would be if you know</span> <span data-t="88">the first character wasn&#39;t there and</span> <span data-t="91">where we started looking if we have a</span> <span data-t="93">mismatch</span> <span data-t="95">why would we not delay this simulation</span> <span data-t="98">of this last step until we actually need</span> <span data-t="100">it</span> <span data-t="102">so in a way already before we just had</span> <span data-t="104">the current state and then the state X</span> <span data-t="107">and that was essentially all the</span> <span data-t="108">information but it&#39;s not it&#39;s not uh at</span> <span data-t="111">First Clear how you can do this</span></p>
+<p><a class="tp-time" href="#t=118" data-t="118">1:58</a> <span data-t="118">the right notion for this is a failure</span> <span data-t="118">link</span> <span data-t="119">that&#39;s a new type of of Link in the</span> <span data-t="121">automaton so it&#39;s an edge</span> <span data-t="123">but instead of uh</span> <span data-t="125">a character it has this</span> <span data-t="128">cross mark as an as a as a label which</span> <span data-t="131">says no character matched</span> <span data-t="134">and the way these work is if you&#39;re in a</span> <span data-t="137">state and you see a new character for</span> <span data-t="140">which you have an edge you have to take</span> <span data-t="142">that edge</span> <span data-t="144">if you don&#39;t have an edge for that</span> <span data-t="146">character</span> <span data-t="147">you follow the failure link but you keep</span> <span data-t="150">the same characters so you don&#39;t declare</span> <span data-t="153">the C done then as normally an automaton</span> <span data-t="156">would you keep the same character of the</span> <span data-t="159">text and try again</span> <span data-t="161">and that could mean</span> <span data-t="163">it still doesn&#39;t work because you only</span> <span data-t="165">have an edge for B so you have to take</span> <span data-t="167">another failure link and maybe another</span> <span data-t="170">failure link</span> <span data-t="171">and only at this point you can consume</span> <span data-t="174">the C because this this Loop Edge allows</span> <span data-t="177">the C</span> <span data-t="179">okay</span> <span data-t="181">so in a way the computations are like if</span> <span data-t="183">in a DFA you always know exactly what to</span> <span data-t="186">do because it&#39;s either there is an edge</span> <span data-t="188">for your character then you have to take</span> <span data-t="190">it well there&#39;s no such Edge then you</span> <span data-t="192">have to take the failure link no no</span> <span data-t="195">random guessing no no schroding us</span></p>
+<p><a class="tp-time" href="#t=197" data-t="197">3:17</a> <span data-t="197">whatever you&#39;re not in several States</span> <span data-t="200">um</span> <span data-t="201">but at the same time it&#39;s also not quite</span> <span data-t="203">like a DFA it&#39;s a little different</span> <span data-t="211">is our running example this time with</span> <span data-t="211">failure links instead of the</span> <span data-t="213">the tons of edges for all characters</span> <span data-t="216">I think you can already visually see</span> <span data-t="218">that you need fewer edges and here the</span> <span data-t="220">alphabet was just three characters</span> <span data-t="223">um</span> <span data-t="224">let me run through the example briefly</span> <span data-t="226">uh you start in state zero</span></p>
+<h2 class="tp-chapter" id="t208"><a href="#t=208" data-t="208">3:28</a> Failure link automaton - Example</h2>
+<p><a class="tp-time" href="#t=234" data-t="234">3:54</a> <span data-t="234">now I read an a sorry I should have said</span> <span data-t="234">I started in state 0 over to the left</span> <span data-t="236">now I read an A and after that I&#39;m in</span> <span data-t="238">state 1.</span> <span data-t="240">I read B I&#39;m in state two I read an a</span> <span data-t="242">I&#39;m in state three so far so good and</span> <span data-t="245">another B that brings me to State four</span> <span data-t="248">and an A and I&#39;m in happy in state five</span> <span data-t="251">but now uh I read a b instead of the C</span> <span data-t="255">so I can&#39;t take the next Edge so instead</span> <span data-t="258">I have to go back to three</span> <span data-t="261">the important bit is I&#39;m not consuming</span> <span data-t="263">the bead yet</span> <span data-t="265">I&#39;m only consuming the B when I appear</span> <span data-t="267">can finally take the transition that has</span> <span data-t="270">a b</span> <span data-t="271">that&#39;s the important distinction</span> <span data-t="273">I&#39;m in state four region a brings me to</span> <span data-t="276">State five I&#39;m in state five I cannot</span> <span data-t="278">read an a</span> <span data-t="280">the next character so what I have to do</span> <span data-t="282">is follow a failure link</span> <span data-t="284">brings me to state</span> <span data-t="286">three</span> <span data-t="288">now in state three I can still not read</span> <span data-t="289">an A so I have to go another failure</span> <span data-t="292">link back to one</span> <span data-t="293">and uh still no luck so I have to go</span> <span data-t="296">back to zero</span> <span data-t="298">and then I can read an a that brings me</span> <span data-t="300">back to State One</span> <span data-t="302">sometimes these uh can Cascade a bit</span></p>
+<p><a class="tp-time" href="#t=306" data-t="306">5:06</a> <span data-t="306">wrong</span> <span data-t="308">State One</span> <span data-t="309">I can read a b and go to state two I can</span> <span data-t="313">read an a go to state three</span> <span data-t="316">to B go to state four</span> <span data-t="318">but we haven&#39;t passed through State</span> <span data-t="320">seven so no match in this case it&#39;s a</span> <span data-t="323">different text</span> <span data-t="325">uh here&#39;s the same thing in nice</span></p>
+<p><a class="tp-time" href="#t=334" data-t="334">5:34</a> <span data-t="334">and that&#39;s that&#39;s the part I showed uh</span> <span data-t="334">here&#39;s the the pattern how it is aligned</span> <span data-t="336">with the text</span> <span data-t="353">I think this needs careful reading</span> <span data-t="353">what&#39;s the worst case time to process</span> <span data-t="355">one character</span> <span data-t="357">in such an automata and as I&#39;ve just</span> <span data-t="359">shown you</span></p>
+<p><a class="tp-time" href="#t=412" data-t="412">6:52</a> <span data-t="412">had at least 50 before with the other</span> <span data-t="412">questions</span> <span data-t="418">I&#39;ll leave you a little bit of space a</span> <span data-t="418">little bit of time</span> <span data-t="432">three more</span> <span data-t="432">two more</span> <span data-t="434">one more</span> <span data-t="441">ah there we go</span> <span data-t="441">okay</span> <span data-t="443">so we have a clear winner in terms of</span> <span data-t="445">popular vote and a few other answers but</span> <span data-t="448">uh that&#39;s the right one</span> <span data-t="451">uh so why is that the case so first of</span> <span data-t="454">all why is it not constant it would have</span> <span data-t="456">been nice like in DFA to have constant</span> <span data-t="458">time for each character</span> <span data-t="460">in a way that&#39;s true but only in an</span> <span data-t="462">amortized way remember that haunts us</span> <span data-t="464">again from</span> <span data-t="466">the resizing arrays we&#39;ll come to that</span> <span data-t="468">next week</span> <span data-t="470">uh I want to show that this</span> <span data-t="473">can actually happen the way that it&#39;s uh</span> <span data-t="477">why can it not be worse than m</span> <span data-t="481">well uh processing a character stops as</span> <span data-t="485">soon as you take an edge that consumes</span> <span data-t="487">that character</span> <span data-t="489">so you can only have more effort if you</span> <span data-t="492">have to follow failure links</span> <span data-t="494">because that&#39;s the only the only two</span> <span data-t="495">things that this automaton can do one</span> <span data-t="498">stops the processing and the other keeps</span> <span data-t="500">going so we have to have</span> <span data-t="502">more keep goings for this to be more</span> <span data-t="506">expensive</span> <span data-t="508">but a failure link always brings us</span> <span data-t="510">further to the right in to the left in</span> <span data-t="513">the picture</span></p>
+<h2 class="tp-chapter" id="t451"><a href="#t=451" data-t="451">7:31</a> Clicker Question</h2>
+<p><a class="tp-time" href="#t=515" data-t="515">8:35</a> <span data-t="515">uh they always lead to a state with a</span> <span data-t="517">smaller index</span> <span data-t="519">because they correspond to Shifting the</span> <span data-t="521">pattern further so you cannot have more</span> <span data-t="523">than M value links</span> <span data-t="526">but you you could have M if you have a</span> <span data-t="529">degenerate pattern like this with all</span> <span data-t="531">A&#39;s</span></p>
+<p><a class="tp-time" href="#t=538" data-t="538">8:58</a> <span data-t="538">so here uh if if you work out the</span> <span data-t="538">failure links they always just go one</span> <span data-t="540">hop back</span> <span data-t="553">intuitively because uh every position</span> <span data-t="553">could be a match uh</span> <span data-t="556">there&#39;s nothing in in the pattern it&#39;s</span> <span data-t="559">so self-symmetric self-similar</span> <span data-t="561">it doesn&#39;t block any of the occurrences</span> <span data-t="565">okay so that sounds bad but uh we&#39;ll see</span> <span data-t="567">that this is not such a big problem</span></p>
+<p><a class="tp-time" href="#t=576" data-t="576">9:36</a> <span data-t="576">I want to briefly show the the code for</span> <span data-t="576">the algorithm and then the analysis will</span> <span data-t="578">probably have to wait till next week</span> <span data-t="581">the knuth Mars proud algorithm is pretty</span> <span data-t="585">much just explained uh just translated</span> <span data-t="588">the idea I explained on the automaton to</span> <span data-t="591">code</span> <span data-t="592">to convince you that it&#39;s uh</span> <span data-t="595">it&#39;s easy to write this down in in a way</span> <span data-t="598">that&#39;s also efficient on computers to</span> <span data-t="600">execute</span> <span data-t="601">and to make it make it a bit more</span> <span data-t="603">concrete and precise</span></p>
+<p><a class="tp-time" href="#t=609" data-t="609">10:09</a> <span data-t="609">there&#39;s one function that will get to</span> <span data-t="609">next week which is Computing these</span> <span data-t="612">failure links</span> <span data-t="618">one obvious thing about the about the</span> <span data-t="618">automaton that I haven&#39;t stated</span> <span data-t="623">it doesn&#39;t need a transition function</span> <span data-t="623">for every state and every character it</span> <span data-t="626">just needs one failure link for each</span> <span data-t="628">state</span> <span data-t="630">we don&#39;t even need these other things</span> <span data-t="631">because it&#39;s implicit in the pattern I</span> <span data-t="634">know what the label of each of these</span> <span data-t="636">edges is it&#39;s just the corresponding</span> <span data-t="639">character of the pattern so all I need</span> <span data-t="642">to store about this automaton is the</span> <span data-t="644">failure links</span></p>
+<h2 class="tp-chapter" id="t647"><a href="#t=647" data-t="647">10:47</a> The Knuth-Morris-Pratt Algorithm</h2>
+<p><a class="tp-time" href="#t=650" data-t="650">10:50</a> <span data-t="650">so there&#39;s a function to compute those</span> <span data-t="650">Let&#39;s ignore it for now and then we have</span> <span data-t="652">an array</span> <span data-t="654">of the failure links which is just the</span> <span data-t="656">target of these Target of these arrows</span> <span data-t="658">for a state q fail Q is</span> <span data-t="662">the target of the failure link</span> <span data-t="665">then we start with position zero in the</span> <span data-t="668">text that&#39;s our first guess</span> <span data-t="669">and we start with State 0 in the</span> <span data-t="671">automaton that&#39;s our starting state</span> <span data-t="675">as long as we haven&#39;t read the entire</span> <span data-t="677">text</span> <span data-t="678">we check if we can follow the match Edge</span> <span data-t="682">which is is the current position in the</span> <span data-t="685">text matching the next in the pattern</span> <span data-t="690">if that&#39;s the case we follow the match</span> <span data-t="692">Edge which means we move I one step</span> <span data-t="694">further so we go to the next position in</span> <span data-t="696">the text and we also increment the state</span> <span data-t="699">in the automaton</span> <span data-t="701">that&#39;s the easy case</span> <span data-t="703">if we reach that way the accepting State</span> <span data-t="706">we can return the occurrence that we</span> <span data-t="708">found</span> <span data-t="708">and again I is the position in the text</span> <span data-t="710">that we compare so you have to go back</span> <span data-t="712">queue steps to get the</span> <span data-t="715">the return value is supposed to be the</span> <span data-t="717">starting position of the pattern in the</span> <span data-t="719">text so</span> <span data-t="720">hence the</span> <span data-t="722">I minus Q</span> <span data-t="724">now the interesting thing is the failure</span> <span data-t="726">link if the next character does not</span></p>
+<p><a class="tp-time" href="#t=728" data-t="728">12:08</a> <span data-t="728">match so in this case</span> <span data-t="731">these two two options if you&#39;re in a</span> <span data-t="736">normal State not the state zero then you</span> <span data-t="739">have to follow a failure link</span> <span data-t="741">so we check</span> <span data-t="742">we take one failure link and then check</span> <span data-t="745">again</span> <span data-t="746">and this checking again is just doing</span> <span data-t="749">the the while loop iteration one more</span> <span data-t="752">time</span> <span data-t="753">right so if we couldn&#39;t match a</span> <span data-t="755">character we do one failure link</span> <span data-t="757">and then we go back and try again and</span> <span data-t="760">this automatically does the right thing</span> <span data-t="763">if we&#39;re in state 0 then there is no</span> <span data-t="766">legal failure link so for State 0 we</span> <span data-t="769">just always go to the next position in</span> <span data-t="771">the correct the next character in the</span> <span data-t="773">text</span> <span data-t="775">in in the pictures I wrote this like</span> <span data-t="778">like this</span> <span data-t="780">uh so whenever you have a character</span> <span data-t="782">that&#39;s not the match one you just</span> <span data-t="784">consume it at this point because you</span> <span data-t="785">have to eventually get rid of those that</span> <span data-t="787">don&#39;t occur</span> <span data-t="789">so it&#39;s it&#39;s clear that there&#39;s um a</span> <span data-t="792">special case needed for this state zero</span> <span data-t="795">[Music]</span> <span data-t="795">um</span> <span data-t="796">and that&#39;s it not too</span> <span data-t="798">not too convoluted code I think</span></p>
+
+  </div>
+</div>
+
+<p class="tp-nav vo-small"><a href="/videos/comp526-fall2022/4-4/">← Video 4-4: §4.4 Constructing string matching DFAs</a><a class="tp-next" href="/videos/comp526-fall2022/4-6/">Video 4-6: §4.5 The Knuth-Morris-Pratt algorithm - analyssis →</a>
+</p>
+
+<script src="/assets/js/transcript-player.js" defer></script>
+
+  </div>
+
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Sebastian Wild</h2>
+
+    <div class="footer-col-wrapper">
+
+      <div class="footer-col footer-col-1">
+        <p>Contact:</p>
+
+        <ul class="link-group">
+          <li><a href="mailto:%77%69%6C%64@%69%6E%66%6F%72%6D%61%74%69%6B.%75%6E%69-%6D%61%72%62%75%72%67.%64%65" title="Contact me">wild at informatik.uni-marburg.de</a></li>
+          <li><a href="mailto:%77%69%6C%64@%6C%69%76%65%72%70%6F%6F%6C.%61%63.%75%6B" title="Contact me">wild at liverpool.ac.uk</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x34EE39A78B149255">PGP</a></li>
+          <li><a href="mailto:%73%65%62%61%77%69%6C%64@%67%6D%61%69%6C.%63%6F%6D" title="Contact me">sebawild at gmail</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x38600ABC14973198">PGP</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://www.uni-marburg.de/de/fb12/arbeitsgruppen/algorith/team/sebastian-wild">Website at UMR</a></li>
+          <li><a href="https://www.liverpool.ac.uk/computer-science/staff/sebastian-wild">Website at UoL</a></li>
+          <li><a href="https://tcs.csc.liv.ac.uk">TCS @ Liverpool</a></li>
+        </ul>
+
+        <p class="footer-note">
+          Retired addresses (no longer read):
+          <span class="retired">wild at uwaterloo.ca</span>,
+          <span class="retired">wild at cs.uni-kl.de</span>.
+        </p>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <p>Elsewhere:</p>
+
+        <ul class="link-group">
+          <li><a href="https://github.com/sebawild" title="GitHub sebawild"><i class="fab fa-github" aria-hidden="true"></i> GitHub sebawild</a></li>
+          <li><a rel="me" href="https://mathstodon.xyz/@wild" title="Mastodon @wild@mathstodon.xyz"><i class="fab fa-mastodon" aria-hidden="true"></i> @wild@mathstodon.xyz</a></li>
+          <li><a href="https://bsky.app/profile/sebastianwild.bsky.social" title="Bluesky @sebastianwild.bsky.social"><span aria-hidden="true">🦋</span> @sebastianwild</a></li>
+          <li><a href="https://www.linkedin.com/in/sebastian-wild-liverpool/"><i class="fab fa-linkedin" aria-hidden="true"></i> LinkedIn profile</a></li>
+          <li><a href="https://www.youtube.com/c/SebastianWildLectures"><i class="fab fa-youtube" aria-hidden="true"></i> YouTube channel</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://orcid.org/0000-0002-6061-9177" title="ORCID: 0000-0002-6061-9177"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-orcid"/></svg>
+ 0000-0002-6061-9177</a></li>
+          <li><a href="https://scholar.google.de/citations?user=aMyZiK0AAAAJ"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-google-scholar"/></svg>
+ Google Scholar</a></li>
+          <li><a href="https://dblp.uni-trier.de/pers/hd/w/Wild:Sebastian"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-dblp"/></svg>
+ dblp</a></li>
+          <li><a href="https://www.semanticscholar.org/author/3124206"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-semantic-scholar"/></svg>
+ Semantic Scholar</a></li>
+          <li><a href="https://arxiv.org/a/wild_s_2"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-arxiv"/></svg>
+ arXiv</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>Quick links:</p>
+        <ul class="link-group">
+          <li><a href="/publications/">my publications</a></li>
+          <li><a href="/cv.html">my CV</a></li>
+          <li><a href="/feed.xml">RSS feed</a></li>
+          <li><a href="https://disk.wild-inter.net/sharing/WwXHITc2j">my library</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

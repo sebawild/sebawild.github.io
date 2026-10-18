@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <script>document.documentElement.className += ' js';</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><title>Video 9-3: §9.3 Primitive RMQ &amp; Sparse Tables</title>
+  <meta name="description" content="Website of Sebastian Wild, algorithms researcher">
+  <link rel="canonical" href="https://www.wild-inter.net/videos/comp526-fall2022/9-3/"><meta property="og:type" content="website">
+  <meta property="og:site_name" content="Sebastian Wild&#39;s Site">
+  <meta property="og:title" content="Video 9-3: §9.3 Primitive RMQ &amp; Sparse Tables">
+  <meta property="og:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta property="og:url" content="https://www.wild-inter.net/videos/comp526-fall2022/9-3/">
+  <meta property="og:image" content="https://www.wild-inter.net/assets/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Sebastian Wild">
+  <meta property="og:locale" content="en_GB">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Video 9-3: §9.3 Primitive RMQ &amp; Sparse Tables">
+  <meta name="twitter:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta name="twitter:image" content="https://www.wild-inter.net/assets/og-card.png">
+
+  <meta name="theme-color" content="#F5EBD9"><link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest"><link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/pagella/texgyrepagella-regular-webfont.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/epigrafica/epigrafica-entona-webfont.woff2">
+
+  <link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/fontawesome/fontawesome-all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+
+  <link rel="alternate" type="application/rss+xml" title="Sebastian Wild&#39;s Site"
+        href="https://www.wild-inter.net/feed.xml">
+
+  <script data-goatcounter="https://wild-inter-net.goatcounter.com/count"
+          async src="https://gc.zgo.at/count.js"></script>
+</head>
+
+
+  <body>
+
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header">
+
+  <div class="wrapper"><a class="site-title" href="/">
+      <img class="site-mark" src="/assets/two-pivots.svg"
+           alt="" width="100" height="100" aria-hidden="true">
+      <span class="site-wordmark">
+        <span class="site-name">Sebastian Wild</span>
+        <span class="site-tagline">Algorithms Group &middot; Universität Marburg</span>
+      </span>
+    </a>
+
+    <nav class="site-nav" aria-label="Main">
+
+      <button type="button" class="menu-icon" id="menu-toggle"
+              aria-expanded="false" aria-controls="site-nav-menu">
+        <svg viewBox="0 0 18 15" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="currentColor" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="currentColor" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+        <span class="visually-hidden">Menu</span>
+      </button>
+
+      <div class="trigger" id="site-nav-menu">
+          <a class="page-link" href="/research/"
+             >Research</a>
+          <a class="page-link" href="/teaching/"
+             >Teaching</a>
+          <a class="page-link" href="/posts/"
+             >Blog</a>
+          <a class="page-link" href="/about/"
+             >About</a>
+      </div>
+
+    </nav>
+
+  </div>
+
+</header>
+
+<script>
+  /* Mobile menu. Without JS the CSS leaves the menu permanently expanded,
+     so navigation still works — see the `.js` guard in _sass/_layout.scss. */
+  (function () {
+    var btn = document.getElementById('menu-toggle');
+    if (!btn) return;
+    var nav = btn.parentNode;
+
+    function setOpen(open) {
+      nav.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    btn.addEventListener('click', function () {
+      setOpen(!nav.classList.contains('is-open'));
+    });
+
+    document.addEventListener('click', function (e) {
+      if (nav.classList.contains('is-open') && !nav.contains(e.target)) setOpen(false);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && nav.classList.contains('is-open')) {
+        setOpen(false);
+        btn.focus();
+      }
+    });
+  })();
+</script>
+
+
+    <main id="content" class="page-content">
+      <div class="wrapper">
+        <article class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Video 9-3: §9.3 Primitive RMQ &amp; Sparse Tables</h1>
+  </header>
+
+  <div class="post-content">
+    
+
+    <style>
+  .vo-summary { font-size: 0.9em; }
+  .vo-scroll { overflow-x: auto; margin-bottom: 1.5em; }
+  .vo-table { border-collapse: collapse; font-size: 0.9em; width: 100%; font-variant-numeric: tabular-nums; }
+  .vo-table.vo-compact { width: auto; margin-left: 0; margin-right: auto; }
+  .vo-table.vo-compact th, .vo-table.vo-compact td { white-space: nowrap; }
+  .vo-table th, .vo-table td { padding: 0.2em 0.45em; vertical-align: baseline; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.08); }
+  .vo-table th { border-bottom: 2px solid rgba(0,0,0,0.25); white-space: nowrap; }
+  .vo-table tr.vo-newunit td { border-top: 2px solid rgba(0,0,0,0.2); }
+  .vo-table .vo-num { text-align: right; white-space: nowrap; padding-left: 0.9em; }
+  .vo-mono { font-family: Menlo, Consolas, monospace; font-size: 0.8em; }
+  .vo-table td.vo-small, .vo-table td .vo-small { font-size: inherit; }
+  .vo-table td .vo-note { font-size: 0.9em; opacity: 0.85; }
+  .vo-nowrap { white-space: nowrap; }
+  .vo-small { font-size: 0.9em; }
+  .vo-muted { opacity: 0.6; }
+
+  /* search */
+  .ts { margin: 1em 0 1.5em; }
+  .ts-input { font: inherit; width: min(100%, 28em); padding: 0.3em 0.5em; border: 1px solid rgba(0,0,0,0.3); border-radius: 4px; background: rgba(255,255,255,0.6); }
+  .ts-status { margin-left: 0.5em; opacity: 0.7; }
+  .ts-results { margin-top: 0.5em; }
+  .ts-hit { margin: 0.6em 0; }
+  .ts-hit-title { font-size: 0.95em; }
+  .ts-hit-ctx { font-size: 0.85em; margin: 0.1em 0 0 1em; }
+  .ts-hit-ctx a.ts-t { font-variant-numeric: tabular-nums; margin-right: 0.4em; }
+  .ts mark, .tp-text mark { background: rgba(255, 210, 0, 0.45); color: inherit; padding: 0 0.05em; }
+
+  /* transcript page: player sticks to the top while reading */
+  .tp-bar { position: sticky; top: 0; z-index: 5; background: #F5EBD9; padding: 4px 0 6px; }
+  .tp-player { position: relative; max-width: 560px; aspect-ratio: 16 / 9;
+               padding: 5px; box-sizing: content-box; width: calc(100% - 12px);
+               background: #faf6ed; border: 1px solid #aeaa9e; border-radius: 4px; }
+  .tp-player iframe, .tp-player > div, .tp-start { position: absolute; top: 5px; left: 5px; width: calc(100% - 10px); height: calc(100% - 10px); border: 0; margin: 0; padding: 0; background: #000; }
+  .tp-start { cursor: pointer; overflow: hidden; }
+  .tp-start img { width: 100%; height: 100%; object-fit: cover; display: block; margin: 0; padding: 0; border: 0; border-radius: 0; }
+  .tp-start .yt-lite-play { position: absolute; left: 50%; top: 50%; width: 68px; height: 48px; transform: translate(-50%, -50%); }
+  .tp-start .yt-lite-play-bg { fill: #212121; fill-opacity: 0.8; }
+  .tp-start:hover .yt-lite-play-bg, .tp-start:focus-visible .yt-lite-play-bg { fill: #902015; fill-opacity: 1; }
+  .tp-controls { margin: 0.3em 0 0; opacity: 0.8; }
+  .tp-disclaimer { margin: 0.6em 0 1.2em; padding: 0.4em 0.6em; border-left: 3px solid rgba(144, 32, 21, 0.35); background: rgba(255, 255, 255, 0.35); }
+  .tp-controls label { margin-left: 1em; white-space: nowrap; }
+  .tp-text p { position: relative; }
+  .tp-text [data-t] { cursor: pointer; border-radius: 2px; }
+  .tp-text span[data-t]:hover { background: rgba(144, 32, 21, 0.08); }
+  .tp-text span.tp-now { background: rgba(144, 32, 21, 0.16); box-shadow: 0 0 0 2px rgba(144, 32, 21, 0.16); }
+  .tp-text .tp-time { font-size: 0.75em; font-variant-numeric: tabular-nums; opacity: 0.6; margin-right: 0.3em; text-decoration: none; }
+  .tp-text .tp-chapter { font-size: 1.15em; margin-top: 1.5em; }
+  .tp-text .tp-chapter a { font-size: 0.7em; opacity: 0.6; font-variant-numeric: tabular-nums; text-decoration: none; }
+  .tp-nav { display: flex; justify-content: space-between; gap: 1em; margin-top: 2em; }
+  .tp-nav .tp-next { margin-left: auto; text-align: right; }
+</style>
+
+<p class="vo-summary">
+  <a href="/videos/comp526-fall2022/">COMP 526 – Efficient Algorithms (Fall 2022)</a> · <a href="/teaching/comp526/fall2022/09-range-min">unit page</a>
+  · <a href="https://youtu.be/N222tj4iPqg">YouTube</a>
+  <br/>2022-12-14, 14:52
+</p>
+
+<div class="tp" data-id="N222tj4iPqg">
+  <div class="tp-bar"><div class="tp-player" id="tp-player">
+    <button type="button" class="tp-start" data-t="0" aria-label="Play video">
+      <img src="/assets/video-thumbs/N222tj4iPqg.webp" alt="" width="640" height="360" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/N222tj4iPqg/hqdefault.jpg'">
+      <svg class="yt-lite-play" viewBox="0 0 68 48" aria-hidden="true" focusable="false"><path class="yt-lite-play-bg" d="M66.5 7.7c-.8-2.9-2.5-5.4-5.4-6.2C55.8.1 34 0 34 0S12.2.1 6.9 1.6C4 2.3 2.3 4.8 1.5 7.7.1 13 0 24 0 24s.1 11 1.5 16.3c.8 2.9 2.5 5.4 5.4 6.2C12.2 47.9 34 48 34 48s21.8-.1 27.1-1.6c2.9-.7 4.6-3.2 5.4-6.1C67.9 35 68 24 68 24s-.1-11-1.5-16.3z"/><path d="M45 24 27 14v20z" fill="#fff"/></svg>
+    </button>
+  </div>
+  <p class="tp-controls vo-small">
+    <em>Click any sentence to play from there.</em>
+    <label><input type="checkbox" class="tp-follow" checked> follow along</label>
+  </p></div>
+  <p class="tp-disclaimer vo-small"><em>The transcript was generated automatically by YouTube's speech
+  recognition and is offered as is. It may contain errors, in particular in concerning technical terms,
+  names and formulas.</em></p>
+  <div class="tp-text" lang="en">
+<p><a class="tp-time" href="#t=3" data-t="3">0:03</a> <span data-t="3">in the next section we&#39;ll look at some</span> <span data-t="3">of the more Immediate Solutions for the</span> <span data-t="6">rmq problem</span> <span data-t="7">and we&#39;ll see that these are actually</span> <span data-t="8">building blocks we need later on for the</span> <span data-t="11">sophisticated version</span> <span data-t="12">it will be again in a way</span> <span data-t="15">uh the final solution will not be some</span> <span data-t="19">uh genius insight and then the rest just</span> <span data-t="22">Falls in place it will be a cool</span> <span data-t="25">technique</span> <span data-t="26">but then building on the simpler things</span> <span data-t="29">that we discussed first</span> <span data-t="31">and I don&#39;t know if you&#39;ve spotted this</span> <span data-t="33">pattern uh that happened in other places</span> <span data-t="35">too</span> <span data-t="37">so it&#39;s maybe also a way to advertise</span> <span data-t="39">for always try the simple things first</span> <span data-t="42">put down what you can easily achieve and</span> <span data-t="44">see how far that gets you</span> <span data-t="46">um and then you have a repertoire to</span> <span data-t="49">come back to</span></p>
+<p><a class="tp-time" href="#t=54" data-t="54">0:54</a> <span data-t="54">okay I&#39;ll make this more concrete but</span> <span data-t="54">Let&#39;s do let&#39;s do the very very simple</span> <span data-t="56">things first</span> <span data-t="57">uh</span> <span data-t="59">it&#39;s a problem where we have something</span> <span data-t="61">at pre-processing time something a query</span> <span data-t="63">time let&#39;s let&#39;s etch out the extreme</span> <span data-t="64">cases first</span> <span data-t="66">we can either do nothing at</span> <span data-t="69">pre-processing time right</span> <span data-t="71">then all we have to all we have left at</span> <span data-t="75">query time is to just go through the</span> <span data-t="77">array and find the smallest element</span> <span data-t="79">so that&#39;s a linear scan of this of this</span> <span data-t="82">range you just go through find the</span> <span data-t="84">minimum you all know how to code that by</span> <span data-t="86">now I guess</span> <span data-t="87">um so that&#39;s that&#39;s not hard to do</span> <span data-t="90">but of course the query in the in the</span> <span data-t="93">worst case is the entire array or almost</span> <span data-t="96">the entire array and then you need</span> <span data-t="99">linear time for the queries</span> <span data-t="102">but you could even say you you spend</span> <span data-t="104">zero time at pre-processing but let&#39;s be</span> <span data-t="107">generous and call that constant time</span> <span data-t="109">just returning</span> <span data-t="111">okay that&#39;s</span> <span data-t="113">not too useful because um</span> <span data-t="115">uh the queries are very slow</span> <span data-t="118">uh The Other Extreme is I don&#39;t want to</span> <span data-t="121">spend any thought on the query time on</span> <span data-t="123">the query side</span> <span data-t="125">I can&#39;t do that if I have pre-computed</span> <span data-t="128">all answers</span> <span data-t="130">so this is not completely out of the</span> <span data-t="133">question you could have a big array</span> <span data-t="136">a two-dimensional array for all</span></p>
+<p><a class="tp-time" href="#t=138" data-t="138">2:18</a> <span data-t="138">positions I and J it can be a triangular</span> <span data-t="141">Matrix we only need it for I less than J</span> <span data-t="143">but that&#39;s just a factor of two so that</span> <span data-t="145">won&#39;t won&#39;t save us much</span> <span data-t="147">so we store in this array</span> <span data-t="149">um all the possible Arrangement queries</span> <span data-t="151">up front we do everything at</span> <span data-t="153">pre-processing time</span> <span data-t="155">then the the time to answer a query is</span> <span data-t="158">just finding the position in the array</span> <span data-t="160">that&#39;s constant time then</span> <span data-t="163">but the query time is really slow if you</span> <span data-t="166">do it the naive way you would have</span> <span data-t="168">for I from 1 to n for J from I to n so a</span> <span data-t="173">double Loop and then inside the loop you</span> <span data-t="175">do a scan like this</span> <span data-t="177">and so</span> <span data-t="178">um in terms of the big Theta class</span> <span data-t="180">that&#39;s that&#39;s cubic</span> <span data-t="182">that&#39;s very very slow</span></p>
+<p><a class="tp-time" href="#t=189" data-t="189">3:09</a> <span data-t="189">you can very slightly improve this uh to</span> <span data-t="189">quadratic time instead where essentially</span> <span data-t="192">you compute each of these values in</span> <span data-t="194">constant time now</span> <span data-t="196">and the the reason why you can do this</span> <span data-t="198">is a is a simple observation but I think</span> <span data-t="201">it&#39;s worth stating that</span> <span data-t="205">suppose you have some some range I the J</span> <span data-t="209">if you if you&#39;re smart about the order</span> <span data-t="211">in which you compute the answers</span> <span data-t="214">you could say okay that&#39;s that range is</span> <span data-t="218">some range with one more element so I</span> <span data-t="221">look up</span> <span data-t="223">hopefully I have computed that first the</span> <span data-t="226">range that ends one element early</span> <span data-t="228">and now there&#39;s really two options for</span> <span data-t="230">the minimum of the entire range</span> <span data-t="233">the minimum can either be the new</span> <span data-t="234">element or it&#39;s the old element the old</span> <span data-t="237">minimum in the in the left</span> <span data-t="239">so it can be the Min in here</span> <span data-t="242">or this one</span> <span data-t="243">so I have I have one comparison to make</span> <span data-t="246">I&#39;ll look up where the minimum is in the</span> <span data-t="248">in the</span> <span data-t="249">I up to J minus 1 range pick out that</span> <span data-t="252">element and compare it to this new one</span> <span data-t="254">new last element</span> <span data-t="256">and whatever is smaller wins and gets uh</span> <span data-t="259">the entry of that of that next entry</span></p>
+<p><a class="tp-time" href="#t=267" data-t="267">4:27</a> <span data-t="267">and that way you only spend constant</span> <span data-t="267">time for each element to fill that&#39;s</span> <span data-t="269">better</span> <span data-t="270">uh but still a long way away from linear</span> <span data-t="273">time</span> <span data-t="278">and I think this is</span> <span data-t="278">um</span> <span data-t="279">this is all you can do with these uh</span> <span data-t="281">very simple Solutions</span></p>
+<p><a class="tp-time" href="#t=288" data-t="288">4:48</a> <span data-t="288">now if you think about this a bit</span> <span data-t="288">um we kind of like this pre-compute all</span> <span data-t="290">because it&#39;s very fast at query time</span> <span data-t="293">but maybe there&#39;s an option to not store</span> <span data-t="296">every single query</span> <span data-t="298">because that not only costs us space it</span> <span data-t="300">also costs us the time to compute the</span> <span data-t="302">all the entries or even write the</span> <span data-t="304">entries at least</span></p>
+<p><a class="tp-time" href="#t=311" data-t="311">5:11</a> <span data-t="311">and so that&#39;s what the the sparse tables</span> <span data-t="311">um do effectively they they have another</span> <span data-t="314">observation about the nature of this</span> <span data-t="317">problem</span> <span data-t="318">that allows you to reduce what you store</span> <span data-t="320">a bit more</span></p>
+<p><a class="tp-time" href="#t=326" data-t="326">5:26</a> <span data-t="326">we still have a such a two-dimensional</span> <span data-t="326">uh Matrix but the meaning of the entries</span> <span data-t="328">will be a bit different</span> <span data-t="330">we only store this we only store an</span> <span data-t="333">entry</span> <span data-t="334">when the length of this range is a power</span> <span data-t="338">of two</span> <span data-t="340">okay like a shallow um superficial com</span> <span data-t="344">uh comment whenever some</span> <span data-t="346">always try powers of two first they</span> <span data-t="348">often work but uh I mean there&#39;s um</span> <span data-t="351">there&#39;s a reason in this case for that</span> <span data-t="353">that I&#39;ll show you in a second</span> <span data-t="355">uh but let&#39;s let&#39;s suppose we do that uh</span> <span data-t="359">how how much does that help</span> <span data-t="362">we still have all starting positions I</span> <span data-t="364">but then we could say we don&#39;t have all</span> <span data-t="366">uh right endpoints J</span> <span data-t="369">we only keep those that give us a power</span> <span data-t="371">of two</span> <span data-t="372">because the range is is bounded by n</span> <span data-t="376">there&#39;s only log n powers of 2 until you</span> <span data-t="379">hit the end of the array</span></p>
+<p><a class="tp-time" href="#t=384" data-t="384">6:24</a> <span data-t="384">and so we have at most n log n entries</span> <span data-t="384">that&#39;s much much fewer than than N</span> <span data-t="387">squared</span> <span data-t="389">and so if we want we can store that in a</span> <span data-t="391">different Matrix I gave it a different</span> <span data-t="393">name to be clear so it&#39;s m Prime</span> <span data-t="395">and the meaning is as is defined here so</span> <span data-t="399">it&#39;s</span> <span data-t="400">it&#39;s m of I</span> <span data-t="404">and then instead of J we have I plus 2</span> <span data-t="407">to the k</span> <span data-t="409">okay</span> <span data-t="411">so we&#39;re still storing the explicit</span> <span data-t="414">results of some arrangement queries but</span> <span data-t="416">only a small subset of them</span></p>
+<p><a class="tp-time" href="#t=422" data-t="422">7:02</a> <span data-t="422">but then how do you answer a query</span> <span data-t="422">that&#39;s not at length of Power of Two</span> <span data-t="432">and the trick here is that</span> <span data-t="432">whatever your range is</span> <span data-t="435">you can cover it with two ranges that</span> <span data-t="437">have length Power of Two so that they at</span> <span data-t="441">least meet in the middle or overlap a</span> <span data-t="443">bit</span> <span data-t="445">now why does that help you can</span> <span data-t="447">independently look up the the blue range</span> <span data-t="449">and the green range so the the power of</span> <span data-t="452">two length range aligned left and</span> <span data-t="453">aligned right in your range</span> <span data-t="456">and you will find that there&#39;s two two</span> <span data-t="457">answers from these those are the Minima</span> <span data-t="460">in the ranges in the green and blue</span> <span data-t="461">range</span></p>
+<p><a class="tp-time" href="#t=466" data-t="466">7:46</a> <span data-t="466">and the minimum of the entire range has</span> <span data-t="466">to be one of the two</span> <span data-t="468">it has to be one of the elements</span> <span data-t="469">somewhere and every element either lies</span> <span data-t="472">in the green range or in the blue range</span> <span data-t="473">or maybe even in both</span></p>
+<p><a class="tp-time" href="#t=479" data-t="479">7:59</a> <span data-t="479">and so formally we can solve the rmq</span> <span data-t="479">query in this case by taking whatever is</span> <span data-t="482">smaller</span> <span data-t="483">the minimum of the blue range of the</span> <span data-t="485">minimum of the green range</span> <span data-t="487">and these again are looked up in our in</span> <span data-t="490">our M Prime table</span> <span data-t="493">because we can pick them so that the</span> <span data-t="495">length is a power of two</span></p>
+<p><a class="tp-time" href="#t=504" data-t="504">8:24</a> <span data-t="504">I guess I should fix this mistake here</span> <span data-t="504">this uh</span> <span data-t="505">a minus 1 because we count endpoints</span> <span data-t="508">inclusive right</span> <span data-t="516">the blue range is very easy you just</span> <span data-t="516">start from I and add a power of two the</span> <span data-t="519">green ranges you have to start with j</span> <span data-t="520">and subtract right so you get this left</span> <span data-t="523">and right aligned</span></p>
+<p><a class="tp-time" href="#t=534" data-t="534">8:54</a> <span data-t="534">and so yeah I guess the I don&#39;t know if</span> <span data-t="534">I can squeeze that</span> <span data-t="536">here</span> <span data-t="544">the trick is that this is m r Prime I</span> <span data-t="544">k</span> <span data-t="546">and this one&#39;s M Prime</span> <span data-t="549">of this lengthy thing j minus 2 to the K</span> <span data-t="552">plus 1.</span> <span data-t="554">and then K</span> <span data-t="556">so both of these the red the green and</span> <span data-t="558">the blue uh value can be looked up in</span> <span data-t="561">our</span> <span data-t="562">sparse table</span></p>
+<p><a class="tp-time" href="#t=567" data-t="567">9:27</a> <span data-t="567">I guess I should have said that&#39;s where</span> <span data-t="567">the name comes from</span> <span data-t="569">you&#39;re trying to store</span> <span data-t="571">the original pre-compute all table but</span> <span data-t="574">in the sparse way you only remember</span> <span data-t="577">a small subset of the of the actual</span> <span data-t="580">values and you forget all the rest</span> <span data-t="582">turns out you can</span> <span data-t="584">you can reconstruct them at runtime with</span> <span data-t="586">just one more comparison</span> <span data-t="588">all right</span></p>
+<p><a class="tp-time" href="#t=596" data-t="596">9:56</a> <span data-t="596">so that&#39;s the structure of the of the</span> <span data-t="596">table we store we also have to</span> <span data-t="597">pre-compute that at a pre-processing</span> <span data-t="600">time</span> <span data-t="601">but you can do this with the same trick</span> <span data-t="603">as before</span> <span data-t="605">if you&#39;re if you&#39;re trying to fill</span> <span data-t="609">this table</span></p>
+<p><a class="tp-time" href="#t=616" data-t="616">10:16</a> <span data-t="616">what that means is a range that starts</span> <span data-t="616">at I and exchange extends</span> <span data-t="620">to the K plus positions</span> <span data-t="628">well I can I can cut that range in half</span> <span data-t="628">then I have two ranges of the next</span> <span data-t="631">smaller Power of Two</span></p>
+<p><a class="tp-time" href="#t=637" data-t="637">10:37</a> <span data-t="637">and so you can you can again get that</span> <span data-t="637">from</span> <span data-t="642">from this</span> <span data-t="642">we have to look up the values but other</span> <span data-t="645">than that so we take M Prime</span> <span data-t="652">I and K minus 1.</span> <span data-t="652">that&#39;s this range</span></p>
+<p><a class="tp-time" href="#t=658" data-t="658">10:58</a> <span data-t="658">and the second range is is the one that</span> <span data-t="658">starts later so it&#39;s</span> <span data-t="661">I plus 2 to the K minus 1.</span> <span data-t="664">then K minus 1.</span> <span data-t="670">the minimum in the entire range has to</span> <span data-t="670">either line the left or in the right</span> <span data-t="671">half and this is the way to find out</span> <span data-t="674">that way again in the pre-processing</span> <span data-t="676">step you only spend the constant amount</span> <span data-t="679">of effort for filling each entry</span> <span data-t="682">and so the pre-processing time is is</span> <span data-t="685">proportional to the size of this m Prime</span> <span data-t="687">array</span></p>
+<p><a class="tp-time" href="#t=693" data-t="693">11:33</a> <span data-t="693">right so without too much complicated</span> <span data-t="693">techniques we get this analog n</span> <span data-t="696">pre-processing time constant query time</span> <span data-t="697">question</span> <span data-t="699">and</span> <span data-t="707">find the thing whatever</span> <span data-t="707">uh so the question was how can why can&#39;t</span> <span data-t="709">why can&#39;t we simply search the array</span> <span data-t="712">sure</span></p>
+<p><a class="tp-time" href="#t=723" data-t="723">12:03</a> <span data-t="723">right</span> <span data-t="723">simply short there and find it rather</span> <span data-t="725">than going to</span> <span data-t="727">oh sorry all right sure</span> <span data-t="731">uh well</span> <span data-t="734">yeah yeah okay uh the game is that</span> <span data-t="737">you&#39;re not allowed to modify the array</span> <span data-t="740">and if you think about the</span> <span data-t="743">I think it&#39;s an important point so</span> <span data-t="746">uh this this may become clear here</span> <span data-t="750">if you&#39;re if you&#39;re trying to find the</span> <span data-t="752">the longest overlap between two of these</span> <span data-t="755">suffixes</span> <span data-t="756">if you were to take this array and just</span> <span data-t="758">sort it you would completely lose the</span> <span data-t="760">order</span> <span data-t="762">and so I don&#39;t know you would have maybe</span> <span data-t="764">all the zeros up front so you would you</span> <span data-t="766">would get zero overlap between these so</span> <span data-t="768">the connection is lost to what the array</span> <span data-t="770">originally represented</span> <span data-t="773">uh so</span> <span data-t="774">this is only interesting if you&#39;re not</span> <span data-t="776">allowed to modify the array</span> <span data-t="780">uh in a sorted array I guess yeah the</span> <span data-t="782">range minimum in any range is just the</span> <span data-t="784">leftmost position right</span> <span data-t="786">yeah</span> <span data-t="787">but the the point here if you want</span> <span data-t="790">uh something I didn&#39;t stress</span> <span data-t="793">all that much</span> <span data-t="796">uh you can pretend the ray the array is</span> <span data-t="798">just read only for for what we&#39;re doing</span></p>
+<p><a class="tp-time" href="#t=811" data-t="811">13:31</a> <span data-t="811">okay so we got our pre-processing time</span> <span data-t="811">and space down to n log n</span> <span data-t="815">and that&#39;s where</span> <span data-t="816">um if you&#39;ve been doing data structures</span> <span data-t="818">for a while you you may get curious this</span> <span data-t="821">login Factor often can be removed with</span> <span data-t="824">additional tricks and we&#39;ve seen this</span> <span data-t="826">over and over already in this module</span> <span data-t="828">we&#39;ve seen it for the parallel prefix</span> <span data-t="831">sum for example</span> <span data-t="833">we have the solution</span> <span data-t="835">that had login span but then n log n</span> <span data-t="839">work</span> <span data-t="840">whereas the sequential algorithm had</span> <span data-t="842">linear work</span> <span data-t="843">and at the time we applied a blocking</span> <span data-t="846">trick and could get away from</span> <span data-t="848">from that and log n to linear</span> <span data-t="851">in a way something similar works here</span> <span data-t="854">too</span> <span data-t="854">unfortunately it&#39;s it&#39;s more tricky</span> <span data-t="856">because</span> <span data-t="858">um there&#39;s still some problem left</span> <span data-t="860">so the the solution will again use this</span> <span data-t="864">sparse table solution as a black box</span> <span data-t="867">on a smaller instance of the problem</span> <span data-t="871">instead of doing it for the whole array</span> <span data-t="873">of n numbers we&#39;ll do it for something</span> <span data-t="875">like n divided log n numbers</span></p>
+<p><a class="tp-time" href="#t=882" data-t="882">14:42</a> <span data-t="882">but you still somehow have to solve the</span> <span data-t="882">original problem</span> <span data-t="884">and so that might not be so clear at</span> <span data-t="887">first</span></p>
+
+  </div>
+</div>
+
+<p class="tp-nav vo-small"><a href="/videos/comp526-fall2022/9-2/">← Video 9-2: §9.2 LCE using RMQ</a><a class="tp-next" href="/videos/comp526-fall2022/9-4/">Video 9-4: §9.4 Cartesian trees →</a>
+</p>
+
+<script src="/assets/js/transcript-player.js" defer></script>
+
+  </div>
+
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Sebastian Wild</h2>
+
+    <div class="footer-col-wrapper">
+
+      <div class="footer-col footer-col-1">
+        <p>Contact:</p>
+
+        <ul class="link-group">
+          <li><a href="mailto:%77%69%6C%64@%69%6E%66%6F%72%6D%61%74%69%6B.%75%6E%69-%6D%61%72%62%75%72%67.%64%65" title="Contact me">wild at informatik.uni-marburg.de</a></li>
+          <li><a href="mailto:%77%69%6C%64@%6C%69%76%65%72%70%6F%6F%6C.%61%63.%75%6B" title="Contact me">wild at liverpool.ac.uk</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x34EE39A78B149255">PGP</a></li>
+          <li><a href="mailto:%73%65%62%61%77%69%6C%64@%67%6D%61%69%6C.%63%6F%6D" title="Contact me">sebawild at gmail</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x38600ABC14973198">PGP</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://www.uni-marburg.de/de/fb12/arbeitsgruppen/algorith/team/sebastian-wild">Website at UMR</a></li>
+          <li><a href="https://www.liverpool.ac.uk/computer-science/staff/sebastian-wild">Website at UoL</a></li>
+          <li><a href="https://tcs.csc.liv.ac.uk">TCS @ Liverpool</a></li>
+        </ul>
+
+        <p class="footer-note">
+          Retired addresses (no longer read):
+          <span class="retired">wild at uwaterloo.ca</span>,
+          <span class="retired">wild at cs.uni-kl.de</span>.
+        </p>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <p>Elsewhere:</p>
+
+        <ul class="link-group">
+          <li><a href="https://github.com/sebawild" title="GitHub sebawild"><i class="fab fa-github" aria-hidden="true"></i> GitHub sebawild</a></li>
+          <li><a rel="me" href="https://mathstodon.xyz/@wild" title="Mastodon @wild@mathstodon.xyz"><i class="fab fa-mastodon" aria-hidden="true"></i> @wild@mathstodon.xyz</a></li>
+          <li><a href="https://bsky.app/profile/sebastianwild.bsky.social" title="Bluesky @sebastianwild.bsky.social"><span aria-hidden="true">🦋</span> @sebastianwild</a></li>
+          <li><a href="https://www.linkedin.com/in/sebastian-wild-liverpool/"><i class="fab fa-linkedin" aria-hidden="true"></i> LinkedIn profile</a></li>
+          <li><a href="https://www.youtube.com/c/SebastianWildLectures"><i class="fab fa-youtube" aria-hidden="true"></i> YouTube channel</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://orcid.org/0000-0002-6061-9177" title="ORCID: 0000-0002-6061-9177"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-orcid"/></svg>
+ 0000-0002-6061-9177</a></li>
+          <li><a href="https://scholar.google.de/citations?user=aMyZiK0AAAAJ"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-google-scholar"/></svg>
+ Google Scholar</a></li>
+          <li><a href="https://dblp.uni-trier.de/pers/hd/w/Wild:Sebastian"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-dblp"/></svg>
+ dblp</a></li>
+          <li><a href="https://www.semanticscholar.org/author/3124206"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-semantic-scholar"/></svg>
+ Semantic Scholar</a></li>
+          <li><a href="https://arxiv.org/a/wild_s_2"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-arxiv"/></svg>
+ arXiv</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>Quick links:</p>
+        <ul class="link-group">
+          <li><a href="/publications/">my publications</a></li>
+          <li><a href="/cv.html">my CV</a></li>
+          <li><a href="/feed.xml">RSS feed</a></li>
+          <li><a href="https://disk.wild-inter.net/sharing/WwXHITc2j">my library</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <script>document.documentElement.className += ' js';</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><title>Video 4-5: §4.5 The Knuth-Morris-Pratt algorithm</title>
+  <meta name="description" content="Website of Sebastian Wild, algorithms researcher">
+  <link rel="canonical" href="https://www.wild-inter.net/videos/comp526-spring2022/4-5/"><meta property="og:type" content="website">
+  <meta property="og:site_name" content="Sebastian Wild&#39;s Site">
+  <meta property="og:title" content="Video 4-5: §4.5 The Knuth-Morris-Pratt algorithm">
+  <meta property="og:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta property="og:url" content="https://www.wild-inter.net/videos/comp526-spring2022/4-5/">
+  <meta property="og:image" content="https://www.wild-inter.net/assets/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Sebastian Wild">
+  <meta property="og:locale" content="en_GB">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Video 4-5: §4.5 The Knuth-Morris-Pratt algorithm">
+  <meta name="twitter:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta name="twitter:image" content="https://www.wild-inter.net/assets/og-card.png">
+
+  <meta name="theme-color" content="#F5EBD9"><link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest"><link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/pagella/texgyrepagella-regular-webfont.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/epigrafica/epigrafica-entona-webfont.woff2">
+
+  <link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/fontawesome/fontawesome-all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+
+  <link rel="alternate" type="application/rss+xml" title="Sebastian Wild&#39;s Site"
+        href="https://www.wild-inter.net/feed.xml">
+
+  <script data-goatcounter="https://wild-inter-net.goatcounter.com/count"
+          async src="https://gc.zgo.at/count.js"></script>
+</head>
+
+
+  <body>
+
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header">
+
+  <div class="wrapper"><a class="site-title" href="/">
+      <img class="site-mark" src="/assets/two-pivots.svg"
+           alt="" width="100" height="100" aria-hidden="true">
+      <span class="site-wordmark">
+        <span class="site-name">Sebastian Wild</span>
+        <span class="site-tagline">Algorithms Group &middot; Universität Marburg</span>
+      </span>
+    </a>
+
+    <nav class="site-nav" aria-label="Main">
+
+      <button type="button" class="menu-icon" id="menu-toggle"
+              aria-expanded="false" aria-controls="site-nav-menu">
+        <svg viewBox="0 0 18 15" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="currentColor" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="currentColor" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+        <span class="visually-hidden">Menu</span>
+      </button>
+
+      <div class="trigger" id="site-nav-menu">
+          <a class="page-link" href="/research/"
+             >Research</a>
+          <a class="page-link" href="/teaching/"
+             >Teaching</a>
+          <a class="page-link" href="/posts/"
+             >Blog</a>
+          <a class="page-link" href="/about/"
+             >About</a>
+      </div>
+
+    </nav>
+
+  </div>
+
+</header>
+
+<script>
+  /* Mobile menu. Without JS the CSS leaves the menu permanently expanded,
+     so navigation still works — see the `.js` guard in _sass/_layout.scss. */
+  (function () {
+    var btn = document.getElementById('menu-toggle');
+    if (!btn) return;
+    var nav = btn.parentNode;
+
+    function setOpen(open) {
+      nav.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    btn.addEventListener('click', function () {
+      setOpen(!nav.classList.contains('is-open'));
+    });
+
+    document.addEventListener('click', function (e) {
+      if (nav.classList.contains('is-open') && !nav.contains(e.target)) setOpen(false);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && nav.classList.contains('is-open')) {
+        setOpen(false);
+        btn.focus();
+      }
+    });
+  })();
+</script>
+
+
+    <main id="content" class="page-content">
+      <div class="wrapper">
+        <article class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Video 4-5: §4.5 The Knuth-Morris-Pratt algorithm</h1>
+  </header>
+
+  <div class="post-content">
+    
+
+    <style>
+  .vo-summary { font-size: 0.9em; }
+  .vo-scroll { overflow-x: auto; margin-bottom: 1.5em; }
+  .vo-table { border-collapse: collapse; font-size: 0.9em; width: 100%; font-variant-numeric: tabular-nums; }
+  .vo-table.vo-compact { width: auto; margin-left: 0; margin-right: auto; }
+  .vo-table.vo-compact th, .vo-table.vo-compact td { white-space: nowrap; }
+  .vo-table th, .vo-table td { padding: 0.2em 0.45em; vertical-align: baseline; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.08); }
+  .vo-table th { border-bottom: 2px solid rgba(0,0,0,0.25); white-space: nowrap; }
+  .vo-table tr.vo-newunit td { border-top: 2px solid rgba(0,0,0,0.2); }
+  .vo-table .vo-num { text-align: right; white-space: nowrap; padding-left: 0.9em; }
+  .vo-mono { font-family: Menlo, Consolas, monospace; font-size: 0.8em; }
+  .vo-table td.vo-small, .vo-table td .vo-small { font-size: inherit; }
+  .vo-table td .vo-note { font-size: 0.9em; opacity: 0.85; }
+  .vo-nowrap { white-space: nowrap; }
+  .vo-small { font-size: 0.9em; }
+  .vo-muted { opacity: 0.6; }
+
+  /* search */
+  .ts { margin: 1em 0 1.5em; }
+  .ts-input { font: inherit; width: min(100%, 28em); padding: 0.3em 0.5em; border: 1px solid rgba(0,0,0,0.3); border-radius: 4px; background: rgba(255,255,255,0.6); }
+  .ts-status { margin-left: 0.5em; opacity: 0.7; }
+  .ts-results { margin-top: 0.5em; }
+  .ts-hit { margin: 0.6em 0; }
+  .ts-hit-title { font-size: 0.95em; }
+  .ts-hit-ctx { font-size: 0.85em; margin: 0.1em 0 0 1em; }
+  .ts-hit-ctx a.ts-t { font-variant-numeric: tabular-nums; margin-right: 0.4em; }
+  .ts mark, .tp-text mark { background: rgba(255, 210, 0, 0.45); color: inherit; padding: 0 0.05em; }
+
+  /* transcript page: player sticks to the top while reading */
+  .tp-bar { position: sticky; top: 0; z-index: 5; background: #F5EBD9; padding: 4px 0 6px; }
+  .tp-player { position: relative; max-width: 560px; aspect-ratio: 16 / 9;
+               padding: 5px; box-sizing: content-box; width: calc(100% - 12px);
+               background: #faf6ed; border: 1px solid #aeaa9e; border-radius: 4px; }
+  .tp-player iframe, .tp-player > div, .tp-start { position: absolute; top: 5px; left: 5px; width: calc(100% - 10px); height: calc(100% - 10px); border: 0; margin: 0; padding: 0; background: #000; }
+  .tp-start { cursor: pointer; overflow: hidden; }
+  .tp-start img { width: 100%; height: 100%; object-fit: cover; display: block; margin: 0; padding: 0; border: 0; border-radius: 0; }
+  .tp-start .yt-lite-play { position: absolute; left: 50%; top: 50%; width: 68px; height: 48px; transform: translate(-50%, -50%); }
+  .tp-start .yt-lite-play-bg { fill: #212121; fill-opacity: 0.8; }
+  .tp-start:hover .yt-lite-play-bg, .tp-start:focus-visible .yt-lite-play-bg { fill: #902015; fill-opacity: 1; }
+  .tp-controls { margin: 0.3em 0 0; opacity: 0.8; }
+  .tp-disclaimer { margin: 0.6em 0 1.2em; padding: 0.4em 0.6em; border-left: 3px solid rgba(144, 32, 21, 0.35); background: rgba(255, 255, 255, 0.35); }
+  .tp-controls label { margin-left: 1em; white-space: nowrap; }
+  .tp-text p { position: relative; }
+  .tp-text [data-t] { cursor: pointer; border-radius: 2px; }
+  .tp-text span[data-t]:hover { background: rgba(144, 32, 21, 0.08); }
+  .tp-text span.tp-now { background: rgba(144, 32, 21, 0.16); box-shadow: 0 0 0 2px rgba(144, 32, 21, 0.16); }
+  .tp-text .tp-time { font-size: 0.75em; font-variant-numeric: tabular-nums; opacity: 0.6; margin-right: 0.3em; text-decoration: none; }
+  .tp-text .tp-chapter { font-size: 1.15em; margin-top: 1.5em; }
+  .tp-text .tp-chapter a { font-size: 0.7em; opacity: 0.6; font-variant-numeric: tabular-nums; text-decoration: none; }
+  .tp-nav { display: flex; justify-content: space-between; gap: 1em; margin-top: 2em; }
+  .tp-nav .tp-next { margin-left: auto; text-align: right; }
+</style>
+
+<p class="vo-summary">
+  <a href="/videos/comp526-spring2022/">COMP 526 – Efficient Algorithms (Spring 2022)</a> · <a href="/teaching/comp526/spring2022/04-string-matching">unit page</a>
+  · <a href="https://youtu.be/31IdAvXwf4M">YouTube</a>
+  <br/>2022-03-03, 27:03
+</p>
+
+<div class="tp" data-id="31IdAvXwf4M">
+  <div class="tp-bar"><div class="tp-player" id="tp-player">
+    <button type="button" class="tp-start" data-t="0" aria-label="Play video">
+      <img src="/assets/video-thumbs/31IdAvXwf4M.webp" alt="" width="640" height="360" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/31IdAvXwf4M/hqdefault.jpg'">
+      <svg class="yt-lite-play" viewBox="0 0 68 48" aria-hidden="true" focusable="false"><path class="yt-lite-play-bg" d="M66.5 7.7c-.8-2.9-2.5-5.4-5.4-6.2C55.8.1 34 0 34 0S12.2.1 6.9 1.6C4 2.3 2.3 4.8 1.5 7.7.1 13 0 24 0 24s.1 11 1.5 16.3c.8 2.9 2.5 5.4 5.4 6.2C12.2 47.9 34 48 34 48s21.8-.1 27.1-1.6c2.9-.7 4.6-3.2 5.4-6.1C67.9 35 68 24 68 24s-.1-11-1.5-16.3z"/><path d="M45 24 27 14v20z" fill="#fff"/></svg>
+    </button>
+  </div>
+  <p class="tp-controls vo-small">
+    <em>Click any sentence to play from there.</em>
+    <label><input type="checkbox" class="tp-follow" checked> follow along</label>
+  </p></div>
+  <p class="tp-disclaimer vo-small"><em>The transcript was generated automatically by YouTube's speech
+  recognition and is offered as is. It may contain errors, in particular in concerning technical terms,
+  names and formulas.</em></p>
+  <div class="tp-text" lang="en">
+<h2 class="tp-chapter" id="t0"><a href="#t=0" data-t="0">0:00</a> Introduction to KMP</h2>
+<p><a class="tp-time" href="#t=3" data-t="3">0:03</a> <span data-t="3">so in the next sub section we look at</span> <span data-t="3">the knuthmore spread algorithm which</span> <span data-t="6">will be</span> <span data-t="7">the final answer to how to reduce the</span> <span data-t="10">space from the string matching automaton</span> <span data-t="12">that we&#39;ve seen in the previous section</span> <span data-t="16">the main innovation here</span> <span data-t="18">[Music]</span> <span data-t="19">will be that we don&#39;t really go</span> <span data-t="23">using a dfa as we&#39;ve done it so far</span> <span data-t="25">because that inevitably needs</span> <span data-t="28">storing all these transitions so we need</span> <span data-t="30">the table that has the states and the</span> <span data-t="32">alphabet symbols we try to get away from</span> <span data-t="34">that</span></p>
+<p><a class="tp-time" href="#t=39" data-t="39">0:39</a> <span data-t="39">the key insight here is</span> <span data-t="39">if you remember how we constructed this</span> <span data-t="41">dfa there was this state x which is the</span> <span data-t="43">last state we reached with um</span> <span data-t="47">the pattern where we chopped off the</span> <span data-t="48">first symbol</span> <span data-t="50">and then the last the next step was</span> <span data-t="52">always copying things in this table or</span> <span data-t="55">simulating the automaton for one step</span> <span data-t="57">from this state x</span> <span data-t="59">how about we do this last simulation</span> <span data-t="62">during the matching phase as opposed to</span> <span data-t="64">as opposed to computing it up front</span></p>
+<p><a class="tp-time" href="#t=70" data-t="70">1:10</a> <span data-t="70">it&#39;s a little unclear how to formulate</span> <span data-t="70">this nicely in in automaton language</span> <span data-t="73">but it&#39;s possible</span> <span data-t="77">and</span> <span data-t="78">the way to go is</span> <span data-t="80">what people have called failure links</span> <span data-t="82">this is not how the idea originally was</span> <span data-t="84">explained but i think it&#39;s the</span> <span data-t="86">the most intuitive way to think about it</span> <span data-t="89">so we have our automaton as before and</span> <span data-t="91">every state now has just two outgoing</span> <span data-t="93">arcs</span> <span data-t="94">one that goes with the matching</span> <span data-t="96">character to the next higher state</span> <span data-t="98">and one other</span> <span data-t="100">edge which is a failure link</span> <span data-t="103">and</span> <span data-t="104">these failure links</span> <span data-t="106">marked with this with this cross</span> <span data-t="108">they are to take if you cannot follow</span> <span data-t="111">the match link</span> <span data-t="113">but they don&#39;t consume a character so</span> <span data-t="115">you just follow that link and you still</span> <span data-t="117">try to match the same character in the</span> <span data-t="118">text</span> <span data-t="119">that&#39;s the that&#39;s the key innovation and</span> <span data-t="121">that&#39;s</span> <span data-t="123">what you can do with these automata that</span> <span data-t="125">wasn&#39;t possible with the dfa</span> <span data-t="127">that gives them just enough flexibility</span> <span data-t="129">to allow</span> <span data-t="131">the smaller space</span> <span data-t="134">you occasionally have to follow several</span> <span data-t="136">failure links if you&#39;re in state 5</span> <span data-t="138">you couldn&#39;t match a c because the next</span> <span data-t="140">character was an a</span> <span data-t="142">then you would have to jump to three and</span> <span data-t="144">you can still match the b so you have to</span> <span data-t="146">follow another one still can&#39;t match the</span> <span data-t="148">b so you have to follow another one</span></p>
+<p><a class="tp-time" href="#t=150" data-t="150">2:30</a> <span data-t="150">that can take some time so you have to</span> <span data-t="152">follow several of those in a row because</span> <span data-t="154">they don&#39;t consume a character</span> <span data-t="157">well we&#39;ll see how this works</span> <span data-t="160">let&#39;s go through a full example briefly</span> <span data-t="163">just so that this this idea is clear</span> <span data-t="166">and</span></p>
+<h2 class="tp-chapter" id="t168"><a href="#t=168" data-t="168">2:48</a> Example and mechanics</h2>
+<p><a class="tp-time" href="#t=172" data-t="172">2:52</a> <span data-t="172">we start in state 0 then we read an a</span> <span data-t="172">so after that we go into state 1.</span> <span data-t="176">in state 1 we can read a b and go to</span> <span data-t="178">state 2</span> <span data-t="180">and then read and a go to state 3. so</span> <span data-t="182">far everything fine read a b go to state</span> <span data-t="185">four</span> <span data-t="187">read an a go to state five and at this</span> <span data-t="190">stage we can&#39;t read</span> <span data-t="192">the next character which is a b</span> <span data-t="194">and the match transition would be a c</span> <span data-t="197">so we can&#39;t go there instead we go to</span> <span data-t="200">state 3 back</span> <span data-t="203">and try again</span> <span data-t="205">now in this case we can read a b</span> <span data-t="207">so that&#39;s that&#39;s it for that point and</span> <span data-t="210">we move</span> <span data-t="212">move to state four</span> <span data-t="215">in four we can actually read the a</span> <span data-t="218">but then comes an a and not a c so again</span> <span data-t="220">we can&#39;t follow the the match link</span> <span data-t="223">instead we jump back to three</span> <span data-t="226">and then try again but three also</span> <span data-t="228">doesn&#39;t accept an a</span> <span data-t="229">so we have to follow another failure</span> <span data-t="231">link back to one</span> <span data-t="233">and from one we can still not read the a</span> <span data-t="236">so we follow another failure link back</span> <span data-t="238">to zero</span> <span data-t="240">and only in zero we can finally read</span> <span data-t="242">every character because either it goes</span> <span data-t="244">to the match link or it stays there</span> <span data-t="247">and then it&#39;s consumed and gone</span> <span data-t="249">in this case a actually leads us to one</span></p>
+<p><a class="tp-time" href="#t=252" data-t="252">4:12</a> <span data-t="252">so we can move this forward</span> <span data-t="255">and well a few more so we go to this</span> <span data-t="259">this and four and</span> <span data-t="261">that&#39;s the end of the example so i</span> <span data-t="263">changed the text a bit here if you</span> <span data-t="264">remember from last time</span> <span data-t="267">um</span> <span data-t="268">another way to draw this is uh if you</span> <span data-t="271">try to</span> <span data-t="273">you remember we had guesses and checks</span> <span data-t="275">for these</span> <span data-t="276">algorithms</span> <span data-t="277">so</span> <span data-t="278">initially we tried to</span> <span data-t="280">find the pattern</span> <span data-t="281">starting at at the initial position</span> <span data-t="284">and we could get till the fifth</span> <span data-t="286">character but then there was a mismatch</span> <span data-t="289">and so this mismatch meant we go back to</span> <span data-t="292">state three</span> <span data-t="294">which means now we have three letters of</span> <span data-t="296">the pattern that are still in alignment</span> <span data-t="298">with the text</span> <span data-t="300">and we try to go from there so that&#39;s</span> <span data-t="302">the same as shifting this</span> <span data-t="304">guess by</span> <span data-t="306">a few positions forward</span> <span data-t="308">so that instead of five we now have only</span> <span data-t="310">three</span> <span data-t="311">overlapping with the text so we moved it</span> <span data-t="313">forward by two</span> <span data-t="315">and we don&#39;t need to check these these</span> <span data-t="317">three matches we know that they are</span> <span data-t="319">matches that&#39;s encoded in the automaton</span></p>
+<p><a class="tp-time" href="#t=324" data-t="324">5:24</a> <span data-t="324">and then in this case we could go</span> <span data-t="324">forward um</span> <span data-t="327">and then this was the case where we had</span> <span data-t="329">to go several steps back before we could</span> <span data-t="331">match it again</span> <span data-t="332">and so only the last one determines how</span> <span data-t="334">long you really shift the pattern</span> <span data-t="337">is it clear how the automaton works</span> <span data-t="339">through the text</span> <span data-t="341">try to match the next character if it</span> <span data-t="342">doesn&#39;t work follow the failure link and</span> <span data-t="344">keep that character</span></p>
+<h2 class="tp-chapter" id="t350"><a href="#t=350" data-t="350">5:50</a> Worst-case analysis</h2>
+<p><a class="tp-time" href="#t=350" data-t="350">5:50</a> <span data-t="350">alright</span> <span data-t="350">let&#39;s do a quick wake up</span> <span data-t="352">and</span> <span data-t="356">test if you&#39;re</span> <span data-t="356">following along</span> <span data-t="363">is again one you have to read</span> <span data-t="363">uh carefully</span> <span data-t="417">we made it</span> <span data-t="417">you made it guys</span> <span data-t="418">uh all right</span></p>
+<p><a class="tp-time" href="#t=425" data-t="425">7:05</a> <span data-t="425">most people seem done</span> <span data-t="425">three</span> <span data-t="426">two</span> <span data-t="427">one</span> <span data-t="429">and locked</span> <span data-t="431">and so we have a variety of opinions uh</span> <span data-t="440">the right one is this one most a few or</span> <span data-t="440">the the largest bar at least</span></p>
+<p><a class="tp-time" href="#t=449" data-t="449">7:29</a> <span data-t="449">and so i mean this one</span> <span data-t="449">we could go</span> <span data-t="450">up to m steps the length of the pattern</span> <span data-t="453">in an in a completely degenerate case</span> <span data-t="457">so for example if the pattern</span> <span data-t="460">often in this string matching</span></p>
+<p><a class="tp-time" href="#t=468" data-t="468">7:48</a> <span data-t="468">[Music]</span> <span data-t="468">pen doesn&#39;t want</span> <span data-t="469">okay if i write with the mouse this will</span> <span data-t="471">look</span> <span data-t="472">a little less nice</span> <span data-t="474">if the pattern consists of m occurrences</span> <span data-t="477">of a</span> <span data-t="485">what if i could charge this or if that&#39;s</span> <span data-t="485">the problem</span></p>
+<p><a class="tp-time" href="#t=490" data-t="490">8:10</a> <span data-t="490">if the pattern is just</span> <span data-t="490">m a&#39;s in a row then</span> <span data-t="493">the failure link automaton will always</span> <span data-t="495">just go one step back</span> <span data-t="497">and so if you&#39;re in the last step and</span> <span data-t="499">read a b or try to read a b</span> <span data-t="502">so you&#39;re in state</span> <span data-t="504">q minus one m m minus one</span> <span data-t="507">uh you try to read a b but there is no b</span> <span data-t="509">so you go back to the previous state q</span> <span data-t="511">minus two you try to read a b but there</span> <span data-t="512">is none so it propagates all the way</span> <span data-t="514">through</span> <span data-t="515">to the beginning</span></p>
+<h2 class="tp-chapter" id="t524"><a href="#t=524" data-t="524">8:44</a> Pseudocode implementation</h2>
+<p><a class="tp-time" href="#t=524" data-t="524">8:44</a> <span data-t="524">all right</span> <span data-t="524">if we</span> <span data-t="525">encode what we&#39;ve done in the automaton</span> <span data-t="527">in pseudocode</span> <span data-t="529">it looks like this</span> <span data-t="531">it is exactly what the example showed</span> <span data-t="534">you on on the automaton just</span> <span data-t="536">um spelled out in with variables</span> <span data-t="539">there&#39;s a step where we compute the</span> <span data-t="541">failure links so remember the automaton</span> <span data-t="544">now is is actually really simple</span> <span data-t="548">the only variable thing is the failure</span> <span data-t="549">links the match edges</span> <span data-t="551">are always just using the next character</span> <span data-t="554">in the pattern</span> <span data-t="555">and the only other thing we needed to</span> <span data-t="556">know is for each state where does the</span> <span data-t="558">failure link go to</span> <span data-t="560">and so we can use a single array fail</span> <span data-t="562">that tells me for state q the failure</span> <span data-t="566">link goes to</span> <span data-t="567">fail of q</span> <span data-t="570">uh that&#39;s all that we need</span> <span data-t="572">try to rescue this this pen because it&#39;s</span> <span data-t="575">a little convenient to write on the</span> <span data-t="576">slide</span></p>
+<p><a class="tp-time" href="#t=587" data-t="587">9:47</a> <span data-t="587">now we have we have two variables here</span> <span data-t="588">once where we computed the failure links</span> <span data-t="590">one is encoding the guess which position</span> <span data-t="593">in the text is is the one we&#39;re looking</span> <span data-t="595">at</span></p>
+<p><a class="tp-time" href="#t=600" data-t="600">10:00</a> <span data-t="600">that didn&#39;t really work</span> <span data-t="600">so it&#39;s</span> <span data-t="601">it&#39;s not the battery</span> <span data-t="617">okay we&#39;ll have to do without</span> <span data-t="617">one is the current position in the text</span> <span data-t="619">and the other is uh the</span> <span data-t="621">current state in the automaton queue</span> <span data-t="625">and so while we&#39;re not done in the text</span> <span data-t="627">we try to match the next character and</span> <span data-t="629">if that matches</span> <span data-t="630">we move with the match link that makes</span> <span data-t="634">the state one bigger and we move one</span> <span data-t="636">forward in the text</span> <span data-t="638">so that&#39;s the the position in the text</span> <span data-t="639">that we</span> <span data-t="640">that we currently consider it&#39;s it&#39;s not</span> <span data-t="642">really the</span> <span data-t="643">guess it&#39;s moving alongside with</span> <span data-t="647">the position in the pattern</span> <span data-t="649">if we reach by that the accepting state</span> <span data-t="652">then we found a match and we return</span> <span data-t="654">where it started which is q positions or</span> <span data-t="656">m positions before</span></p>
+<p><a class="tp-time" href="#t=660" data-t="660">11:00</a> <span data-t="660">if we couldn&#39;t match then we have to</span> <span data-t="661">follow a failure link</span> <span data-t="664">and here we do this by following the</span> <span data-t="666">failure link except in the state 0 when</span> <span data-t="669">we&#39;re in state 0 then there&#39;s no failure</span> <span data-t="671">link really for that one it just stays</span> <span data-t="673">where it is</span> <span data-t="675">and if we&#39;re in state 0 then we consume</span> <span data-t="678">a character</span> <span data-t="679">right so at some point</span> <span data-t="681">if we can&#39;t match the character at all</span> <span data-t="683">we have to move forward so state 0 is a</span> <span data-t="685">little bit exceptional here</span> <span data-t="687">which you can also see in the picture</span> <span data-t="690">state zero doesn&#39;t have a failure link</span></p>
+<p><a class="tp-time" href="#t=699" data-t="699">11:39</a> <span data-t="699">all right so that&#39;s that&#39;s the code for</span> <span data-t="699">the knuthmore spread algorithm</span> <span data-t="702">the only thing that is missing is how to</span> <span data-t="703">compute the failure links and we&#39;ll come</span> <span data-t="705">to that in a second</span> <span data-t="708">what i want to look at first is</span> <span data-t="710">how good is this algorithm how fast is</span> <span data-t="712">it</span> <span data-t="713">because one thing we noticed and i asked</span> <span data-t="714">you in the slider question</span> <span data-t="716">it could it could happen that you go m</span> <span data-t="719">steps back</span> <span data-t="720">in in the string</span> <span data-t="723">in to read one character</span> <span data-t="725">so if we had to do this n times for</span> <span data-t="727">every character in the text go step go m</span> <span data-t="730">steps back in the worst case it sounds</span> <span data-t="732">like this is n times m</span> <span data-t="734">which is as bad as the brute force</span> <span data-t="736">algorithm</span> <span data-t="737">but if you think about it this can&#39;t</span> <span data-t="739">really happen because if you go back</span> <span data-t="740">these m steps you&#39;re at the beginning of</span> <span data-t="743">the automaton in state 0 and that</span> <span data-t="744">doesn&#39;t have a failure link</span> <span data-t="746">so in a way you need to first move along</span> <span data-t="749">and moving along means you follow the</span> <span data-t="752">match edge and that was cheap</span> <span data-t="754">you never follow a failure link and then</span> <span data-t="756">a match edge</span> <span data-t="759">so for every failure link</span> <span data-t="761">that you follow you need it to have a</span> <span data-t="763">cheap operation first</span> <span data-t="765">and more formally</span> <span data-t="766">you can express this like this</span></p>
+<h2 class="tp-chapter" id="t708"><a href="#t=708" data-t="708">11:48</a> Complexity proof</h2>
+<p><a class="tp-time" href="#t=774" data-t="774">12:54</a> <span data-t="774">in each iteration we do one of two</span> <span data-t="774">things that make progress</span> <span data-t="776">we either move with i through the text</span> <span data-t="780">and you can only move n times with i</span> <span data-t="782">then you&#39;re at the end whenever we never</span> <span data-t="784">make i smaller it only ever gets one</span> <span data-t="786">bigger</span> <span data-t="788">and if that not doesn&#39;t happen then we</span> <span data-t="791">shift the pattern forward in this in</span> <span data-t="792">this example picture the red part</span> <span data-t="795">or in in other ways</span></p>
+<p><a class="tp-time" href="#t=801" data-t="801">13:21</a> <span data-t="801">we we move back in the automaton but</span> <span data-t="801">that kind of moves us forward too just</span> <span data-t="804">not in in</span> <span data-t="805">in i but in the</span> <span data-t="808">imaginary position of the gas</span> <span data-t="815">and</span> <span data-t="815">it&#39;s important for that that the failure</span> <span data-t="817">link always goes strictly one step back</span> <span data-t="820">at least so it&#39;s strictly less than j</span> <span data-t="822">for for every state</span> <span data-t="826">and so the first thing can only happen n</span> <span data-t="828">times as i already said because we</span> <span data-t="831">move through the text</span> <span data-t="832">and the second thing can also happen</span> <span data-t="834">just n times because we can&#39;t move the</span> <span data-t="836">pattern position the guess more than n</span> <span data-t="838">times</span> <span data-t="839">so in the worst case both of these</span> <span data-t="841">happen n times at most</span> <span data-t="843">and so the total cost is 2 times n</span> <span data-t="847">even though</span> <span data-t="849">every individual step might cost m</span> <span data-t="852">but as i said this only can happen if</span> <span data-t="854">there were many cheap steps to</span> <span data-t="856">compensate for it</span></p>
+<h2 class="tp-chapter" id="t863"><a href="#t=863" data-t="863">14:23</a> Computing failure links</h2>
+<p><a class="tp-time" href="#t=864" data-t="864">14:24</a> <span data-t="864">so what&#39;s missing is how to compute the</span> <span data-t="864">failure links</span> <span data-t="866">and that&#39;s also important because it&#39;s</span> <span data-t="868">part of the running time for the entire</span> <span data-t="870">algorithm</span> <span data-t="875">if you remember the construction for the</span> <span data-t="875">dfa which i realized was monday</span> <span data-t="878">but maybe you still remember</span> <span data-t="880">we had this</span> <span data-t="882">state x that was kept which was</span> <span data-t="885">simulating the partially built automaton</span> <span data-t="888">on the pattern where you leave out the</span> <span data-t="890">first character</span> <span data-t="892">and then whenever we added the next</span> <span data-t="893">match link we also updated where x would</span> <span data-t="895">go</span> <span data-t="897">and it turns out that x is exactly where</span> <span data-t="899">the failure link should go</span> <span data-t="902">uh go through the examples again if this</span> <span data-t="904">doesn&#39;t appear doesn&#39;t appear so clear</span> <span data-t="907">if you look look it up on an example it</span> <span data-t="910">becomes really obvious</span> <span data-t="913">and so a way to compute it is by</span> <span data-t="915">simulating the construction that you&#39;ve</span> <span data-t="917">seen in the video and in code you do it</span> <span data-t="920">like this</span> <span data-t="921">you start with well</span> <span data-t="922">fail 0 is just to initialize it&#39;s not a</span> <span data-t="925">real failure link</span> <span data-t="926">and initially we start with x in zero</span> <span data-t="929">then we go through all the positions in</span> <span data-t="931">the pattern</span> <span data-t="933">and the first thing is we set the</span> <span data-t="934">failure link for the state j which is</span> <span data-t="937">the previous x the previous state that</span> <span data-t="940">you got to if you chop off the first</span> <span data-t="942">character</span> <span data-t="944">and then we update</span></p>
+<p><a class="tp-time" href="#t=946" data-t="946">15:46</a> <span data-t="946">where acts should go next and</span> <span data-t="956">if the if we&#39;re in state x</span> <span data-t="956">and we can match the next character</span> <span data-t="959">so pj is the character we want to add to</span> <span data-t="961">the the prefix of the pattern</span> <span data-t="964">and if that matches from x</span> <span data-t="967">then we can take that link so we just</span> <span data-t="969">increment x that means follow a match</span> <span data-t="972">edge</span> <span data-t="973">if that doesn&#39;t work</span> <span data-t="975">then</span> <span data-t="976">either we reach the beginning and so x</span> <span data-t="979">should just stay where it is</span> <span data-t="982">and this minus one is just compensated</span> <span data-t="983">by the plus one over here</span> <span data-t="985">so it becomes zero again for the next</span> <span data-t="987">iteration</span> <span data-t="989">and if we&#39;re not</span> <span data-t="990">at</span> <span data-t="991">the state zero then we follow one of the</span> <span data-t="994">failure links that we&#39;ve computed before</span> <span data-t="997">so in in a sense this is again</span> <span data-t="999">simulating the automaton on itself</span> <span data-t="1002">on the com on the prefix that we&#39;ve</span> <span data-t="1003">already computed</span></p>
+<p><a class="tp-time" href="#t=1012" data-t="1012">16:52</a> <span data-t="1012">and let&#39;s also analyze this</span> <span data-t="1012">this outer for loop</span> <span data-t="1014">can only run m times</span> <span data-t="1016">because j is never touched inside</span> <span data-t="1020">but we have this inner while loop which</span> <span data-t="1022">again</span> <span data-t="1023">follows failure links</span> <span data-t="1025">so in each individual iteration of the</span> <span data-t="1027">outer loop the inner loop could run m</span> <span data-t="1028">times that sounds like it could be m</span> <span data-t="1031">squared</span> <span data-t="1032">but the same trick as before applies</span></p>
+<p><a class="tp-time" href="#t=1038" data-t="1038">17:18</a> <span data-t="1038">whenever x is incremented</span> <span data-t="1038">uh that&#39;s one iteration of the outer</span> <span data-t="1041">loop</span> <span data-t="1042">then that&#39;s why i wrote the code like</span> <span data-t="1044">with the minus one in here to make that</span> <span data-t="1046">in the analysis a bit easier or clearer</span> <span data-t="1048">we only increment x in this outer loop</span> <span data-t="1050">so it&#39;s only incremented m times in</span> <span data-t="1052">total</span> <span data-t="1054">whereas every iteration of the while</span> <span data-t="1056">loop where we continue</span> <span data-t="1058">it makes x smaller this makes it smaller</span> <span data-t="1061">because remember the failure link always</span> <span data-t="1063">goes strictly to the left</span> <span data-t="1065">and this also makes it smaller</span> <span data-t="1067">so we only have m iterations of the</span> <span data-t="1068">inner loop summed over all the</span> <span data-t="1070">iterations of the outer loop</span> <span data-t="1072">so it&#39;s again m plus m</span></p>
+<p><a class="tp-time" href="#t=1078" data-t="1078">17:58</a> <span data-t="1078">it&#39;s no coincidence that we have</span> <span data-t="1078">essentially the same result in both</span> <span data-t="1079">cases this factor two</span> <span data-t="1083">you will see the tutorials that the two</span> <span data-t="1084">algorithms simulating the algorithm and</span> <span data-t="1087">computing the algorithm they&#39;re really</span> <span data-t="1089">kind of the same</span> <span data-t="1090">they are written in a slightly different</span> <span data-t="1092">form</span> <span data-t="1093">but if you if you show how they work on</span> <span data-t="1096">an example that&#39;s what you&#39;ll do in the</span> <span data-t="1098">tutorials</span></p>
+<p><a class="tp-time" href="#t=1103" data-t="1103">18:23</a> <span data-t="1103">they&#39;re they&#39;re computing the same steps</span> <span data-t="1103">in a sense</span> <span data-t="1109">and with these two things together</span> <span data-t="1109">that&#39;s the knuthmore spread algorithm in</span> <span data-t="1111">its full glory</span> <span data-t="1114">we&#39;ve even gone through the analysis to</span> <span data-t="1116">show that we never have more than two</span> <span data-t="1119">n plus m</span> <span data-t="1120">uh character comparisons in the whole in</span> <span data-t="1123">the whole process</span> <span data-t="1125">and that seems essentially best possible</span> <span data-t="1128">because at least in the worst case we</span> <span data-t="1129">have to read the entire text and the</span> <span data-t="1131">entire pattern to find if the text</span> <span data-t="1133">contains the pattern</span> <span data-t="1136">if there was some algorithm that somehow</span> <span data-t="1137">avoids this you could sneakily modify</span> <span data-t="1139">the input and smuggle in an occurrence</span> <span data-t="1142">that the algorithm then wouldn&#39;t find</span> <span data-t="1144">and so</span> <span data-t="1146">that can&#39;t be possible</span> <span data-t="1148">so for for worst case</span> <span data-t="1150">kmp is as best possible at least up to</span> <span data-t="1153">this constant factor of two</span></p>
+<p><a class="tp-time" href="#t=1159" data-t="1159">19:19</a> <span data-t="1159">and also the space is decent because we</span> <span data-t="1159">now have only a dependency on the</span> <span data-t="1160">pattern</span> <span data-t="1161">and there&#39;s no factor sigma anymore no</span> <span data-t="1164">influence of the alphabet size</span> <span data-t="1169">so</span> <span data-t="1169">it&#39;s asymptotically optimal in terms of</span> <span data-t="1171">the total time</span> <span data-t="1172">and reasonably</span> <span data-t="1174">efficient in terms of the space</span> <span data-t="1176">so that&#39;s um</span> <span data-t="1179">on that side</span> <span data-t="1180">the end of the story</span></p>
+<h2 class="tp-chapter" id="t1188"><a href="#t=1188" data-t="1188">19:48</a> KMP performance review</h2>
+<p><a class="tp-time" href="#t=1194" data-t="1194">19:54</a> <span data-t="1194">let&#39;s briefly see how much you kept and</span> <span data-t="1194">how much you</span> <span data-t="1195">digested from this</span> <span data-t="1197">while i was talking</span> <span data-t="1199">so it&#39;s a long question i&#39;ll leave you</span> <span data-t="1201">some time</span> <span data-t="1202">it&#39;s</span> <span data-t="1204">basically about what is what is good</span> <span data-t="1206">about the algorithm</span></p>
+<p><a class="tp-time" href="#t=1328" data-t="1328">22:08</a> <span data-t="1328">ah</span> <span data-t="1328">okay pen works again</span> <span data-t="1331">that&#39;s good</span> <span data-t="1333">all right i think you had plenty time</span> <span data-t="1335">for this one now</span> <span data-t="1337">sorry for me messing around</span> <span data-t="1340">let me lock this</span> <span data-t="1348">so we have votes for for many of the</span> <span data-t="1348">options</span></p>
+<p><a class="tp-time" href="#t=1351" data-t="1351">22:31</a> <span data-t="1351">um we can briefly discuss i think it&#39;s</span> <span data-t="1353">mostly these that are correct okay that</span> <span data-t="1356">doesn&#39;t fit on the screen anyways</span> <span data-t="1358">so</span> <span data-t="1383">so we compare kmp to the previous one</span> <span data-t="1383">matching with the string matching</span> <span data-t="1384">automaton</span> <span data-t="1386">uh the pre-processing is faster because</span> <span data-t="1388">you don&#39;t have the dependency on sigma</span> <span data-t="1391">this might not be in all cases faster</span> <span data-t="1393">but it usually is if sigma is not really</span> <span data-t="1396">small</span> <span data-t="1397">and it also uses less space for the same</span> <span data-t="1399">reason</span> <span data-t="1400">uh the matching is usually faster</span> <span data-t="1402">actually with the automaton because you</span> <span data-t="1404">just have one table look up</span> <span data-t="1406">uh so that&#39;s that&#39;s usually the fastest</span> <span data-t="1409">you can get actually</span> <span data-t="1410">um same character comparisons um likely</span> <span data-t="1414">the other ones faster if the text is</span> <span data-t="1415">long for the same reason</span> <span data-t="1417">we have this factor of two in k and p</span> <span data-t="1419">which is not nothing</span> <span data-t="1421">but yeah i stress this quite often</span> <span data-t="1424">enough and</span> <span data-t="1426">so we like we like to have something</span> <span data-t="1428">that doesn&#39;t depend on the alphabet size</span></p>
+<h2 class="tp-chapter" id="t1435"><a href="#t=1435" data-t="1435">23:55</a> Prefix functions</h2>
+<p><a class="tp-time" href="#t=1435" data-t="1435">23:55</a> <span data-t="1435">goodie</span> <span data-t="1435">one last thing on kmp</span> <span data-t="1440">this</span> <span data-t="1440">failure functions</span> <span data-t="1442">the failure links that we computed for</span> <span data-t="1445">the kmp algorithm</span> <span data-t="1447">they turn out to be quite versatile and</span> <span data-t="1449">useful in in other contexts</span> <span data-t="1452">uh</span> <span data-t="1454">and so people have reinvented this a few</span> <span data-t="1456">times with different notation so</span> <span data-t="1459">there&#39;s there&#39;s a thing called the kmp</span> <span data-t="1461">prefix function</span> <span data-t="1463">which is essentially our our fail but</span></p>
+<p><a class="tp-time" href="#t=1469" data-t="1469">24:29</a> <span data-t="1469">shift</span> <span data-t="1469">shifts the index by one</span> <span data-t="1475">and there&#39;s an alternative definition</span> <span data-t="1475">for</span> <span data-t="1476">or fail or for f</span> <span data-t="1479">and i think that&#39;s that&#39;s something you</span> <span data-t="1482">is worth memorizing is worth for you to</span> <span data-t="1484">keep in mind</span> <span data-t="1485">and there&#39;s</span> <span data-t="1486">a picture that goes along it</span> <span data-t="1489">if this is our pattern</span></p>
+<p><a class="tp-time" href="#t=1496" data-t="1496">24:56</a> <span data-t="1496">then</span> <span data-t="1496">we look up to a certain</span> <span data-t="1498">point j</span> <span data-t="1509">so maybe i should put j slightly to the</span> <span data-t="1509">left</span> <span data-t="1510">because it&#39;s uh</span> <span data-t="1516">to the right because it&#39;s excluded so</span> <span data-t="1516">the jth character is excluded we look at</span> <span data-t="1518">the character prefix of the pattern of</span> <span data-t="1520">length j</span> <span data-t="1522">and then fail j is the length of the</span> <span data-t="1525">longest prefix of this that i can align</span> <span data-t="1529">with my</span></p>
+<p><a class="tp-time" href="#t=1548" data-t="1548">25:48</a> <span data-t="1548">so it&#39;s it&#39;s the longest prefix we want</span> <span data-t="1548">the shortest shift here</span> <span data-t="1550">or the longest overlap</span> <span data-t="1560">so this should be the maximal length</span> <span data-t="1560">overlap</span> <span data-t="1562">well this is again the pattern just</span> <span data-t="1563">shift it a bit</span></p>
+<p><a class="tp-time" href="#t=1578" data-t="1578">26:18</a> <span data-t="1578">shift it a bit at least one position</span> <span data-t="1578">and all these these positions here in</span> <span data-t="1580">between they match so they are the same</span> <span data-t="1586">okay</span> <span data-t="1586">so you take a string you ignore</span> <span data-t="1589">a part at the end you&#39;d only look at a</span> <span data-t="1591">prefix and you ask how much can i</span> <span data-t="1593">take this prefix and shift it forward</span> <span data-t="1595">and it still matches you want to to have</span> <span data-t="1598">the maximal overlap</span> <span data-t="1601">and then fail j is the length of this</span> <span data-t="1604">overlap</span> <span data-t="1605">well no not quite its length of the</span> <span data-t="1607">brief well that&#39;s the same yeah it&#39;s the</span> <span data-t="1609">length of this</span> <span data-t="1610">prefix the length of the green part</span> <span data-t="1612">that&#39;s our fail j</span></p>
+<p><a class="tp-time" href="#t=1618" data-t="1618">26:58</a> <span data-t="1618">alright</span> <span data-t="1618">this will come haunt us again in the</span> <span data-t="1619">next next unit</span></p>
+
+  </div>
+</div>
+
+<p class="tp-nav vo-small"><a href="/videos/comp526-spring2022/4-4/">← Video 4-4: §4.4 Constructing string matching DFAs</a><a class="tp-next" href="/videos/comp526-spring2022/4-6/">Video 4-6: §4.6 The Boyer-Moore algorithm →</a>
+</p>
+
+<script src="/assets/js/transcript-player.js" defer></script>
+
+  </div>
+
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Sebastian Wild</h2>
+
+    <div class="footer-col-wrapper">
+
+      <div class="footer-col footer-col-1">
+        <p>Contact:</p>
+
+        <ul class="link-group">
+          <li><a href="mailto:%77%69%6C%64@%69%6E%66%6F%72%6D%61%74%69%6B.%75%6E%69-%6D%61%72%62%75%72%67.%64%65" title="Contact me">wild at informatik.uni-marburg.de</a></li>
+          <li><a href="mailto:%77%69%6C%64@%6C%69%76%65%72%70%6F%6F%6C.%61%63.%75%6B" title="Contact me">wild at liverpool.ac.uk</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x34EE39A78B149255">PGP</a></li>
+          <li><a href="mailto:%73%65%62%61%77%69%6C%64@%67%6D%61%69%6C.%63%6F%6D" title="Contact me">sebawild at gmail</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x38600ABC14973198">PGP</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://www.uni-marburg.de/de/fb12/arbeitsgruppen/algorith/team/sebastian-wild">Website at UMR</a></li>
+          <li><a href="https://www.liverpool.ac.uk/computer-science/staff/sebastian-wild">Website at UoL</a></li>
+          <li><a href="https://tcs.csc.liv.ac.uk">TCS @ Liverpool</a></li>
+        </ul>
+
+        <p class="footer-note">
+          Retired addresses (no longer read):
+          <span class="retired">wild at uwaterloo.ca</span>,
+          <span class="retired">wild at cs.uni-kl.de</span>.
+        </p>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <p>Elsewhere:</p>
+
+        <ul class="link-group">
+          <li><a href="https://github.com/sebawild" title="GitHub sebawild"><i class="fab fa-github" aria-hidden="true"></i> GitHub sebawild</a></li>
+          <li><a rel="me" href="https://mathstodon.xyz/@wild" title="Mastodon @wild@mathstodon.xyz"><i class="fab fa-mastodon" aria-hidden="true"></i> @wild@mathstodon.xyz</a></li>
+          <li><a href="https://bsky.app/profile/sebastianwild.bsky.social" title="Bluesky @sebastianwild.bsky.social"><span aria-hidden="true">🦋</span> @sebastianwild</a></li>
+          <li><a href="https://www.linkedin.com/in/sebastian-wild-liverpool/"><i class="fab fa-linkedin" aria-hidden="true"></i> LinkedIn profile</a></li>
+          <li><a href="https://www.youtube.com/c/SebastianWildLectures"><i class="fab fa-youtube" aria-hidden="true"></i> YouTube channel</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://orcid.org/0000-0002-6061-9177" title="ORCID: 0000-0002-6061-9177"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-orcid"/></svg>
+ 0000-0002-6061-9177</a></li>
+          <li><a href="https://scholar.google.de/citations?user=aMyZiK0AAAAJ"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-google-scholar"/></svg>
+ Google Scholar</a></li>
+          <li><a href="https://dblp.uni-trier.de/pers/hd/w/Wild:Sebastian"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-dblp"/></svg>
+ dblp</a></li>
+          <li><a href="https://www.semanticscholar.org/author/3124206"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-semantic-scholar"/></svg>
+ Semantic Scholar</a></li>
+          <li><a href="https://arxiv.org/a/wild_s_2"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-arxiv"/></svg>
+ arXiv</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>Quick links:</p>
+        <ul class="link-group">
+          <li><a href="/publications/">my publications</a></li>
+          <li><a href="/cv.html">my CV</a></li>
+          <li><a href="/feed.xml">RSS feed</a></li>
+          <li><a href="https://disk.wild-inter.net/sharing/WwXHITc2j">my library</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <script>document.documentElement.className += ' js';</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><title>Video 7-8: §7.7 Lempel Ziv Welch decoding</title>
+  <meta name="description" content="Website of Sebastian Wild, algorithms researcher">
+  <link rel="canonical" href="https://www.wild-inter.net/videos/comp526-fall2022/7-8/"><meta property="og:type" content="website">
+  <meta property="og:site_name" content="Sebastian Wild&#39;s Site">
+  <meta property="og:title" content="Video 7-8: §7.7 Lempel Ziv Welch decoding">
+  <meta property="og:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta property="og:url" content="https://www.wild-inter.net/videos/comp526-fall2022/7-8/">
+  <meta property="og:image" content="https://www.wild-inter.net/assets/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Sebastian Wild">
+  <meta property="og:locale" content="en_GB">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Video 7-8: §7.7 Lempel Ziv Welch decoding">
+  <meta name="twitter:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta name="twitter:image" content="https://www.wild-inter.net/assets/og-card.png">
+
+  <meta name="theme-color" content="#F5EBD9"><link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest"><link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/pagella/texgyrepagella-regular-webfont.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/epigrafica/epigrafica-entona-webfont.woff2">
+
+  <link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/fontawesome/fontawesome-all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+
+  <link rel="alternate" type="application/rss+xml" title="Sebastian Wild&#39;s Site"
+        href="https://www.wild-inter.net/feed.xml">
+
+  <script data-goatcounter="https://wild-inter-net.goatcounter.com/count"
+          async src="https://gc.zgo.at/count.js"></script>
+</head>
+
+
+  <body>
+
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header">
+
+  <div class="wrapper"><a class="site-title" href="/">
+      <img class="site-mark" src="/assets/two-pivots.svg"
+           alt="" width="100" height="100" aria-hidden="true">
+      <span class="site-wordmark">
+        <span class="site-name">Sebastian Wild</span>
+        <span class="site-tagline">Algorithms Group &middot; Universität Marburg</span>
+      </span>
+    </a>
+
+    <nav class="site-nav" aria-label="Main">
+
+      <button type="button" class="menu-icon" id="menu-toggle"
+              aria-expanded="false" aria-controls="site-nav-menu">
+        <svg viewBox="0 0 18 15" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="currentColor" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="currentColor" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+        <span class="visually-hidden">Menu</span>
+      </button>
+
+      <div class="trigger" id="site-nav-menu">
+          <a class="page-link" href="/research/"
+             >Research</a>
+          <a class="page-link" href="/teaching/"
+             >Teaching</a>
+          <a class="page-link" href="/posts/"
+             >Blog</a>
+          <a class="page-link" href="/about/"
+             >About</a>
+      </div>
+
+    </nav>
+
+  </div>
+
+</header>
+
+<script>
+  /* Mobile menu. Without JS the CSS leaves the menu permanently expanded,
+     so navigation still works — see the `.js` guard in _sass/_layout.scss. */
+  (function () {
+    var btn = document.getElementById('menu-toggle');
+    if (!btn) return;
+    var nav = btn.parentNode;
+
+    function setOpen(open) {
+      nav.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    btn.addEventListener('click', function () {
+      setOpen(!nav.classList.contains('is-open'));
+    });
+
+    document.addEventListener('click', function (e) {
+      if (nav.classList.contains('is-open') && !nav.contains(e.target)) setOpen(false);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && nav.classList.contains('is-open')) {
+        setOpen(false);
+        btn.focus();
+      }
+    });
+  })();
+</script>
+
+
+    <main id="content" class="page-content">
+      <div class="wrapper">
+        <article class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Video 7-8: §7.7 Lempel Ziv Welch decoding</h1>
+  </header>
+
+  <div class="post-content">
+    
+
+    <style>
+  .vo-summary { font-size: 0.9em; }
+  .vo-scroll { overflow-x: auto; margin-bottom: 1.5em; }
+  .vo-table { border-collapse: collapse; font-size: 0.9em; width: 100%; font-variant-numeric: tabular-nums; }
+  .vo-table.vo-compact { width: auto; margin-left: 0; margin-right: auto; }
+  .vo-table.vo-compact th, .vo-table.vo-compact td { white-space: nowrap; }
+  .vo-table th, .vo-table td { padding: 0.2em 0.45em; vertical-align: baseline; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.08); }
+  .vo-table th { border-bottom: 2px solid rgba(0,0,0,0.25); white-space: nowrap; }
+  .vo-table tr.vo-newunit td { border-top: 2px solid rgba(0,0,0,0.2); }
+  .vo-table .vo-num { text-align: right; white-space: nowrap; padding-left: 0.9em; }
+  .vo-mono { font-family: Menlo, Consolas, monospace; font-size: 0.8em; }
+  .vo-table td.vo-small, .vo-table td .vo-small { font-size: inherit; }
+  .vo-table td .vo-note { font-size: 0.9em; opacity: 0.85; }
+  .vo-nowrap { white-space: nowrap; }
+  .vo-small { font-size: 0.9em; }
+  .vo-muted { opacity: 0.6; }
+
+  /* search */
+  .ts { margin: 1em 0 1.5em; }
+  .ts-input { font: inherit; width: min(100%, 28em); padding: 0.3em 0.5em; border: 1px solid rgba(0,0,0,0.3); border-radius: 4px; background: rgba(255,255,255,0.6); }
+  .ts-status { margin-left: 0.5em; opacity: 0.7; }
+  .ts-results { margin-top: 0.5em; }
+  .ts-hit { margin: 0.6em 0; }
+  .ts-hit-title { font-size: 0.95em; }
+  .ts-hit-ctx { font-size: 0.85em; margin: 0.1em 0 0 1em; }
+  .ts-hit-ctx a.ts-t { font-variant-numeric: tabular-nums; margin-right: 0.4em; }
+  .ts mark, .tp-text mark { background: rgba(255, 210, 0, 0.45); color: inherit; padding: 0 0.05em; }
+
+  /* transcript page: player sticks to the top while reading */
+  .tp-bar { position: sticky; top: 0; z-index: 5; background: #F5EBD9; padding: 4px 0 6px; }
+  .tp-player { position: relative; max-width: 560px; aspect-ratio: 16 / 9;
+               padding: 5px; box-sizing: content-box; width: calc(100% - 12px);
+               background: #faf6ed; border: 1px solid #aeaa9e; border-radius: 4px; }
+  .tp-player iframe, .tp-player > div, .tp-start { position: absolute; top: 5px; left: 5px; width: calc(100% - 10px); height: calc(100% - 10px); border: 0; margin: 0; padding: 0; background: #000; }
+  .tp-start { cursor: pointer; overflow: hidden; }
+  .tp-start img { width: 100%; height: 100%; object-fit: cover; display: block; margin: 0; padding: 0; border: 0; border-radius: 0; }
+  .tp-start .yt-lite-play { position: absolute; left: 50%; top: 50%; width: 68px; height: 48px; transform: translate(-50%, -50%); }
+  .tp-start .yt-lite-play-bg { fill: #212121; fill-opacity: 0.8; }
+  .tp-start:hover .yt-lite-play-bg, .tp-start:focus-visible .yt-lite-play-bg { fill: #902015; fill-opacity: 1; }
+  .tp-controls { margin: 0.3em 0 0; opacity: 0.8; }
+  .tp-disclaimer { margin: 0.6em 0 1.2em; padding: 0.4em 0.6em; border-left: 3px solid rgba(144, 32, 21, 0.35); background: rgba(255, 255, 255, 0.35); }
+  .tp-controls label { margin-left: 1em; white-space: nowrap; }
+  .tp-text p { position: relative; }
+  .tp-text [data-t] { cursor: pointer; border-radius: 2px; }
+  .tp-text span[data-t]:hover { background: rgba(144, 32, 21, 0.08); }
+  .tp-text span.tp-now { background: rgba(144, 32, 21, 0.16); box-shadow: 0 0 0 2px rgba(144, 32, 21, 0.16); }
+  .tp-text .tp-time { font-size: 0.75em; font-variant-numeric: tabular-nums; opacity: 0.6; margin-right: 0.3em; text-decoration: none; }
+  .tp-text .tp-chapter { font-size: 1.15em; margin-top: 1.5em; }
+  .tp-text .tp-chapter a { font-size: 0.7em; opacity: 0.6; font-variant-numeric: tabular-nums; text-decoration: none; }
+  .tp-nav { display: flex; justify-content: space-between; gap: 1em; margin-top: 2em; }
+  .tp-nav .tp-next { margin-left: auto; text-align: right; }
+</style>
+
+<p class="vo-summary">
+  <a href="/videos/comp526-fall2022/">COMP 526 – Efficient Algorithms (Fall 2022)</a> · <a href="/teaching/comp526/fall2022/07-compression">unit page</a>
+  · <a href="https://youtu.be/KXU8XrJAJ0k">YouTube</a>
+  <br/>2022-12-05, 26:35
+</p>
+
+<div class="tp" data-id="KXU8XrJAJ0k">
+  <div class="tp-bar"><div class="tp-player" id="tp-player">
+    <button type="button" class="tp-start" data-t="0" aria-label="Play video">
+      <img src="/assets/video-thumbs/KXU8XrJAJ0k.webp" alt="" width="640" height="360" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/KXU8XrJAJ0k/hqdefault.jpg'">
+      <svg class="yt-lite-play" viewBox="0 0 68 48" aria-hidden="true" focusable="false"><path class="yt-lite-play-bg" d="M66.5 7.7c-.8-2.9-2.5-5.4-5.4-6.2C55.8.1 34 0 34 0S12.2.1 6.9 1.6C4 2.3 2.3 4.8 1.5 7.7.1 13 0 24 0 24s.1 11 1.5 16.3c.8 2.9 2.5 5.4 5.4 6.2C12.2 47.9 34 48 34 48s21.8-.1 27.1-1.6c2.9-.7 4.6-3.2 5.4-6.1C67.9 35 68 24 68 24s-.1-11-1.5-16.3z"/><path d="M45 24 27 14v20z" fill="#fff"/></svg>
+    </button>
+  </div>
+  <p class="tp-controls vo-small">
+    <em>Click any sentence to play from there.</em>
+    <label><input type="checkbox" class="tp-follow" checked> follow along</label>
+  </p></div>
+  <p class="tp-disclaimer vo-small"><em>The transcript was generated automatically by YouTube's speech
+  recognition and is offered as is. It may contain errors, in particular in concerning technical terms,
+  names and formulas.</em></p>
+  <div class="tp-text" lang="en">
+<h2 class="tp-chapter" id="t0"><a href="#t=0" data-t="0">0:00</a> &lt;Untitled Chapter 1&gt;</h2>
+<p><a class="tp-time" href="#t=4" data-t="4">0:04</a> <span data-t="4">after we&#39;ve seen how to encode with</span> <span data-t="4">limposite files we now want to decode</span> <span data-t="7">the decompress step</span> <span data-t="13">and in principle it&#39;s easy we have to</span> <span data-t="13">reverse what the encoder has done</span> <span data-t="15">otherwise we don&#39;t get back to the same</span> <span data-t="16">Source text</span> <span data-t="18">the details are a little more tricky</span> <span data-t="20">because um</span> <span data-t="22">as we&#39;ll see the uh decoding is always a</span> <span data-t="25">bit lagging behind</span> <span data-t="27">and in the intuition behind that is is</span> <span data-t="29">easy remember we always encode one code</span> <span data-t="32">word and then store a new one</span> <span data-t="34">and so we have to do the same in the</span> <span data-t="36">decoder</span> <span data-t="38">so the the normal mode of operation is</span> <span data-t="41">we decode a substring from The Source</span> <span data-t="45">text</span> <span data-t="46">which we find as a fixed length code</span> <span data-t="49">word so the splitting of the coded text</span> <span data-t="51">into code words is easy is always in the</span> <span data-t="55">example the slides at 12 bits is a</span> <span data-t="57">typical size</span> <span data-t="59">in fact it&#39;s a parameter you can often</span> <span data-t="61">play with if you use sip programs</span> <span data-t="64">so there&#39;s a fixed length code word so</span> <span data-t="65">it&#39;s always clear what the next code</span> <span data-t="67">word is in the coded text</span> <span data-t="69">and hopefully that maps to Something in</span> <span data-t="72">Your Dictionary so you can decode that</span> <span data-t="74">codeword to Something in the clear text</span> <span data-t="77">in the source text</span> <span data-t="79">and after we&#39;ve done that we have to add</span> <span data-t="81">a new string to the dictionary because</span></p>
+<p><a class="tp-time" href="#t=83" data-t="83">1:23</a> <span data-t="83">that&#39;s what the encoder did and we have</span> <span data-t="85">to keep adding these because they might</span> <span data-t="86">be used in the future</span> <span data-t="94">and just for notation I&#39;ll always use Y</span> <span data-t="94">for the thing that we decoded</span> <span data-t="97">and then x with C added as the thing</span> <span data-t="101">that we add to the dictionary</span></p>
+<p><a class="tp-time" href="#t=106" data-t="106">1:46</a> <span data-t="106">[Music]</span> <span data-t="106">um</span> <span data-t="111">and now that the trick is that in the</span> <span data-t="111">encoder</span> <span data-t="112">X and Y was Y and X was basically the</span> <span data-t="116">same but now because we&#39;re lagging one</span> <span data-t="118">step behind access the previous leak</span> <span data-t="120">decoded thing</span> <span data-t="123">right remember we can only store the new</span> <span data-t="125">thing to the dictionary once we know</span> <span data-t="127">what it is</span> <span data-t="129">the encoder encoded one step and then</span> <span data-t="131">added that thing to the dictionary</span> <span data-t="134">in the decoder</span> <span data-t="136">I can&#39;t really do that I first have to</span> <span data-t="138">decode the thing before I can add it and</span> <span data-t="140">so the easiest way to deal with that is</span> <span data-t="142">to say we decode one thing and then add</span> <span data-t="144">something but what we add is actually</span> <span data-t="146">the the previous previous string</span></p>
+<p><a class="tp-time" href="#t=153" data-t="153">2:33</a> <span data-t="153">so we&#39;ll have X as the phrase that we</span> <span data-t="153">decoded in the last step why the phrase</span> <span data-t="155">that we decode now and XC this one more</span> <span data-t="158">letter that we should add is actually</span> <span data-t="160">the first character of of Y</span> <span data-t="163">because that&#39;s</span> <span data-t="164">uh the new phrase</span> <span data-t="166">so here&#39;s a concrete example that may</span> <span data-t="168">show may make it more clear why we have</span> <span data-t="171">to do it this this complicated way</span> <span data-t="173">in the previous case in the previous</span> <span data-t="175">step we decoded X and that was ban</span> <span data-t="179">now</span> <span data-t="180">the encoder would have added Banner band</span> <span data-t="183">plus the next letter to the dictionary</span> <span data-t="186">but at the point of decoding band we</span> <span data-t="188">don&#39;t know what a is we don&#39;t know what</span> <span data-t="189">the next letter is we haven&#39;t seen that</span> <span data-t="191">a yet</span> <span data-t="192">so we have to wait for the next step</span> <span data-t="194">when we decode Y which is a n in this</span> <span data-t="197">case</span> <span data-t="198">then we know the first letter of Y was</span> <span data-t="200">an A and only then can we add x c to the</span> <span data-t="204">dictionary</span> <span data-t="205">okay that&#39;s the complication we&#39;re</span> <span data-t="208">always lacking one step behind because</span> <span data-t="210">we need this first letter of the new</span> <span data-t="212">phrase</span> <span data-t="214">so we can also</span> <span data-t="216">um only start adding after we&#39;ve seen</span> <span data-t="218">two phrases decoded we can&#39;t</span> <span data-t="221">start earlier</span> <span data-t="223">clear so far</span></p>
+<h2 class="tp-chapter" id="t228"><a href="#t=228" data-t="228">3:48</a> LZW decoding-Example</h2>
+<p><a class="tp-time" href="#t=230" data-t="230">3:50</a> <span data-t="230">let&#39;s have an example for that as well</span> <span data-t="230">a similar setup but a different string</span> <span data-t="232">so that doesn&#39;t get too boring</span> <span data-t="234">so what we get is a sequence of code</span> <span data-t="237">words</span> <span data-t="238">now these are written in Gray they will</span> <span data-t="241">they will come up uh highlighted later</span> <span data-t="244">on we start again with filling the</span> <span data-t="247">dictionary with all the single</span> <span data-t="249">characters in our alphabet that&#39;s the</span> <span data-t="251">same as before and it&#39;s important we use</span> <span data-t="253">the same initial state of course</span> <span data-t="256">and then you see the code words are just</span> <span data-t="259">these these numbers they&#39;re really fixed</span> <span data-t="261">length bit strings I just wrote them in</span> <span data-t="264">in decimal to make it more human</span> <span data-t="265">friendly</span> <span data-t="267">but you think you should think of these</span> <span data-t="269">of all having say 12 bits and there is</span> <span data-t="273">leading zeros where the numbers are</span> <span data-t="275">shorter</span> <span data-t="276">that clear</span> <span data-t="278">that was a question that came up on</span> <span data-t="280">campus wires I thought I&#39;d point this</span> <span data-t="281">out again</span> <span data-t="283">all right so how does the decoding work</span> <span data-t="285">we see a number</span> <span data-t="288">67</span> <span data-t="290">and so we find the entry in the</span> <span data-t="292">dictionary that&#39;s the first phrase that</span> <span data-t="294">we decode</span> <span data-t="295">that&#39;s great and so um</span> <span data-t="299">here is uh it&#39;s written as a table but</span> <span data-t="301">it&#39;s it&#39;s producing the source code and</span> <span data-t="304">what you add to the dictionary in one go</span> <span data-t="306">just have it nicely written up so we</span> <span data-t="309">decode this to c that&#39;s the first part</span></p>
+<p><a class="tp-time" href="#t=312" data-t="312">5:12</a> <span data-t="312">of the source text and you will be able</span> <span data-t="314">to read The Source text down from here</span> <span data-t="316">at the end</span> <span data-t="318">we can&#39;t do anything else we should add</span> <span data-t="321">C in the next character to the</span> <span data-t="322">dictionary but we can&#39;t do that yet</span> <span data-t="324">so we we move on to the second code word</span> <span data-t="327">decode what that is</span> <span data-t="329">so again A Single Character so we read</span> <span data-t="331">that from the dictionary we find the a</span> <span data-t="335">and now we add</span> <span data-t="336">a new phrase the dictionary namely the</span> <span data-t="339">previous phrase plus the first character</span> <span data-t="341">of the current phrase</span> <span data-t="343">so that&#39;s why</span></p>
+<p><a class="tp-time" href="#t=349" data-t="349">5:49</a> <span data-t="349">uh sorry no that&#39;s that&#39;s a that&#39;s a new</span> <span data-t="349">phrase X is the previous phrase that&#39;s C</span> <span data-t="353">and so we add X</span> <span data-t="356">and this first character of Y to the</span> <span data-t="359">dictionary</span></p>
+<p><a class="tp-time" href="#t=363" data-t="363">6:03</a> <span data-t="363">and that&#39;s what we do</span> <span data-t="363">okay</span> <span data-t="366">and again of course we don&#39;t really</span> <span data-t="368">store this as string we can store it as</span> <span data-t="370">one code word plus one letter</span> <span data-t="372">uses less space</span> <span data-t="375">okay keep going like this for a while so</span> <span data-t="377">78 is another single character letter so</span> <span data-t="380">we we decode that and now we have</span> <span data-t="383">another round of</span> <span data-t="386">a previous phrase a a new phrase n so we</span> <span data-t="390">add</span> <span data-t="391">a n to the dictionary s as shown here</span> <span data-t="394">now in these simple examples at the</span> <span data-t="396">beginning</span> <span data-t="397">X and Y are single characters but in the</span> <span data-t="401">general case X is any string and what we</span> <span data-t="403">add to access this the first character</span> <span data-t="405">of Y</span></p>
+<p><a class="tp-time" href="#t=413" data-t="413">6:53</a> <span data-t="413">one more we decode the space and we add</span> <span data-t="414">previous phrase plus first character to</span> <span data-t="416">the dictionary</span> <span data-t="417">one more and then things first get more</span> <span data-t="421">interesting</span> <span data-t="422">so we have the 129</span> <span data-t="424">that&#39;s one of the phrases we added</span> <span data-t="426">so it decodes to a n it&#39;s the first time</span> <span data-t="429">we use one of these</span> <span data-t="431">so let me write one last time our</span> <span data-t="434">previous phrase was the B</span> <span data-t="437">the new phrase is a n so the first</span> <span data-t="439">letter of a n is a</span> <span data-t="441">which means we add ba to the dictionary</span> <span data-t="443">and that&#39;s what you see here</span> <span data-t="446">all right</span> <span data-t="448">so just to the point where we see okay</span> <span data-t="450">we have understood things</span> <span data-t="452">now suddenly we run into this weird</span> <span data-t="455">situation</span> <span data-t="457">the next coded word is the 133 which</span> <span data-t="460">would be the next code to fill</span> <span data-t="463">but we haven&#39;t filled it yet</span> <span data-t="465">so we don&#39;t know what to do we don&#39;t</span> <span data-t="466">know what to decode it to</span> <span data-t="469">and it looks like this is um a terrible</span> <span data-t="472">dead end</span> <span data-t="473">which comes from the fact that in the</span> <span data-t="476">encoding is always one step ahead</span> <span data-t="478">and now in decoding we never quite catch</span> <span data-t="480">up and so we can run into this situation</span> <span data-t="484">uh fortunately by just looking at this a</span> <span data-t="488">bit more closely we can resolve it</span></p>
+<h2 class="tp-chapter" id="t494"><a href="#t=494" data-t="494">8:14</a> LZW decoding-Bootstrapping</h2>
+<p><a class="tp-time" href="#t=497" data-t="497">8:17</a> <span data-t="497">so again problem comes from this lagging</span> <span data-t="497">behind</span> <span data-t="498">and that might lead to the situation</span> <span data-t="501">that we want to fill we want to decode</span> <span data-t="503">the codeword that we&#39;re just about to</span> <span data-t="505">fill after this round</span> <span data-t="508">so what can we do</span></p>
+<p><a class="tp-time" href="#t=515" data-t="515">8:35</a> <span data-t="515">um we can have a close look at when</span> <span data-t="515">exactly this situation can happen</span> <span data-t="517">and then you&#39;ll see that it&#39;s actually</span> <span data-t="519">not a problem</span> <span data-t="521">so we&#39;re decoding the same phrase that</span> <span data-t="523">we&#39;re now filling</span> <span data-t="525">and that means uh in the encoder</span> <span data-t="530">the encoder also generated that phrase</span> <span data-t="532">right from the previous step it has to</span> <span data-t="535">be like that</span> <span data-t="536">because otherwise the encoder would also</span> <span data-t="538">not have had that phrase</span> <span data-t="540">so the encoder started with a n</span> <span data-t="544">and encoded that and then added to the</span> <span data-t="547">dictionary a n a</span></p>
+<p><a class="tp-time" href="#t=553" data-t="553">9:13</a> <span data-t="553">and then a and a comes again</span> <span data-t="553">that&#39;s exactly the situation it can only</span> <span data-t="556">happen like this the encoder has a</span> <span data-t="559">phrase adds a new character and then</span> <span data-t="560">that new phrase directly appears one</span> <span data-t="563">more time</span></p>
+<p><a class="tp-time" href="#t=568" data-t="568">9:28</a> <span data-t="568">but if that happens we know that this a</span> <span data-t="568">n is the same as this a n</span> <span data-t="570">and this a here is the same as this a</span> <span data-t="572">here</span> <span data-t="573">so we actually know a lot more about</span> <span data-t="575">this specific string</span> <span data-t="577">and in particular</span> <span data-t="579">um</span> <span data-t="580">we uh we know that this C must be the</span> <span data-t="584">first character of the previous phrase</span> <span data-t="586">in this case</span> <span data-t="588">all right so again follow along the</span> <span data-t="590">picture we have a n in the encoder</span> <span data-t="592">previously</span> <span data-t="593">we encode that but then we add the A and</span> <span data-t="597">put that into the dictionary as a new</span> <span data-t="599">phrase</span> <span data-t="600">and now it says the situation means</span> <span data-t="603">we&#39;ve now used that phrase as the next</span> <span data-t="605">step so the next phrase must be a and a</span> <span data-t="609">and that&#39;s the next thing that the</span> <span data-t="610">encoder uh in codes so it uses this new</span> <span data-t="614">phrase and that means that this A and A</span> <span data-t="617">is the same as this A and A</span> <span data-t="620">so the the blue a</span> <span data-t="623">always is the first character of of x</span> <span data-t="627">so with this with this special case of</span> <span data-t="629">of just using</span> <span data-t="632">um</span> <span data-t="633">the case analysis and substituting that</span> <span data-t="637">here it&#39;s not the first character of Y</span> <span data-t="640">but simply the first character of X</span> <span data-t="642">again</span> <span data-t="643">we can resolve that case</span></p>
+<h2 class="tp-chapter" id="t647"><a href="#t=647" data-t="647">10:47</a> LZW decoding - Code</h2>
+<p><a class="tp-time" href="#t=651" data-t="651">10:51</a> <span data-t="651">so here&#39;s the code for that</span> <span data-t="651">it looks like a lot of text but um</span> <span data-t="654">apart from this case special case</span> <span data-t="656">there&#39;s there&#39;s nothing really uh</span> <span data-t="659">um complicated going on we we start with</span> <span data-t="662">a dictionary</span> <span data-t="664">in this case we don&#39;t need a fancy try</span> <span data-t="666">or any any special data structure it&#39;s</span> <span data-t="669">just an array with strings or pairs of</span> <span data-t="674">uh previous previous phrase and one</span> <span data-t="676">character</span> <span data-t="678">and we initialize the first section with</span> <span data-t="680">all the in single characters in the</span> <span data-t="682">alphabet</span> <span data-t="684">then we have as before a variable for</span> <span data-t="687">the next free code word</span> <span data-t="689">as a shorthand we we cache the the next</span> <span data-t="693">code word to decode</span> <span data-t="695">and why is this phrase that we&#39;re now</span> <span data-t="698">decoding same uh use same same name as</span> <span data-t="701">before</span> <span data-t="703">and we have the source text initially</span> <span data-t="705">that&#39;s just the first phrase and we&#39;ll</span> <span data-t="706">keep adding to it</span> <span data-t="708">now we we iterate through the length of</span> <span data-t="711">the coded text</span> <span data-t="713">we remember the previous phrase in X</span> <span data-t="715">what was y last time is X now</span> <span data-t="719">we look at the next code word</span> <span data-t="723">and then if that code word is the</span> <span data-t="726">special case we&#39;re trying to use the</span> <span data-t="728">code word that we&#39;re just about to write</span> <span data-t="730">to the dictionary</span> <span data-t="732">then we know Y is of this special</span> <span data-t="734">special form we know what to do</span> <span data-t="737">and otherwise we it&#39;s one that we added</span></p>
+<p><a class="tp-time" href="#t=739" data-t="739">12:19</a> <span data-t="739">earlier so we can look it up from the</span> <span data-t="741">dictionary</span> <span data-t="742">then we add that to our source text</span> <span data-t="745">um</span> <span data-t="746">store the new phrase so this is this is</span> <span data-t="749">the the real y that we decoded so this</span> <span data-t="752">is um</span></p>
+<p><a class="tp-time" href="#t=759" data-t="759">12:39</a> <span data-t="759">that&#39;s the the phrase that we add to the</span> <span data-t="759">to the next point and it captures both</span> <span data-t="761">cases now because we set y here to this</span> <span data-t="764">and Advance this</span> <span data-t="767">I think the code is is not too</span> <span data-t="769">complicated after you&#39;ve seen this</span> <span data-t="770">special case</span> <span data-t="772">the rest is is</span> <span data-t="774">exactly as in the example</span> <span data-t="777">um</span> <span data-t="778">code it down</span></p>
+<h2 class="tp-chapter" id="t789"><a href="#t=789" data-t="789">13:09</a> LZW decoding - Example continued</h2>
+<p><a class="tp-time" href="#t=793" data-t="793">13:13</a> <span data-t="793">so to finish off our example from before</span> <span data-t="793">if we&#39;re in this special case where we</span> <span data-t="796">use exactly the previous phase we know</span> <span data-t="799">previous phrase was a n</span> <span data-t="802">we&#39;re in the special case that we need</span> <span data-t="804">the same phrase again so we append the</span> <span data-t="806">first character of that same phrase</span> <span data-t="809">that&#39;s our new code word</span></p>
+<p><a class="tp-time" href="#t=817" data-t="817">13:37</a> <span data-t="817">or new phrase for the text so we add</span> <span data-t="817">that to the dictionary and also use it</span> <span data-t="820">right away</span> <span data-t="832">all right</span> <span data-t="832">the with the key things out of the way</span> <span data-t="835">so if you have questions about the</span> <span data-t="836">decoding maybe we should do that first</span> <span data-t="840">um if not</span> <span data-t="841">I&#39;d like you to think about a bit about</span> <span data-t="844">the extreme cases for this</span></p>
+<p><a class="tp-time" href="#t=867" data-t="867">14:27</a> <span data-t="867">okay slider keeps reloading I&#39;ll get</span> <span data-t="867">there eventually</span> <span data-t="958">okay in the interest of everyone at home</span> <span data-t="958">I hope it&#39;s just slighter that&#39;s slow</span> <span data-t="960">and not our connection here</span> <span data-t="969">um I think we&#39;ve been well over 30</span> <span data-t="969">before so let&#39;s</span> <span data-t="972">wait a little bit</span></p>
+<p><a class="tp-time" href="#t=979" data-t="979">16:19</a> <span data-t="979">ah I didn&#39;t reset the answer so I don&#39;t</span> <span data-t="979">know how many we&#39;ve had today</span> <span data-t="988">but given that you had a lot of time to</span> <span data-t="988">think well I was fighting with slido</span> <span data-t="990">Let&#39;s Pretend 30 is enough</span> <span data-t="994">and um</span> <span data-t="996">that means one more oh okay</span> <span data-t="999">there we go</span></p>
+<h2 class="tp-chapter" id="t1004"><a href="#t=1004" data-t="1004">16:44</a> Clicker Question</h2>
+<p><a class="tp-time" href="#t=1006" data-t="1006">16:46</a> <span data-t="1006">uh let me dissect a bit why that&#39;s the</span> <span data-t="1006">case</span> <span data-t="1012">so this is a question in a way first of</span> <span data-t="1012">all</span> <span data-t="1012">a text that consists of just A&#39;s</span> <span data-t="1014">repeated</span> <span data-t="1016">hopefully is something like the best</span> <span data-t="1018">case for compression it&#39;s as boring as</span> <span data-t="1020">it can possibly get</span> <span data-t="1022">so we should in a way see this as the</span> <span data-t="1025">best possible case what&#39;s in the extreme</span> <span data-t="1027">case the compressed the compressibility</span> <span data-t="1030">or what What compression ratio can</span> <span data-t="1032">levels of Welch achieve if the text is</span> <span data-t="1036">as boring as as can be</span> <span data-t="1038">and so let&#39;s write a bunch of A&#39;s</span></p>
+<p><a class="tp-time" href="#t=1049" data-t="1049">17:29</a> <span data-t="1049">now let&#39;s start simulating what the</span> <span data-t="1049">lampus of Welsh algorithm would do</span> <span data-t="1052">to see if we can spot a pattern</span> <span data-t="1059">initially it&#39;ll fill its table with all</span> <span data-t="1059">the</span> <span data-t="1060">the symbols in the alphabet let&#39;s</span> <span data-t="1061">suppose uh whatever a is one of these</span> <span data-t="1064">right</span> <span data-t="1065">so the first step the first phrase we</span> <span data-t="1068">find is just the single a</span> <span data-t="1070">we encode the code word for that</span> <span data-t="1072">whatever it is and then we add a plus</span> <span data-t="1075">the next character to the dictionary</span> <span data-t="1077">that&#39;s how it always worked so we add a</span> <span data-t="1080">a to the dictionary</span> <span data-t="1082">and then we move on</span> <span data-t="1085">next phrase is precisely that a a that</span> <span data-t="1088">we just created</span> <span data-t="1090">right</span> <span data-t="1091">that&#39;s the longest match we can find we</span> <span data-t="1094">encode that and store that plus the next</span> <span data-t="1096">character to the dictionary which is</span> <span data-t="1098">Three A&#39;s</span> <span data-t="1099">and then one together guess why what</span> <span data-t="1101">happens</span> <span data-t="1102">um we find the Three A&#39;s right again</span> <span data-t="1105">so the next phrase will be these</span> <span data-t="1109">and then we add a fourth a put that in</span> <span data-t="1111">the dictionary which is again what we</span> <span data-t="1113">find so you can</span> <span data-t="1115">probably spot the pattern by now</span> <span data-t="1118">uh if you decode this by the way we will</span> <span data-t="1121">always always run into the weird case</span> <span data-t="1123">where we use the phrase that we just are</span> <span data-t="1125">about to add</span> <span data-t="1126">so if you want to practice that and see</span></p>
+<p><a class="tp-time" href="#t=1129" data-t="1129">18:49</a> <span data-t="1129">if you&#39;ve got the</span> <span data-t="1131">got the cases right this is a simple</span> <span data-t="1133">example to force the special case</span> <span data-t="1137">okay so we we always make the phrases</span> <span data-t="1140">one longer what does that mean for the</span> <span data-t="1141">number of phrases</span> <span data-t="1144">if we sum up the total length that we</span> <span data-t="1146">covered with phrases</span> <span data-t="1149">then let&#39;s let&#39;s open</span> <span data-t="1151">um</span> <span data-t="1152">this runs to something that we don&#39;t</span> <span data-t="1153">know</span> <span data-t="1155">but we want that this covers at least</span> <span data-t="1157">the length of the string</span> <span data-t="1159">right</span> <span data-t="1161">so if you put some some specific number</span> <span data-t="1163">okay that we don&#39;t know yet</span> <span data-t="1166">if that inequality is fulfilled then we</span> <span data-t="1169">have enough phrases to cover the entire</span> <span data-t="1170">text</span> <span data-t="1172">and so this sum is in asymptotic</span> <span data-t="1176">notation</span> <span data-t="1177">uh let&#39;s write them down on this side</span> <span data-t="1180">is K squared over 2</span> <span data-t="1184">. now I know you can probably work this</span> <span data-t="1186">out you all know uh gauss&#39;s little</span> <span data-t="1188">formula and so on you can solve it</span> <span data-t="1190">entirely but the the point is if you</span> <span data-t="1192">solve for k then roughly the order of</span> <span data-t="1195">growth is root n</span> <span data-t="1197">so that&#39;s why we get that</span> <span data-t="1201">it&#39;s not super intuitive you need to</span> <span data-t="1203">really think about some concrete example</span> <span data-t="1205">to see why that happens if you just</span> <span data-t="1207">think about the procedure and I would</span> <span data-t="1209">have told you root n is the best</span> <span data-t="1211">possible it feels like eh why there&#39;s</span> <span data-t="1213">nothing nothing squarish happening</span></p>
+<p><a class="tp-time" href="#t=1216" data-t="1216">20:16</a> <span data-t="1216">uh it&#39;s only through this indirect route</span> <span data-t="1225">all right</span> <span data-t="1225">so that&#39;s all for levels if Welsh let&#39;s</span> <span data-t="1228">um let&#39;s briefly wrap up what we&#39;ve seen</span> <span data-t="1232">so um there&#39;s a few</span> <span data-t="1234">bits and Buffs before before I come to</span> <span data-t="1236">the pro and cons there&#39;s a few things</span> <span data-t="1240">from the presentation where you should</span> <span data-t="1243">say hold on a minute</span> <span data-t="1245">uh I promise that we use this fixed size</span> <span data-t="1248">alphabet say 12 bits</span> <span data-t="1250">which means the dictionary is a finite</span> <span data-t="1253">size</span> <span data-t="1254">if I keep encoding things I will</span> <span data-t="1256">eventually fill up the entire dictionary</span> <span data-t="1258">I always add one more phrase</span> <span data-t="1260">so at some point</span> <span data-t="1262">um I have to deal with the</span> <span data-t="1264">with the situation that the dictionary</span> <span data-t="1266">is full</span> <span data-t="1268">and there&#39;s different options what you</span> <span data-t="1270">can do each can make sense uh depends on</span> <span data-t="1274">on what you want to achieve</span> <span data-t="1276">um</span> <span data-t="1278">and what the input looks like if you</span> <span data-t="1281">have reason to believe that the text is</span> <span data-t="1282">overall repeating then it might make</span> <span data-t="1285">sense to just increment the codeword</span> <span data-t="1287">size over time</span> <span data-t="1290">the other option often used in in</span> <span data-t="1292">practice because it avoids running out</span> <span data-t="1294">of memory eventually</span> <span data-t="1296">is to just flush the dictionary start</span> <span data-t="1298">from scratch</span> <span data-t="1299">so you fill it up and then you you</span> <span data-t="1302">pretend you start from the initial State</span> <span data-t="1305">again</span> <span data-t="1306">uh and indeed</span> <span data-t="1308">um</span> <span data-t="1309">most applications of sipped and so on</span></p>
+<h2 class="tp-chapter" id="t1223"><a href="#t=1223" data-t="1223">20:23</a> LZW-Discussion</h2>
+<p><a class="tp-time" href="#t=1311" data-t="1311">21:51</a> <span data-t="1311">they have a special code word where the</span> <span data-t="1313">encoder can say I think now is a smart</span> <span data-t="1316">time to just abandon the dictionary</span> <span data-t="1318">flush it and start from scratch</span> <span data-t="1320">now why would you ever want to do that</span> <span data-t="1323">on purpose before it fills up</span> <span data-t="1325">you would want to do that if the text</span> <span data-t="1327">changes its nature so if there&#39;s say if</span> <span data-t="1332">it&#39;s two documents one in English and</span> <span data-t="1335">one in French concatenate it then maybe</span> <span data-t="1338">there&#39;s not too much repetition in the</span> <span data-t="1340">French part branching back to the</span> <span data-t="1342">English part</span> <span data-t="1343">and if you can somehow with some</span> <span data-t="1345">heuristic detect say you&#39;ve always just</span> <span data-t="1347">used single letters for a while then</span> <span data-t="1350">maybe it&#39;s better to just flush and</span> <span data-t="1352">start from scratch</span> <span data-t="1353">things like that um people try to try to</span> <span data-t="1356">do in practice</span></p>
+<p><a class="tp-time" href="#t=1363" data-t="1363">22:43</a> <span data-t="1363">from our side it&#39;s just</span> <span data-t="1363">um we&#39;ll mostly in our examples we&#39;ll</span> <span data-t="1365">just treat the case where you still have</span> <span data-t="1367">time still have space in your dictionary</span> <span data-t="1370">for a general implementation you have to</span> <span data-t="1373">just decide what you want to do all of</span> <span data-t="1375">these halves their their pros and cons</span> <span data-t="1379">so this this gets better compression but</span> <span data-t="1383">might um</span> <span data-t="1385">yeah I might might fill up your main</span> <span data-t="1388">memory because you keep adding to a</span> <span data-t="1390">dictionary</span> <span data-t="1391">uh this avoids that but if if you flush</span> <span data-t="1394">the dictionary too early then you may</span> <span data-t="1397">miss some repetition from far back</span> <span data-t="1401">all right</span></p>
+<p><a class="tp-time" href="#t=1407" data-t="1407">23:27</a> <span data-t="1407">uh the good part is that encoding</span> <span data-t="1407">decoding all runs in linear time</span> <span data-t="1409">and if if you have space for the</span> <span data-t="1412">dictionary you can even do it in</span> <span data-t="1414">streaming mode</span> <span data-t="1415">you don&#39;t ever look back into the text</span> <span data-t="1417">really all you need is your dictionary</span> <span data-t="1420">and that&#39;s why people use lampus if</span> <span data-t="1423">methods also for transport layer</span> <span data-t="1427">compression</span> <span data-t="1428">uh now good question of which layer is</span> <span data-t="1431">this I think it&#39;s it&#39;s at HTTP layer so</span> <span data-t="1433">web traffic you can</span> <span data-t="1436">automatically tell your your uh</span> <span data-t="1440">operating system to compress the stream</span> <span data-t="1443">before it leaves the network before it</span> <span data-t="1445">leaves on the network</span> <span data-t="1447">um and that this can be done while just</span> <span data-t="1450">reading the text once and outputting the</span> <span data-t="1452">compressed result that&#39;s important for</span> <span data-t="1454">such an application</span></p>
+<p><a class="tp-time" href="#t=1463" data-t="1463">24:23</a> <span data-t="1463">so we like the fast encoding and</span> <span data-t="1464">decoding obviously</span> <span data-t="1466">and that it works in this streaming way</span> <span data-t="1470">um it also works really well for many</span> <span data-t="1472">types of data that we seem to have in</span> <span data-t="1474">our world and I&#39;ve mentioned why before</span> <span data-t="1477">it&#39;s just a</span> <span data-t="1479">a lot is text based in one form or</span> <span data-t="1481">another and there&#39;s many</span> <span data-t="1483">human friendly text tends to have small</span> <span data-t="1487">repeated parts that mean something to us</span></p>
+<p><a class="tp-time" href="#t=1494" data-t="1494">24:54</a> <span data-t="1494">with a bounded dictionary at least if we</span> <span data-t="1494">do this flushing technique uh we&#39;re</span> <span data-t="1497">somewhat local in the repetitions that</span> <span data-t="1499">we can catch</span> <span data-t="1501">and even if you keep increasing your</span> <span data-t="1504">dictionary you will be able to reach all</span> <span data-t="1506">the way back to find repetitions</span> <span data-t="1508">uh but you make all code words one bit</span> <span data-t="1511">longer which may</span> <span data-t="1513">um may not be a good deal in all cases</span> <span data-t="1517">so then you can play more tricks like um</span> <span data-t="1519">the first bullet</span> <span data-t="1521">take these code words that come out of</span> <span data-t="1523">that and try to compress that further</span> <span data-t="1525">with some other technique like a Huffman</span> <span data-t="1527">code</span> <span data-t="1528">but if you keep stacking things up too</span> <span data-t="1530">high it becomes tough to understand</span> <span data-t="1532">what&#39;s happening</span> <span data-t="1533">so there&#39;s some some slight negative</span> <span data-t="1536">part that</span> <span data-t="1537">capturing really long range repetitions</span> <span data-t="1541">doesn&#39;t usually work so well with lampus</span> <span data-t="1543">if</span> <span data-t="1544">I&#39;m just mentioning this here because</span> <span data-t="1546">we&#39;ll we&#39;ll come back to that that</span> <span data-t="1548">question later</span></p>
+<h2 class="tp-chapter" id="t1551"><a href="#t=1551" data-t="1551">25:51</a> Compression summary</h2>
+<p><a class="tp-time" href="#t=1554" data-t="1554">25:54</a> <span data-t="1554">I want to summarize what we&#39;ve seen so</span> <span data-t="1554">far because these are the traditional</span> <span data-t="1556">compression methods</span> <span data-t="1558">um and the three most important ones</span> <span data-t="1560">we&#39;ve seen</span> <span data-t="1562">um</span> <span data-t="1563">I don&#39;t necessarily want to read that</span> <span data-t="1565">out all again it&#39;s basically repeating</span> <span data-t="1567">what I said in the discussion slides of</span> <span data-t="1569">the appropriate chapters</span> <span data-t="1570">but as a little service to you as I&#39;m</span> <span data-t="1573">arrested</span> <span data-t="1575">um and there&#39;s a few comments on where</span> <span data-t="1577">where it&#39;s used in what form</span> <span data-t="1581">as I said before none of these methods</span> <span data-t="1583">is used in isolation as the solution for</span> <span data-t="1586">everything</span> <span data-t="1587">they&#39;re usually used in combination</span> <span data-t="1590">and we&#39;ll come back to that as well</span></p>
+
+  </div>
+</div>
+
+<p class="tp-nav vo-small"><a href="/videos/comp526-fall2022/7-7/">← Video 7-7: §7.6 Lempel-Ziv-Welch encoding</a><a class="tp-next" href="/videos/comp526-fall2022/7-9-EQ-uTVrDbBQ/">Video 7-9: §7.8 Move-to-front transform →</a>
+</p>
+
+<script src="/assets/js/transcript-player.js" defer></script>
+
+  </div>
+
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Sebastian Wild</h2>
+
+    <div class="footer-col-wrapper">
+
+      <div class="footer-col footer-col-1">
+        <p>Contact:</p>
+
+        <ul class="link-group">
+          <li><a href="mailto:%77%69%6C%64@%69%6E%66%6F%72%6D%61%74%69%6B.%75%6E%69-%6D%61%72%62%75%72%67.%64%65" title="Contact me">wild at informatik.uni-marburg.de</a></li>
+          <li><a href="mailto:%77%69%6C%64@%6C%69%76%65%72%70%6F%6F%6C.%61%63.%75%6B" title="Contact me">wild at liverpool.ac.uk</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x34EE39A78B149255">PGP</a></li>
+          <li><a href="mailto:%73%65%62%61%77%69%6C%64@%67%6D%61%69%6C.%63%6F%6D" title="Contact me">sebawild at gmail</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x38600ABC14973198">PGP</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://www.uni-marburg.de/de/fb12/arbeitsgruppen/algorith/team/sebastian-wild">Website at UMR</a></li>
+          <li><a href="https://www.liverpool.ac.uk/computer-science/staff/sebastian-wild">Website at UoL</a></li>
+          <li><a href="https://tcs.csc.liv.ac.uk">TCS @ Liverpool</a></li>
+        </ul>
+
+        <p class="footer-note">
+          Retired addresses (no longer read):
+          <span class="retired">wild at uwaterloo.ca</span>,
+          <span class="retired">wild at cs.uni-kl.de</span>.
+        </p>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <p>Elsewhere:</p>
+
+        <ul class="link-group">
+          <li><a href="https://github.com/sebawild" title="GitHub sebawild"><i class="fab fa-github" aria-hidden="true"></i> GitHub sebawild</a></li>
+          <li><a rel="me" href="https://mathstodon.xyz/@wild" title="Mastodon @wild@mathstodon.xyz"><i class="fab fa-mastodon" aria-hidden="true"></i> @wild@mathstodon.xyz</a></li>
+          <li><a href="https://bsky.app/profile/sebastianwild.bsky.social" title="Bluesky @sebastianwild.bsky.social"><span aria-hidden="true">🦋</span> @sebastianwild</a></li>
+          <li><a href="https://www.linkedin.com/in/sebastian-wild-liverpool/"><i class="fab fa-linkedin" aria-hidden="true"></i> LinkedIn profile</a></li>
+          <li><a href="https://www.youtube.com/c/SebastianWildLectures"><i class="fab fa-youtube" aria-hidden="true"></i> YouTube channel</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://orcid.org/0000-0002-6061-9177" title="ORCID: 0000-0002-6061-9177"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-orcid"/></svg>
+ 0000-0002-6061-9177</a></li>
+          <li><a href="https://scholar.google.de/citations?user=aMyZiK0AAAAJ"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-google-scholar"/></svg>
+ Google Scholar</a></li>
+          <li><a href="https://dblp.uni-trier.de/pers/hd/w/Wild:Sebastian"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-dblp"/></svg>
+ dblp</a></li>
+          <li><a href="https://www.semanticscholar.org/author/3124206"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-semantic-scholar"/></svg>
+ Semantic Scholar</a></li>
+          <li><a href="https://arxiv.org/a/wild_s_2"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-arxiv"/></svg>
+ arXiv</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>Quick links:</p>
+        <ul class="link-group">
+          <li><a href="/publications/">my publications</a></li>
+          <li><a href="/cv.html">my CV</a></li>
+          <li><a href="/feed.xml">RSS feed</a></li>
+          <li><a href="https://disk.wild-inter.net/sharing/WwXHITc2j">my library</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

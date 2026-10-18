@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <script>document.documentElement.className += ' js';</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><title>Video 5-3: The Knuth-Morris-Pratt algorithm</title>
+  <meta name="description" content="Website of Sebastian Wild, algorithms researcher">
+  <link rel="canonical" href="https://www.wild-inter.net/videos/algbio/5-3/"><meta property="og:type" content="website">
+  <meta property="og:site_name" content="Sebastian Wild&#39;s Site">
+  <meta property="og:title" content="Video 5-3: The Knuth-Morris-Pratt algorithm">
+  <meta property="og:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta property="og:url" content="https://www.wild-inter.net/videos/algbio/5-3/">
+  <meta property="og:image" content="https://www.wild-inter.net/assets/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Sebastian Wild">
+  <meta property="og:locale" content="en_GB">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Video 5-3: The Knuth-Morris-Pratt algorithm">
+  <meta name="twitter:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta name="twitter:image" content="https://www.wild-inter.net/assets/og-card.png">
+
+  <meta name="theme-color" content="#F5EBD9"><link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest"><link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/pagella/texgyrepagella-regular-webfont.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/epigrafica/epigrafica-entona-webfont.woff2">
+
+  <link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/fontawesome/fontawesome-all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+
+  <link rel="alternate" type="application/rss+xml" title="Sebastian Wild&#39;s Site"
+        href="https://www.wild-inter.net/feed.xml">
+
+  <script data-goatcounter="https://wild-inter-net.goatcounter.com/count"
+          async src="https://gc.zgo.at/count.js"></script>
+</head>
+
+
+  <body>
+
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header">
+
+  <div class="wrapper"><a class="site-title" href="/">
+      <img class="site-mark" src="/assets/two-pivots.svg"
+           alt="" width="100" height="100" aria-hidden="true">
+      <span class="site-wordmark">
+        <span class="site-name">Sebastian Wild</span>
+        <span class="site-tagline">Algorithms Group &middot; Universität Marburg</span>
+      </span>
+    </a>
+
+    <nav class="site-nav" aria-label="Main">
+
+      <button type="button" class="menu-icon" id="menu-toggle"
+              aria-expanded="false" aria-controls="site-nav-menu">
+        <svg viewBox="0 0 18 15" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="currentColor" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="currentColor" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+        <span class="visually-hidden">Menu</span>
+      </button>
+
+      <div class="trigger" id="site-nav-menu">
+          <a class="page-link" href="/research/"
+             >Research</a>
+          <a class="page-link" href="/teaching/"
+             >Teaching</a>
+          <a class="page-link" href="/posts/"
+             >Blog</a>
+          <a class="page-link" href="/about/"
+             >About</a>
+      </div>
+
+    </nav>
+
+  </div>
+
+</header>
+
+<script>
+  /* Mobile menu. Without JS the CSS leaves the menu permanently expanded,
+     so navigation still works — see the `.js` guard in _sass/_layout.scss. */
+  (function () {
+    var btn = document.getElementById('menu-toggle');
+    if (!btn) return;
+    var nav = btn.parentNode;
+
+    function setOpen(open) {
+      nav.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    btn.addEventListener('click', function () {
+      setOpen(!nav.classList.contains('is-open'));
+    });
+
+    document.addEventListener('click', function (e) {
+      if (nav.classList.contains('is-open') && !nav.contains(e.target)) setOpen(false);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && nav.classList.contains('is-open')) {
+        setOpen(false);
+        btn.focus();
+      }
+    });
+  })();
+</script>
+
+
+    <main id="content" class="page-content">
+      <div class="wrapper">
+        <article class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Video 5-3: The Knuth-Morris-Pratt algorithm</h1>
+  </header>
+
+  <div class="post-content">
+    
+
+    <style>
+  .vo-summary { font-size: 0.9em; }
+  .vo-scroll { overflow-x: auto; margin-bottom: 1.5em; }
+  .vo-table { border-collapse: collapse; font-size: 0.9em; width: 100%; font-variant-numeric: tabular-nums; }
+  .vo-table.vo-compact { width: auto; margin-left: 0; margin-right: auto; }
+  .vo-table.vo-compact th, .vo-table.vo-compact td { white-space: nowrap; }
+  .vo-table th, .vo-table td { padding: 0.2em 0.45em; vertical-align: baseline; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.08); }
+  .vo-table th { border-bottom: 2px solid rgba(0,0,0,0.25); white-space: nowrap; }
+  .vo-table tr.vo-newunit td { border-top: 2px solid rgba(0,0,0,0.2); }
+  .vo-table .vo-num { text-align: right; white-space: nowrap; padding-left: 0.9em; }
+  .vo-mono { font-family: Menlo, Consolas, monospace; font-size: 0.8em; }
+  .vo-table td.vo-small, .vo-table td .vo-small { font-size: inherit; }
+  .vo-table td .vo-note { font-size: 0.9em; opacity: 0.85; }
+  .vo-nowrap { white-space: nowrap; }
+  .vo-small { font-size: 0.9em; }
+  .vo-muted { opacity: 0.6; }
+
+  /* search */
+  .ts { margin: 1em 0 1.5em; }
+  .ts-input { font: inherit; width: min(100%, 28em); padding: 0.3em 0.5em; border: 1px solid rgba(0,0,0,0.3); border-radius: 4px; background: rgba(255,255,255,0.6); }
+  .ts-status { margin-left: 0.5em; opacity: 0.7; }
+  .ts-results { margin-top: 0.5em; }
+  .ts-hit { margin: 0.6em 0; }
+  .ts-hit-title { font-size: 0.95em; }
+  .ts-hit-ctx { font-size: 0.85em; margin: 0.1em 0 0 1em; }
+  .ts-hit-ctx a.ts-t { font-variant-numeric: tabular-nums; margin-right: 0.4em; }
+  .ts mark, .tp-text mark { background: rgba(255, 210, 0, 0.45); color: inherit; padding: 0 0.05em; }
+
+  /* transcript page: player sticks to the top while reading */
+  .tp-bar { position: sticky; top: 0; z-index: 5; background: #F5EBD9; padding: 4px 0 6px; }
+  .tp-player { position: relative; max-width: 560px; aspect-ratio: 16 / 9;
+               padding: 5px; box-sizing: content-box; width: calc(100% - 12px);
+               background: #faf6ed; border: 1px solid #aeaa9e; border-radius: 4px; }
+  .tp-player iframe, .tp-player > div, .tp-start { position: absolute; top: 5px; left: 5px; width: calc(100% - 10px); height: calc(100% - 10px); border: 0; margin: 0; padding: 0; background: #000; }
+  .tp-start { cursor: pointer; overflow: hidden; }
+  .tp-start img { width: 100%; height: 100%; object-fit: cover; display: block; margin: 0; padding: 0; border: 0; border-radius: 0; }
+  .tp-start .yt-lite-play { position: absolute; left: 50%; top: 50%; width: 68px; height: 48px; transform: translate(-50%, -50%); }
+  .tp-start .yt-lite-play-bg { fill: #212121; fill-opacity: 0.8; }
+  .tp-start:hover .yt-lite-play-bg, .tp-start:focus-visible .yt-lite-play-bg { fill: #902015; fill-opacity: 1; }
+  .tp-controls { margin: 0.3em 0 0; opacity: 0.8; }
+  .tp-disclaimer { margin: 0.6em 0 1.2em; padding: 0.4em 0.6em; border-left: 3px solid rgba(144, 32, 21, 0.35); background: rgba(255, 255, 255, 0.35); }
+  .tp-controls label { margin-left: 1em; white-space: nowrap; }
+  .tp-text p { position: relative; }
+  .tp-text [data-t] { cursor: pointer; border-radius: 2px; }
+  .tp-text span[data-t]:hover { background: rgba(144, 32, 21, 0.08); }
+  .tp-text span.tp-now { background: rgba(144, 32, 21, 0.16); box-shadow: 0 0 0 2px rgba(144, 32, 21, 0.16); }
+  .tp-text .tp-time { font-size: 0.75em; font-variant-numeric: tabular-nums; opacity: 0.6; margin-right: 0.3em; text-decoration: none; }
+  .tp-text .tp-chapter { font-size: 1.15em; margin-top: 1.5em; }
+  .tp-text .tp-chapter a { font-size: 0.7em; opacity: 0.6; font-variant-numeric: tabular-nums; text-decoration: none; }
+  .tp-nav { display: flex; justify-content: space-between; gap: 1em; margin-top: 2em; }
+  .tp-nav .tp-next { margin-left: auto; text-align: right; }
+</style>
+
+<p class="vo-summary">
+  <a href="/videos/algbio/">CS 594 – Algorithms of Bioinformatics (Winter 2025-26)</a> · <a href="/teaching/algbio/05-string-matching">unit page</a>
+  · <a href="https://youtu.be/XAXRf67kabA">YouTube</a>
+  <br/>2025-12-04, 14:23
+</p>
+
+<div class="tp" data-id="XAXRf67kabA">
+  <div class="tp-bar"><div class="tp-player" id="tp-player">
+    <button type="button" class="tp-start" data-t="0" aria-label="Play video">
+      <img src="/assets/video-thumbs/XAXRf67kabA.webp" alt="" width="640" height="360" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/XAXRf67kabA/hqdefault.jpg'">
+      <svg class="yt-lite-play" viewBox="0 0 68 48" aria-hidden="true" focusable="false"><path class="yt-lite-play-bg" d="M66.5 7.7c-.8-2.9-2.5-5.4-5.4-6.2C55.8.1 34 0 34 0S12.2.1 6.9 1.6C4 2.3 2.3 4.8 1.5 7.7.1 13 0 24 0 24s.1 11 1.5 16.3c.8 2.9 2.5 5.4 5.4 6.2C12.2 47.9 34 48 34 48s21.8-.1 27.1-1.6c2.9-.7 4.6-3.2 5.4-6.1C67.9 35 68 24 68 24s-.1-11-1.5-16.3z"/><path d="M45 24 27 14v20z" fill="#fff"/></svg>
+    </button>
+  </div>
+  <p class="tp-controls vo-small">
+    <em>Click any sentence to play from there.</em>
+    <label><input type="checkbox" class="tp-follow" checked> follow along</label>
+  </p></div>
+  <p class="tp-disclaimer vo-small"><em>The transcript was generated automatically by YouTube's speech
+  recognition and is offered as is. It may contain errors, in particular in concerning technical terms,
+  names and formulas.</em></p>
+  <div class="tp-text" lang="en">
+<p><a class="tp-time" href="#t=3" data-t="3">0:03</a> <span data-t="3">Okay, time for the for the final piece</span> <span data-t="3">in this algorithm.</span> <span data-t="11">We&#39;re almost at the final solution that</span> <span data-t="11">Kenuth Morris and Pratt came up with. Uh</span> <span data-t="13">the string matching automaton that we&#39;ve</span> <span data-t="15">seen can already be constructed</span> <span data-t="18">efficiently. The only part that was</span> <span data-t="20">suboptimal was this dependence on the</span> <span data-t="22">size of the alphabet.</span> <span data-t="25">And if you carefully remember or watch</span> <span data-t="29">how we constructed the automaton,</span> <span data-t="32">it was already suggesting an</span> <span data-t="34">improvement. Namely, I was in the</span> <span data-t="38">simulation updating this state X where</span> <span data-t="42">then you have to take all the edges</span> <span data-t="43">from. Why not just keep that state</span> <span data-t="47">instead of copying all the edges?</span> <span data-t="50">That&#39;s the that&#39;s the third insight that</span> <span data-t="52">they had. uh if you want you can say</span> <span data-t="54">this is uh the way I presented it as</span> <span data-t="58">following from automa theory is exactly</span> <span data-t="60">what led us into this slightly</span> <span data-t="63">suboptimal way because this is the best</span> <span data-t="66">you can do if you insist on having a</span> <span data-t="68">classical deterministic finite automaton</span> <span data-t="72">but if you don&#39;t then you can slightly</span> <span data-t="75">modify the type of automaton and the</span> <span data-t="77">type of computation on these automatter</span> <span data-t="79">that you do and then the dependence on</span> <span data-t="82">on sigma can be avoided.</span></p>
+<p><a class="tp-time" href="#t=85" data-t="85">1:25</a> <span data-t="85">Um in the automata world what we use is</span> <span data-t="89">now a special type of arc called a</span> <span data-t="91">failure link</span> <span data-t="94">which uh the rules are you&#39;re only</span> <span data-t="96">allowed or you&#39;re forced to take the</span> <span data-t="98">failure link if you cannot follow the</span> <span data-t="100">edges with characters.</span> <span data-t="103">In all the automa here there will only</span> <span data-t="104">be a single edge with a character on it.</span> <span data-t="107">So if you&#39;re sitting here and you don&#39;t</span> <span data-t="109">see a C, you have to follow this failure</span> <span data-t="112">link, but you do not consume the next</span> <span data-t="115">character of the text. The failure links</span> <span data-t="118">are just updating the state of the</span> <span data-t="120">automaton. You&#39;re still looking at the</span> <span data-t="122">same character in the text. And then you</span> <span data-t="124">try again. Maybe it wasn&#39;t a C here, so</span> <span data-t="126">you had to go there. But maybe it&#39;s a B</span> <span data-t="129">that you can read from here. Now,</span> <span data-t="133">it could also happen that it&#39;s an A. So</span> <span data-t="136">you can neither follow the C nor the B.</span> <span data-t="139">Then you have to follow another failure</span> <span data-t="140">link and another until you can finally</span> <span data-t="144">read this.</span></p>
+<p><a class="tp-time" href="#t=146" data-t="146">2:26</a> <span data-t="146">Because these failure links don&#39;t</span> <span data-t="148">consume characters, it might mean that</span> <span data-t="151">we have to follow several of them before</span> <span data-t="153">we make progress in the text.</span> <span data-t="157">Now note that the computations are still</span> <span data-t="160">unambiguous. It&#39;s still always a single</span> <span data-t="163">thing that you can do. either follow an</span> <span data-t="164">edge or follow a failure link. So it&#39;s</span> <span data-t="167">still a deterministic computation.</span> <span data-t="170">Uh but still if you want it doesn&#39;t map</span> <span data-t="172">to any of the standard automata classes.</span> <span data-t="175">But I would say that&#39;s the fault of the</span> <span data-t="177">definitions from automa theory. Not the</span> <span data-t="179">fault of this automa. It&#39;s a is a fine</span> <span data-t="182">computation device. Uh in particular</span> <span data-t="185">deterministic.</span></p>
+<p><a class="tp-time" href="#t=188" data-t="188">3:08</a> <span data-t="188">What&#39;s also obvious here is every state</span> <span data-t="190">needs just two edges. a match edge and a</span> <span data-t="192">failure link. No dependence on sigma.</span> <span data-t="201">Uh here&#39;s an example of how you can use</span> <span data-t="201">this automaton to match in the text. I</span> <span data-t="203">don&#39;t want to give this uh example in</span> <span data-t="205">full detail. It works as I sketched. Uh</span> <span data-t="209">there&#39;s always just one thing that you</span> <span data-t="211">can do. It might sometimes mean that you</span> <span data-t="213">go through several failure links before</span> <span data-t="215">you can process a character. Well,</span> <span data-t="217">that&#39;s just how it works.</span></p>
+<p><a class="tp-time" href="#t=223" data-t="223">3:43</a> <span data-t="223">Uh here&#39;s code for simulating the</span> <span data-t="223">automaton. So what the example showed is</span> <span data-t="226">written up in specific code. Um</span> <span data-t="229">I&#39;m not going to read through the code</span> <span data-t="231">really. Uh it keeps track of the state</span> <span data-t="234">and the position in the text and the</span> <span data-t="235">rest is</span> <span data-t="238">fairly straightforward given if if you</span> <span data-t="240">understand the automaton</span> <span data-t="242">you could reproduce this code. The code</span> <span data-t="245">is here for the analysis because now</span> <span data-t="249">um as shown in this example, it can</span> <span data-t="253">potentially take you a long time before</span> <span data-t="255">you process the next character in the</span> <span data-t="257">text.</span> <span data-t="258">And in the code, this also shows there&#39;s</span> <span data-t="261">an outer loop that says um I&#39;m going to</span> <span data-t="264">go through the positions in the text,</span> <span data-t="267">but I&#39;m not always making progress. I</span> <span data-t="270">this position in the text is incremented</span> <span data-t="273">here and here.</span> <span data-t="276">Uh but I might spend a lot of time</span> <span data-t="278">always in this other case where I&#39;m</span> <span data-t="280">following failure links. So the danger</span> <span data-t="283">seems to be that I might take more than</span> <span data-t="285">linear time in this algorithm. If I&#39;m</span> <span data-t="288">often</span> <span data-t="290">running into this second state where I</span> <span data-t="292">don&#39;t make progress, I is not</span> <span data-t="294">incremented.</span></p>
+<p><a class="tp-time" href="#t=296" data-t="296">4:56</a> <span data-t="296">But if you look closely</span> <span data-t="299">there is something that changes namely</span> <span data-t="300">Q. So in each iteration either I</span> <span data-t="304">increases or Q decreases</span> <span data-t="307">because the failure link is always</span> <span data-t="308">strictly going to the to the left.</span></p>
+<p><a class="tp-time" href="#t=313" data-t="313">5:13</a> <span data-t="313">So you can do an amortized analysis of</span> <span data-t="315">this loop</span> <span data-t="317">uh where each individual character may</span> <span data-t="320">see many failure links but summed over</span> <span data-t="324">all the characters of the text you</span> <span data-t="326">cannot see much on average.</span> <span data-t="329">Intuitively, you could say before you</span> <span data-t="331">have to follow failure links for a long</span> <span data-t="333">time. You must have used match edges to</span> <span data-t="337">get to the right, but you can only get</span> <span data-t="340">to the right one step at a time,</span> <span data-t="342">consuming one character in the text</span> <span data-t="343">each.</span> <span data-t="345">The failure links might jump further</span> <span data-t="347">left, but the worst case is that they</span> <span data-t="349">jump one position back each time. But</span> <span data-t="352">you can&#39;t go more to the right than you</span> <span data-t="354">went to the left. uh there&#39;s no no</span> <span data-t="358">teleporting.</span> <span data-t="360">So the total number of of jumps the</span> <span data-t="363">total number of failure links you follow</span> <span data-t="365">is at most the number of positions in</span> <span data-t="367">the text.</span> <span data-t="369">If you want more formally you can say um</span> <span data-t="372">that in each iteration of this outer</span> <span data-t="374">while loop we either make i bigger or i</span> <span data-t="378">minus q bigger.</span></p>
+<p><a class="tp-time" href="#t=381" data-t="381">6:21</a> <span data-t="381">And so in each case we make progress and</span> <span data-t="383">we cannot not do progress for um for one</span> <span data-t="388">of the two. But then individually I can</span> <span data-t="392">be made at most n times bigger than I&#39;m</span> <span data-t="395">at the end of the text and I minus q can</span> <span data-t="398">also not be made more than n times</span> <span data-t="400">bigger.</span> <span data-t="402">So each of the cases can summed over all</span> <span data-t="405">the iterations only happen at most n</span> <span data-t="407">times. So after two n steps, two n</span> <span data-t="410">iterations, the loop&#39;s done.</span></p>
+<p><a class="tp-time" href="#t=414" data-t="414">6:54</a> <span data-t="414">So even though it&#39;s at first at first</span> <span data-t="416">sight maybe looks like it&#39;s slower, it</span> <span data-t="419">isn&#39;t really</span> <span data-t="421">only a factor two.</span> <span data-t="425">What&#39;s left out here is the computation</span> <span data-t="427">of the failure links. That was just a</span> <span data-t="429">call to this uh function with a forward</span> <span data-t="432">reference.</span> <span data-t="433">Uh the algorithm here is very very</span> <span data-t="436">similar to the computation of this uh</span> <span data-t="438">deterministic automaton.</span> <span data-t="440">Basically you you simulate</span> <span data-t="443">again leaving off the first character</span> <span data-t="445">you simulate where you would have gone</span> <span data-t="448">to what state you would have gone with</span> <span data-t="449">the prefix with one shorter.</span> <span data-t="452">And now instead of copying the outgoing</span> <span data-t="455">transitions of this state X, you insert</span> <span data-t="457">a failure link to that state X.</span> <span data-t="461">And that&#39;s all. Um maybe we can do a</span> <span data-t="464">short example instead of diving through</span> <span data-t="466">the code. That was the famous example</span> <span data-t="470">from all the all the chapter.</span></p>
+<p><a class="tp-time" href="#t=475" data-t="475">7:55</a> <span data-t="475">So let&#39;s try from zero to one. We take</span> <span data-t="479">edge A. Now state zero doesn&#39;t need a</span> <span data-t="482">failure link because you&#39;re already on</span> <span data-t="484">the floor, right? You have nothing to</span> <span data-t="486">that you&#39;ve read.</span> <span data-t="488">So uh let&#39;s go to next state. Now I need</span> <span data-t="490">a failure link for one.</span></p>
+<p><a class="tp-time" href="#t=494" data-t="494">8:14</a> <span data-t="494">So the failure link for one I&#39;m starting</span> <span data-t="497">with nothing. Uh so I have a that I&#39;ve</span> <span data-t="501">read. If I chop off the first character</span> <span data-t="503">that&#39;s nothing. So that&#39;s staying in</span> <span data-t="507">state zero. So my x I&#39;m marking that</span> <span data-t="511">again here</span> <span data-t="513">is state zero. And the failure link for</span> <span data-t="515">one goes back to zero. And that&#39;s not an</span> <span data-t="519">X, that&#39;s a cross. I can&#39;t really draw</span> <span data-t="522">this better, I think.</span> <span data-t="525">Let&#39;s add another state. So, state</span> <span data-t="527">three.</span></p>
+<p><a class="tp-time" href="#t=530" data-t="530">8:50</a> <span data-t="530">And here&#39;s an A. Now, I&#39;m adding the</span> <span data-t="532">failure link for state two. What do I</span> <span data-t="534">have to do? Well, I could either say I&#39;m</span> <span data-t="537">simulating the automaton from the</span> <span data-t="539">beginning with one character less, so</span> <span data-t="542">with the B,</span> <span data-t="544">or I could start where I left off and go</span> <span data-t="548">one step further. Now, in this case,</span> <span data-t="549">it&#39;s the same because we&#39;re just at the</span> <span data-t="551">beginning. So, I&#39;m walking one step from</span> <span data-t="553">zero with a B. Uh, but that actually</span> <span data-t="556">leaves me where I am, right?</span></p>
+<p><a class="tp-time" href="#t=577" data-t="577">9:37</a> <span data-t="577">So, here&#39;s another um</span> <span data-t="577">another state. Now,</span> <span data-t="581">uh did I update my state X correctly?</span> <span data-t="583">No, I didn&#39;t. Um so, this we would have</span> <span data-t="586">to do now for three. The prefix we&#39;ve</span> <span data-t="589">read is ABA. So we have to simulate the</span> <span data-t="592">automaton for BA.</span> <span data-t="594">B would stay here failure link. So this</span> <span data-t="596">is always</span> <span data-t="599">sigma without a I&#39;m staying and then I&#39;m</span> <span data-t="602">reading A. So I would move with my</span> <span data-t="604">failure state to one.</span></p>
+<p><a class="tp-time" href="#t=613" data-t="613">10:13</a> <span data-t="613">And so from three with a failure link</span> <span data-t="613">I&#39;m going to one.</span> <span data-t="616">Okay.</span> <span data-t="624">Let&#39;s do one last one so that we see the</span> <span data-t="624">construction with the failure link.</span></p>
+<p><a class="tp-time" href="#t=628" data-t="628">10:28</a> <span data-t="628">The failure link for three with BA was</span> <span data-t="630">this red thing. If I now move to four, I</span> <span data-t="634">would have wanted the simulation for B A</span> <span data-t="636">B. I already know where BA brought me.</span> <span data-t="640">So, I&#39;m leaving from the red one with a</span> <span data-t="642">B.</span> <span data-t="644">That brings me to state two.</span></p>
+<p><a class="tp-time" href="#t=650" data-t="650">10:50</a> <span data-t="650">And hence the failure link for four</span> <span data-t="650">would have to go here. Okay, that way</span> <span data-t="653">you can can construct these and that</span> <span data-t="656">should match what the algorithm here</span> <span data-t="657">does. Uh it keeps track of the state X</span> <span data-t="661">always remembers this in this fail</span> <span data-t="663">array. The failure links now are a</span> <span data-t="665">single array</span> <span data-t="667">and then you always make make one step.</span></p>
+<p><a class="tp-time" href="#t=679" data-t="679">11:19</a> <span data-t="679">very similar to the previous code. This</span> <span data-t="679">looks like it might be slow because</span> <span data-t="681">there&#39;s an outer loop that runs for m</span> <span data-t="684">iterations and there&#39;s an inner loop</span> <span data-t="687">that might also run for m iterations</span> <span data-t="689">because you move again you follow</span> <span data-t="691">failure links to the left by the very</span> <span data-t="694">same argument. Um again this inner loop</span> <span data-t="698">in total cannot run more than m times</span> <span data-t="701">because before you can make x smaller</span> <span data-t="703">you have to have made x larger</span> <span data-t="706">previously and you only make it larger</span> <span data-t="708">down here and only by one thing at a</span> <span data-t="710">time. So over the course of all</span> <span data-t="712">iterations of the outer loop you&#39;re</span> <span data-t="714">making x at most m bigger and this</span> <span data-t="717">always makes x strictly smaller. So you</span> <span data-t="720">cannot make X in total more strictly</span> <span data-t="723">smaller than M times when you never make</span> <span data-t="725">it bigger than M times.</span> <span data-t="728">Okay, that&#39;s why also the computation of</span> <span data-t="731">the failure links is linear in the word</span> <span data-t="735">you&#39;re doing this over the pattern in</span> <span data-t="736">this case.</span></p>
+<p><a class="tp-time" href="#t=747" data-t="747">12:27</a> <span data-t="747">So in total we have for the can more</span> <span data-t="747">spread a linear cost in both text and</span> <span data-t="750">pattern length and no dependence on the</span> <span data-t="752">alphabet whatsoever. Again for</span> <span data-t="755">bionformatics context it&#39;s not super</span> <span data-t="757">critical but it&#39;s useful. Cutting a</span> <span data-t="759">factor two is always good.</span> <span data-t="762">In the worst case, this is best possible</span> <span data-t="765">uh because you have to read the text in</span> <span data-t="767">the pattern to make sure that you&#39;ve c</span> <span data-t="769">caught all the occurrences.</span> <span data-t="771">Uh now you could go further um in in</span> <span data-t="776">this depending on the type of data.</span> <span data-t="777">Sometimes you can do a little better if</span> <span data-t="780">you&#39;re assuming that it&#39;s not the worst</span> <span data-t="783">case. So for certain types of texts and</span> <span data-t="786">patterns, you can hope to do better. In</span> <span data-t="788">the worst case, KMP is already best</span> <span data-t="791">possible.</span></p>
+<p><a class="tp-time" href="#t=802" data-t="802">13:22</a> <span data-t="802">For historic reasons, there&#39;s a a</span> <span data-t="802">different notation that&#39;s widely used</span> <span data-t="804">called the prefix function with slightly</span> <span data-t="806">shifted indices. I think by and large</span> <span data-t="809">for this module, this I&#39;m I&#39;m not sure</span> <span data-t="811">if this occurs.</span> <span data-t="813">It might occur in some of the textbooks</span> <span data-t="815">that I cited on the website. So maybe uh</span> <span data-t="819">just keep in mind that these failure</span> <span data-t="820">links that we computed in KMP</span> <span data-t="824">are intimately related to some other</span> <span data-t="826">function called the prefix function or</span> <span data-t="828">the pi function</span> <span data-t="830">um which occur in some other texts that</span> <span data-t="832">describe this in slightly different</span> <span data-t="833">words but it&#39;s the same thing up to</span> <span data-t="836">maybe a shift by minus one. So whenever</span> <span data-t="839">you read about these in in other sources</span> <span data-t="842">you might have to live with an off by</span> <span data-t="844">one. This is uh there&#39;s just no um</span> <span data-t="847">global consistency on even whether</span> <span data-t="850">strings should start with zero or one uh</span> <span data-t="853">as the index but also here whether you</span> <span data-t="855">um include the length or the stopping</span> <span data-t="858">index. Okay, just just be warned about</span> <span data-t="860">that.</span></p>
+
+  </div>
+</div>
+
+<p class="tp-nav vo-small"><a href="/videos/algbio/5-2/">← Video 5-2: String matching with automata</a><a class="tp-next" href="/videos/algbio/5-4/">Video 5-4: The Aho-Corasick algorithm →</a>
+</p>
+
+<script src="/assets/js/transcript-player.js" defer></script>
+
+  </div>
+
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Sebastian Wild</h2>
+
+    <div class="footer-col-wrapper">
+
+      <div class="footer-col footer-col-1">
+        <p>Contact:</p>
+
+        <ul class="link-group">
+          <li><a href="mailto:%77%69%6C%64@%69%6E%66%6F%72%6D%61%74%69%6B.%75%6E%69-%6D%61%72%62%75%72%67.%64%65" title="Contact me">wild at informatik.uni-marburg.de</a></li>
+          <li><a href="mailto:%77%69%6C%64@%6C%69%76%65%72%70%6F%6F%6C.%61%63.%75%6B" title="Contact me">wild at liverpool.ac.uk</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x34EE39A78B149255">PGP</a></li>
+          <li><a href="mailto:%73%65%62%61%77%69%6C%64@%67%6D%61%69%6C.%63%6F%6D" title="Contact me">sebawild at gmail</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x38600ABC14973198">PGP</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://www.uni-marburg.de/de/fb12/arbeitsgruppen/algorith/team/sebastian-wild">Website at UMR</a></li>
+          <li><a href="https://www.liverpool.ac.uk/computer-science/staff/sebastian-wild">Website at UoL</a></li>
+          <li><a href="https://tcs.csc.liv.ac.uk">TCS @ Liverpool</a></li>
+        </ul>
+
+        <p class="footer-note">
+          Retired addresses (no longer read):
+          <span class="retired">wild at uwaterloo.ca</span>,
+          <span class="retired">wild at cs.uni-kl.de</span>.
+        </p>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <p>Elsewhere:</p>
+
+        <ul class="link-group">
+          <li><a href="https://github.com/sebawild" title="GitHub sebawild"><i class="fab fa-github" aria-hidden="true"></i> GitHub sebawild</a></li>
+          <li><a rel="me" href="https://mathstodon.xyz/@wild" title="Mastodon @wild@mathstodon.xyz"><i class="fab fa-mastodon" aria-hidden="true"></i> @wild@mathstodon.xyz</a></li>
+          <li><a href="https://bsky.app/profile/sebastianwild.bsky.social" title="Bluesky @sebastianwild.bsky.social"><span aria-hidden="true">🦋</span> @sebastianwild</a></li>
+          <li><a href="https://www.linkedin.com/in/sebastian-wild-liverpool/"><i class="fab fa-linkedin" aria-hidden="true"></i> LinkedIn profile</a></li>
+          <li><a href="https://www.youtube.com/c/SebastianWildLectures"><i class="fab fa-youtube" aria-hidden="true"></i> YouTube channel</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://orcid.org/0000-0002-6061-9177" title="ORCID: 0000-0002-6061-9177"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-orcid"/></svg>
+ 0000-0002-6061-9177</a></li>
+          <li><a href="https://scholar.google.de/citations?user=aMyZiK0AAAAJ"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-google-scholar"/></svg>
+ Google Scholar</a></li>
+          <li><a href="https://dblp.uni-trier.de/pers/hd/w/Wild:Sebastian"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-dblp"/></svg>
+ dblp</a></li>
+          <li><a href="https://www.semanticscholar.org/author/3124206"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-semantic-scholar"/></svg>
+ Semantic Scholar</a></li>
+          <li><a href="https://arxiv.org/a/wild_s_2"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-arxiv"/></svg>
+ arXiv</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>Quick links:</p>
+        <ul class="link-group">
+          <li><a href="/publications/">my publications</a></li>
+          <li><a href="/cv.html">my CV</a></li>
+          <li><a href="/feed.xml">RSS feed</a></li>
+          <li><a href="https://disk.wild-inter.net/sharing/WwXHITc2j">my library</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

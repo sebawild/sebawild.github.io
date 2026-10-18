@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <script>document.documentElement.className += ' js';</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><title>Video 4-6: §4.5 The Boyer-Moore algorithm</title>
+  <meta name="description" content="Website of Sebastian Wild, algorithms researcher">
+  <link rel="canonical" href="https://www.wild-inter.net/videos/comp526-spring2021/4-6/"><meta property="og:type" content="website">
+  <meta property="og:site_name" content="Sebastian Wild&#39;s Site">
+  <meta property="og:title" content="Video 4-6: §4.5 The Boyer-Moore algorithm">
+  <meta property="og:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta property="og:url" content="https://www.wild-inter.net/videos/comp526-spring2021/4-6/">
+  <meta property="og:image" content="https://www.wild-inter.net/assets/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Sebastian Wild">
+  <meta property="og:locale" content="en_GB">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Video 4-6: §4.5 The Boyer-Moore algorithm">
+  <meta name="twitter:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta name="twitter:image" content="https://www.wild-inter.net/assets/og-card.png">
+
+  <meta name="theme-color" content="#F5EBD9"><link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest"><link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/pagella/texgyrepagella-regular-webfont.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/epigrafica/epigrafica-entona-webfont.woff2">
+
+  <link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/fontawesome/fontawesome-all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+
+  <link rel="alternate" type="application/rss+xml" title="Sebastian Wild&#39;s Site"
+        href="https://www.wild-inter.net/feed.xml">
+
+  <script data-goatcounter="https://wild-inter-net.goatcounter.com/count"
+          async src="https://gc.zgo.at/count.js"></script>
+</head>
+
+
+  <body>
+
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header">
+
+  <div class="wrapper"><a class="site-title" href="/">
+      <img class="site-mark" src="/assets/two-pivots.svg"
+           alt="" width="100" height="100" aria-hidden="true">
+      <span class="site-wordmark">
+        <span class="site-name">Sebastian Wild</span>
+        <span class="site-tagline">Algorithms Group &middot; Universität Marburg</span>
+      </span>
+    </a>
+
+    <nav class="site-nav" aria-label="Main">
+
+      <button type="button" class="menu-icon" id="menu-toggle"
+              aria-expanded="false" aria-controls="site-nav-menu">
+        <svg viewBox="0 0 18 15" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="currentColor" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="currentColor" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+        <span class="visually-hidden">Menu</span>
+      </button>
+
+      <div class="trigger" id="site-nav-menu">
+          <a class="page-link" href="/research/"
+             >Research</a>
+          <a class="page-link" href="/teaching/"
+             >Teaching</a>
+          <a class="page-link" href="/posts/"
+             >Blog</a>
+          <a class="page-link" href="/about/"
+             >About</a>
+      </div>
+
+    </nav>
+
+  </div>
+
+</header>
+
+<script>
+  /* Mobile menu. Without JS the CSS leaves the menu permanently expanded,
+     so navigation still works — see the `.js` guard in _sass/_layout.scss. */
+  (function () {
+    var btn = document.getElementById('menu-toggle');
+    if (!btn) return;
+    var nav = btn.parentNode;
+
+    function setOpen(open) {
+      nav.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    btn.addEventListener('click', function () {
+      setOpen(!nav.classList.contains('is-open'));
+    });
+
+    document.addEventListener('click', function (e) {
+      if (nav.classList.contains('is-open') && !nav.contains(e.target)) setOpen(false);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && nav.classList.contains('is-open')) {
+        setOpen(false);
+        btn.focus();
+      }
+    });
+  })();
+</script>
+
+
+    <main id="content" class="page-content">
+      <div class="wrapper">
+        <article class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Video 4-6: §4.5 The Boyer-Moore algorithm</h1>
+  </header>
+
+  <div class="post-content">
+    
+
+    <style>
+  .vo-summary { font-size: 0.9em; }
+  .vo-scroll { overflow-x: auto; margin-bottom: 1.5em; }
+  .vo-table { border-collapse: collapse; font-size: 0.9em; width: 100%; font-variant-numeric: tabular-nums; }
+  .vo-table.vo-compact { width: auto; margin-left: 0; margin-right: auto; }
+  .vo-table.vo-compact th, .vo-table.vo-compact td { white-space: nowrap; }
+  .vo-table th, .vo-table td { padding: 0.2em 0.45em; vertical-align: baseline; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.08); }
+  .vo-table th { border-bottom: 2px solid rgba(0,0,0,0.25); white-space: nowrap; }
+  .vo-table tr.vo-newunit td { border-top: 2px solid rgba(0,0,0,0.2); }
+  .vo-table .vo-num { text-align: right; white-space: nowrap; padding-left: 0.9em; }
+  .vo-mono { font-family: Menlo, Consolas, monospace; font-size: 0.8em; }
+  .vo-table td.vo-small, .vo-table td .vo-small { font-size: inherit; }
+  .vo-table td .vo-note { font-size: 0.9em; opacity: 0.85; }
+  .vo-nowrap { white-space: nowrap; }
+  .vo-small { font-size: 0.9em; }
+  .vo-muted { opacity: 0.6; }
+
+  /* search */
+  .ts { margin: 1em 0 1.5em; }
+  .ts-input { font: inherit; width: min(100%, 28em); padding: 0.3em 0.5em; border: 1px solid rgba(0,0,0,0.3); border-radius: 4px; background: rgba(255,255,255,0.6); }
+  .ts-status { margin-left: 0.5em; opacity: 0.7; }
+  .ts-results { margin-top: 0.5em; }
+  .ts-hit { margin: 0.6em 0; }
+  .ts-hit-title { font-size: 0.95em; }
+  .ts-hit-ctx { font-size: 0.85em; margin: 0.1em 0 0 1em; }
+  .ts-hit-ctx a.ts-t { font-variant-numeric: tabular-nums; margin-right: 0.4em; }
+  .ts mark, .tp-text mark { background: rgba(255, 210, 0, 0.45); color: inherit; padding: 0 0.05em; }
+
+  /* transcript page: player sticks to the top while reading */
+  .tp-bar { position: sticky; top: 0; z-index: 5; background: #F5EBD9; padding: 4px 0 6px; }
+  .tp-player { position: relative; max-width: 560px; aspect-ratio: 16 / 9;
+               padding: 5px; box-sizing: content-box; width: calc(100% - 12px);
+               background: #faf6ed; border: 1px solid #aeaa9e; border-radius: 4px; }
+  .tp-player iframe, .tp-player > div, .tp-start { position: absolute; top: 5px; left: 5px; width: calc(100% - 10px); height: calc(100% - 10px); border: 0; margin: 0; padding: 0; background: #000; }
+  .tp-start { cursor: pointer; overflow: hidden; }
+  .tp-start img { width: 100%; height: 100%; object-fit: cover; display: block; margin: 0; padding: 0; border: 0; border-radius: 0; }
+  .tp-start .yt-lite-play { position: absolute; left: 50%; top: 50%; width: 68px; height: 48px; transform: translate(-50%, -50%); }
+  .tp-start .yt-lite-play-bg { fill: #212121; fill-opacity: 0.8; }
+  .tp-start:hover .yt-lite-play-bg, .tp-start:focus-visible .yt-lite-play-bg { fill: #902015; fill-opacity: 1; }
+  .tp-controls { margin: 0.3em 0 0; opacity: 0.8; }
+  .tp-disclaimer { margin: 0.6em 0 1.2em; padding: 0.4em 0.6em; border-left: 3px solid rgba(144, 32, 21, 0.35); background: rgba(255, 255, 255, 0.35); }
+  .tp-controls label { margin-left: 1em; white-space: nowrap; }
+  .tp-text p { position: relative; }
+  .tp-text [data-t] { cursor: pointer; border-radius: 2px; }
+  .tp-text span[data-t]:hover { background: rgba(144, 32, 21, 0.08); }
+  .tp-text span.tp-now { background: rgba(144, 32, 21, 0.16); box-shadow: 0 0 0 2px rgba(144, 32, 21, 0.16); }
+  .tp-text .tp-time { font-size: 0.75em; font-variant-numeric: tabular-nums; opacity: 0.6; margin-right: 0.3em; text-decoration: none; }
+  .tp-text .tp-chapter { font-size: 1.15em; margin-top: 1.5em; }
+  .tp-text .tp-chapter a { font-size: 0.7em; opacity: 0.6; font-variant-numeric: tabular-nums; text-decoration: none; }
+  .tp-nav { display: flex; justify-content: space-between; gap: 1em; margin-top: 2em; }
+  .tp-nav .tp-next { margin-left: auto; text-align: right; }
+</style>
+
+<p class="vo-summary">
+  <a href="/videos/comp526-spring2021/">COMP 526 – Efficient Algorithms (Spring 2021)</a> · <a href="/teaching/comp526/spring2021/04-string-matching">unit page</a>
+  · <a href="https://youtu.be/NEt4da87XKM">YouTube</a>
+  <br/>2021-03-10, 31:01
+</p>
+
+<div class="tp" data-id="NEt4da87XKM">
+  <div class="tp-bar"><div class="tp-player" id="tp-player">
+    <button type="button" class="tp-start" data-t="0" aria-label="Play video">
+      <img src="/assets/video-thumbs/NEt4da87XKM.webp" alt="" width="640" height="360" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/NEt4da87XKM/hqdefault.jpg'">
+      <svg class="yt-lite-play" viewBox="0 0 68 48" aria-hidden="true" focusable="false"><path class="yt-lite-play-bg" d="M66.5 7.7c-.8-2.9-2.5-5.4-5.4-6.2C55.8.1 34 0 34 0S12.2.1 6.9 1.6C4 2.3 2.3 4.8 1.5 7.7.1 13 0 24 0 24s.1 11 1.5 16.3c.8 2.9 2.5 5.4 5.4 6.2C12.2 47.9 34 48 34 48s21.8-.1 27.1-1.6c2.9-.7 4.6-3.2 5.4-6.1C67.9 35 68 24 68 24s-.1-11-1.5-16.3z"/><path d="M45 24 27 14v20z" fill="#fff"/></svg>
+    </button>
+  </div>
+  <p class="tp-controls vo-small">
+    <em>Click any sentence to play from there.</em>
+    <label><input type="checkbox" class="tp-follow" checked> follow along</label>
+  </p></div>
+  <p class="tp-disclaimer vo-small"><em>The transcript was generated automatically by YouTube's speech
+  recognition and is offered as is. It may contain errors, in particular in concerning technical terms,
+  names and formulas.</em></p>
+  <div class="tp-text" lang="en">
+<h2 class="tp-chapter" id="t0"><a href="#t=0" data-t="0">0:00</a> Intro</h2>
+<p><a class="tp-time" href="#t=2" data-t="2">0:02</a> <span data-t="2">in the next sub section i want to talk</span> <span data-t="2">about the boya moore algorithm</span> <span data-t="4">and how it in a sense beats the optimal</span> <span data-t="7">knuthmore spread algorithm</span> <span data-t="9">if that sounds weird you have all</span> <span data-t="13">all the right to find that weird</span> <span data-t="16">as i just said in the previous</span> <span data-t="18">subsection</span> <span data-t="19">kmp is an optimal algorithm so how could</span> <span data-t="22">you possibly go better than</span> <span data-t="24">have something better than that and the</span> <span data-t="28">the sense in which you can beat it is</span> <span data-t="31">uh is to look at what optimal means um i</span> <span data-t="34">like to stress</span> <span data-t="35">this because optimal is a term that&#39;s</span> <span data-t="38">very often used</span> <span data-t="39">and overused in computer science to mean</span> <span data-t="42">different things</span> <span data-t="43">and whenever someone says something is</span> <span data-t="45">optimal</span> <span data-t="46">be a bit skeptical and ask what exactly</span> <span data-t="49">does that mean</span> <span data-t="50">look into the black box and here optimal</span> <span data-t="53">means</span> <span data-t="54">the worst case over a text of length n</span> <span data-t="58">and a pattern of length m</span> <span data-t="60">needs at least n plus m time</span> <span data-t="64">to read the text and the pattern that&#39;s</span> <span data-t="66">what i just motivated</span> <span data-t="68">an adversary could otherwise change the</span> <span data-t="70">outcome by</span> <span data-t="71">flipping a single symbol and no correct</span> <span data-t="73">algorithm can avoid</span> <span data-t="75">looking at all symbols in that worst</span> <span data-t="77">case</span> <span data-t="78">but there are many specific</span> <span data-t="82">cases like this text that contains only</span> <span data-t="85">a&#39;s</span> <span data-t="85">and the pattern that is just a row of</span> <span data-t="88">axes</span> <span data-t="89">where uh there are no matches obviously</span></p>
+<h2 class="tp-chapter" id="t30"><a href="#t=30" data-t="30">0:30</a> Motivation</h2>
+<p><a class="tp-time" href="#t=93" data-t="93">1:33</a> <span data-t="93">this is um with one look at it you can</span> <span data-t="96">you can tell as a human</span> <span data-t="97">but also an algorithm can prove to you</span> <span data-t="100">can certify</span> <span data-t="101">that there is no match with only four</span> <span data-t="104">comparisons</span> <span data-t="106">uh namely these four i compare</span> <span data-t="109">this position in the text with the last</span> <span data-t="111">position in the pattern and similarly</span> <span data-t="112">here and here</span> <span data-t="114">and with only these four comparisons i</span> <span data-t="117">can</span> <span data-t="117">i can prove that there is no occurrence</span> <span data-t="120">of the pattern in the text because</span> <span data-t="121">if uh if there was one then</span> <span data-t="125">the pattern would have to overlap this</span> <span data-t="127">position or this position or this</span> <span data-t="129">position or this position</span> <span data-t="131">any possibility how you can shift the</span> <span data-t="133">pattern along below the text</span> <span data-t="135">would overlap at least one of these</span> <span data-t="137">positions and all of them contain an a</span> <span data-t="140">which is not the right letter for the</span> <span data-t="142">pattern where we have an x obviously</span> <span data-t="146">so none of these possibilities uh really</span> <span data-t="150">um is is still there so you proved that</span> <span data-t="153">there&#39;s no</span> <span data-t="154">no possible position for a match</span> <span data-t="157">and uh notice that we we read</span> <span data-t="161">well eight characters four in the</span> <span data-t="163">pattern four in the text</span> <span data-t="164">and the text is i don&#39;t know how much</span> <span data-t="166">longer and the pattern is longer than</span> <span data-t="167">this</span> <span data-t="168">so we haven&#39;t read all the characters</span> <span data-t="170">yet we could prove in this case</span></p>
+<p><a class="tp-time" href="#t=172" data-t="172">2:52</a> <span data-t="172">that uh the output of the algorithm is</span> <span data-t="174">correct no matches</span> <span data-t="176">and something similar is is not so this</span> <span data-t="178">is i mean this example is is far-fetched</span> <span data-t="181">this is an extreme case you might not</span> <span data-t="184">usually have this</span> <span data-t="185">but something not too dissimilar from</span> <span data-t="188">that is is quite frequent</span> <span data-t="191">and this is what the boya moore</span> <span data-t="193">algorithm can exploit whereas</span> <span data-t="194">knuthmore spread essentially uses the</span> <span data-t="196">same running time n plus m</span> <span data-t="199">for all inputs even even for this one</span> <span data-t="201">where it seems</span> <span data-t="203">it leaves a lot of potential on the</span> <span data-t="205">table</span></p>
+<p><a class="tp-time" href="#t=210" data-t="210">3:30</a> <span data-t="210">one observation from this example is</span> <span data-t="210">look that i</span> <span data-t="212">chose this position in this position</span> <span data-t="214">that is the last position</span> <span data-t="215">in the pattern here and that seems to be</span> <span data-t="218">a much smarter way</span> <span data-t="219">had i chosen the first position i would</span> <span data-t="221">at least need</span> <span data-t="222">one more check and here because um well</span> <span data-t="226">the the length of the text and the</span> <span data-t="227">length of the pattern doesn&#39;t nicely</span> <span data-t="228">divide</span> <span data-t="229">uh you have this this extra comparison</span> <span data-t="232">here to just exclude one more</span> <span data-t="233">um position of the pattern if this was a</span> <span data-t="236">bit longer then</span> <span data-t="237">you see that um you waste much less so</span> <span data-t="240">starting with the last</span> <span data-t="242">character in the pattern seems just much</span> <span data-t="244">smarter</span> <span data-t="245">and that&#39;s the core observation of the</span> <span data-t="247">boyamore algorithm</span> <span data-t="248">it&#39;s incredibly simple if you think</span> <span data-t="251">about it</span> <span data-t="252">just do the same thing as we did before</span> <span data-t="254">but instead of starting from the left</span> <span data-t="256">you start comparing from the right</span> <span data-t="258">um incredibly simple idea but</span> <span data-t="261">it turns out this is this is really a</span> <span data-t="264">very influential one</span> <span data-t="266">if we&#39;re very lucky um then the last</span> <span data-t="269">character as in this example</span> <span data-t="270">already is a is a mismatch and is of a</span> <span data-t="273">kind that i can</span> <span data-t="275">i can uh directly exclude all the other</span> <span data-t="278">potential positions so the pattern</span> <span data-t="279">cannot lie</span> <span data-t="280">uh here it cannot lie here</span> <span data-t="284">and it cannot lie here and it cannot</span></p>
+<p><a class="tp-time" href="#t=287" data-t="287">4:47</a> <span data-t="287">start here either</span> <span data-t="289">uh that one okay i somehow mess up with</span> <span data-t="292">the</span> <span data-t="292">line lengths now um</span> <span data-t="297">yeah i cannot start</span> <span data-t="302">here and then starting here</span> <span data-t="307">would have to end here well</span> <span data-t="310">counting to five seems seems a bit</span> <span data-t="312">challenging</span> <span data-t="313">uh but one one mismatch here excluded um</span> <span data-t="316">a whole bunch of of potential shifts</span></p>
+<p><a class="tp-time" href="#t=325" data-t="325">5:25</a> <span data-t="325">okay uh so how can we make this work</span> <span data-t="326">we could start with just doing the brute</span> <span data-t="328">force method but instead of comparing</span> <span data-t="330">from left to right we compare right to</span> <span data-t="332">left</span> <span data-t="333">um you can think about this</span> <span data-t="337">offline if you want it turns out this is</span> <span data-t="340">this is um</span> <span data-t="341">not going to work well um if your text</span> <span data-t="343">looks like this in the pattern like this</span> <span data-t="345">then you will essentially have the same</span> <span data-t="347">worst case as the brute force method the</span> <span data-t="349">original one</span> <span data-t="350">so you have to do slightly more uh</span> <span data-t="354">to to get this idea to work</span> <span data-t="357">and you have to make bigger shifts</span> <span data-t="360">that&#39;s for sure</span> <span data-t="362">one very intuitive idea is the bad</span> <span data-t="365">character heuristic</span> <span data-t="367">and that means that&#39;s essentially what</span> <span data-t="370">we&#39;ve done in the</span> <span data-t="371">in the example if you have the text and</span> <span data-t="374">the pattern</span> <span data-t="375">and there was a mismatch at a certain</span> <span data-t="376">position you start comparing from the</span> <span data-t="378">right</span> <span data-t="379">but then here these were not the same</span> <span data-t="383">so there&#39;s a i don&#39;t know how to draw</span> <span data-t="385">this maybe a little</span> <span data-t="387">lightning so there&#39;s a mismatch here</span> <span data-t="390">now there will be a certain character in</span> <span data-t="393">the text</span> <span data-t="394">say it&#39;s a c um and if that</span> <span data-t="397">c does not occur anywhere in the pattern</span> <span data-t="400">we can</span> <span data-t="401">already shift the pattern right behind</span> <span data-t="404">that position c that&#39;s this first case</span></p>
+<p><a class="tp-time" href="#t=414" data-t="414">6:54</a> <span data-t="414">in the second case if c does occur</span> <span data-t="414">but say only here</span> <span data-t="421">then we have to shift the pattern</span> <span data-t="421">forward so that this</span> <span data-t="423">occurrence of c the last occurrence of c</span> <span data-t="426">nicely aligns uh with this c that we</span> <span data-t="430">found in the text</span> <span data-t="431">okay so you make this a line</span> <span data-t="434">in that way</span></p>
+<p><a class="tp-time" href="#t=439" data-t="439">7:19</a> <span data-t="439">that&#39;s a very intuitive thing to do and</span> <span data-t="439">that&#39;s um</span> <span data-t="441">directly generalizing what we did here</span> <span data-t="443">um</span> <span data-t="444">there was a mismatch here a doesn&#39;t</span> <span data-t="446">occur in the pattern so we shifted</span> <span data-t="448">completely behind this this current</span> <span data-t="450">guess</span> <span data-t="452">um you can do just a bad character</span> <span data-t="455">heuristic</span> <span data-t="455">that is sometimes called the boy or more</span> <span data-t="458">horsepool algorithm</span></p>
+<p><a class="tp-time" href="#t=487" data-t="487">8:07</a> <span data-t="487">i&#39;m just mentioning this because this</span> <span data-t="487">algorithm</span> <span data-t="488">works surprisingly well it&#39;s very simple</span> <span data-t="497">just using the bad character heuristic</span> <span data-t="497">gives you most of the benefit from boy</span> <span data-t="499">or more</span> <span data-t="500">in in many cases but not in all cases if</span> <span data-t="504">you just do this</span> <span data-t="506">there&#39;s still worst case inputs where</span> <span data-t="508">you&#39;re doing essentially as bad</span> <span data-t="510">as the brute force method so what boy or</span> <span data-t="513">more came up with is the second</span> <span data-t="514">heuristic</span> <span data-t="515">and that&#39;s the good suffix jumps</span></p>
+<p><a class="tp-time" href="#t=520" data-t="520">8:40</a> <span data-t="520">and these are somewhat similar to</span> <span data-t="523">what the knuthmore spread algorithm did</span> <span data-t="527">you try to use the self-similarity in</span> <span data-t="530">the pattern to shift things forward</span> <span data-t="532">so in the knuthmores spratz algorithm we</span> <span data-t="535">tried to find</span> <span data-t="536">a suffix of the prefix</span> <span data-t="540">that we&#39;re currently looking at and uh</span> <span data-t="542">here it&#39;s it&#39;s a bit different because</span> <span data-t="544">we&#39;re matching from right to left</span> <span data-t="545">but in a sense this is we&#39;ll look at</span> <span data-t="548">this in more detail</span></p>
+<p><a class="tp-time" href="#t=559" data-t="559">9:19</a> <span data-t="559">it&#39;s the generalization of what</span> <span data-t="559">knuthmore spread does</span> <span data-t="560">if you start comparing right to left</span> <span data-t="564">okay that gives us two rules they both</span> <span data-t="567">suggest an amount that by which we can</span> <span data-t="570">shift the pattern and we just use the</span> <span data-t="571">bigger of the two</span> <span data-t="574">in code this looks like this um</span> <span data-t="577">we&#39;ll go into a little more detail how</span> <span data-t="580">to compute these</span> <span data-t="581">um magic rules here the last occurrence</span> <span data-t="584">and good suffix rules the code then</span> <span data-t="587">itself</span> <span data-t="588">is is very simple we have the current</span> <span data-t="592">guess</span> <span data-t="592">i we iterate through that or we keep</span> <span data-t="595">going as long as we haven&#39;t reached the</span> <span data-t="596">end of the text</span> <span data-t="598">and we start comparing from the right so</span> <span data-t="600">we initialize the the position in p</span> <span data-t="602">to the last one m minus one</span> <span data-t="605">and as long as we haven&#39;t seen all of</span> <span data-t="608">the pattern we start comparing the next</span> <span data-t="610">character</span> <span data-t="610">going uh right to left</span></p>
+<h2 class="tp-chapter" id="t574"><a href="#t=574" data-t="574">9:34</a> Boyer-Moore Algorithm - Code</h2>
+<p><a class="tp-time" href="#t=618" data-t="618">10:18</a> <span data-t="618">right to left um</span> <span data-t="618">if we ever find um</span> <span data-t="621">that we could complete this this while</span> <span data-t="623">loop entirely we return the match</span> <span data-t="626">and otherwise so this is the interesting</span> <span data-t="628">case now that&#39;s the only</span> <span data-t="629">um the only big difference from the</span> <span data-t="631">right to left brute force way</span> <span data-t="634">otherwise we update i to uh</span> <span data-t="637">i plus this shift and so we either have</span> <span data-t="641">this last occurrence shift</span> <span data-t="645">or this good suffix shift</span> <span data-t="649">and we&#39;ll now see what&#39;s behind these in</span> <span data-t="653">a little more detail</span></p>
+<h2 class="tp-chapter" id="t662"><a href="#t=662" data-t="662">11:02</a> Bad character examples</h2>
+<p><a class="tp-time" href="#t=665" data-t="665">11:05</a> <span data-t="665">the first thing we&#39;ll look at is the the</span> <span data-t="665">bad character heuristic</span> <span data-t="667">and here i just want to show some</span> <span data-t="669">examples</span> <span data-t="670">so we have a text where is or</span> <span data-t="674">uh where&#39;s wally i guess it should be in</span> <span data-t="676">the uk</span> <span data-t="678">these are these children books where you</span> <span data-t="679">have to find this character</span> <span data-t="681">to not violate copyright i&#39;m not showing</span> <span data-t="683">pictures but let&#39;s suppose</span> <span data-t="685">you&#39;re actually looking for aldo and not</span> <span data-t="687">waldo</span> <span data-t="689">because you&#39;re a weirdo i guess you</span> <span data-t="692">start comparing from the right</span> <span data-t="695">the pattern has an o but here we find an</span> <span data-t="697">r</span> <span data-t="698">r does not occur anywhere in the pattern</span> <span data-t="700">so we can shift it</span> <span data-t="702">entirely behind this current character</span> <span data-t="704">okay</span> <span data-t="705">the second thing happens here um w</span> <span data-t="708">doesn&#39;t occur anywhere in the pattern so</span> <span data-t="710">you shift</span> <span data-t="711">the pattern entirely</span> <span data-t="714">behind this and now finally you find oh</span> <span data-t="717">oh that&#39;s a match so you compute</span> <span data-t="719">you compare uh right to left uh until</span> <span data-t="722">you find indeed here um an entire match</span> <span data-t="726">and uh well if you want to count then</span> <span data-t="728">there&#39;s six characters of the text that</span> <span data-t="729">you actually actually</span> <span data-t="730">had didn&#39;t have to look at another</span> <span data-t="733">example where</span> <span data-t="734">we have the second case of the bad</span> <span data-t="736">character heuristic we&#39;re looking for</span> <span data-t="738">more in</span> <span data-t="739">boyer more and so</span> <span data-t="742">again we start as before we find an</span> <span data-t="745">r here so that&#39;s a mismatch but we have</span></p>
+<p><a class="tp-time" href="#t=748" data-t="748">12:28</a> <span data-t="748">an r in the pattern so uh we only align</span> <span data-t="751">we only shift as much forward to align</span> <span data-t="754">this</span> <span data-t="755">last occurrence of r it&#39;s actually the</span> <span data-t="757">only one here as well</span> <span data-t="759">with the r we found in the text and so</span> <span data-t="761">the parenthesis here mean</span> <span data-t="763">we don&#39;t have to compare again we</span> <span data-t="765">already know that there&#39;s a match here</span> <span data-t="768">but it&#39;s uh it&#39;s to no avail because the</span> <span data-t="770">last</span> <span data-t="771">character is a mismatch so this there&#39;s</span> <span data-t="774">not an e but an m in the text</span> <span data-t="776">so we check uh m is it occurs in the</span> <span data-t="779">pattern namely at position one</span> <span data-t="781">so that&#39;s the last occurrence of m so we</span> <span data-t="784">shift the pattern forwards to align</span> <span data-t="786">that occurrence with the m in the text</span> <span data-t="790">there we go and now we start comparing</span> <span data-t="792">right to left</span> <span data-t="793">and of course in this case we</span> <span data-t="797">find an occurrence of the pattern and</span> <span data-t="799">again there&#39;s a couple of characters we</span> <span data-t="801">never needed to look at</span></p>
+<p><a class="tp-time" href="#t=806" data-t="806">13:26</a> <span data-t="806">i think this part of boy or more is is</span> <span data-t="806">fairly intuitive</span> <span data-t="813">it&#39;s also fairly easy to code it up</span> <span data-t="813">what you can do is you you pre-process</span> <span data-t="816">the pattern</span> <span data-t="817">and the alphabet and you compute this</span> <span data-t="819">last occurrence function</span> <span data-t="821">that is simply the index in p where the</span> <span data-t="824">last</span> <span data-t="825">occurrence of this character is and well</span> <span data-t="828">if there&#39;s no occurrence then we put a</span> <span data-t="830">-1</span> <span data-t="831">to indicate that so</span> <span data-t="834">one more time to show an example here</span> <span data-t="838">but i guess the the concept is simple</span> <span data-t="840">you have this table</span> <span data-t="842">lambda of c and all other characters</span> <span data-t="845">in the in this alphabet so we need to</span> <span data-t="848">know what the alphabet is up front</span> <span data-t="850">and remember if this is unicode this</span> <span data-t="852">could be</span> <span data-t="853">140 000 characters so you better have a</span> <span data-t="856">smart way of encoding this</span> <span data-t="858">but maybe you can restrict to just the</span> <span data-t="860">latin alphabet for now</span> <span data-t="861">and then you put -1 for all of these</span> <span data-t="864">and for the others you just find where</span> <span data-t="867">is the last occurrence</span> <span data-t="869">so a smart way to do this is go through</span> <span data-t="871">the pattern left to right</span> <span data-t="872">and write the current index at the</span> <span data-t="875">position of the</span> <span data-t="877">character so we&#39;re at zero we write zero</span> <span data-t="879">at m</span> <span data-t="880">we have one so we write one in o but</span> <span data-t="883">then we have o again so we write two in</span></p>
+<h2 class="tp-chapter" id="t811"><a href="#t=811" data-t="811">13:31</a> Last-Occurrence Function</h2>
+<p><a class="tp-time" href="#t=885" data-t="885">14:45</a> <span data-t="885">o we overwrite the old value one</span> <span data-t="887">and by that you already you</span> <span data-t="889">automatically get the last occurrence</span> <span data-t="891">r we put a three e we put a four and</span> <span data-t="894">that&#39;s that&#39;s it</span> <span data-t="896">and so uh to see that you get exactly</span> <span data-t="898">this shift</span> <span data-t="899">um that uh i think i&#39;ve shown green</span> <span data-t="903">before</span> <span data-t="905">so that&#39;s that&#39;s this um</span> <span data-t="908">to see that that matches out in the</span> <span data-t="910">example well</span> <span data-t="912">you find the mismatch here you check the</span> <span data-t="914">last occurrence of r</span> <span data-t="915">lambda of r is 3 as indicated here</span> <span data-t="919">so what you compute is</span> <span data-t="923">j that&#39;s 4 because we&#39;re in the position</span> <span data-t="926">0 1 2 3 4</span> <span data-t="929">of the text sorry of the pattern</span> <span data-t="933">and we&#39;re in the guess</span> <span data-t="936">starts at position 0 in the text so what</span> <span data-t="938">we shift i forward</span> <span data-t="940">is by j minus this</span> <span data-t="943">and that was three alright</span> <span data-t="947">so we we take the character at this</span> <span data-t="950">position</span> <span data-t="951">r in the text look up what lambda is</span> <span data-t="954">here</span> <span data-t="954">and then shift forward by 4 minus 3.</span> <span data-t="959">all right so the last occurrence</span> <span data-t="963">function can easily be computed and can</span> <span data-t="966">be stored in this array</span> <span data-t="968">it needs space proportional to the size</span> <span data-t="970">of the alphabet</span> <span data-t="972">but if you think back to</span> <span data-t="975">dictionaries and symbol tables there are</span> <span data-t="977">alternatives if space is a concern</span></p>
+<p><a class="tp-time" href="#t=982" data-t="982">16:22</a> <span data-t="982">now the second thing i want to look at</span> <span data-t="984">is the good suffix heuristic</span> <span data-t="985">and this one is a little more</span> <span data-t="987">complicated um i will not give you the</span> <span data-t="989">full detail of how to compute it um</span> <span data-t="991">as a pseudocode because that&#39;s a little</span> <span data-t="994">finicky</span> <span data-t="995">and also um beyond what i want to give</span> <span data-t="998">you i want to give you</span> <span data-t="999">an intuition how this works we&#39;ve gone</span> <span data-t="1001">through the details for kmp</span> <span data-t="1003">and um the only thing i really want to</span> <span data-t="1005">get across to you guys</span> <span data-t="1007">is that it&#39;s a similar idea but you have</span> <span data-t="1010">to adjust the details</span> <span data-t="1012">and um we&#39;ll leave it with that then but</span> <span data-t="1015">let&#39;s</span> <span data-t="1015">look at examples to see what the good</span> <span data-t="1018">suffix heuristic</span> <span data-t="1019">is</span></p>
+<h2 class="tp-chapter" id="t1015"><a href="#t=1015" data-t="1015">16:55</a> Good suffix examples</h2>
+<p><a class="tp-time" href="#t=1025" data-t="1025">17:05</a> <span data-t="1025">suppose you have this pattern cells</span> <span data-t="1025">shells which has</span> <span data-t="1026">self similarities obviously in</span> <span data-t="1029">particular</span> <span data-t="1030">this substring else occurs twice</span> <span data-t="1034">here and here now um suppose the text</span> <span data-t="1038">is sheila sells shells so we do have an</span> <span data-t="1040">occurrence of this pattern but we won&#39;t</span> <span data-t="1042">get that far yet</span> <span data-t="1044">we put the pattern here we start</span> <span data-t="1045">comparing from the right and then we</span> <span data-t="1047">find a mismatch</span> <span data-t="1048">at this position we find an h</span> <span data-t="1051">we find an s instead of the h in the</span> <span data-t="1053">pattern</span> <span data-t="1054">so what we would like to do is keep this</span> <span data-t="1058">this good part maybe i should use blue</span> <span data-t="1060">to be consistent</span> <span data-t="1062">uh this is a good suffix we want to keep</span> <span data-t="1065">that we found that in the text</span> <span data-t="1068">it occurs here in the text these are the</span> <span data-t="1070">same right</span> <span data-t="1071">so we want to shift the pattern only to</span> <span data-t="1074">positions where</span> <span data-t="1076">these matches are preserved</span> <span data-t="1079">and in that example it means we should</span> <span data-t="1081">align the first occurrence of</span> <span data-t="1083">else with this occurrence of else in the</span> <span data-t="1085">text</span> <span data-t="1086">so this is what we do we shift the</span> <span data-t="1088">pattern forward</span> <span data-t="1089">to align this else so this</span> <span data-t="1093">else now is the first else</span></p>
+<p><a class="tp-time" href="#t=1101" data-t="1101">18:21</a> <span data-t="1101">and then we start comparing um as before</span> <span data-t="1102">so that would have been start comparing</span> <span data-t="1105">at the right and</span> <span data-t="1106">actually find that there&#39;s a match here</span> <span data-t="1107">but that part will skip</span> <span data-t="1111">there is a second case for good suffixes</span> <span data-t="1115">which is why this is a little more</span> <span data-t="1116">finicky in the details</span> <span data-t="1118">a different pattern owed to food and the</span> <span data-t="1122">text</span> <span data-t="1122">i like food from mexico um</span> <span data-t="1125">yep i inherited these examples</span></p>
+<p><a class="tp-time" href="#t=1130" data-t="1130">18:50</a> <span data-t="1130">from from a colleague from mexico</span> <span data-t="1134">who sadly passed away a couple of years</span> <span data-t="1136">ago so this is um</span> <span data-t="1138">kind of a kept in as a tribute</span> <span data-t="1142">but that&#39;s beside the point um</span> <span data-t="1145">we have found food here but then there&#39;s</span> <span data-t="1148">an e in the text and the pattern had o</span> <span data-t="1152">so we do have a good suffix here</span> <span data-t="1155">and we try to find another occurrence of</span> <span data-t="1157">this suffix in the pattern</span> <span data-t="1159">but obviously there is no other</span> <span data-t="1161">occurrence of food in</span> <span data-t="1163">order to food the only thing we find</span> <span data-t="1166">is that a suffix</span> <span data-t="1170">of the good suffix occurs as a prefix of</span> <span data-t="1173">the text</span> <span data-t="1174">so we can still preserve some of these</span> <span data-t="1176">matches but only really these two</span> <span data-t="1180">so we shift the pattern forward like</span> <span data-t="1182">this</span> <span data-t="1184">so we could still rescue some of these</span> <span data-t="1187">occurrences and what&#39;s more important</span> <span data-t="1190">any shorter if i had shifted the pattern</span> <span data-t="1195">by not so much say only up to here</span> <span data-t="1198">then there would have been a mismatch</span> <span data-t="1200">implied by the good suffix i already</span> <span data-t="1202">know so there&#39;s no</span> <span data-t="1203">there&#39;s no use in in testing this okay</span> <span data-t="1208">and uh well then again i would start</span> <span data-t="1210">comparing from the right</span> <span data-t="1211">to find whether there is an occurrence</span> <span data-t="1213">in the text which</span> <span data-t="1214">in this case there isn&#39;t but that&#39;s</span> <span data-t="1218">beside the point of this example</span></p>
+<p><a class="tp-time" href="#t=1225" data-t="1225">20:25</a> <span data-t="1225">the crucial ingredient here is that we</span> <span data-t="1225">find</span> <span data-t="1226">the longest suffix of the matched suffix</span> <span data-t="1229">that&#39;s the good suffix</span> <span data-t="1231">that occurs earlier in p and this</span> <span data-t="1234">longest suffix</span> <span data-t="1235">in the easy case it can be the entire</span> <span data-t="1237">good suffix and then it might occur</span> <span data-t="1239">in the middle of the in the pattern like</span> <span data-t="1242">in this case</span> <span data-t="1242">else was not at the beginning</span> <span data-t="1245">the other case is only a suffix of the</span> <span data-t="1248">good suffix occurs but then it has to be</span> <span data-t="1251">at the beginning of the pattern</span> <span data-t="1254">so much for the</span> <span data-t="1257">good suffix heuristic</span></p>
+<p><a class="tp-time" href="#t=1261" data-t="1261">21:01</a> <span data-t="1261">um</span> <span data-t="1268">to summarize this part um</span> <span data-t="1268">we we can compute the good suffix</span> <span data-t="1270">heuristic um</span> <span data-t="1282">i&#39;m not sure if i want to give the the</span> <span data-t="1282">full details here</span> <span data-t="1283">um</span> <span data-t="1290">i didn&#39;t tell you what the the the</span> <span data-t="1290">number in this</span> <span data-t="1291">uh gamma array is</span> <span data-t="1294">um and uh so what we look at is</span> <span data-t="1297">the situation we&#39;ve we&#39;ve had a match</span> <span data-t="1300">occurred so gamma of j</span> <span data-t="1302">means that we have</span> <span data-t="1305">a suffix starting at j plus one</span> <span data-t="1308">of the pattern in the text but if i try</span> <span data-t="1311">to do</span> <span data-t="1312">the chafe character in the pattern we</span> <span data-t="1315">get a mismatch</span> <span data-t="1316">so that&#39;s why gamma j stores</span> <span data-t="1319">a shift where the search first failed</span> <span data-t="1323">all right now</span> <span data-t="1326">uh gamma j is um so j</span> <span data-t="1330">is is is the the first mismatch that we</span> <span data-t="1333">had</span> <span data-t="1334">gamma j is a shift by m</span> <span data-t="1337">minus l where l</span> <span data-t="1340">is um the</span></p>
+<h2 class="tp-chapter" id="t1273"><a href="#t=1273" data-t="1273">21:13</a> Good suffix jumps</h2>
+<p><a class="tp-time" href="#t=1344" data-t="1344">22:24</a> <span data-t="1344">we try to find the largest overlap part</span> <span data-t="1347">here</span> <span data-t="1348">um so that we can</span> <span data-t="1352">um we can find either the matched part</span> <span data-t="1355">as a substring here</span> <span data-t="1357">as a as a suffix of this prefix</span> <span data-t="1361">so um the pattern that&#39;s the good suffix</span> <span data-t="1364">this one</span></p>
+<p><a class="tp-time" href="#t=1371" data-t="1371">22:51</a> <span data-t="1371">we have the good suffix and we have a</span> <span data-t="1371">prefix of the pattern of length l</span> <span data-t="1375">and now either this good suffix</span> <span data-t="1378">is a suffix of this prefix or</span> <span data-t="1381">the prefix is the suffix of the good</span> <span data-t="1383">suffix</span> <span data-t="1384">that&#39;s a lot of mind twisting suffix and</span> <span data-t="1387">prefix</span> <span data-t="1389">essentially the two cases are the same</span> <span data-t="1392">as we&#39;ve seen in the example</span> <span data-t="1394">and um so this is the precise definition</span> <span data-t="1396">what gamma</span> <span data-t="1397">is and with that definition it matches</span> <span data-t="1400">the pseudo code i initially showed</span> <span data-t="1402">but i actually don&#39;t want to want to</span> <span data-t="1405">give more details on this</span> <span data-t="1407">where i don&#39;t want to show the detailed</span> <span data-t="1409">code how to compute it</span> <span data-t="1411">i only want to mention that you can</span> <span data-t="1413">compute it in linear time</span> <span data-t="1415">and time linear in the length of the</span> <span data-t="1416">pattern</span> <span data-t="1418">with similar tricks to the kmp failure</span> <span data-t="1420">function indeed</span> <span data-t="1421">you can compute the actual failure</span> <span data-t="1424">function</span> <span data-t="1424">for the pattern and the reverse pattern</span> <span data-t="1427">where you just</span> <span data-t="1429">read it right to left because we read</span> <span data-t="1431">right to left here maybe this is</span> <span data-t="1432">intuitive</span> <span data-t="1433">from those two things you can compute</span> <span data-t="1434">gamma</span> <span data-t="1436">somewhat easily but understanding all</span> <span data-t="1439">the details is moving beyond</span> <span data-t="1441">the scope of today</span> <span data-t="1444">so also for the exam you don&#39;t need to</span> <span data-t="1446">know</span> <span data-t="1447">the exact values the only thing i would</span> <span data-t="1450">ask you is</span> <span data-t="1451">given an example like this what is the</span></p>
+<p><a class="tp-time" href="#t=1454" data-t="1454">24:14</a> <span data-t="1454">shift that the good suffix heuristic</span> <span data-t="1456">would imply</span> <span data-t="1457">okay that&#39;s that&#39;s what you have to know</span> <span data-t="1459">basically</span> <span data-t="1460">what we did in these examples that&#39;s</span> <span data-t="1462">what i expect you to</span> <span data-t="1464">understand um the nitty-gritty details</span> <span data-t="1467">of this definition</span> <span data-t="1468">i don&#39;t think is important for this</span> <span data-t="1470">class</span> <span data-t="1472">and that brings me to the discussion</span> <span data-t="1475">we&#39;ve seen the boya more algorithm</span> <span data-t="1477">with the two heuristics last occurrence</span> <span data-t="1479">and</span> <span data-t="1480">good suffix</span></p>
+<h2 class="tp-chapter" id="t1471"><a href="#t=1471" data-t="1471">24:31</a> Boyer-Moore algorithm - Discussion</h2>
+<p><a class="tp-time" href="#t=1485" data-t="1485">24:45</a> <span data-t="1485">there&#39;s a very subtle point to be made</span> <span data-t="1485">about its worst case running time</span> <span data-t="1493">as it is given the code actually has a</span> <span data-t="1493">bad worst case</span> <span data-t="1495">it&#39;s as bad as the brute force method in</span> <span data-t="1497">terms of the theta class</span> <span data-t="1500">and that essentially comes from when we</span> <span data-t="1503">want to</span> <span data-t="1504">repeat all occurrences the code as given</span> <span data-t="1508">doesn&#39;t remember implied matches in the</span> <span data-t="1512">middle</span> <span data-t="1513">uh if you if you look at this um</span> <span data-t="1516">for for kmp it was easy to get all</span> <span data-t="1519">matches without much modification</span> <span data-t="1521">remember we just had this failure</span> <span data-t="1522">automaton</span> <span data-t="1523">and you can basically add the failure</span> <span data-t="1525">link of the last state</span> <span data-t="1527">and then you can keep scanning the text</span> <span data-t="1529">no big difference</span> <span data-t="1532">for boy or more it&#39;s it&#39;s a bit of a a</span> <span data-t="1535">hassle because you have to</span> <span data-t="1538">if you have a an occurrence of the</span> <span data-t="1541">pattern here</span> <span data-t="1543">and then you try to shift it over</span> <span data-t="1546">then um you would have to deal with</span> <span data-t="1547">these with these matches but you start</span> <span data-t="1550">comparing from the right</span> <span data-t="1551">so you can get disconnected parts in</span> <span data-t="1554">the pattern that are already matched and</span> <span data-t="1557">unless you keep track of these</span> <span data-t="1560">you will not get below the n times m</span> <span data-t="1562">worst case</span> <span data-t="1564">but that said um unlike for the brute</span> <span data-t="1567">force method where this can easily</span> <span data-t="1569">happen</span> <span data-t="1569">for the boy or more algorithm you have</span></p>
+<p><a class="tp-time" href="#t=1571" data-t="1571">26:11</a> <span data-t="1571">to find you have to search really hard</span> <span data-t="1572">to find an example and they&#39;re really</span> <span data-t="1574">more isolated also if the pattern does</span> <span data-t="1578">not</span> <span data-t="1578">really occur in the text you always get</span> <span data-t="1581">a linear time</span> <span data-t="1583">n plus m plus the length of the the size</span> <span data-t="1586">of the alphabet because that&#39;s time you</span> <span data-t="1588">need in the preprocessing</span> <span data-t="1589">so this is not not at all obvious it&#39;s a</span> <span data-t="1592">um</span> <span data-t="1593">a very complicated analysis behind this</span> <span data-t="1595">statement but it&#39;s still</span> <span data-t="1597">very useful to know that if the pattern</span> <span data-t="1600">does not occur</span> <span data-t="1601">boy or more is essentially optimal as</span> <span data-t="1603">well</span></p>
+<p><a class="tp-time" href="#t=1608" data-t="1608">26:48</a> <span data-t="1608">the other statement to be made if you</span> <span data-t="1608">look at typical english texts</span> <span data-t="1610">and typical phrases that you might</span> <span data-t="1613">search</span> <span data-t="1613">so the text is english text and you</span> <span data-t="1615">search for a pattern that is</span> <span data-t="1618">um english words then uh</span> <span data-t="1621">you really only look at a quarter of the</span> <span data-t="1623">letters</span> <span data-t="1624">as a rough uh as a rough figure and</span> <span data-t="1626">that&#39;s quite interesting that</span> <span data-t="1628">means it is probably four times faster</span> <span data-t="1630">than kmp</span> <span data-t="1631">if uh number of comparisons is</span> <span data-t="1634">is the main thing and that is indeed</span> <span data-t="1636">what people find in practice</span> <span data-t="1638">so many implementations where you&#39;re</span> <span data-t="1641">looking for patterns</span> <span data-t="1642">are built on the boyamore algorithm or</span> <span data-t="1645">modifications thereof</span> <span data-t="1646">like the boyamore horse bull i mentioned</span> <span data-t="1649">and even though</span> <span data-t="1650">some of these do not care to get the</span> <span data-t="1653">best possible worst case they&#39;re usually</span> <span data-t="1656">much faster than kmp</span> <span data-t="1658">in many applications and that&#39;s that&#39;s</span> <span data-t="1660">good enough for</span> <span data-t="1661">for some of these cases another positive</span> <span data-t="1664">thing is</span> <span data-t="1666">the space usage is moderate but um</span> <span data-t="1670">it still has this dependency on sigma</span> <span data-t="1672">which can be um</span> <span data-t="1674">can be problematic</span></p>
+<p><a class="tp-time" href="#t=1682" data-t="1682">28:02</a> <span data-t="1682">to finish off the the voya more parts i</span> <span data-t="1682">want you to</span> <span data-t="1686">get active again so here&#39;s some</span> <span data-t="1689">a question about this algorithm</span> <span data-t="1692">uh where i&#39;m i&#39;m basically asking you</span> <span data-t="1695">just to compare</span> <span data-t="1697">these two algorithms um and uh so you</span> <span data-t="1701">have to</span> <span data-t="1702">precisely read the statements um</span> <span data-t="1706">and only take those where it&#39;s it&#39;s</span> <span data-t="1708">clearly</span> <span data-t="1709">correct or it&#39;s clearly true</span> <span data-t="1712">and yeah some of some of the answers are</span> <span data-t="1714">pretty clear from what i&#39;ve just said</span> <span data-t="1717">for others you have to think a little</span> <span data-t="1720">more deeply</span></p>
+<p><a class="tp-time" href="#t=1724" data-t="1724">28:44</a> <span data-t="1724">me move over to this and um</span> <span data-t="1727">we&#39;ve had some 30 voices so i would like</span> <span data-t="1730">to see at least 25</span> <span data-t="1732">as as often before</span> <span data-t="1735">i want to reveal the answer</span></p>
+<p><a class="tp-time" href="#t=1749" data-t="1749">29:09</a> <span data-t="1749">come on guys think of the important</span> <span data-t="1749">participation marks the little little</span> <span data-t="1751">percentages</span> <span data-t="1752">they&#39;re all for free you just have to</span> <span data-t="1754">vote</span> <span data-t="1759">i didn&#39;t put an option i have no clue</span> <span data-t="1759">but then you might just guess</span></p>
+<p><a class="tp-time" href="#t=1777" data-t="1777">29:37</a> <span data-t="1777">okay see people changing their minds</span> <span data-t="1777">there we go 25</span> <span data-t="1779">27 brilliant um</span> <span data-t="1783">so almost all of you got this this</span> <span data-t="1785">second part</span> <span data-t="1786">um let me switch back to this</span> <span data-t="1790">um yes uh</span></p>
+<p><a class="tp-time" href="#t=1794" data-t="1794">29:54</a> <span data-t="1794">boy or more is uh faster than kmp for</span> <span data-t="1797">some inputs</span> <span data-t="1798">and um that&#39;s precisely the motivation</span> <span data-t="1800">of this subsection</span> <span data-t="1802">uh it happens to also be the other way</span> <span data-t="1804">around and that essentially follows from</span> <span data-t="1805">the worst case</span> <span data-t="1807">at least as as we&#39;ve discussed the boy</span> <span data-t="1809">move version we&#39;ve discussed has this</span> <span data-t="1811">bad worst case</span> <span data-t="1812">whereas kmp is always n plus m so there</span> <span data-t="1815">must be inputs where it&#39;s the other way</span> <span data-t="1816">around</span> <span data-t="1818">and a more subtle statement is the last</span> <span data-t="1820">one</span> <span data-t="1821">but it&#39;s also true if there are no</span> <span data-t="1823">matches then boy or more is never worse</span> <span data-t="1825">than kmp and the reason for that again</span> <span data-t="1829">is we&#39;re only counting simple</span> <span data-t="1831">comparisons</span> <span data-t="1833">and ignore the pre-processing and their</span> <span data-t="1836">boy or more is just</span> <span data-t="1837">never doing more than knew more spread</span> <span data-t="1840">they might be actually</span> <span data-t="1841">uh the same for many examples here but</span> <span data-t="1844">that&#39;s that&#39;s a different story uh it&#39;s</span> <span data-t="1847">only claiming</span> <span data-t="1848">less or equal okay</span> <span data-t="1852">thanks for that and uh that concludes</span> <span data-t="1856">boy or more</span> <span data-t="1856">the usual choice for string matching in</span> <span data-t="1859">practice</span></p>
+
+  </div>
+</div>
+
+<p class="tp-nav vo-small"><a href="/videos/comp526-spring2021/4-5/">← Video 4-5: §4.4 The Knuth-Morris-Pratt algorithm</a><a class="tp-next" href="/videos/comp526-spring2021/4-7/">Video 4-7: §4.6 The Rabin-Karp algorithm →</a>
+</p>
+
+<script src="/assets/js/transcript-player.js" defer></script>
+
+  </div>
+
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Sebastian Wild</h2>
+
+    <div class="footer-col-wrapper">
+
+      <div class="footer-col footer-col-1">
+        <p>Contact:</p>
+
+        <ul class="link-group">
+          <li><a href="mailto:%77%69%6C%64@%69%6E%66%6F%72%6D%61%74%69%6B.%75%6E%69-%6D%61%72%62%75%72%67.%64%65" title="Contact me">wild at informatik.uni-marburg.de</a></li>
+          <li><a href="mailto:%77%69%6C%64@%6C%69%76%65%72%70%6F%6F%6C.%61%63.%75%6B" title="Contact me">wild at liverpool.ac.uk</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x34EE39A78B149255">PGP</a></li>
+          <li><a href="mailto:%73%65%62%61%77%69%6C%64@%67%6D%61%69%6C.%63%6F%6D" title="Contact me">sebawild at gmail</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x38600ABC14973198">PGP</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://www.uni-marburg.de/de/fb12/arbeitsgruppen/algorith/team/sebastian-wild">Website at UMR</a></li>
+          <li><a href="https://www.liverpool.ac.uk/computer-science/staff/sebastian-wild">Website at UoL</a></li>
+          <li><a href="https://tcs.csc.liv.ac.uk">TCS @ Liverpool</a></li>
+        </ul>
+
+        <p class="footer-note">
+          Retired addresses (no longer read):
+          <span class="retired">wild at uwaterloo.ca</span>,
+          <span class="retired">wild at cs.uni-kl.de</span>.
+        </p>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <p>Elsewhere:</p>
+
+        <ul class="link-group">
+          <li><a href="https://github.com/sebawild" title="GitHub sebawild"><i class="fab fa-github" aria-hidden="true"></i> GitHub sebawild</a></li>
+          <li><a rel="me" href="https://mathstodon.xyz/@wild" title="Mastodon @wild@mathstodon.xyz"><i class="fab fa-mastodon" aria-hidden="true"></i> @wild@mathstodon.xyz</a></li>
+          <li><a href="https://bsky.app/profile/sebastianwild.bsky.social" title="Bluesky @sebastianwild.bsky.social"><span aria-hidden="true">🦋</span> @sebastianwild</a></li>
+          <li><a href="https://www.linkedin.com/in/sebastian-wild-liverpool/"><i class="fab fa-linkedin" aria-hidden="true"></i> LinkedIn profile</a></li>
+          <li><a href="https://www.youtube.com/c/SebastianWildLectures"><i class="fab fa-youtube" aria-hidden="true"></i> YouTube channel</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://orcid.org/0000-0002-6061-9177" title="ORCID: 0000-0002-6061-9177"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-orcid"/></svg>
+ 0000-0002-6061-9177</a></li>
+          <li><a href="https://scholar.google.de/citations?user=aMyZiK0AAAAJ"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-google-scholar"/></svg>
+ Google Scholar</a></li>
+          <li><a href="https://dblp.uni-trier.de/pers/hd/w/Wild:Sebastian"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-dblp"/></svg>
+ dblp</a></li>
+          <li><a href="https://www.semanticscholar.org/author/3124206"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-semantic-scholar"/></svg>
+ Semantic Scholar</a></li>
+          <li><a href="https://arxiv.org/a/wild_s_2"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-arxiv"/></svg>
+ arXiv</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>Quick links:</p>
+        <ul class="link-group">
+          <li><a href="/publications/">my publications</a></li>
+          <li><a href="/cv.html">my CV</a></li>
+          <li><a href="/feed.xml">RSS feed</a></li>
+          <li><a href="https://disk.wild-inter.net/sharing/WwXHITc2j">my library</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

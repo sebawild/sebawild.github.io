@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resizable arrays · the doubling trick and its amortized analysis</title>
+
+<script type="text/x-mathjax-config">
+  var font = "Neo-Euler";
+  MathJax.Hub.Config({
+    tex2jax: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']], processEscapes: true },
+    "SVG": { font: font },
+    "HTML-CSS": { webFont: font, imageFont: font, preferredFont: font, availableFonts: [],
+                  scale: 85, mtextFontInherit: true },
+    showProcessingMessages: false, messageStyle: "none"
+  });
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS_HTML"></script>
+
+<style>
+
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#9c866d;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    --mono: var(--wi-font-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title,.wi-caption { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:18px;
+              flex-wrap:wrap; margin:0 0 6px; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 16px; max-width:96ch; line-height:1.55; }
+  .subtitle code, .hint code, .status code, .opnote code { background:var(--wi-controls); padding:1px 5px;
+                 border-radius:3px; font-size:.85em; font-family:var(--mono); }
+
+  /* --- control chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:12px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; }
+  .ctl > label, .lbl { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer;
+           transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text;
+                font-size:1.02rem; line-height:1.1; padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  input.str { font-family:var(--mono); font-size:.8rem; }
+  input[type=number] { width:4.2em; }
+  input[type=range] { accent-color:var(--wi-accent); cursor:pointer; vertical-align:middle; }
+  .seg { display:inline-flex; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+
+  .opbar { display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; padding:10px 18px;
+           background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+           border-radius:var(--wi-radius-lg); margin-bottom:14px; }
+  .opnote { font-size:.78rem; color:var(--wi-ink-faint); }
+  .opnote b { color:var(--wi-accent); }
+  .opbar .err { margin:0; }
+
+  /* --- transport --- */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:18px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; --thumb:8px; }
+  .progress input[type=range] { display:block; width:100%; margin:0; }
+  .stepno { font-family:var(--mono); font-size:.76rem; color:var(--wi-ink-faint);
+            white-space:nowrap; text-align:right; padding-top:4px; }
+  .phasebar { display:flex; margin:5px var(--thumb) 0; width:calc(100% - var(--thumb) - var(--thumb)); }
+  .phasebtn { position:relative; overflow:hidden;
+              flex-grow:1; flex-basis:0; min-width:0; padding:3px 4px; font-size:.68rem; line-height:1.3;
+              font-family:var(--wi-font-head); letter-spacing:.03em;
+              background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+              border-left-width:0; border-radius:0; color:var(--wi-ink-faint); cursor:pointer;
+              text-overflow:ellipsis; white-space:nowrap; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3;
+                    border-right:1px solid var(--wi-accent-soft); transition:width .12s linear; }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; font-family:var(--mono); }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+
+  /* --- stage with draggable splitter --- */
+  .stage { display:grid; grid-template-columns:minmax(0,var(--left,1.5fr)) 10px minmax(320px,1fr);
+           gap:0; align-items:start; }
+  .splitter { align-self:stretch; cursor:col-resize; position:relative; touch-action:none; }
+  .splitter::after { content:""; position:absolute; left:4px; top:30px; bottom:30px; width:2px;
+                     border-radius:1px; background:var(--wi-border-soft); transition:background .15s; }
+  .splitter:hover::after, .splitter.drag::after { background:var(--wi-accent-soft); }
+  @media (max-width:1080px) {
+    .stage { grid-template-columns:1fr; }
+    .splitter { display:none; }
+    .col-side { margin-top:14px; }
+  }
+  .col-main { min-width:0; }
+  .col-side { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+             border-radius:var(--wi-radius-lg); padding:12px 15px; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em;
+               color:var(--wi-ink-faint); margin:0 0 9px; display:flex; justify-content:space-between;
+               align-items:center; gap:10px; flex-wrap:wrap; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--mono);
+                    font-size:.9em; color:var(--wi-ink-soft); display:flex; align-items:center; gap:8px; }
+  .sim-title .rhs input[type=range] { width:90px; }
+  .svgscroll { overflow:auto; max-height:var(--canvas-h, none); background:var(--wi-bg);
+               border-radius:var(--wi-radius); }
+  .svgwrap { position:relative; margin:0 auto; }
+  .svgwrap svg { display:block; max-width:none; touch-action:manipulation; }
+  .ovl { position:absolute; left:0; top:0; transform-origin:0 0; pointer-events:none; }
+  .ovl .lv { position:absolute; font-size:15px; color:var(--wi-ink-faint); transform:translateY(-50%);
+             white-space:nowrap; }
+  .vresize { height:10px; cursor:row-resize; position:relative; touch-action:none; margin-top:2px; }
+  .vresize::after { content:""; position:absolute; left:40%; right:40%; top:4px; height:2px;
+                    background:var(--wi-border-soft); border-radius:1px; }
+  .vresize:hover::after, .vresize.drag::after { background:var(--wi-accent-soft); }
+
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+            border-radius:var(--wi-radius); padding:10px 13px; font-size:.9rem;
+            color:var(--wi-ink-strong); min-height:96px; }
+  .status .k { font-family:var(--mono); font-size:.88em; background:var(--wi-panel-2);
+               padding:0 4px; border-radius:3px; border:1px solid var(--wi-border-soft); }
+  .status .yes { color:var(--wi-active); font-weight:bold; }
+  .status .no  { color:var(--wi-relax); font-weight:bold; }
+  .status .fn  { font-family:var(--mono); font-size:.86em; color:var(--wi-accent); }
+
+  .legend { display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:9px; font-size:.72rem; color:var(--wi-ink-soft); }
+  .legend .item { display:flex; align-items:center; gap:6px; }
+  .sw { width:.95em; height:.95em; border-radius:50%; border:1.6px solid var(--node-stroke); display:inline-block; }
+  .swb { width:1.5em; height:.85em; border-radius:.45em; display:inline-block; }
+
+  /* counters */
+  .meters { display:grid; grid-template-columns:auto 1fr; gap:3px 12px; font-size:.84rem; }
+  .meters .m-l { color:var(--wi-ink-soft); }
+  .meters .m-v { font-variant-numeric:tabular-nums; color:var(--wi-ink-strong); }
+  .meters .m-v b { color:var(--wi-accent); }
+  .outrow { display:flex; flex-wrap:wrap; gap:4px; min-height:30px; align-items:center; margin-top:4px; }
+  .outrow .chip { font-family:var(--mono); font-size:.8rem; min-width:26px; text-align:center;
+                  padding:2px 6px; border-radius:3px; background:var(--wi-panel-2);
+                  border:1px solid var(--wi-border); color:var(--wi-ink-strong); }
+  .outrow .chip.fresh { border-color:var(--wi-accent); color:var(--wi-accent); font-weight:bold;
+                        animation:chipin .35s ease-out both; }
+  @keyframes chipin { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
+  .outrow .empty, .placeholder { color:var(--wi-ink-faint); font-style:italic; font-size:.82rem; }
+
+  /* analysis table */
+  table.lv { border-collapse:collapse; width:100%; font-size:.8rem; font-variant-numeric:tabular-nums; }
+  table.lv th { font-family:var(--wi-font-head); font-weight:normal; font-size:.7rem; letter-spacing:.04em;
+                color:var(--wi-ink-faint); text-align:right; padding:2px 5px; border-bottom:1px solid var(--wi-border-soft); }
+  table.lv td { text-align:right; padding:2px 5px; border-bottom:1px dashed var(--wi-border-soft); }
+  table.lv tr.cur td { background:#f6e6df; }
+  table.lv tr.tot td { border-bottom:0; border-top:1px solid var(--wi-border); font-weight:bold; }
+  table.lv td.bar { width:34%; text-align:left; }
+  .barbox { position:relative; height:.9em; background:var(--wi-panel-2); border:1px solid var(--wi-border-soft);
+            border-radius:2px; }
+  .barbox .b { position:absolute; left:0; top:0; bottom:0; background:var(--wi-accent-soft); border-radius:1px;
+               transition:width .2s; }
+  .anote { font-size:.78rem; color:var(--wi-ink-soft); line-height:1.5; margin-top:8px; }
+  .anote b { color:var(--wi-accent); }
+  .formula { font-size:.92rem; overflow-x:auto; margin:4px 0 6px; }
+  .chain { font-size:.84rem; margin-top:6px; font-variant-numeric:tabular-nums; }
+  .chain .v { color:var(--wi-accent); font-weight:bold; }
+  details.sub > summary { cursor:pointer; font-family:var(--wi-font-head); font-size:.72rem;
+                          letter-spacing:.08em; text-transform:uppercase; color:var(--wi-ink-faint); margin-top:10px; }
+  details.sub[open] > summary { color:var(--wi-accent); }
+  .chartlab { font-size:.74rem; color:var(--wi-ink-soft); }
+
+  /* --- code --- */
+  .codebody { padding:2px 0 4px; overflow-x:auto; }
+  .cline { display:flex; gap:9px; padding:0 9px; font-family:var(--mono); font-size:.72rem;
+           line-height:1.55; color:var(--wi-ink-strong); border-left:3px solid transparent; white-space:pre; }
+  .cline .ln { color:var(--wi-ink-faint); min-width:1.4em; text-align:right; user-select:none; }
+  .cline.on { background:#f6e6df; border-left-color:var(--wi-active); }
+  .cline.call { background:#f3e9da; border-left-color:var(--wi-accent-soft); }
+  .cline.aux { background:#f5efe2; border-left-color:var(--wi-examine); }
+  .cline .kw { color:var(--wi-accent); }
+  .cline .ty { color:var(--wi-queue); }
+  .cline .cm { color:var(--wi-ink-faint); font-style:italic; }
+  .cline.gap { height:.55em; }
+  .codenote { font-size:.72rem; color:var(--wi-ink-faint); padding:8px 4px 0; line-height:1.45; }
+  .codenote b { color:var(--wi-accent); }
+
+  /* --- editor --- */
+  details.editor { margin-top:18px; background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+                   border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:11px 16px; font-family:var(--wi-font-head);
+                             font-size:.78rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,340px) 1fr;
+                 gap:16px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  textarea { width:100%; height:150px; font-family:var(--mono); font-size:.78rem;
+             background:var(--wi-panel-2); color:var(--wi-ink); border:1px solid var(--wi-border);
+             border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.76rem; color:var(--wi-ink-soft); line-height:1.5; }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+
+  .tooltip { position:fixed; z-index:40; pointer-events:none; background:var(--wi-panel-2);
+             border:1px solid var(--wi-border-strong); border-radius:var(--wi-radius);
+             padding:6px 9px; font-size:.76rem; color:var(--wi-ink-strong);
+             box-shadow:0 3px 10px rgba(0,0,0,.12); max-width:280px; display:none; line-height:1.45; }
+  .tooltip .tt-h { font-family:var(--wi-font-head); letter-spacing:.04em; color:var(--wi-accent); }
+  .tooltip .tt-s { color:var(--wi-ink-faint); }
+  .tooltip code { font-family:var(--mono); font-size:.9em; }
+
+  .popover { position:fixed; z-index:45; background:var(--wi-panel-2); border:1px solid var(--wi-accent-soft);
+             border-radius:var(--wi-radius-lg); padding:9px 11px; box-shadow:0 4px 14px rgba(0,0,0,.14);
+             display:none; font-size:.82rem; }
+  .popover .ph { font-family:var(--mono); font-size:.8rem; color:var(--wi-ink-strong); margin-bottom:6px; }
+  .popover input { width:5em; }
+  .popover .row { display:flex; gap:6px; align-items:center; }
+
+  .mobile-note { display:none; background:var(--wi-controls); border:1px solid var(--wi-accent-soft);
+                 border-radius:var(--wi-radius-lg); padding:11px 15px; font-size:.82rem;
+                 color:var(--wi-ink-strong); margin-bottom:14px; }
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls, .opbar { gap:8px 12px; padding:10px 12px; }
+    .ctl { flex-wrap:wrap; gap:6px; }
+    .seg button { padding:5px 9px; font-size:.74rem; }
+    button { padding:6px 10px; font-size:.8rem; }
+    .phasebtn { font-size:.6rem; padding:3px 2px; }
+    .mobile-note { display:block; }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    * { animation-duration:.001ms !important; transition-duration:.001ms !important; }
+  }
+
+  /* --- page-specific --- */
+  .cell { fill:var(--wi-panel-2); stroke:var(--wi-border); stroke-width:1; }
+  .cell.fresh { fill:#f1f5ec; }
+  .cell.free { fill:var(--wi-bg); }
+  .arrframe { fill:none; stroke:var(--wi-ink-soft); stroke-width:1.4; }
+  .cix { font-family:var(--mono); font-size:10px; fill:var(--wi-ink-faint); text-anchor:middle; pointer-events:none; }
+  .rowlab { font-family:var(--mono); font-size:13px; fill:var(--wi-ink-soft); text-anchor:end; pointer-events:none; }
+  .rowcap { font-family:var(--mono); font-size:10.5px; fill:var(--wi-ink-faint); text-anchor:end; pointer-events:none; }
+  .tok rect { fill:#e8dac6; stroke:var(--wi-ink); stroke-width:1.3; }
+  .tok text { font-family:var(--mono); font-size:13px; fill:var(--wi-ink-strong); text-anchor:middle;
+              dominant-baseline:central; pointer-events:none; }
+  .tok.new rect { fill:#e5eedb; stroke:var(--wi-relax); stroke-width:2.4; }
+  .tok.gone rect { fill:#f6ded6; stroke:var(--wi-active); stroke-width:2.4; }
+  .tok.copy rect { fill:#f7ebcf; stroke:var(--wi-examine); stroke-width:2.2; }
+  .tok.hov rect { stroke:var(--wi-accent-dark); stroke-width:2.8; }
+  .mkline { stroke:var(--wi-accent); stroke-width:2.4; }
+  .mklab { font-family:var(--mono); font-size:12px; fill:var(--wi-accent); font-weight:bold; text-anchor:middle; }
+  .bnd { stroke:var(--wi-ink-soft); stroke-width:1.5; stroke-dasharray:4 3; }
+  .bndlab { font-family:var(--mono); font-size:11.5px; fill:var(--wi-ink-soft); text-anchor:middle; }
+  .phibar { stroke:var(--wi-relax); stroke-width:5; stroke-linecap:round; opacity:.75; }
+  .philab { font-family:var(--mono); font-size:12px; fill:var(--wi-relax); font-weight:bold; text-anchor:middle; }
+  .zone { fill:#eaf1e2; }
+  table.led { border-collapse:collapse; width:100%; font-size:.78rem; font-variant-numeric:tabular-nums; }
+  table.led th { font-family:var(--wi-font-head); font-weight:normal; font-size:.68rem; letter-spacing:.04em;
+                 color:var(--wi-ink-faint); text-align:right; padding:2px 5px; border-bottom:1px solid var(--wi-border-soft); }
+  table.led td { text-align:right; padding:1px 5px; border-bottom:1px dashed var(--wi-border-soft); }
+  table.led td.l, table.led th.l { text-align:left; }
+  table.led tr.cur td { background:#f6e6df; }
+  table.led tr.big td { color:var(--wi-accent); font-weight:bold; }
+  table.led tr.tot td { border-top:1px solid var(--wi-border); border-bottom:0; font-weight:bold; }
+  .formula { font-size:.92rem; overflow-x:auto; margin:2px 0 6px; }
+  .anote { font-size:.78rem; color:var(--wi-ink-soft); line-height:1.5; margin-top:8px; }
+  .anote b { color:var(--wi-accent); }
+  .identity { font-size:.84rem; margin-top:8px; font-variant-numeric:tabular-nums; }
+  .identity .v { color:var(--wi-accent); font-weight:bold; }
+  .ledwrap { max-height:270px; overflow-y:auto; }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
+  font-family: var(--wi-font-head);
+  letter-spacing: .05em;
+}
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1>Resizable arrays &nbsp;·&nbsp; the doubling trick, amortized</h1>
+</div>
+
+<p class="subtitle">
+  A stack on an array of fixed capacity <i>C</i>, kept between a quarter full and full:
+  <code>push</code> on a full array copies everything into an array of twice the size; when it is only a quarter
+  full, the next operation copies into an array of half the size. A single operation can cost Θ(<i>n</i>), but a
+  copy is always preceded by many cheap operations that pay for it. The <b>potential</b> Φ — the distance of
+  <i>n</i> to the nearer boundary, drawn as the green bar — makes this precise.
+</p>
+
+<div class="mobile-note">
+  <b>Small screen:</b> the arrays scroll sideways. The code and the analysis are below the drawing.
+</div>
+
+<div class="controls">
+  <div class="ctl">
+    <span class="lbl">Detail</span>
+    <span class="seg" id="granSeg">
+      <button data-v="line">Every line</button>
+      <button data-v="op">Operations only</button>
+    </span>
+  </div>
+  <div class="ctl">
+    <label for="presetSel">Example</label>
+    <select id="presetSel"></select>
+  </div>
+</div>
+
+<div class="opbar">
+  <span class="ctl">
+    <input type="text" id="pushKey" class="str" style="width:5em" placeholder="random" spellcheck="false" aria-label="key to push (empty: random)">
+    <button id="pushBtn" class="pri">push</button>
+    <button id="popBtn">pop</button>
+  </span>
+  <span class="opnote">Leave the field empty for a random key. New operations are added right after the one on screen.</span>
+  <span class="ctl" style="margin-left:auto">
+    <input type="number" id="bulkN" min="1" max="32" value="8" aria-label="how many operations">
+    <button id="bulkPush" title="Push this many random keys right away, without animation">push ×</button>
+    <button id="bulkPop" title="Pop this many times right away, without animation">pop ×</button>
+  </span>
+  <span class="err" id="opErr"></span>
+</div>
+
+<div class="transport">
+  <div class="transport-row">
+    <span class="ctl" style="gap:6px">
+      <button id="resetBtn" class="icon" title="Back to the first step" aria-label="Back to the first step">&#x21BA;</button>
+      <button id="backBtn" class="icon" title="One step back  (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+      <button id="stepBtn" class="icon pri" title="One step forward  (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+      <button id="playBtn" class="icon" title="Play / pause  (space)" aria-label="Play">&#x25B6;&#xFE0E;</button>
+    </span>
+    <span class="progress">
+      <input type="range" id="scrubber" min="0" max="0" value="0" aria-label="step">
+      <div class="phasebar" id="phaseBar"></div>
+    </span>
+    <span class="stepno" id="stepNo">— / —</span>
+    <span class="ctl" style="gap:6px">
+      <span class="lbl">Delay</span>
+      <input type="range" id="speed" min="80" max="1600" value="650" style="width:88px" aria-label="delay between steps">
+      <span class="stepno" id="speedVal">650ms</span>
+    </span>
+  </div>
+</div>
+
+<div class="stage" id="stage">
+  <div class="col-main">
+    <div class="sim-box">
+      <div class="sim-title"><span id="drawTitle">The array</span>
+        <span class="rhs"><span>zoom</span><input type="range" id="zoom" min="40" max="160" value="100" aria-label="zoom"><span id="zoomVal">100%</span></span>
+      </div>
+      <div class="svgscroll" id="svgScroll">
+        <div class="svgwrap" id="svgWrap"><svg id="svg"></svg></div>
+      </div>
+      <div class="vresize" id="vresize" title="Drag to change the height of the drawing"></div>
+      <div class="legend">
+        <span class="item"><span class="swb" style="background:#e5eedb;border:2px solid var(--wi-relax)"></span>written</span>
+        <span class="item"><span class="swb" style="background:#f7ebcf;border:2px solid var(--wi-examine)"></span>copied</span>
+        <span class="item"><span class="swb" style="background:#f6ded6;border:2px solid var(--wi-active)"></span>deleted</span>
+        <span class="item"><span class="swb" style="background:var(--wi-relax);height:4px;opacity:.75"></span>potential Φ: distance from <i>n</i> to ¼<i>C</i> or <i>C</i></span>
+      </div>
+    </div>
+    <div class="sim-box" style="margin-top:14px">
+      <div class="sim-title"><span>Total cost over the operations so far</span><span class="rhs" id="chartMeta"></span></div>
+      <div id="chartBox"></div>
+    </div>
+  </div>
+  <div class="splitter" id="splitter" title="Drag to resize"></div>
+  <div class="col-side">
+    <div class="sim-box">
+      <div class="sim-title"><span>What happens</span><span class="rhs" id="phaseName"></span></div>
+      <div class="status" id="statusBox"></div>
+      <div class="sim-title" style="margin-top:10px"><span>Popped</span></div>
+      <div class="outrow" id="outRow"></div>
+    </div>
+    <div class="sim-box">
+      <div class="sim-title"><span>Amortized analysis</span><span class="rhs" id="anaMeta"></span></div>
+      <div class="formula" id="formula"></div>
+      <div class="ledwrap" id="ledWrap"><table class="led" id="ledTable"></table></div>
+      <div class="identity" id="identity"></div>
+      <div class="anote" id="anaNote"></div>
+    </div>
+    <div class="sim-box">
+      <div class="sim-title"><span>Java code</span><span class="rhs" id="codeMeta"></span></div>
+      <div class="codebody" id="codeBody"></div>
+      <div class="codenote" id="codeNote"></div>
+    </div>
+  </div>
+</div>
+
+<details class="editor" id="editor">
+  <summary>Input</summary>
+  <div class="editor-body">
+    <div>
+      <textarea id="inputText" spellcheck="false"></textarea>
+      <div style="margin-top:8px"><button class="pri" id="loadBtn">Load</button></div>
+      <div class="err" id="parseErr"></div>
+    </div>
+    <div class="hint">
+      A sequence of stack operations in the format of Sedgewick &amp; Wayne’s <code>tobe.txt</code>:
+      every word is pushed, a <code>-</code> pops. Keys are up to 4 characters; <code>#</code> starts a comment.
+      The stack holds at most 32 elements here (capacity 64), so that the array stays readable.
+      The array starts empty with capacity 8.
+    </div>
+  </div>
+</details>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+"use strict";
+/* ---------------- shared helpers: transport, phases, code panel, splitters ---------------- */
+const el = id => document.getElementById(id);
+const SVGNS = "http://www.w3.org/2000/svg";
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function mk(tag, attrs, parent) {
+  const e = document.createElementNS(SVGNS, tag);
+  if (attrs) for (const a in attrs) e.setAttribute(a, attrs[a]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function ease(u) { return u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; }
+function reducedMotion() { return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
+function typeset(node) { if (window.MathJax && MathJax.Hub && MathJax.Hub.Queue) MathJax.Hub.Queue(["Typeset", MathJax.Hub, node]); }
+const kq = k => '<span class="k">' + esc(k) + "</span>";
+const vi = v => "<i>" + v + "</i>";
+const fn = s => '<span class="fn">' + s + "</span>";
+
+const UI = { gran: "line", zoom: 1, delay: 650 };
+let steps = [], phases = [], vis = [], cur = 0;
+function curStep() { return steps[vis[cur]]; }
+
+function computeVis() {
+  vis = [];
+  steps.forEach((st, i) => { if (UI.gran === "line" || st.major || st.endOp || i === 0) vis.push(i); });
+  phases.forEach((ph, k) => {
+    const to = k + 1 < phases.length ? phases[k + 1].from : steps.length;
+    ph.to = to;
+    ph.vFrom = vis.findIndex(i => i >= ph.from);
+    let last = -1; vis.forEach((i, v) => { if (i < to) last = v; });
+    ph.vTo = last;
+  });
+  el("scrubber").max = Math.max(0, vis.length - 1);
+}
+function renderPhases() {
+  const bar = el("phaseBar");
+  bar.innerHTML = "";
+  phases.forEach(ph => {
+    const cnt = Math.max(1, ph.vTo - ph.vFrom + 1);
+    const b = document.createElement("button");
+    b.className = "phasebtn"; b.style.flexGrow = cnt;
+    b.title = phaseTitle(ph) + " — click to jump to its start";
+    b.innerHTML = '<span class="fill empty"></span><span class="lab">' + esc(ph.name) + "</span>";
+    b.addEventListener("click", () => { stopPlay(); go(ph.vFrom); });
+    bar.appendChild(b);
+  });
+  updatePhaseBar();
+}
+function updatePhaseBar() {
+  const btns = el("phaseBar").children;
+  phases.forEach((ph, k) => {
+    const b = btns[k]; if (!b) return;
+    const on = cur >= ph.vFrom && cur <= ph.vTo, past = cur > ph.vTo;
+    b.classList.toggle("on", on); b.classList.toggle("past", past);
+    const f = b.firstChild, cnt = Math.max(1, ph.vTo - ph.vFrom + 1);
+    const w = past ? 100 : on ? 100 * (cur - ph.vFrom + 1) / cnt : 0;
+    f.style.width = w + "%"; f.classList.toggle("empty", w === 0);
+  });
+  el("stepNo").textContent = (cur + 1) + " / " + vis.length;
+  el("scrubber").value = cur;
+}
+function go(v, animate) {
+  v = Math.max(0, Math.min(vis.length - 1, v));
+  const prev = steps[vis[cur]];
+  const adj = Math.abs(v - cur) === 1;
+  cur = v;
+  renderStep(animate !== false && adj ? prev : null, animate !== false && adj);
+  updatePhaseBar();
+}
+let playTimer = null, playUntil = null;
+function stopPlay() {
+  if (playTimer) clearTimeout(playTimer);
+  playTimer = null; playUntil = null;
+  el("playBtn").innerHTML = "&#x25B6;&#xFE0E;";
+}
+function tickPlay() {
+  if (cur >= vis.length - 1 || (playUntil != null && cur >= playUntil)) { stopPlay(); return; }
+  go(cur + 1);
+  playTimer = setTimeout(tickPlay, UI.delay);
+}
+function togglePlay(until) {
+  if (playTimer) { stopPlay(); return; }
+  if (cur >= vis.length - 1) go(0, false);
+  playUntil = until != null ? until : null;
+  el("playBtn").innerHTML = "&#x23F8;&#xFE0E;";
+  playTimer = setTimeout(tickPlay, 120);
+}
+function tweenDur(animate) {
+  if (!animate || reducedMotion()) return 0;
+  return Math.max(140, Math.min(700, UI.delay * 0.8));
+}
+
+/* ---- code panel ---- */
+function hiJava(s) {
+  s = esc(s);
+  s = s.replace(/(\/\/.*)$/, '<span class="cm">$1</span>');
+  s = s.replace(/\b(public|private|final|void|boolean|int|while|if|else|for|return|new|break|null|this|throw)\b/g, '<span class="kw">$1</span>');
+  s = s.replace(/\b(Elem|Object|Integer)\b/g, '<span class="ty">$1</span>');
+  return s;
+}
+let codeLines = [];
+function renderCodeBlocks(blocks) {
+  let h = "", ln = 0;
+  blocks.forEach((blk, bi) => {
+    if (bi) h += '<div class="cline gap"></div>';
+    for (const [id, txt] of blk) {
+      ln++;
+      h += '<div class="cline"' + (id ? ' data-id="' + id + '"' : "") + '><span class="ln">' + ln + "</span><span>" + hiJava(txt) + "</span></div>";
+    }
+  });
+  el("codeBody").innerHTML = h;
+  codeLines = Array.from(el("codeBody").querySelectorAll(".cline[data-id]"));
+}
+function markCode(B) {
+  const on = new Set([].concat(B.line || [])), st = new Set(B.stack || []), aux = new Set([].concat(B.aux || []));
+  for (const d of codeLines) {
+    const id = d.getAttribute("data-id");
+    d.classList.toggle("on", on.has(id));
+    d.classList.toggle("call", st.has(id) && !on.has(id));
+    d.classList.toggle("aux", aux.has(id) && !on.has(id));
+  }
+}
+
+/* ---- layout splitters ---- */
+function initSplitters(onResize) {
+  const sp = el("splitter"), stage = el("stage");
+  let drag = false;
+  sp.addEventListener("pointerdown", e => { drag = true; sp.classList.add("drag"); sp.setPointerCapture(e.pointerId); });
+  sp.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const r = stage.getBoundingClientRect();
+    const w = Math.max(320, Math.min(r.width - 330, e.clientX - r.left));
+    stage.style.gridTemplateColumns = w + "px 10px minmax(320px,1fr)";
+    if (onResize) onResize();
+  });
+  sp.addEventListener("pointerup", () => { drag = false; sp.classList.remove("drag"); });
+  const vr = el("vresize"), sc = el("svgScroll");
+  let vd = false, y0 = 0, h0 = 0;
+  vr.addEventListener("pointerdown", e => { vd = true; vr.classList.add("drag"); vr.setPointerCapture(e.pointerId); y0 = e.clientY; h0 = sc.getBoundingClientRect().height; });
+  vr.addEventListener("pointermove", e => { if (vd) sc.style.setProperty("--canvas-h", Math.max(120, h0 + e.clientY - y0) + "px"); });
+  vr.addEventListener("pointerup", () => { vd = false; vr.classList.remove("drag"); });
+  vr.addEventListener("dblclick", () => sc.style.removeProperty("--canvas-h"));
+}
+function initTransport() {
+  el("resetBtn").addEventListener("click", () => { stopPlay(); go(0, false); });
+  el("backBtn").addEventListener("click", () => { stopPlay(); go(cur - 1); });
+  el("stepBtn").addEventListener("click", () => { stopPlay(); go(cur + 1); });
+  el("playBtn").addEventListener("click", () => togglePlay());
+  el("scrubber").addEventListener("input", e => { stopPlay(); go(+e.target.value); });
+  el("speed").addEventListener("input", e => { UI.delay = +e.target.value; el("speedVal").textContent = UI.delay + "ms"; });
+  document.addEventListener("keydown", ev => {
+    const t = ev.target.tagName;
+    if (t === "INPUT" || t === "TEXTAREA" || t === "SELECT") return;
+    if (ev.key === "ArrowRight") { stopPlay(); go(cur + 1); ev.preventDefault(); }
+    else if (ev.key === "ArrowLeft") { stopPlay(); go(cur - 1); ev.preventDefault(); }
+    else if (ev.key === " ") { togglePlay(); ev.preventDefault(); }
+    else if (ev.key === "Home") { stopPlay(); go(0, false); }
+    else if (ev.key === "End") { stopPlay(); go(vis.length - 1, false); }
+  });
+}
+function segOn(id, v) { for (const b of el(id).children) b.classList.toggle("on", b.dataset.v === v); }
+function setGran(g) {
+  UI.gran = g; segOn("granSeg", g);
+  const st = vis[cur];
+  computeVis(); renderPhases();
+  let best = 0; vis.forEach((i, k) => { if (i <= st) best = k; });
+  cur = best; go(cur, false);
+}
+
+/* ---- stack-operation scripts (tobe.txt format) ---- */
+const MAXKEY = 4;
+function parseStackOps(text, maxN) {
+  const ops = []; let n = 0;
+  const toks = text.split(/\r?\n/).map(l => l.replace(/#.*$/, "")).join(" ").split(/[\s,]+/).filter(Boolean);
+  toks.forEach((t, i) => {
+    if (t === "-") {
+      if (n === 0) throw new Error("Token " + (i + 1) + ": pop on an empty stack.");
+      ops.push({ t: "pop" }); n--;
+    } else {
+      if (t.length > MAXKEY) throw new Error("Key '" + t + "' is longer than " + MAXKEY + " characters.");
+      if (n >= maxN) throw new Error("Token " + (i + 1) + ": the stack is limited to " + maxN + " elements here.");
+      ops.push({ t: "push", key: t }); n++;
+    }
+  });
+  if (ops.length > 400) throw new Error("At most 400 operations.");
+  return ops;
+}
+function stackOpsToText(ops) {
+  const toks = ops.map(o => o.t === "push" ? o.key : "-"), lines = [];
+  for (let i = 0; i < toks.length; i += 20) lines.push(toks.slice(i, i + 20).join(" "));
+  return lines.join("\n");
+}
+const WORDS = ("to be or not that is the q all we see seem a dream in it my so far it was oak elm ash yew fir " +
+  "cat dog owl fox elk bee ant emu yak").split(" ");
+function randomWord() { return WORDS[Math.floor(Math.random() * WORDS.length)]; }
+function sizeAfter(ops, k) { let n = 0; for (let i = 0; i < k; i++) n += ops[i].t === "push" ? 1 : -1; return n; }
+
+
+/* =====================================================================
+   Doubling array (amortized). The tracer is a port of DoublingArray:
+   push(x) = insert(size, x), pop() = delete(size-1). The original
+   skips resizing for size <= 4 to avoid corner cases; here size <= 2,
+   the smallest threshold that keeps the initial capacity 8 from shrinking.
+   Cost = array accesses: arraycopy of n elements = 2n, a write = 1.
+   ===================================================================== */
+const MAXN = 32, INITCAP = 8;
+const CW = 36, CH = 34, PADL = 128, PADR = 34, Y0 = 84, ROWGAP = 104;
+let ops = [];
+let ledgerAll = [];        // one record per operation of the whole trace
+
+class Tracer {
+  constructor() {
+    this.arrays = {}; this.aid = 0; this.eid = 0; this.key = {};
+    this.elements = this.newArr(INITCAP); this.newElements = null; this.garbage = null;
+    this.size = 0; this.steps = []; this.phases = []; this.out = []; this.ledger = [];
+    this.opAcc = 0; this.totAcc = 0; this.op = -1; this.stack = [];
+  }
+  newArr(cap) { const id = "a" + (++this.aid); this.arrays[id] = new Array(cap).fill(null); return id; }
+  C() { return this.arrays[this.elements].length; }
+  phi() { const C = this.C(), n = this.size; return Math.min(n - C / 4, C - n); }
+  phase(name, kind) { this.phases.push({ name: name, kind: kind, from: this.steps.length }); }
+  snap(o) {
+    const arrs = [];
+    const add = (id, role) => arrs.push({ id: id, role: role, cells: this.arrays[id].slice() });
+    add(this.elements, "elements");
+    if (this.newElements) add(this.newElements, "new");
+    if (this.garbage) add(this.garbage, "garbage");
+    this.steps.push(Object.assign({
+      arrs: arrs, size: this.size, C: this.C(), line: null, stack: this.stack.slice(), hl: {}, src: null,
+      out: this.out.slice(), nled: this.ledger.length, opAcc: this.opAcc, totAcc: this.totAcc,
+      op: this.op, phase: this.phases.length - 1, major: false, phi: this.phi()
+    }, o));
+  }
+  acc(k) { this.opAcc += k; this.totAcc += k; }
+
+  /* if (capacity / 4 < size && size < capacity || size == 0) return;
+     Object[] newElements = new Object[2 * size];
+     System.arraycopy(elements, 0, newElements, 0, size);
+     elements = newElements;                                            */
+  ensureCapacity() {
+    const capacity = this.C(), size = this.size, q = Math.floor(capacity / 4);
+    const ok = (q < size && size < capacity) || size <= 2;
+    let txt;
+    if (size <= 2) txt = "size = " + size + " ≤ 2: arrays this small are left alone (so the capacity never drops below " + INITCAP + ").";
+    else if (ok) txt = "capacity/4 = " + q + " &lt; size = " + size + " &lt; capacity = " + capacity + ": there is room, and the array is more than a quarter full — no resize.";
+    else if (size >= capacity) txt = "size = capacity = " + capacity + ": the array is <b>full</b>. Resize to 2·size = " + (2 * size) + ".";
+    else txt = "size = " + size + " ≤ capacity/4 = " + q + ": the array is only <b>a quarter full</b>. Resize to 2·size = " + (2 * size) + ".";
+    this.snap({ line: "ec.if", txt: txt });
+    if (ok) return;
+    const grow = size >= capacity;
+    this.newElements = this.newArr(2 * size);
+    this.snap({ line: "ec.new", major: true, resize: grow ? "grow" : "shrink",
+      txt: "Allocate <code>newElements</code> of capacity 2·size = " + (2 * size) + (grow ? " (twice as large)." : " (half as large).") });
+    const src = {};
+    for (let i = 0; i < size; i++) { this.arrays[this.newElements][i] = this.arrays[this.elements][i]; src[this.newElements + ":" + i] = this.elements + ":" + i; }
+    this.acc(2 * size);
+    this.snap({ line: "ec.copy", major: true, src: src, resize: grow ? "grow" : "shrink",
+      txt: "<code>System.arraycopy</code>: copy all " + size + " elements — " + size + " reads and " + size + " writes, <b>" + (2 * size) +
+        " array accesses</b>. This is the expensive step." });
+    this.garbage = this.elements; this.elements = this.newElements; this.newElements = null;
+    this.snap({ line: "ec.asg", major: true, resize: grow ? "grow" : "shrink",
+      txt: "<code>elements = newElements</code>: the capacity is now " + (2 * size) + "; the old array of capacity " + capacity +
+        " is garbage. After the operation, the array will be about half full — far from both boundaries." });
+    this.garbage = null;
+  }
+  push(x) {
+    this.op++; this.opAcc = 0; this.phase(x, "push");
+    const n0 = this.size, C0 = this.C(), phi0 = this.phi();
+    this.stack = ["in.ec"];
+    this.ensureCapacity();
+    this.stack = [];
+    const p = this.size;
+    this.snap({ line: "in.for", txt: "The loop starts at j = size−1 = " + (p - 1) + " &lt; p = " + p + ": at the end of the array, nothing needs to shift." });
+    this.size++;
+    this.snap({ line: "in.inc", txt: "++size: now size = " + this.size + "." });
+    const id = "e" + (++this.eid); this.key[id] = x;
+    this.arrays[this.elements][p] = id; this.acc(1);
+    this.finishOp("push", x, n0, C0, phi0, { line: "in.set", hl: { [this.elements + ":" + p]: "new" },
+      pre: "elements[" + p + "] = " + kq(x) + ": one array access. " });
+  }
+  pop() {
+    this.op++; this.opAcc = 0; this.phase("−", "pop");
+    const n0 = this.size, C0 = this.C(), phi0 = this.phi();
+    this.stack = ["de.ec"];
+    this.ensureCapacity();
+    this.stack = [];
+    const p = this.size - 1;
+    this.snap({ line: "de.for", txt: "The loop starts at j = p = size−1 = " + p + " &gt; size−2: at the end of the array, nothing needs to shift." });
+    const id = this.arrays[this.elements][p];
+    this.arrays[this.elements][p] = null; this.acc(1); this.out.push(this.key[id]);
+    this.snap({ line: "de.null", gone: id, hl: {}, txt: "elements[size−1] = null: " + kq(this.key[id]) + " leaves the stack (one array access; no reference loitering)." });
+    this.size--;
+    this.finishOp("pop", null, n0, C0, phi0, { line: "de.dec", pre: "--size: now size = " + this.size + ". " });
+  }
+  finishOp(kind, x, n0, C0, phi0, o) {
+    const phi1 = this.phi(), amort = this.opAcc - 4 * (phi1 - phi0);
+    const rec = { op: this.op, kind: kind, key: x, n0: n0, n1: this.size, C0: C0, C1: this.C(), actual: this.opAcc,
+                  phi0: phi0, phi1: phi1, amort: amort };
+    this.ledger.push(rec);
+    const resized = C0 !== this.C();
+    o.txt = o.pre + "This " + kind + " cost <b>" + this.opAcc + "</b> array access" + (this.opAcc === 1 ? "" : "es") +
+      (resized ? " (including the copy)" : "") + ". Φ went from " + fmt(phi0) + " to " + fmt(phi1) +
+      ", so the amortized cost is " + this.opAcc + " − 4·(" + fmt(phi1) + " − " + fmt(phi0) + ") = <b>" + fmt(amort) + "</b>" +
+      (amort <= 5 ? " ≤ 5." : ".");
+    delete o.pre;
+    o.major = true; o.endOp = true;
+    this.snap(o);
+  }
+}
+function fmt(v) { return Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/0$/, ""); }
+
+function trace(opsList) {
+  const T = new Tracer();
+  T.phase("start", "start");
+  T.snap({ major: true, txt: "An empty stack on an array of capacity " + INITCAP + ". Every word is pushed, every <code>-</code> pops." });
+  for (const o of opsList) { if (o.t === "push") T.push(o.key); else T.pop(); }
+  return T;
+}
+
+/* =====================================================================
+   Drawing
+   ===================================================================== */
+const G = {};
+let arrG = {}, tokG = {}, tw = { t0: 0, dur: 0 }, plan = null, rafOn = false, keyOf = {};
+const xv = v => PADL + v * CW;
+function roleY(role) { return role === "new" ? Y0 + ROWGAP : role === "garbage" ? Y0 - 40 : Y0; }
+function roleOp(role) { return role === "garbage" ? 0 : 1; }
+
+function buildScene(T) {
+  let maxCap = 1;
+  for (const st of steps) for (const a of st.arrs) maxCap = Math.max(maxCap, a.cells.length);
+  G.W = PADL + maxCap * CW + PADR; G.H = Y0 + ROWGAP + CH + 34;
+  const svg = el("svg");
+  svg.innerHTML = "";
+  svg.setAttribute("viewBox", "0 0 " + G.W + " " + G.H);
+  G.gArr = mk("g", {}, svg); G.gMark = mk("g", {}, svg); G.gTok = mk("g", {}, svg);
+  arrG = {}; tokG = {};
+  keyOf = T.key;
+  // markers: boundaries, n, phi
+  G.zone = mk("rect", { class: "zone", y: Y0 - 30, height: 10, rx: 3 }, G.gMark);
+  G.bq = mk("line", { class: "bnd", y1: Y0 - 48, y2: Y0 + CH + 4 }, G.gMark);
+  G.bc = mk("line", { class: "bnd", y1: Y0 - 48, y2: Y0 + CH + 4 }, G.gMark);
+  G.bqL = mk("text", { class: "bndlab", y: Y0 - 54 }, G.gMark);
+  G.bcL = mk("text", { class: "bndlab", y: Y0 - 54 }, G.gMark);
+  G.phi = mk("line", { class: "phibar", y1: Y0 - 25, y2: Y0 - 25 }, G.gMark);
+  G.phiL = mk("text", { class: "philab", y: Y0 - 33 }, G.gMark);
+  G.nl = mk("line", { class: "mkline", y1: Y0 - 30, y2: Y0 + CH + 22 }, G.gMark);
+  G.nL = mk("text", { class: "mklab", y: Y0 + CH + 34 }, G.gMark);
+  applyZoom();
+}
+function applyZoom() {
+  const z = UI.zoom, svg = el("svg");
+  svg.setAttribute("width", G.W * z); svg.setAttribute("height", G.H * z);
+  el("svgWrap").style.width = G.W * z + "px"; el("svgWrap").style.height = G.H * z + "px";
+}
+function arrayGroup(a) {
+  if (arrG[a.id]) return arrG[a.id];
+  const g = mk("g", { "data-arr": a.id }, G.gArr), cap = a.cells.length;
+  for (let i = 0; i < cap; i++) {
+    mk("rect", { class: "cell", x: xv(i), y: 0, width: CW, height: CH, "data-cell": a.id + ":" + i }, g);
+    const t = mk("text", { class: "cix", x: xv(i + 0.5), y: CH + 12 }, g); t.textContent = i;
+  }
+  mk("rect", { class: "arrframe", x: xv(0), y: 0, width: cap * CW, height: CH, rx: 2 }, g);
+  const lab = mk("text", { class: "rowlab", x: PADL - 10, y: CH / 2 + 1 }, g);
+  const capL = mk("text", { class: "rowcap", x: PADL - 10, y: CH / 2 + 15 }, g);
+  capL.textContent = "capacity " + cap;
+  return (arrG[a.id] = { g: g, lab: lab, cap: cap });
+}
+function tokenEl(k, key) {
+  if (tokG[k]) return tokG[k];
+  const g = mk("g", { class: "tok" }, G.gTok);
+  mk("rect", { x: 3, y: 3, width: CW - 6, height: CH - 6, rx: 3 }, g);
+  const t = mk("text", { x: CW / 2, y: CH / 2 + 0.5 }, g); t.textContent = key;
+  return (tokG[k] = { g: g });
+}
+
+/* plan the movement from snapshot A to snapshot B */
+function renderStep(prev, animate) {
+  const B = curStep(), A = prev || B;
+  const arrA = {}, arrB = {};
+  A.arrs.forEach(a => arrA[a.id] = a); B.arrs.forEach(a => arrB[a.id] = a);
+  const arrPlan = [];
+  const ids = new Set(Object.keys(arrA).concat(Object.keys(arrB)));
+  for (const id of ids) {
+    const a = arrA[id], b = arrB[id], any = b || a, ag = arrayGroup(any);
+    const ya = a ? roleY(a.role) : roleY(b.role) + 20, oa = a ? roleOp(a.role) : 0;
+    const yb = b ? roleY(b.role) : (a.role === "new" ? roleY(a.role) : roleY("garbage")), ob = b ? roleOp(b.role) : 0;
+    ag.lab.textContent = (b || a).role === "new" ? "newElements" : "elements";
+    arrPlan.push({ ag: ag, ya: ya, yb: yb, oa: oa, ob: ob });
+  }
+  for (const id in arrG) if (!ids.has(id)) arrG[id].g.style.display = "none"; else arrG[id].g.style.display = "";
+  // tokens: key = array:index:element
+  const toks = {};
+  const collect = (st, side) => st.arrs.forEach(a => a.cells.forEach((e, i) => {
+    if (e == null) return;
+    const k = a.id + ":" + i + ":" + e;
+    (toks[k] = toks[k] || { k: k, e: e, arr: a.id, i: i })[side] = { y: roleY(a.role), o: roleOp(a.role) };
+  }));
+  collect(A, "a"); collect(B, "b");
+  const tokPlan = [];
+  const nCopy = B.src ? Object.keys(B.src).length : 0;
+  for (const k in toks) {
+    const t = toks[k], te = tokenEl(k, keyOf[t.e]);
+    let from, to, delay = 0;
+    to = t.b ? { x: xv(t.i), y: t.b.y, o: t.b.o } : null;
+    from = t.a ? { x: xv(t.i), y: t.a.y, o: t.a.o } : null;
+    if (!from) {
+      const s = B.src && B.src[t.arr + ":" + t.i];
+      if (s && animate) {
+        const [sArr, sIdx] = s.split(":"), sa = A.arrs.find(a => a.id === sArr);
+        from = { x: xv(+sIdx), y: roleY(sa ? sa.role : "elements"), o: 1 };
+        delay = nCopy > 1 ? 0.5 * t.i / (nCopy - 1) : 0;
+      } else from = { x: to.x, y: to.y - 40, o: 0 };
+    }
+    if (!to) {
+      if (B.gone === t.e) to = { x: from.x + 10, y: from.y - 52, o: 0 };
+      else { const ab = arrB[t.arr]; to = { x: from.x, y: ab ? roleY(ab.role) : roleY("garbage"), o: 0 }; }
+    }
+    let cls = "tok";
+    const ck = t.arr + ":" + t.i;
+    if (t.b && B.hl[ck]) cls += " " + B.hl[ck];
+    else if (t.b && B.src && B.src[ck]) cls += " copy";
+    else if (!t.b && B.gone === t.e) cls += " gone";
+    te.g.setAttribute("class", cls);
+    te.g.style.display = "";
+    tokPlan.push({ te: te, from: from, to: to, delay: delay });
+  }
+  for (const k in tokG) if (!toks[k]) tokG[k].g.style.display = "none";
+  plan = { arr: arrPlan, tok: tokPlan, nA: A.size, nB: B.size, CA: A.C, CB: B.C, phiB: B.phi };
+  tw = { t0: performance.now(), dur: tweenDur(animate) };
+  kick();
+  renderSide(B);
+}
+function kick() { if (!rafOn) { rafOn = true; requestAnimationFrame(frame); } }
+function frame(now) {
+  const u = tw.dur <= 0 ? 1 : Math.min(1, (now - tw.t0) / tw.dur);
+  draw(u);
+  if (u < 1) requestAnimationFrame(frame); else rafOn = false;
+}
+function draw(u) {
+  if (!plan) return;
+  const e = ease(u);
+  for (const p of plan.arr) {
+    const y = p.ya + (p.yb - p.ya) * e, o = p.oa + (p.ob - p.oa) * e;
+    p.ag.g.setAttribute("transform", "translate(0," + y.toFixed(1) + ")");
+    p.ag.g.style.opacity = o;
+  }
+  for (const p of plan.tok) {
+    const d = p.delay, uu = d ? Math.max(0, Math.min(1, (u - d) / (1 - d))) : u, ee = ease(uu);
+    const x = p.from.x + (p.to.x - p.from.x) * ee, y = p.from.y + (p.to.y - p.from.y) * ee, o = p.from.o + (p.to.o - p.from.o) * ee;
+    p.te.g.setAttribute("transform", "translate(" + x.toFixed(1) + "," + y.toFixed(1) + ")");
+    p.te.g.style.opacity = o;
+  }
+  const n = plan.nA + (plan.nB - plan.nA) * e, C = plan.CA + (plan.CB - plan.CA) * e;
+  const q = C / 4;
+  G.bq.setAttribute("x1", xv(q)); G.bq.setAttribute("x2", xv(q));
+  G.bc.setAttribute("x1", xv(C)); G.bc.setAttribute("x2", xv(C));
+  G.bqL.setAttribute("x", xv(q)); G.bcL.setAttribute("x", xv(C));
+  G.bqL.textContent = "¼C = " + fmt(plan.CB / 4); G.bcL.textContent = "C = " + plan.CB;
+  G.zone.setAttribute("x", xv(q)); G.zone.setAttribute("width", Math.max(0, (C - q) * CW));
+  G.nl.setAttribute("x1", xv(n)); G.nl.setAttribute("x2", xv(n));
+  G.nL.setAttribute("x", xv(n)); G.nL.textContent = "n = " + plan.nB;
+  const bnd = (n - q <= C - n) ? q : C;
+  G.phi.setAttribute("x1", xv(n)); G.phi.setAttribute("x2", xv(bnd));
+  G.phiL.setAttribute("x", xv((n + bnd) / 2)); G.phiL.textContent = "Φ = " + fmt(plan.phiB);
+}
+
+/* =====================================================================
+   Side panels
+   ===================================================================== */
+function renderSide(B) {
+  el("statusBox").innerHTML = B.txt || "";
+  const ph = phases[B.phase];
+  el("phaseName").textContent = ph ? phaseTitle(ph) : "";
+  markCode(B);
+  el("drawTitle").textContent = "The stack array · n = " + B.size + ", C = " + B.C;
+  el("outRow").innerHTML = B.out.length ? B.out.map((k, i) => '<span class="chip' + (B.gone && i === B.out.length - 1 ? " fresh" : "") + '">' + esc(k) + "</span>").join("")
+                                        : '<span class="empty">nothing yet</span>';
+  renderLedger(B);
+  renderChart(B);
+}
+function renderLedger(B) {
+  const L = ledgerAll.slice(0, B.nled);
+  let h = '<tr><th class="l">#</th><th class="l">op</th><th>n</th><th>C</th><th>actual</th><th>Φ</th><th>amortized</th></tr>';
+  L.forEach((r, i) => {
+    h += '<tr class="' + (r.C0 !== r.C1 ? "big" : "") + (i === B.nled - 1 && B.endOp ? " cur" : "") + '"><td class="l">' + (i + 1) + '</td><td class="l">' +
+      (r.kind === "push" ? "push " + esc(r.key) : "pop") + "</td><td>" + r.n0 + "→" + r.n1 + "</td><td>" + (r.C0 === r.C1 ? r.C1 : r.C0 + "→" + r.C1) +
+      "</td><td>" + r.actual + "</td><td>" + fmt(r.phi0) + "→" + fmt(r.phi1) + "</td><td>" + fmt(r.amort) + "</td></tr>";
+  });
+  if (!B.endOp && B.op >= 0) h += '<tr class="cur"><td class="l">' + (B.op + 1) + '</td><td class="l">' + (phases[B.phase].kind === "push" ? "push " + esc(phases[B.phase].name) : "pop") +
+    '</td><td colspan="2">running…</td><td>' + B.opAcc + "</td><td></td><td></td></tr>";
+  const sa = L.reduce((s, r) => s + r.actual, 0), sm = L.reduce((s, r) => s + r.amort, 0);
+  h += '<tr class="tot"><td colspan="4" class="l">total (' + L.length + " ops)</td><td>" + sa + "</td><td></td><td>" + fmt(sm) + "</td></tr>";
+  el("ledTable").innerHTML = h;
+  const w = el("ledWrap"); w.scrollTop = w.scrollHeight;
+  const phi0 = steps[0].phi, phiN = L.length ? L[L.length - 1].phi1 : phi0, m = L.length;
+  const maxA = L.reduce((s, r) => Math.max(s, r.amort), -Infinity);
+  el("identity").innerHTML = "Σ actual = Σ amortized + 4·(Φ<sub>end</sub> − Φ<sub>start</sub>): &nbsp; <span class=\"v\">" + sa + "</span> = " +
+    fmt(sm) + " + 4·(" + fmt(phiN) + " − (" + fmt(phi0) + ")) <br>Every amortized cost so far is ≤ " + (m ? fmt(maxA) : "—") +
+    ", so Σ actual ≤ 5·" + m + " + 4·(" + fmt(phiN) + " − (" + fmt(phi0) + ")) = " + fmt(5 * m + 4 * (phiN - phi0)) + ".";
+  el("anaMeta").textContent = m ? m + " operations" : "";
+}
+function renderChart(B) {
+  const L = ledgerAll, m = L.length;
+  if (!m) { el("chartBox").innerHTML = '<span class="placeholder">No operations yet.</span>'; el("chartMeta").textContent = ""; return; }
+  const Wc = 560, Hc = 190, ml = 44, mr = 12, mt = 10, mb = 26;
+  let ca = [0], cm = [0];
+  L.forEach(r => { ca.push(ca[ca.length - 1] + r.actual); cm.push(cm[cm.length - 1] + r.amort); });
+  const ymax = Math.max(5 * m, ...ca, ...cm) * 1.05, ymin = Math.min(0, ...cm);
+  const xs = i => ml + i / m * (Wc - ml - mr), ys = v => mt + (1 - (v - ymin) / (ymax - ymin)) * (Hc - mt - mb);
+  const step = arr => arr.map((v, i) => (i ? "L" + xs(i).toFixed(1) + " " + ys(arr[i - 1]).toFixed(1) + " " : "M" + xs(0) + " " + ys(0) + " ") +
+    "L" + xs(i).toFixed(1) + " " + ys(v).toFixed(1)).join(" ");
+  const k = B.nled;
+  let s = '<svg viewBox="0 0 ' + Wc + " " + Hc + '" width="100%" style="max-width:' + Wc + 'px;display:block">';
+  const raw = (ymax - ymin) / 5, mag = Math.pow(10, Math.floor(Math.log10(Math.max(1, raw))));
+  const tick = [1, 2, 5, 10].map(f => f * mag).find(t => t >= raw) || 10 * mag;
+  for (let v = Math.ceil(ymin / tick) * tick; v <= ymax; v += tick) {
+    s += '<line x1="' + ml + '" x2="' + (Wc - mr) + '" y1="' + ys(v) + '" y2="' + ys(v) + '" stroke="#e3d6c1"/>' +
+      '<text x="' + (ml - 5) + '" y="' + (ys(v) + 4) + '" text-anchor="end" font-size="10" fill="#8b8779" font-family="ui-monospace,monospace">' + Math.round(v) + "</text>";
+  }
+  s += '<rect x="' + xs(k) + '" y="' + mt + '" width="' + Math.max(0, xs(m) - xs(k)) + '" height="' + (Hc - mt - mb) + '" fill="#f5ebd9" opacity=".65"/>';
+  s += '<line x1="' + xs(0) + '" y1="' + ys(0) + '" x2="' + xs(m) + '" y2="' + ys(5 * m) + '" stroke="#8b8779" stroke-dasharray="5 4"/>';
+  s += '<path d="' + step(cm) + '" fill="none" stroke="#4a7c3f" stroke-width="2"/>';
+  s += '<path d="' + step(ca) + '" fill="none" stroke="#902015" stroke-width="2.2"/>';
+  s += '<line x1="' + xs(k) + '" x2="' + xs(k) + '" y1="' + mt + '" y2="' + (Hc - mb) + '" stroke="#cc2f22" stroke-dasharray="2 3"/>';
+  s += '<text x="' + ((ml + Wc - mr) / 2) + '" y="' + (Hc - 6) + '" text-anchor="middle" font-size="10.5" fill="#8b8779">operations</text>';
+  s += "</svg>";
+  el("chartBox").innerHTML = s + '<div class="legend">' +
+    '<span class="item"><span class="swb" style="background:#902015;height:3px"></span>actual cost (array accesses), summed</span>' +
+    '<span class="item"><span class="swb" style="background:#4a7c3f;height:3px"></span>amortized cost, summed</span>' +
+    '<span class="item"><span class="swb" style="border-top:2px dashed #8b8779;height:0"></span>5 per operation</span></div>';
+  el("chartMeta").textContent = k + " of " + m + " operations done";
+}
+
+/* =====================================================================
+   Code, presets, UI
+   ===================================================================== */
+const CODE = [
+  [[null, "private final void ensureCapacity() {"],
+   ["ec.if", "    int capacity = elements.length;"],
+   ["ec.if", "    if (capacity / 4 < size && size < capacity || size <= 2) return;"],
+   ["ec.new", "    Object[] newElements = new Object[2 * size];"],
+   ["ec.copy", "    System.arraycopy(elements, 0, newElements, 0, size);"],
+   ["ec.asg", "    elements = newElements;"],
+   [null, "}"]],
+  [[null, "public void insert(final Integer p, final Elem x) {   // push(x): p = size"],
+   [null, "    if (x == null) throw new NullPointerException(...);"],
+   [null, "    if (p < 0 || p > size) throw new IndexOutOfBoundsException(...);"],
+   ["in.ec", "    ensureCapacity();"],
+   ["in.for", "    for (int j = size - 1; j >= p; --j) {"],
+   [null, "        elements[j + 1] = elements[j];"],
+   [null, "    }"],
+   ["in.inc", "    ++size;"],
+   ["in.set", "    elements[p] = x;"],
+   [null, "}"]],
+  [[null, "public void delete(final Integer p) {   // pop(): p = size - 1"],
+   [null, "    if (p < 0 || p >= size) throw new IndexOutOfBoundsException(...);"],
+   ["de.ec", "    ensureCapacity();"],
+   ["de.for", "    for (int j = p; j <= size - 2; ++j) {"],
+   [null, "        elements[j] = elements[j + 1];"],
+   [null, "    }"],
+   [null, "    // avoid loitering"],
+   ["de.null", "    elements[size - 1] = null;"],
+   ["de.dec", "    --size;"],
+   [null, "}"]]
+];
+function phaseTitle(ph) { return ph.kind === "push" ? "push(" + ph.name + ")" : ph.kind === "pop" ? "pop()" : "start"; }
+const nums = (a, b) => { const r = []; for (let i = a; i <= b; i++) r.push(String(i)); return r; };
+const PRESETS = [
+  { name: "tobe.txt — to be or not to - be - - that - - - is", text: "to be or not to - be - - that - - - is" },
+  { name: "Push 17 keys: two doublings", text: nums(1, 17).join(" ") },
+  { name: "Push 17, then pop all: halvings", text: nums(1, 17).join(" ") + "\n" + "- ".repeat(17) },
+  { name: "No thrashing at a boundary", text: nums(1, 16).join(" ") + "\n17 - 17 - 17 - 17\n- - - - - - - - -\n9 10" },
+  { name: "Random walk, 60 operations", rnd: 60 }
+];
+function presetText(p) {
+  if (!p.rnd) return p.text;
+  const toks = []; let n = 0;
+  for (let i = 0; i < p.rnd; i++) {
+    if (n > 0 && (Math.random() < 0.45 || n >= MAXN)) { toks.push("-"); n--; } else { toks.push(String(1 + Math.floor(Math.random() * 99))); n++; }
+  }
+  return toks.join(" ");
+}
+function rebuild(keepCur) {
+  const T = trace(ops);
+  steps = T.steps; phases = T.phases; ledgerAll = T.ledger;
+  computeVis(); buildScene(T); renderPhases();
+  if (!keepCur) cur = 0;
+  cur = Math.min(cur, vis.length - 1);
+  go(cur, false);
+  el("inputText").value = stackOpsToText(ops);
+}
+function loadText(txt, errBox) {
+  try { ops = parseStackOps(txt, MAXN); el(errBox).textContent = ""; }
+  catch (e) { el(errBox).textContent = e.message; return; }
+  stopPlay(); rebuild(false);
+}
+function opPos() { const B = curStep(); return B.op + 1; }
+function addOps(list, animate) {
+  stopPlay();
+  const pos = opPos();
+  const trial = ops.slice(0, pos).concat(list, ops.slice(pos));
+  try { parseStackOps(stackOpsToText(trial), MAXN); } catch (e) { el("opErr").textContent = e.message; return; }
+  el("opErr").textContent = "";
+  ops = trial; rebuild(false);
+  if (animate) { const ph = phases[pos + 1]; go(ph.vFrom, false); togglePlay(ph.vTo); }
+  else go(phases[pos + list.length].vTo, false);
+}
+function init() {
+  renderCodeBlocks(CODE);
+  el("codeNote").innerHTML = "The stack uses the resizable array’s <code>insert</code> and <code>delete</code> at the end: " +
+    "<code>push(x)</code> = <code>insert(size, x)</code>, <code>pop()</code> = <code>delete(size−1)</code>, so the shifting loops never run. " +
+    "Shrinking is checked lazily at the start of the next operation, so even a push can shrink the array. " +
+    "Arrays with at most 2 elements are not resized (<code>size &lt;= 2</code>): the smallest threshold that keeps the initial array of capacity 8 from shrinking.";
+  el("formula").innerHTML = "\\[\\Phi \\;=\\; \\min\\bigl\\{\\, n - \\tfrac14 C,\\;\\; C - n \\,\\bigr\\}\\qquad\\quad" +
+    "\\text{amortized cost} \\;=\\; \\text{actual cost} \\;-\\; 4\\cdot\\Delta\\Phi\\]";
+  el("anaNote").innerHTML = "Actual cost counts array accesses: a cheap <code>push</code>/<code>pop</code> costs 1, " +
+    "a copy of <i>n</i> elements costs 2<i>n</i>. A copy happens only at a boundary, where Φ = 0, and leaves the array half full, " +
+    "where Φ ≈ <i>n</i>/2 — so the factor 4 turns the big actual cost into a small or even negative amortized cost. " +
+    "(With fewer than ¼<i>C</i> = 2 elements in the initial array, Φ is negative; its start value enters the identity above.)";
+  typeset(el("formula"));
+  el("presetSel").innerHTML = '<option value="">— choose —</option>' + PRESETS.map((p, i) => '<option value="' + i + '">' + esc(p.name) + "</option>").join("");
+  el("presetSel").addEventListener("change", e => { const p = PRESETS[+e.target.value]; e.target.value = ""; if (p) loadText(presetText(p), "parseErr"); });
+  for (const b of el("granSeg").children) b.addEventListener("click", () => setGran(b.dataset.v));
+  segOn("granSeg", UI.gran);
+  el("zoom").addEventListener("input", e => { UI.zoom = e.target.value / 100; el("zoomVal").textContent = e.target.value + "%"; applyZoom(); });
+  el("loadBtn").addEventListener("click", () => loadText(el("inputText").value, "parseErr"));
+  el("pushBtn").addEventListener("click", () => {
+    const k = el("pushKey").value.trim() || randomWord();
+    if (k.length > MAXKEY) { el("opErr").textContent = "Keys have at most " + MAXKEY + " characters."; return; }
+    el("pushKey").value = "";
+    addOps([{ t: "push", key: k }], true);
+  });
+  el("pushKey").addEventListener("keydown", e => { if (e.key === "Enter") el("pushBtn").click(); });
+  el("popBtn").addEventListener("click", () => {
+    if (sizeAfter(ops, opPos()) === 0) { el("opErr").textContent = "The stack is empty."; return; }
+    addOps([{ t: "pop" }], true);
+  });
+  el("bulkPush").addEventListener("click", () => {
+    const n = sizeAfter(ops, opPos()), k = Math.min(MAXN - n, Math.max(1, +el("bulkN").value || 8));
+    if (k <= 0) { el("opErr").textContent = "The stack is limited to " + MAXN + " elements here."; return; }
+    const list = []; for (let i = 0; i < k; i++) list.push({ t: "push", key: randomWord() });
+    addOps(list, false);
+  });
+  el("bulkPop").addEventListener("click", () => {
+    const n = sizeAfter(ops, opPos()), k = Math.min(n, Math.max(1, +el("bulkN").value || 8));
+    if (k <= 0) { el("opErr").textContent = "The stack is empty."; return; }
+    const list = []; for (let i = 0; i < k; i++) list.push({ t: "pop" });
+    addOps(list, false);
+  });
+  const svg = el("svg"), tip = el("tooltip");
+  svg.addEventListener("pointermove", ev => {
+    const c = ev.target.closest && ev.target.closest("[data-cell]");
+    if (!c) { tip.style.display = "none"; return; }
+    const [aid, i] = c.getAttribute("data-cell").split(":"), B = curStep(), a = B.arrs.find(x => x.id === aid);
+    if (!a) { tip.style.display = "none"; return; }
+    const e = a.cells[+i], name = a.role === "new" ? "newElements" : "elements";
+    tip.innerHTML = '<div class="tt-h">' + name + "[" + i + "] = " + (e ? esc(keyOf[e]) : "null") + "</div>" +
+      '<div class="tt-s">' + (a.role === "elements" ? (+i < B.size ? "on the stack" : "free cell") : "") + "</div>";
+    tip.style.display = "block";
+    tip.style.left = Math.min(window.innerWidth - tip.offsetWidth - 8, ev.clientX + 14) + "px"; tip.style.top = (ev.clientY + 16) + "px";
+  });
+  svg.addEventListener("pointerleave", () => tip.style.display = "none");
+  initTransport(); initSplitters();
+  ops = parseStackOps(PRESETS[0].text, MAXN);
+  rebuild(false);
+}
+document.addEventListener("DOMContentLoaded", init);
+
+</script>
+</body>
+</html>

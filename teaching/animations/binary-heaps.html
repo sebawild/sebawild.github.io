@@ -1,0 +1,1882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Binary heaps · insert, delete, and bottom-up construction</title>
+
+<script type="text/x-mathjax-config">
+  var font = "Neo-Euler";
+  MathJax.Hub.Config({
+    tex2jax: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']], processEscapes: true },
+    "SVG": { font: font },
+    "HTML-CSS": { webFont: font, imageFont: font, preferredFont: font, availableFonts: [],
+                  scale: 85, mtextFontInherit: true },
+    showProcessingMessages: false, messageStyle: "none"
+  });
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS_HTML"></script>
+
+<style>
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#9c866d;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    --mono: var(--wi-font-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+
+    /* heap-specific: the hull colours follow the slide (box background / highlight background) */
+    --hull-out:#e6d8c2; --hull-in:#f8f1e4;
+    --done-out:#c9d9bd; --done-in:#eaf1e2;
+    --act-out:#e5c0b4;  --act-in:#f8e9e2;
+    --node-fill:#e8dac6; --node-stroke:#46433a;
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title,.wi-caption { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:18px;
+              flex-wrap:wrap; margin:0 0 6px; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 16px; max-width:96ch; line-height:1.55; }
+  .subtitle code, .hint code, .status code, .opnote code { background:var(--wi-controls); padding:1px 5px;
+                 border-radius:3px; font-size:.85em; font-family:var(--mono); }
+
+  /* --- control chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:12px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; }
+  .ctl > label, .lbl { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer;
+           transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text;
+                font-size:1.02rem; line-height:1.1; padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  input.str { font-family:var(--mono); font-size:.8rem; }
+  input[type=number] { width:4.2em; }
+  input[type=range] { accent-color:var(--wi-accent); cursor:pointer; vertical-align:middle; }
+  .seg { display:inline-flex; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+
+  .opbar { display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; padding:10px 18px;
+           background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+           border-radius:var(--wi-radius-lg); margin-bottom:14px; }
+  .opnote { font-size:.78rem; color:var(--wi-ink-faint); }
+  .opnote b { color:var(--wi-accent); }
+  .opbar .err { margin:0; }
+
+  /* --- transport --- */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:18px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; --thumb:8px; }
+  .progress input[type=range] { display:block; width:100%; margin:0; }
+  .stepno { font-family:var(--mono); font-size:.76rem; color:var(--wi-ink-faint);
+            white-space:nowrap; text-align:right; padding-top:4px; }
+  .phasebar { display:flex; margin:5px var(--thumb) 0; width:calc(100% - var(--thumb) - var(--thumb)); }
+  .phasebtn { position:relative; overflow:hidden;
+              flex-grow:1; flex-basis:0; min-width:0; padding:3px 4px; font-size:.68rem; line-height:1.3;
+              font-family:var(--wi-font-head); letter-spacing:.03em;
+              background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+              border-left-width:0; border-radius:0; color:var(--wi-ink-faint); cursor:pointer;
+              text-overflow:ellipsis; white-space:nowrap; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3;
+                    border-right:1px solid var(--wi-accent-soft); transition:width .12s linear; }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; font-family:var(--mono); }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+
+  /* --- stage with draggable splitter --- */
+  .stage { display:grid; grid-template-columns:minmax(0,var(--left,1.5fr)) 10px minmax(320px,1fr);
+           gap:0; align-items:start; }
+  .splitter { align-self:stretch; cursor:col-resize; position:relative; touch-action:none; }
+  .splitter::after { content:""; position:absolute; left:4px; top:30px; bottom:30px; width:2px;
+                     border-radius:1px; background:var(--wi-border-soft); transition:background .15s; }
+  .splitter:hover::after, .splitter.drag::after { background:var(--wi-accent-soft); }
+  @media (max-width:1080px) {
+    .stage { grid-template-columns:1fr; }
+    .splitter { display:none; }
+    .col-side { margin-top:14px; }
+  }
+  .col-main { min-width:0; }
+  .col-side { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+             border-radius:var(--wi-radius-lg); padding:12px 15px; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em;
+               color:var(--wi-ink-faint); margin:0 0 9px; display:flex; justify-content:space-between;
+               align-items:center; gap:10px; flex-wrap:wrap; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--mono);
+                    font-size:.9em; color:var(--wi-ink-soft); display:flex; align-items:center; gap:8px; }
+  .sim-title .rhs input[type=range] { width:90px; }
+  .svgscroll { overflow:auto; max-height:var(--canvas-h, none); background:var(--wi-bg);
+               border-radius:var(--wi-radius); }
+  .svgwrap { position:relative; margin:0 auto; }
+  .svgwrap svg { display:block; max-width:none; touch-action:manipulation; }
+  .ovl { position:absolute; left:0; top:0; transform-origin:0 0; pointer-events:none; }
+  .ovl .lv { position:absolute; font-size:15px; color:var(--wi-ink-faint); transform:translateY(-50%);
+             white-space:nowrap; }
+  .vresize { height:10px; cursor:row-resize; position:relative; touch-action:none; margin-top:2px; }
+  .vresize::after { content:""; position:absolute; left:40%; right:40%; top:4px; height:2px;
+                    background:var(--wi-border-soft); border-radius:1px; }
+  .vresize:hover::after, .vresize.drag::after { background:var(--wi-accent-soft); }
+
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+            border-radius:var(--wi-radius); padding:10px 13px; font-size:.9rem;
+            color:var(--wi-ink-strong); min-height:96px; }
+  .status .k { font-family:var(--mono); font-size:.88em; background:var(--wi-panel-2);
+               padding:0 4px; border-radius:3px; border:1px solid var(--wi-border-soft); }
+  .status .yes { color:var(--wi-active); font-weight:bold; }
+  .status .no  { color:var(--wi-relax); font-weight:bold; }
+  .status .fn  { font-family:var(--mono); font-size:.86em; color:var(--wi-accent); }
+
+  .legend { display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:9px; font-size:.72rem; color:var(--wi-ink-soft); }
+  .legend .item { display:flex; align-items:center; gap:6px; }
+  .sw { width:.95em; height:.95em; border-radius:50%; border:1.6px solid var(--node-stroke); display:inline-block; }
+  .swb { width:1.5em; height:.85em; border-radius:.45em; display:inline-block; }
+
+  /* counters */
+  .meters { display:grid; grid-template-columns:auto 1fr; gap:3px 12px; font-size:.84rem; }
+  .meters .m-l { color:var(--wi-ink-soft); }
+  .meters .m-v { font-variant-numeric:tabular-nums; color:var(--wi-ink-strong); }
+  .meters .m-v b { color:var(--wi-accent); }
+  .outrow { display:flex; flex-wrap:wrap; gap:4px; min-height:30px; align-items:center; margin-top:4px; }
+  .outrow .chip { font-family:var(--mono); font-size:.8rem; min-width:26px; text-align:center;
+                  padding:2px 6px; border-radius:3px; background:var(--wi-panel-2);
+                  border:1px solid var(--wi-border); color:var(--wi-ink-strong); }
+  .outrow .chip.fresh { border-color:var(--wi-accent); color:var(--wi-accent); font-weight:bold;
+                        animation:chipin .35s ease-out both; }
+  @keyframes chipin { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
+  .outrow .empty, .placeholder { color:var(--wi-ink-faint); font-style:italic; font-size:.82rem; }
+
+  /* analysis table */
+  table.lv { border-collapse:collapse; width:100%; font-size:.8rem; font-variant-numeric:tabular-nums; }
+  table.lv th { font-family:var(--wi-font-head); font-weight:normal; font-size:.7rem; letter-spacing:.04em;
+                color:var(--wi-ink-faint); text-align:right; padding:2px 5px; border-bottom:1px solid var(--wi-border-soft); }
+  table.lv td { text-align:right; padding:2px 5px; border-bottom:1px dashed var(--wi-border-soft); }
+  table.lv tr.cur td { background:#f6e6df; }
+  table.lv tr.tot td { border-bottom:0; border-top:1px solid var(--wi-border); font-weight:bold; }
+  table.lv td.bar { width:34%; text-align:left; }
+  .barbox { position:relative; height:.9em; background:var(--wi-panel-2); border:1px solid var(--wi-border-soft);
+            border-radius:2px; }
+  .barbox .b { position:absolute; left:0; top:0; bottom:0; background:var(--wi-accent-soft); border-radius:1px;
+               transition:width .2s; }
+  .anote { font-size:.78rem; color:var(--wi-ink-soft); line-height:1.5; margin-top:8px; }
+  .anote b { color:var(--wi-accent); }
+  .formula { font-size:.92rem; overflow-x:auto; margin:4px 0 6px; }
+  .chain { font-size:.84rem; margin-top:6px; font-variant-numeric:tabular-nums; }
+  .chain .v { color:var(--wi-accent); font-weight:bold; }
+  details.sub > summary { cursor:pointer; font-family:var(--wi-font-head); font-size:.72rem;
+                          letter-spacing:.08em; text-transform:uppercase; color:var(--wi-ink-faint); margin-top:10px; }
+  details.sub[open] > summary { color:var(--wi-accent); }
+  .chartlab { font-size:.74rem; color:var(--wi-ink-soft); }
+
+  /* --- code --- */
+  .codebody { padding:2px 0 4px; overflow-x:auto; }
+  .cline { display:flex; gap:9px; padding:0 9px; font-family:var(--mono); font-size:.72rem;
+           line-height:1.55; color:var(--wi-ink-strong); border-left:3px solid transparent; white-space:pre; }
+  .cline .ln { color:var(--wi-ink-faint); min-width:1.4em; text-align:right; user-select:none; }
+  .cline.on { background:#f6e6df; border-left-color:var(--wi-active); }
+  .cline.call { background:#f3e9da; border-left-color:var(--wi-accent-soft); }
+  .cline.aux { background:#f5efe2; border-left-color:var(--wi-examine); }
+  .cline .kw { color:var(--wi-accent); }
+  .cline .ty { color:var(--wi-queue); }
+  .cline .cm { color:var(--wi-ink-faint); font-style:italic; }
+  .cline.gap { height:.55em; }
+  .codenote { font-size:.72rem; color:var(--wi-ink-faint); padding:8px 4px 0; line-height:1.45; }
+  .codenote b { color:var(--wi-accent); }
+
+  /* --- editor --- */
+  details.editor { margin-top:18px; background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+                   border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:11px 16px; font-family:var(--wi-font-head);
+                             font-size:.78rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,340px) 1fr;
+                 gap:16px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  textarea { width:100%; height:150px; font-family:var(--mono); font-size:.78rem;
+             background:var(--wi-panel-2); color:var(--wi-ink); border:1px solid var(--wi-border);
+             border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.76rem; color:var(--wi-ink-soft); line-height:1.5; }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+
+  .tooltip { position:fixed; z-index:40; pointer-events:none; background:var(--wi-panel-2);
+             border:1px solid var(--wi-border-strong); border-radius:var(--wi-radius);
+             padding:6px 9px; font-size:.76rem; color:var(--wi-ink-strong);
+             box-shadow:0 3px 10px rgba(0,0,0,.12); max-width:280px; display:none; line-height:1.45; }
+  .tooltip .tt-h { font-family:var(--wi-font-head); letter-spacing:.04em; color:var(--wi-accent); }
+  .tooltip .tt-s { color:var(--wi-ink-faint); }
+  .tooltip code { font-family:var(--mono); font-size:.9em; }
+
+  .popover { position:fixed; z-index:45; background:var(--wi-panel-2); border:1px solid var(--wi-accent-soft);
+             border-radius:var(--wi-radius-lg); padding:9px 11px; box-shadow:0 4px 14px rgba(0,0,0,.14);
+             display:none; font-size:.82rem; }
+  .popover .ph { font-family:var(--mono); font-size:.8rem; color:var(--wi-ink-strong); margin-bottom:6px; }
+  .popover input { width:5em; }
+  .popover .row { display:flex; gap:6px; align-items:center; }
+
+  /* --- SVG --- */
+  .hull { fill-rule:nonzero; stroke-linejoin:round; stroke-linecap:round; }
+  .hull.h-heap.o { fill:var(--hull-out); stroke:var(--hull-out); }
+  .hull.h-heap.i { fill:var(--hull-in);  stroke:var(--hull-in); }
+  .hull.h-done.o { fill:var(--done-out); stroke:var(--done-out); }
+  .hull.h-done.i { fill:var(--done-in);  stroke:var(--done-in); }
+  .hull.h-act.o  { fill:var(--act-out);  stroke:var(--act-out); }
+  .hull.h-act.i  { fill:var(--act-in);   stroke:var(--act-in); }
+  .edge { fill:none; stroke:var(--node-stroke); stroke-width:1.3; stroke-linejoin:round; }
+  .edge.off { display:none; }
+  .edge.ghost { stroke-dasharray:3 3; opacity:.55; }
+  .edge.raw { stroke:var(--wi-inert); stroke-dasharray:2 3; }
+  .edge.rel { stroke:var(--wi-accent); stroke-width:2.6; }
+  .guide { stroke:var(--wi-border-soft); stroke-width:1; }
+  .cell { fill:var(--wi-panel-2); stroke:var(--wi-border); stroke-width:1; }
+  .cell.out { fill:var(--wi-bg); stroke:var(--wi-border-soft); stroke-dasharray:2 3; }
+  .cellframe { fill:none; stroke:var(--wi-ink-soft); stroke-width:1.4; }
+  .cix { font-family:var(--mono); font-size:10.5px; fill:var(--wi-ink-faint); text-anchor:middle; }
+  .cix.rel { fill:var(--wi-accent); font-weight:bold; }
+  .nix { font-family:var(--mono); font-size:10px; fill:var(--wi-ink-faint); text-anchor:end; pointer-events:none; }
+  .tok circle, .tok rect { fill:var(--node-fill); stroke:var(--node-stroke); stroke-width:1.4; }
+  .tok text { font-family:var(--mono); font-size:14px; fill:var(--wi-ink-strong); text-anchor:middle;
+              dominant-baseline:central; pointer-events:none; }
+  .tok { cursor:pointer; }
+  .tok.raw circle, .tok.raw rect { fill:var(--wi-panel-2); stroke:var(--wi-ink-soft); }
+  .tok.ghost circle, .tok.ghost rect { fill:var(--wi-panel-2); stroke-dasharray:3 2.5; }
+  .tok.ghost { opacity:.6; }
+  .tok.cmp circle, .tok.cmp rect { fill:#f7ebcf; stroke:var(--wi-examine); stroke-width:2.8; }
+  .tok.swap circle, .tok.swap rect { fill:#f6ded6; stroke:var(--wi-active); stroke-width:2.8; }
+  .tok.max circle, .tok.max rect { stroke:var(--wi-accent); stroke-width:3.2; }
+  .tok.new circle, .tok.new rect { fill:#e5eedb; stroke:var(--wi-relax); stroke-width:2.6; }
+  .tok.relp circle, .tok.relp rect, .tok.relc circle, .tok.relc rect { stroke:var(--wi-accent); stroke-width:2.6; }
+  .tok.hov circle, .tok.hov rect { stroke:var(--wi-accent-dark); stroke-width:3.2; }
+  .tok.flash text { animation:flash .6s ease-out; }
+  @keyframes flash { 0% { fill:var(--wi-active); } 100% { fill:var(--wi-ink-strong); } }
+  .mk { font-family:var(--mono); font-size:13px; font-weight:bold; pointer-events:none; }
+  .mk.k { fill:var(--wi-accent); } .mk.j { fill:var(--wi-examine); }
+  .nbar { stroke:var(--wi-accent); stroke-width:2.4; }
+  .nlab { font-family:var(--mono); font-size:12px; fill:var(--wi-accent); font-weight:bold; text-anchor:middle; }
+  .arrname { font-family:var(--mono); font-size:13px; fill:var(--wi-ink-soft); text-anchor:end; }
+
+  .mobile-note { display:none; background:var(--wi-controls); border:1px solid var(--wi-accent-soft);
+                 border-radius:var(--wi-radius-lg); padding:11px 15px; font-size:.82rem;
+                 color:var(--wi-ink-strong); margin-bottom:14px; }
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls, .opbar { gap:8px 12px; padding:10px 12px; }
+    .ctl { flex-wrap:wrap; gap:6px; }
+    .seg button { padding:5px 9px; font-size:.74rem; }
+    button { padding:6px 10px; font-size:.8rem; }
+    .phasebtn { font-size:.6rem; padding:3px 2px; }
+    .mobile-note { display:block; }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    * { animation-duration:.001ms !important; transition-duration:.001ms !important; }
+  }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
+  font-family: var(--wi-font-head);
+  letter-spacing: .05em;
+}
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1>Binary heaps &nbsp;·&nbsp; swim, sink, and bottom-up construction</h1>
+</div>
+
+<p class="subtitle" id="subtitle"></p>
+
+<div class="mobile-note">
+  <b>Small screen:</b> the drawing scrolls sideways; switch to the tree drawing for the most compact view.
+  The code and the analysis are below the drawing.
+</div>
+
+<div class="controls">
+  <div class="ctl">
+    <span class="lbl">Show</span>
+    <span class="seg" id="tabSeg">
+      <button data-v="ops">Insert &amp; delete</button>
+      <button data-v="build">Bottom-up construction</button>
+    </span>
+  </div>
+  <div class="ctl">
+    <span class="lbl">Order</span>
+    <span class="seg" id="orientSeg">
+      <button data-v="max">Max-heap</button>
+      <button data-v="min">Min-heap</button>
+    </span>
+  </div>
+  <div class="ctl">
+    <span class="lbl">Drawing</span>
+    <span class="seg" id="layoutSeg">
+      <button data-v="tree">Tree</button>
+      <button data-v="array">Aligned with array</button>
+    </span>
+  </div>
+  <div class="ctl">
+    <span class="lbl">Detail</span>
+    <span class="seg" id="granSeg">
+      <button data-v="line">Every line</button>
+      <button data-v="swap">Exchanges only</button>
+    </span>
+  </div>
+  <div class="ctl">
+    <label for="presetSel">Example</label>
+    <select id="presetSel"></select>
+  </div>
+</div>
+
+<!-- operation bar: one per tab -->
+<div class="opbar" id="opbarOps">
+  <span class="ctl">
+    <input type="text" id="insKey" class="str" style="width:5em" placeholder="random" spellcheck="false" aria-label="key to insert (empty: a random key)">
+    <button id="insBtn" class="pri">Insert</button>
+    <button id="delBtn">delMax()</button>
+  </span>
+  <span class="opnote">Leave the field empty for a random key. New operations are added right after the one on screen. <b>Click a node</b> to change its key.</span>
+  <span class="ctl" style="margin-left:auto">
+    <input type="number" id="addN" min="1" max="63" value="8" aria-label="how many random keys">
+    <button id="addRandBtn" title="Insert this many random keys right away, without animation">Add random keys</button>
+  </span>
+  <span class="err" id="opErr"></span>
+</div>
+<div class="opbar" id="opbarBuild" style="display:none">
+  <span class="ctl">
+    <input type="text" id="buildKeys" class="str" style="width:22em" spellcheck="false" aria-label="keys to build a heap from">
+    <button id="buildBtn" class="pri">Build</button>
+  </span>
+  <span class="ctl">
+    <span class="lbl">n</span>
+    <input type="number" id="randN" min="1" max="63" value="15">
+    <button id="randBtn">Random</button>
+    <button id="worstBtn" title="Keys sorted against the heap order: every sink goes all the way down">Worst case</button>
+  </span>
+  <span class="opnote" style="margin-left:auto"><button id="toInsertsBtn" title="Insert the same keys one by one instead, for comparison">Same keys by n inserts</button></span>
+  <span class="err" id="buildErr"></span>
+</div>
+
+<div class="transport">
+  <div class="transport-row">
+    <span class="ctl" style="gap:6px">
+      <button id="resetBtn" class="icon" title="Back to the first step" aria-label="Back to the first step">&#x21BA;</button>
+      <button id="backBtn" class="icon" title="One step back  (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+      <button id="stepBtn" class="icon pri" title="One step forward  (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+      <button id="playBtn" class="icon" title="Play / pause  (space)" aria-label="Play">&#x25B6;&#xFE0E;</button>
+    </span>
+    <span class="progress">
+      <input type="range" id="scrubber" min="0" max="0" value="0" aria-label="step">
+      <div class="phasebar" id="phaseBar"></div>
+    </span>
+    <span class="stepno" id="stepNo">— / —</span>
+    <span class="ctl" style="gap:6px">
+      <span class="lbl">Delay</span>
+      <input type="range" id="speed" min="80" max="1600" value="650" style="width:88px" aria-label="delay between steps">
+      <span class="stepno" id="speedVal">650ms</span>
+    </span>
+  </div>
+</div>
+
+<div class="stage" id="stage">
+  <div class="col-main">
+    <div class="sim-box">
+      <div class="sim-title"><span id="drawTitle">The heap</span>
+        <span class="rhs">
+          <label class="chk"><input type="checkbox" id="nixChk" checked> indices at nodes</label>
+          <span>zoom</span><input type="range" id="zoom" min="40" max="160" value="100" aria-label="zoom">
+          <span id="zoomVal">100%</span>
+        </span>
+      </div>
+      <div class="svgscroll" id="svgScroll">
+        <div class="svgwrap" id="svgWrap"><svg id="svg"></svg><div class="ovl" id="ovl"></div></div>
+      </div>
+      <div class="vresize" id="vresize" title="Drag to change the height of the drawing"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </div>
+  <div class="splitter" id="splitter" title="Drag to resize"></div>
+  <div class="col-side">
+    <div class="sim-box">
+      <div class="sim-title"><span>What happens</span><span class="rhs" id="phaseName"></span></div>
+      <div class="status" id="statusBox"></div>
+    </div>
+    <div class="sim-box" id="opsPanel">
+      <div class="sim-title"><span>Cost</span><span class="rhs" id="opsMeta"></span></div>
+      <div class="meters" id="meters"></div>
+      <div class="sim-title" style="margin-top:10px"><span id="outTitle">Returned by delMax()</span></div>
+      <div class="outrow" id="outRow"></div>
+    </div>
+    <div class="sim-box" id="buildPanel" style="display:none">
+      <div class="sim-title"><span>Analysis</span><span class="rhs" id="anaMeta"></span></div>
+      <div class="anote" style="margin-top:0">Each node may sink at most down to the last level, i.e., <span id="hmlText"></span>
+        steps. Summed over the levels:</div>
+      <div class="formula" id="formula"></div>
+      <table class="lv" id="lvTable"></table>
+      <div class="chain" id="chain"></div>
+      <div class="anote" id="cmpNote"></div>
+      <details class="sub" id="scaleDetails">
+        <summary>How does it scale?</summary>
+        <div class="anote">Comparisons <i>per key</i>, bottom-up construction vs. inserting the keys one
+          by one. Worst case: keys sorted against the heap order. Random: average of 5 random permutations.</div>
+        <div id="chartBox"></div>
+      </details>
+    </div>
+    <div class="sim-box">
+      <div class="sim-title"><span id="codeTitle">Java code</span><span class="rhs" id="codeMeta"></span></div>
+      <div class="codebody" id="codeBody"></div>
+      <div class="codenote" id="codeNote"></div>
+    </div>
+  </div>
+</div>
+
+<details class="editor" id="editor">
+  <summary>Input</summary>
+  <div class="editor-body">
+    <div>
+      <textarea id="inputText" spellcheck="false"></textarea>
+      <div style="margin-top:8px"><button class="pri" id="loadBtn">Load</button></div>
+      <div class="err" id="parseErr"></div>
+    </div>
+    <div class="hint" id="inputHint"></div>
+  </div>
+</details>
+
+<div class="tooltip" id="tooltip"></div>
+<div class="popover" id="popover">
+  <div class="ph" id="popHead"></div>
+  <div class="row">
+    <input type="text" id="popKey" class="str" spellcheck="false" aria-label="new key">
+    <button class="pri" id="popApply">Change</button>
+    <button id="popCancel">Cancel</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =====================================================================
+   Binary heaps — insert / delMax / changeKey and bottom-up construction.
+   The tracer below is a line-by-line port of Sedgewick & Wayne's MaxPQ
+   (and MinPQ: identical with less -> greater). Every executed line of
+   the Java code becomes one recorded step (snapshot).
+   ===================================================================== */
+const el = id => document.getElementById(id);
+const SVGNS = "http://www.w3.org/2000/svg";
+const MAXN = 63, MAXKEYLEN = 3;
+const CW = 40, R = 15, DY = 58, PADL = 70, PADR = 26, PADT = 24, ARR_GAP = 46, CELLH = 34;
+
+const S = { tab: "ops", orient: "max", layout: "tree", gran: "line", zoom: 1, delay: 650, showNix: true };
+
+let opsInput = { init: null, ops: [] };   // ops: {t:'ins',key} | {t:'del'} | {t:'ck',k,key}
+let buildKeys = [];
+let steps = [], phases = [], vis = [], cur = 0;
+let numeric = false;
+
+function ilog2(n) { let l = 0; while ((n >>= 1) > 0) l++; return l; }
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+const isMax = () => S.orient === "max";
+const LESS = () => isMax() ? "less" : "greater";
+const OPS = () => isMax() ? "&lt;" : "&gt;";
+const MX = () => isMax() ? "Max" : "Min";
+const mx = () => isMax() ? "max" : "min";
+const DELNAME = () => "del" + MX();
+
+function isNum(k) { return /^-?\d+(\.\d+)?$/.test(k); }
+function detectNumeric(keys) { return keys.length > 0 && keys.every(isNum); }
+function cmpKeys(a, b) {
+  if (numeric) { const x = +a, y = +b; return x < y ? -1 : x > y ? 1 : 0; }
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+/* the comparison the code calls: less(i,j) for MaxPQ, greater(i,j) for MinPQ */
+function codeLess(a, b) { return isMax() ? cmpKeys(a, b) < 0 : cmpKeys(a, b) > 0; }
+
+const kq = k => '<span class="k">' + esc(k) + "</span>";
+const vi = v => "<i>" + v + "</i>";
+const fn = s => '<span class="fn">' + s + "</span>";
+const YES = '<span class="yes">yes</span>', NO = '<span class="no">no</span>';
+
+class Tracer {
+  constructor(build) {
+    this.pq = [null]; this.key = {}; this.n = 0; this.nid = 0;
+    this.steps = []; this.phases = [];
+    this.cmp = 0; this.exch = 0; this.opCmp = 0; this.opExch = 0;
+    this.out = []; this.stack = []; this.op = -1; this.opInfo = null;
+    this.build = build; this.proc = 0; this.bk = null;
+    this.lvlEx = []; this.lvlCmp = []; this.sinkInfo = {}; this.curSink = null;
+  }
+  newId(k) { const id = "e" + (++this.nid); this.key[id] = k; return id; }
+  K(i) { return this.key[this.pq[i]]; }
+  phase(name, kind) { this.phases.push({ name: name, kind: kind, from: this.steps.length }); }
+  snap(o) {
+    const st = Object.assign({
+      pq: this.pq.slice(), keys: this.pq.map(id => id == null ? null : this.key[id]), n: this.n,
+      line: null, stack: this.stack.slice(), vars: {}, hl: {}, aux: null, major: false,
+      cmp: this.cmp, exch: this.exch, opCmp: this.opCmp, opExch: this.opExch,
+      out: this.out.slice(), op: this.op, phase: this.phases.length - 1, opInfo: this.opInfo
+    }, o);
+    if (this.build) {
+      st.proc = this.proc; st.bk = this.bk;
+      st.lvlEx = this.lvlEx.slice(); st.lvlCmp = this.lvlCmp.slice();
+      const si = {}; for (const k in this.sinkInfo) si[k] = { x: this.sinkInfo[k].x, c: this.sinkInfo[k].c };
+      st.sinkInfo = si;
+    }
+    this.steps.push(st);
+  }
+  less(i, j) {
+    this.cmp++; this.opCmp++;
+    if (this.curSink != null) {
+      const l = ilog2(this.curSink);
+      this.lvlCmp[l] = (this.lvlCmp[l] || 0) + 1; this.sinkInfo[this.curSink].c++;
+    }
+    return codeLess(this.K(i), this.K(j));
+  }
+  exchange(i, j) {
+    const t = this.pq[i]; this.pq[i] = this.pq[j]; this.pq[j] = t;
+    this.exch++; this.opExch++;
+    if (this.curSink != null) {
+      const l = ilog2(this.curSink);
+      this.lvlEx[l] = (this.lvlEx[l] || 0) + 1; this.sinkInfo[this.curSink].x++;
+    }
+  }
+  startOp(info, name, kind) {
+    this.op++; this.opCmp = 0; this.opExch = 0; this.opInfo = info;
+    this.phase(name, kind);
+  }
+
+  /* private void swim(int k) {
+       while (k > 1 && less(k/2, k)) { exch(k, k/2); k = k/2; } }        */
+  swim(k) {
+    const L = LESS(), op = OPS();
+    for (;;) {
+      if (!(k > 1)) {
+        this.snap({ line: "sw.w", vars: { k: k }, major: true,
+          txt: vi("k") + " = 1: the key has reached the root, so the loop <span class=\"no\">stops</span>." });
+        break;
+      }
+      const p = k >> 1, a = this.K(p), b = this.K(k), r = this.less(p, k);
+      this.snap({ line: "sw.w", aux: "less", vars: { k: k }, hl: { [p]: "cmp", [k]: "cmp" }, major: !r,
+        txt: fn(L + "(" + p + ", " + k + ")") + ": is the parent " + kq(a) + " " + op + " " + kq(b) + "? " +
+          (r ? YES + " — heap order is violated, " + kq(b) + " must swim up."
+             : NO + " — heap order holds, the loop <span class=\"no\">stops</span>.") });
+      if (!r) break;
+      this.exchange(k, p);
+      this.snap({ line: "sw.x", aux: "exch", vars: { k: k }, hl: { [p]: "swap", [k]: "swap" }, major: true,
+        txt: fn("exch(" + k + ", " + p + ")") + ": " + kq(b) + " moves up to index " + p + ", " +
+          kq(a) + " moves down to index " + k + "." });
+      k = p;
+      this.snap({ line: "sw.k", vars: { k: k }, txt: vi("k") + " = " + vi("k") + "/2 = " + k + ": continue at the parent." });
+    }
+  }
+
+  /* private void sink(int k) {
+       while (2*k <= n) { int j = 2*k; if (j < n && less(j, j+1)) j++;
+                          if (!less(k, j)) break; exch(k, j); k = j; } }  */
+  sink(k) {
+    const L = LESS(), op = OPS(), side = isMax() ? "larger" : "smaller";
+    for (;;) {
+      if (!(2 * k <= this.n)) {
+        this.snap({ line: "sk.w", vars: { k: k }, major: true,
+          txt: "2" + vi("k") + " = " + (2 * k) + " &gt; " + vi("n") + " = " + this.n + ": index " + k +
+            " is a leaf, so the loop <span class=\"no\">stops</span>." });
+        break;
+      }
+      this.snap({ line: "sk.w", vars: { k: k },
+        txt: "2" + vi("k") + " = " + (2 * k) + " ≤ " + vi("n") + " = " + this.n + ": index " + k + " has " +
+          (2 * k + 1 <= this.n ? "two children." : "one child.") });
+      let j = 2 * k;
+      this.snap({ line: "sk.j", vars: { k: k, j: j }, txt: vi("j") + " = 2" + vi("k") + " = " + j + ": start with the left child." });
+      if (j < this.n) {
+        const a = this.K(j), b = this.K(j + 1), r = this.less(j, j + 1), j0 = j;
+        if (r) j++;
+        this.snap({ line: "sk.c", aux: "less", vars: { k: k, j: j }, hl: { [j0]: "cmp", [j0 + 1]: "cmp" },
+          txt: fn(L + "(" + j0 + ", " + (j0 + 1) + ")") + ": is " + kq(a) + " " + op + " " + kq(b) + "? " +
+            (r ? "yes — " + vi("j") + "++, the right child " + kq(b) + " is the " + side + " one."
+               : "no — " + vi("j") + " stays at the left child " + kq(a) + ".") });
+      } else {
+        this.snap({ line: "sk.c", vars: { k: k, j: j },
+          txt: vi("j") + " = " + vi("n") + ": there is no right child, so no comparison is needed." });
+      }
+      const a = this.K(k), b = this.K(j), r = this.less(k, j);
+      this.snap({ line: "sk.b", aux: "less", vars: { k: k, j: j }, hl: { [k]: "cmp", [j]: "cmp" }, major: !r,
+        txt: fn("!" + L + "(" + k + ", " + j + ")") + ": is " + kq(a) + " " + op + " " + kq(b) + "? " +
+          (r ? YES + " — " + kq(a) + " is out of order and must sink."
+             : NO + " — heap order holds, <span class=\"no\">break</span>.") });
+      if (!r) break;
+      this.exchange(k, j);
+      this.snap({ line: "sk.x", aux: "exch", vars: { k: k, j: j }, hl: { [k]: "swap", [j]: "swap" }, major: true,
+        txt: fn("exch(" + k + ", " + j + ")") + ": " + kq(a) + " sinks to index " + j + ", " + kq(b) + " rises to index " + k + "." });
+      k = j;
+      this.snap({ line: "sk.k", vars: { k: k }, txt: vi("k") + " = " + vi("j") + " = " + k + ": continue one level down." });
+    }
+  }
+
+  insert(x) {
+    this.startOp({ kind: "ins", key: x }, "+" + x, "ins");
+    const id = this.newId(x);
+    this.pq[++this.n] = id;
+    this.snap({ line: "in.1", vars: { n: this.n }, hl: { [this.n]: "new" }, major: true,
+      txt: fn("insert(" + esc(x) + ")") + ": " + kq(x) + " goes to the only possible place, the next free spot " +
+        vi("n") + " = " + this.n + "." });
+    this.stack = ["in.2"];
+    this.snap({ line: "in.2", vars: { k: this.n, n: this.n }, txt: "Let " + kq(x) + " swim up to repair the heap order." });
+    this.swim(this.n);
+    this.stack = [];
+    const h = ilog2(this.n);
+    this.snap({ line: "in.e", vars: { n: this.n }, major: true, endOp: true,
+      txt: "Inserted " + kq(x) + " with " + this.opCmp + " comparison" + (this.opCmp === 1 ? "" : "s") + " and " +
+        this.opExch + " exchange" + (this.opExch === 1 ? "" : "s") + ". The heap now has height " + vi("h") + " = ⌊lg " +
+        this.n + "⌋ = " + h + ", and swim never needs more than " + vi("h") + " comparisons." });
+  }
+
+  delMax() {
+    const D = DELNAME(), m = mx();
+    this.startOp({ kind: "del", h0: ilog2(this.n) }, D, "del");
+    const mid = this.pq[1], mk = this.key[mid], h0 = ilog2(this.n);
+    this.snap({ line: "dm.1", vars: { n: this.n }, hl: { 1: "max" }, major: true,
+      txt: fn(D + "()") + ": the " + (isMax() ? "maximum" : "minimum") + " is always at the root: " + m + " = " + kq(mk) + "." });
+    this.exchange(1, this.n); this.n--;
+    this.snap({ line: "dm.2", aux: "exch", vars: { n: this.n }, hl: { 1: "swap", [this.n + 1]: "swap" }, major: true,
+      txt: fn("exch(1, " + (this.n + 1) + ")") + ", then " + vi("n") + "-- = " + this.n + ": the last key " +
+        kq(this.K(1)) + " moves into the root; " + kq(mk) + " is no longer part of the heap." });
+    this.stack = ["dm.3"];
+    this.snap({ line: "dm.3", vars: { k: 1, n: this.n },
+      txt: this.n > 0 ? "Let " + kq(this.K(1)) + " sink from the root to repair the heap order." : "The heap is empty now; sink has nothing to do." });
+    this.sink(1);
+    this.stack = [];
+    this.pq[this.n + 1] = null; this.out.push(mk);
+    this.snap({ line: "dm.4", vars: { n: this.n }, major: true, gone: mid,
+      txt: "pq[" + (this.n + 1) + "] = null: drop the reference to " + kq(mk) + ", so it can be garbage collected." });
+    this.snap({ line: "dm.5", vars: { n: this.n }, major: true, endOp: true,
+      txt: "return " + kq(mk) + ". This took " + this.opCmp + " comparison" + (this.opCmp === 1 ? "" : "s") + " and " +
+        this.opExch + " exchange" + (this.opExch === 1 ? "" : "s") + ". For a heap of height " + vi("h") + " = " + h0 +
+        ", sink needs at most 2" + vi("h") + " = " + (2 * h0) + " comparisons." });
+  }
+
+  changeKey(k, x) {
+    this.startOp({ kind: "ck", k: k, key: x }, k + ":" + x, "ck");
+    const id = this.pq[k], old = this.key[id];
+    this.key[id] = x;
+    this.snap({ line: "ck.1", vars: { k: k, n: this.n }, hl: { [k]: "new" }, flash: id, major: true,
+      txt: fn("changeKey(" + k + ", " + esc(x) + ")") + ": the key at index " + k + " changes from " + kq(old) + " to " + kq(x) +
+        ". Heap order may now be violated, either towards the root or towards the leaves." });
+    this.stack = ["ck.2"];
+    this.snap({ line: "ck.2", vars: { k: k, n: this.n }, txt: "First let it swim up from index " + k + "." });
+    this.swim(k);
+    this.stack = ["ck.3"];
+    const moved = this.pq[k] !== id;
+    this.snap({ line: "ck.3", vars: { k: k, n: this.n },
+      txt: "Then let the key at index " + k + " sink." + (moved ? " (The changed key swam up, so index " + k +
+        " now holds a key that came from above: it is in order and sink stops right away.)" : "") });
+    this.sink(k);
+    this.stack = [];
+    this.snap({ line: "ck.e", vars: { n: this.n }, major: true, endOp: true,
+      txt: "Done: " + this.opCmp + " comparisons, " + this.opExch + " exchanges in total." });
+  }
+
+  /* public MaxPQ(Key[] keys) { n = keys.length; pq = new Key[n+1];
+       for (i...) pq[i+1] = keys[i]; for (int k = n/2; k >= 1; k--) sink(k); } */
+  construct(keys) {
+    this.phase("copy", "copy"); this.op = 0;
+    for (let i = 0; i < keys.length; i++) this.pq[i + 1] = this.newId(keys[i]);
+    const n = this.n = keys.length;
+    this.proc = (n >> 1) + 1;
+    const h = ilog2(n);
+    this.snap({ line: "c.copy", vars: { n: n }, major: true,
+      txt: "The " + n + " keys are copied into pq[1.." + n + "] in their arbitrary input order and read as a complete binary tree " +
+        "of height " + vi("h") + " = " + h + ". The " + (n - (n >> 1)) + " leaves (indices " + ((n >> 1) + 1) + " to " + n +
+        ") are already heaps: singleton heaps of height 0." });
+    let lastL = -1;
+    for (let k = n >> 1; k >= 1; k--) {
+      const l = ilog2(k);
+      if (l !== lastL) { this.phase("level " + l, "lvl"); lastL = l; }
+      this.bk = k; this.proc = k + 1; this.sinkInfo[k] = { x: 0, c: 0 };
+      const ht = ilog2(Math.floor(n / k));
+      const kids = 2 * k + 1 <= n ? "The subtrees at " + (2 * k) + " and " + (2 * k + 1) + " are heaps"
+                                  : "The subtree at " + (2 * k) + " is a heap";
+      this.snap({ line: "c.for", vars: { k: k, n: n }, major: true,
+        txt: vi("k") + " = " + k + " (level " + l + "). " + kids + " already. " + fn("sink(" + k + ")") + " merges " +
+          (2 * k + 1 <= n ? "them" : "it") + " with " + kq(this.K(k)) + " into one heap of height " + ht +
+          "; this takes at most " + ht + " exchange" + (ht === 1 ? "" : "s") + " (and " + vi("h") + "−ℓ = " + (h - l) + ")." });
+      this.stack = ["c.sink"]; this.curSink = k;
+      this.sink(k);
+      this.curSink = null; this.stack = [];
+    }
+    this.bk = null; this.proc = 1;
+    this.phase("done", "done");
+    this.snap({ line: "c.end", vars: { n: n }, major: true, done: true,
+      txt: "The whole array is a heap now. Bottom-up construction used " + this.exch + " exchanges and " + this.cmp +
+        " comparisons for " + vi("n") + " = " + n + " keys." });
+  }
+}
+
+/* ---------------- tracing per tab ---------------- */
+function checkHeapOrder(keys) {
+  for (let i = 2; i <= keys.length; i++)
+    if (codeLess(keys[(i >> 1) - 1], keys[i - 1]))
+      return "index " + (i >> 1) + " (" + keys[(i >> 1) - 1] + ") and its child " + i + " (" + keys[i - 1] + ")";
+  return null;
+}
+function allOpsKeys(inp) {
+  const ks = (inp.init || []).slice();
+  for (const o of inp.ops) if (o.key != null) ks.push(o.key);
+  return ks;
+}
+function traceOps(inp) {
+  numeric = detectNumeric(allOpsKeys(inp));
+  const T = new Tracer(false);
+  T.phase("start", "start");
+  if (inp.init && inp.init.length) {
+    const bad = checkHeapOrder(inp.init);
+    if (bad) throw new Error("The init line is not a " + mx() + "-heap: heap order fails between " + bad +
+      ". Use the construction view to turn an arbitrary array into a heap.");
+    for (let i = 0; i < inp.init.length; i++) T.pq[i + 1] = T.newId(inp.init[i]);
+    T.n = inp.init.length;
+  }
+  if (T.n > MAXN) throw new Error("At most " + MAXN + " keys.");
+  T.snap({ line: null, major: true,
+    txt: T.n ? "Start: a " + mx() + "-heap with " + vi("n") + " = " + T.n + " keys, stored in level order in pq[1.." + T.n + "]."
+             : "Start: an empty " + mx() + "-heap. Insert keys with the field above, or pick an example." });
+  inp.ops.forEach((o, idx) => {
+    if (o.t === "ins") {
+      if (T.n >= MAXN) throw new Error("Operation " + (idx + 1) + ": the heap is limited to " + MAXN + " keys here.");
+      T.insert(o.key);
+    } else if (o.t === "del") {
+      if (T.n === 0) throw new Error("Operation " + (idx + 1) + " (" + DELNAME() + "): the heap is empty at that point.");
+      T.delMax();
+    } else {
+      if (!(o.k >= 1 && o.k <= T.n)) throw new Error("Operation " + (idx + 1) + " (changeKey " + o.k + ":" + o.key +
+        "): index must be between 1 and n = " + T.n + " at that point.");
+      T.changeKey(o.k, o.key);
+    }
+  });
+  return T;
+}
+function traceBuild(keys) {
+  numeric = detectNumeric(keys);
+  const T = new Tracer(true);
+  T.construct(keys);
+  return T;
+}
+
+/* ---------------- input formats ---------------- */
+function stripComments(text) { return text.split(/\r?\n/).map(l => l.replace(/#.*$/, "")); }
+function validKey(k) {
+  if (k.length > MAXKEYLEN) return "key '" + k + "' is longer than " + MAXKEYLEN + " characters";
+  if (k === "-" || k.indexOf(":") >= 0) return "'" + k + "' cannot be used as a key";
+  return null;
+}
+function parseOps(text) {
+  const out = { init: null, ops: [] };
+  for (const line of stripComments(text)) {
+    let l = line.trim();
+    if (!l) continue;
+    const m = /^init\s*:(.*)$/i.exec(l);
+    if (m) {
+      const ks = m[1].trim().split(/[\s,]+/).filter(Boolean);
+      for (const k of ks) { const e = validKey(k); if (e) throw new Error(e); }
+      out.init = ks; continue;
+    }
+    for (const tok of l.split(/[\s,]+/).filter(Boolean)) {
+      if (tok === "-") { out.ops.push({ t: "del" }); continue; }
+      const c = /^(\d+):(\S+)$/.exec(tok);
+      if (c) {
+        const e = validKey(c[2]); if (e) throw new Error(e);
+        out.ops.push({ t: "ck", k: +c[1], key: c[2] }); continue;
+      }
+      const e = validKey(tok); if (e) throw new Error(e);
+      out.ops.push({ t: "ins", key: tok });
+    }
+  }
+  const ks = allOpsKeys(out);
+  if (ks.length && !detectNumeric(ks) && ks.some(isNum) && ks.some(k => !isNum(k)))
+    throw new Error("Use either only numbers or only words as keys (mixing them makes the order confusing).");
+  return out;
+}
+function opsToText(inp) {
+  const lines = ["# '-' = " + DELNAME() + "(),  k:x = changeKey(k, x),  anything else = insert"];
+  if (inp.init && inp.init.length) lines.push("init: " + inp.init.join(" "));
+  const toks = inp.ops.map(o => o.t === "ins" ? o.key : o.t === "del" ? "-" : o.k + ":" + o.key);
+  for (let i = 0; i < toks.length; i += 16) lines.push(toks.slice(i, i + 16).join(" "));
+  return lines.join("\n");
+}
+function parseBuild(text) {
+  const ks = stripComments(text).join(" ").trim().split(/[\s,]+/).filter(Boolean);
+  if (!ks.length) throw new Error("Give at least one key.");
+  if (ks.length > MAXN) throw new Error("At most " + MAXN + " keys (got " + ks.length + ").");
+  for (const k of ks) { const e = validKey(k); if (e) throw new Error(e); }
+  if (!detectNumeric(ks) && ks.some(isNum))
+    throw new Error("Use either only numbers or only words as keys (mixing them makes the order confusing).");
+  return ks;
+}
+
+/* ---------------- presets ---------------- */
+/* Init heaps are given as max-heaps; for a min-heap they are mirrored (A<->Z),
+   which reverses the order and so keeps every comparison outcome and every move. */
+function mirrorLetters(k) {
+  return k.replace(/[A-Z]/g, c => String.fromCharCode(155 - c.charCodeAt(0)))
+          .replace(/[a-z]/g, c => String.fromCharCode(219 - c.charCodeAt(0)));
+}
+function mirrorText(t) {
+  return t.split("\n").map(l => {
+    if (/^\s*#/.test(l)) return l;
+    const m = /^(\s*init\s*:)(.*)$/i.exec(l);
+    const head = m ? m[1] : "", body = m ? m[2] : l;
+    return head + body.replace(/(^|[\s:])([A-Za-z]+)/g, (q, a, w) => a + mirrorLetters(w));
+  }).join("\n");
+}
+function mulberry(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function randomKeys(n, rnd) {
+  rnd = rnd || Math.random;
+  const pool = []; for (let i = 1; i <= 99; i++) pool.push(i);
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
+  return pool.slice(0, n).map(String);
+}
+function worstKeys(n) {   // sorted against the heap order
+  const a = []; for (let i = 1; i <= n; i++) a.push(String(i));
+  return isMax() ? a : a.reverse();
+}
+const OPS_PRESETS = [
+  { name: "tinyPQ.txt — P Q E - X A M - P L E -", text: "P Q E - X A M - P L E -" },
+  { name: "Insert S, then delete the maximum", init: true, text: "init: T P R N H O A E I G\nS -" },
+  { name: "Change a key: promotion (swim)", init: true, text: "init: S P R N L O A E I H G\n5:T" },
+  { name: "Change a key: demotion (sink)", init: true, text: "init: T S R P S O A E I N G\n2:H" },
+  { name: "Sorted inserts, then delete all", text: "11 12 17 28 35 55 57 63 69 77 79 80 82 85 88 97\n- - - - - - - - - - - - - - - -" },
+  { name: "Random: 12 inserts, 4 deletions", rnd: true }
+];
+const BUILD_PRESETS = [
+  { name: "S O R T E X A M P L E", text: "S O R T E X A M P L E" },
+  { name: "Worst case, n = 15", worst: 15 },
+  { name: "Worst case, n = 31", worst: 31 },
+  { name: "Already a heap, n = 15", best: 15 },
+  { name: "Random, n = 20", rnd: 20 }
+];
+function presetText(p) {
+  if (S.tab === "ops") {
+    if (p.rnd) {
+      const ks = randomKeys(12), toks = [];
+      ks.forEach((k, i) => { toks.push(k); if (i % 3 === 2) toks.push("-"); });
+      return toks.join(" ");
+    }
+    return (p.init && !isMax()) ? mirrorText(p.text) : p.text;
+  }
+  if (p.worst) return worstKeys(p.worst).join(" ");
+  if (p.best) return worstKeys(p.best).reverse().join(" ");
+  if (p.rnd) return randomKeys(p.rnd).join(" ");
+  return p.text;
+}
+
+/* =====================================================================
+   Drawing. Two layouts of the same implicit tree:
+     T = 0  classic tree layout (each level spread over the full width)
+     T = 1  aligned with the array: node i sits right above pq[i]
+   All positions are computed from (index, T), and tokens tween in
+   index space, so a layout switch in mid-animation stays consistent.
+   ===================================================================== */
+let cap = 1, hCap = 0;
+const G = {};
+let scene = null;
+let tokens = {};                 // id -> {gt, ga, ct, tt, ra, ta}
+let moves = [], mkMoves = {};    // set by render()
+let tw = { t0: 0, dur: 0 };
+let lay = { from: 0, to: 0, t0: 0, dur: 0 };
+let rafOn = false;
+let hoverIdx = 0;
+
+function mk(tag, attrs, parent) {
+  const e = document.createElementNS(SVGNS, tag);
+  if (attrs) for (const a in attrs) e.setAttribute(a, attrs[a]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const levelY = l => PADT + R + l * DY;
+function treeX(i) { const l = ilog2(i), j = i - (1 << l); return G.xT0 + (j + 0.5) / (1 << l) * (1 << hCap) * CW; }
+function arrX(i) { return G.xA0 + (i - 0.5) * CW; }
+function P(i, T) { const a = treeX(i); return { x: a + (arrX(i) - a) * T, y: levelY(ilog2(i)) }; }
+function ease(u) { return u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; }
+function reducedMotion() { return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
+
+function curStep() { return steps[vis[cur]]; }
+
+function buildScene() {
+  cap = 1;
+  for (const st of steps) for (let i = st.pq.length - 1; i > cap; i--) if (st.pq[i] != null) { cap = i; break; }
+  for (const st of steps) cap = Math.max(cap, st.n);
+  hCap = ilog2(cap);
+  G.xA0 = PADL; placeTree();
+  G.arrY = levelY(hCap) + R + ARR_GAP;
+  G.W = PADL + cap * CW + PADR;
+  G.H = G.arrY + CELLH + 44;
+
+  const svg = el("svg");
+  svg.innerHTML = "";
+  svg.setAttribute("viewBox", "0 0 " + G.W + " " + G.H);
+  const g = n => mk("g", { id: n }, svg);
+  scene = { hull: g("gHull"), guide: g("gGuide"), edge: g("gEdge"), cell: g("gCell"), nix: g("gNix"),
+            tokA: g("gTokA"), tokT: g("gTokT"), mark: g("gMark") };
+  scene.edges = []; scene.guides = []; scene.cells = []; scene.cix = []; scene.nixs = [];
+  for (let c = 2; c <= cap; c++) scene.edges[c] = mk("path", { class: "edge" }, scene.edge);
+  for (let i = 1; i <= cap; i++) {
+    scene.guides[i] = mk("line", { class: "guide" }, scene.guide);
+    scene.cells[i] = mk("rect", { class: "cell", x: arrX(i) - CW / 2, y: G.arrY, width: CW, height: CELLH, "data-i": i }, scene.cell);
+    const t = mk("text", { class: "cix", x: arrX(i), y: G.arrY - 6 }, scene.cell); t.textContent = i; scene.cix[i] = t;
+    const nx = mk("text", { class: "nix" }, scene.nix); nx.textContent = i; scene.nixs[i] = nx;
+  }
+  mk("rect", { class: "cellframe", x: arrX(1) - CW / 2, y: G.arrY, width: cap * CW, height: CELLH, rx: 2 }, scene.cell);
+  const an = mk("text", { class: "arrname", x: arrX(1) - CW / 2 - 8, y: G.arrY + CELLH / 2 + 4 }, scene.cell);
+  an.textContent = "pq";
+  scene.hullPaths = [];
+  scene.mk = {
+    kT: mk("text", { class: "mk k" }, scene.mark), jT: mk("text", { class: "mk j" }, scene.mark),
+    kA: mk("text", { class: "mk k", "text-anchor": "middle" }, scene.mark), jA: mk("text", { class: "mk j", "text-anchor": "middle" }, scene.mark),
+    nbar: mk("line", { class: "nbar" }, scene.mark), nlab: mk("text", { class: "nlab" }, scene.mark)
+  };
+  scene.mk.kT.textContent = scene.mk.kA.textContent = "k";
+  scene.mk.jT.textContent = scene.mk.jA.textContent = "j";
+  scene.mk.nlab.textContent = "n";
+  tokens = {};
+  buildOverlay();
+  applyZoom();
+}
+
+function buildOverlay() {
+  const ov = el("ovl");
+  ov.innerHTML = "";
+  ov.style.width = G.W + "px"; ov.style.height = G.H + "px";
+  for (let l = 0; l <= hCap; l++) {
+    const d = document.createElement("div");
+    d.className = "lv"; d.style.left = "6px"; d.style.top = levelY(l) + "px";
+    d.textContent = "\\(\\ell = " + l + "\\)";
+    ov.appendChild(d);
+  }
+  typeset(ov);
+}
+/* Centre the tree over the array -- but never further right than the visible part
+   of the canvas, so that a wide array (n = 63) does not push the tree off-screen. */
+function placeTree() {
+  const treeW = (1 << hCap) * CW, full = (cap * CW - treeW) / 2;
+  const sc = el("svgScroll"), visW = sc && sc.clientWidth ? sc.clientWidth / S.zoom : Infinity;
+  const fit = (visW - PADL - PADR - treeW) / 2;
+  G.xT0 = PADL + Math.max(0, Math.min(full, fit));
+}
+function applyZoom() {
+  const z = S.zoom, svg = el("svg");
+  placeTree(); kick();
+  svg.setAttribute("width", G.W * z); svg.setAttribute("height", G.H * z);
+  el("svgWrap").style.width = G.W * z + "px"; el("svgWrap").style.height = G.H * z + "px";
+  el("ovl").style.transform = "scale(" + z + ")";
+}
+
+function tokenFor(id) {
+  if (tokens[id]) return tokens[id];
+  const gt = mk("g", { class: "tok", "data-id": id }, scene.tokT);
+  const ct = mk("circle", { r: R, cx: 0, cy: 0 }, gt);
+  const tt = mk("text", { x: 0, y: 0.5 }, gt);
+  const ga = mk("g", { class: "tok", "data-id": id }, scene.tokA);
+  const ra = mk("rect", { x: -CW / 2 + 3, y: -CELLH / 2 + 3, width: CW - 6, height: CELLH - 6, rx: 3 }, ga);
+  const ta = mk("text", { x: 0, y: 0.5 }, ga);
+  return (tokens[id] = { gt: gt, ga: ga, ct: ct, tt: tt, ra: ra, ta: ta, key: null, cls: "" });
+}
+
+function inSubtree(i, r) { while (i > r) i >>= 1; return i === r; }
+/* hull of the subtree rooted at r inside a heap of size nn, as on the slide:
+   left spine, along the last level, up to the right end of the level above, right spine */
+function hullIdx(r, nn) {
+  const pts = [];
+  let l = r; pts.push(l);
+  while (2 * l <= nn) { l = 2 * l; pts.push(l); }
+  let D = 0, t = r; while (t * 2 <= nn) { t *= 2; D++; }
+  const first = r << D, fullEnd = first + (1 << D) - 1, last = Math.min(nn, fullEnd);
+  if (last !== l) pts.push(last);
+  let up;
+  if (last < fullEnd && D > 0) {
+    const p = last >> 1, re = (r << (D - 1)) + (1 << (D - 1)) - 1;
+    if (pts[pts.length - 1] !== p) pts.push(p);
+    if (re !== p) pts.push(re);
+    up = re;
+  } else up = last;
+  while (up > r) { up >>= 1; if (up !== r) pts.push(up); }
+  return pts;
+}
+function hullSpecs(B) {
+  if (S.tab === "ops") return B.n >= 1 ? [{ r: 1, nn: B.n, c: "h-heap" }] : [];
+  const n = B.n, out = [];
+  if (B.done) return [{ r: 1, nn: n, c: "h-done" }];
+  if (B.bk != null) out.push({ r: B.bk, nn: n, c: "h-act" });
+  for (let i = B.proc; i <= n; i++) {
+    const p = i >> 1;
+    if (i === 1 || p < B.proc) {
+      if (B.bk != null && p === B.bk && B.line !== "c.for") continue;
+      out.push({ r: i, nn: n, c: "h-done" });
+    }
+  }
+  return out;
+}
+
+/* --- render a step: decide classes, prepare tweens --- */
+function render(animate, prevStep) {
+  const B = curStep();
+  if (!B || !scene) return;
+  const A = prevStep || B;
+  const posA = {}, posB = {};
+  A.pq.forEach((id, i) => { if (id != null && i > 0) posA[id] = i; });
+  B.pq.forEach((id, i) => { if (id != null && i > 0) posB[id] = i; });
+  moves = [];
+  const seen = {};
+  for (const id in posB) {
+    seen[id] = 1;
+    if (posA[id]) moves.push({ id: id, fi: posA[id], ti: posB[id], fd: 0, td: 0, fo: 1, to: 1 });
+    else moves.push({ id: id, fi: posB[id], ti: posB[id], fd: -38, td: 0, fo: 0, to: 1 });
+  }
+  for (const id in posA) if (!seen[id]) { seen[id] = 1; moves.push({ id: id, fi: posA[id], ti: posA[id], fd: 0, td: -38, fo: 1, to: 0 }); }
+  for (const id in tokens) if (!seen[id]) { tokens[id].gt.style.display = "none"; tokens[id].ga.style.display = "none"; }
+
+  const vA = A.vars || {}, vB = B.vars || {};
+  mkMoves = {};
+  ["k", "j"].forEach(v => {
+    const a = vA[v], b = vB[v];
+    if (a == null && b == null) mkMoves[v] = null;
+    else mkMoves[v] = { fi: a != null ? a : b, ti: b != null ? b : a, fo: a != null ? 1 : 0, to: b != null ? 1 : 0 };
+  });
+  mkMoves.n = { fi: A.n, ti: B.n };
+
+  // token classes
+  const relP = hoverIdx > 1 ? hoverIdx >> 1 : 0;
+  for (const m of moves) {
+    const t = tokenFor(m.id);
+    t.gt.style.display = ""; t.ga.style.display = "";
+    const i = posB[m.id] || posA[m.id];
+    const st = posB[m.id] ? B : A;
+    let c = "tok";
+    if (!posB[m.id] || i > B.n) c += " ghost";
+    else if (S.tab === "build" && !B.done && i < B.proc && !(B.bk != null && inSubtree(i, B.bk))) c += " raw";
+    if (posB[m.id] && B.hl[i]) c += " " + B.hl[i];
+    if (hoverIdx && posB[m.id]) {
+      if (i === hoverIdx) c += " hov";
+      else if (i === relP) c += " relp";
+      else if ((i >> 1) === hoverIdx && i <= B.n) c += " relc";
+    }
+    const key = st.keys[i];
+    if (t.key !== key) { t.tt.textContent = key; t.ta.textContent = key; t.key = key; }
+    if (c !== t.cls) { t.gt.setAttribute("class", c); t.ga.setAttribute("class", c); t.cls = c; }
+    if (B.flash === m.id && animate) {
+      t.gt.classList.add("flash"); t.ga.classList.add("flash");
+      setTimeout(() => { t.gt.classList.remove("flash"); t.ga.classList.remove("flash"); t.cls = ""; }, 650);
+    }
+  }
+  // cells, edges
+  for (let i = 1; i <= cap; i++) {
+    scene.cells[i].setAttribute("class", "cell" + (S.tab === "ops" && i > B.n ? " out" : ""));
+    scene.cix[i].setAttribute("class", "cix" + (hoverIdx && (i === hoverIdx || i === relP || ((i >> 1) === hoverIdx && i <= B.n)) ? " rel" : ""));
+    scene.nixs[i].style.display = (S.showNix && B.pq[i] != null) ? "" : "none";
+  }
+  for (let c = 2; c <= cap; c++) {
+    let k = "edge";
+    const p = c >> 1;
+    if (B.pq[c] == null && !(A.pq[c] != null && animate)) k += " off";
+    else if (c > B.n) k += " ghost";
+    else if (S.tab === "build" && !B.done && p < B.proc && !(B.bk != null && inSubtree(p, B.bk))) k += " raw";
+    if (hoverIdx && c <= B.n && (c === hoverIdx || p === hoverIdx)) k += " rel";
+    scene.edges[c].setAttribute("class", k);
+  }
+  scene.hulls = hullSpecs(B);
+  const reduce = reducedMotion();
+  const near = prevStep && Math.abs(steps.indexOf(prevStep) - vis[cur]) <= 1;
+  tw = { t0: performance.now(), dur: (!animate || reduce) ? 0 : near ? Math.max(140, Math.min(650, S.delay * 0.78)) : 180 };
+  kick();
+  renderSide(B);
+}
+
+function kick() { if (!rafOn) { rafOn = true; requestAnimationFrame(frame); } }
+function layoutT(now) {
+  if (lay.dur <= 0) return lay.to;
+  const u = Math.min(1, (now - lay.t0) / lay.dur);
+  return lay.from + (lay.to - lay.from) * ease(u);
+}
+function frame(now) {
+  const T = layoutT(now);
+  const u = tw.dur <= 0 ? 1 : Math.min(1, (now - tw.t0) / tw.dur);
+  draw(T, ease(u), u);
+  const busy = u < 1 || (lay.dur > 0 && now - lay.t0 < lay.dur);
+  if (busy) requestAnimationFrame(frame); else rafOn = false;
+}
+
+function hullPathD(idx, T) {
+  const pts = idx.map(i => P(i, T));
+  if (pts.length === 1) return "M" + pts[0].x + " " + pts[0].y + "h0.01";
+  return "M" + pts.map(p => p.x.toFixed(1) + " " + p.y.toFixed(1)).join("L") + "Z";
+}
+function draw(T, e, u) {
+  const B = curStep();
+  if (!B) return;
+  // hulls
+  const hs = scene.hulls || [];
+  while (scene.hullPaths.length < hs.length * 2) scene.hullPaths.push(mk("path", {}, scene.hull));
+  scene.hullPaths.forEach((p, k) => { if (k >= hs.length * 2) p.style.display = "none"; });
+  hs.forEach((h, k) => {
+    const d = hullPathD(hullIdx(h.r, h.nn), T);
+    const o = scene.hullPaths[2 * k], i = scene.hullPaths[2 * k + 1];
+    o.style.display = ""; i.style.display = "";
+    o.setAttribute("class", "hull o " + h.c); i.setAttribute("class", "hull i " + h.c);
+    o.setAttribute("d", d); i.setAttribute("d", d);
+    o.setAttribute("stroke-width", 2 * R + 16); i.setAttribute("stroke-width", 2 * R + 11);
+  });
+  // edges (with stubs in the array-aligned layout, like the slide)
+  for (let c = 2; c <= cap; c++) {
+    const a = P(c, T), b = P(c >> 1, T), s = T * (R + 6);
+    scene.edges[c].setAttribute("d", "M" + a.x.toFixed(1) + " " + a.y.toFixed(1) + "L" + a.x.toFixed(1) + " " + (a.y - s).toFixed(1) +
+      "L" + b.x.toFixed(1) + " " + (b.y + s).toFixed(1) + "L" + b.x.toFixed(1) + " " + b.y.toFixed(1));
+  }
+  for (let i = 1; i <= cap; i++) {
+    const p = P(i, T), gl = scene.guides[i];
+    const on = B.pq[i] != null;
+    gl.setAttribute("x1", p.x); gl.setAttribute("y1", p.y + R); gl.setAttribute("x2", arrX(i)); gl.setAttribute("y2", G.arrY);
+    gl.style.opacity = on ? T : 0;
+    const nx = scene.nixs[i];
+    nx.setAttribute("x", p.x - R - 2); nx.setAttribute("y", p.y - R + 3);
+  }
+  // tokens
+  const ay = G.arrY + CELLH / 2;
+  for (const m of moves) {
+    const t = tokens[m.id]; if (!t) continue;
+    const a = P(m.fi, T), b = P(m.ti, T);
+    const x = a.x + (b.x - a.x) * e, y = a.y + (b.y - a.y) * e + m.fd + (m.td - m.fd) * e;
+    const op = m.fo + (m.to - m.fo) * e;
+    t.gt.setAttribute("transform", "translate(" + x.toFixed(1) + "," + y.toFixed(1) + ")");
+    t.gt.style.opacity = op;
+    const xa = arrX(m.fi) + (arrX(m.ti) - arrX(m.fi)) * e;
+    const arc = m.fi === m.ti ? 0 : (m.fi < m.ti ? -1 : 1) * Math.sin(Math.PI * e) * 24;
+    const ya = ay + arc + (m.fd + (m.td - m.fd) * e) * 0.7;
+    t.ga.setAttribute("transform", "translate(" + xa.toFixed(1) + "," + ya.toFixed(1) + ")");
+    t.ga.style.opacity = op;
+  }
+  // variable markers
+  const mkr = scene.mk;
+  ["k", "j"].forEach(v => {
+    const m = mkMoves[v], tT = mkr[v + "T"], tA = mkr[v + "A"];
+    if (!m) { tT.style.display = tA.style.display = "none"; return; }
+    tT.style.display = tA.style.display = "";
+    const a = P(m.fi, T), b = P(m.ti, T), op = m.fo + (m.to - m.fo) * e;
+    const dy = v === "k" ? -R + 2 : R + 4;
+    tT.setAttribute("x", (a.x + (b.x - a.x) * e + R + 3).toFixed(1));
+    tT.setAttribute("y", (a.y + (b.y - a.y) * e + dy).toFixed(1));
+    tA.setAttribute("x", (arrX(m.fi) + (arrX(m.ti) - arrX(m.fi)) * e).toFixed(1));
+    tA.setAttribute("y", G.arrY + CELLH + 15);
+    tT.style.opacity = tA.style.opacity = op;
+  });
+  const nm = mkMoves.n;
+  if (nm) {
+    const nx = G.xA0 + (nm.fi + (nm.ti - nm.fi) * e) * CW;
+    mkr.nbar.setAttribute("x1", nx); mkr.nbar.setAttribute("x2", nx);
+    mkr.nbar.setAttribute("y1", G.arrY - 4); mkr.nbar.setAttribute("y2", G.arrY + CELLH + 22);
+    mkr.nlab.setAttribute("x", nx); mkr.nlab.setAttribute("y", G.arrY + CELLH + 35);
+  }
+}
+
+function setLayout(v, animate) {
+  S.layout = v;
+  const now = performance.now(), Tnow = layoutT(now);
+  lay = { from: Tnow, to: v === "array" ? 1 : 0, t0: now, dur: (animate && !reducedMotion()) ? 750 : 0 };
+  segOn("layoutSeg", v);
+  kick();
+}
+
+function typeset(node) {
+  if (window.MathJax && MathJax.Hub && MathJax.Hub.Queue) MathJax.Hub.Queue(["Typeset", MathJax.Hub, node]);
+}
+
+/* =====================================================================
+   Code panel (Java, Sedgewick & Wayne)
+   ===================================================================== */
+function codeSpec() {
+  const L = LESS(), Mx = MX(), m = mx(), op = isMax() ? "<" : ">";
+  const blocks = [];
+  if (S.tab === "ops") {
+    blocks.push([[null, "public void insert(Key x)"], [null, "{"], ["in.1", "   pq[++n] = x;"], ["in.2", "   swim(n);"], ["in.e", "}"]]);
+    blocks.push([[null, "public Key del" + Mx + "()"], [null, "{"], ["dm.1", "   Key " + m + " = pq[1];"],
+      ["dm.2", "   exch(1, n--);"], ["dm.3", "   sink(1);"], ["dm.4", "   pq[n+1] = null;"], ["dm.5", "   return " + m + ";"], [null, "}"]]);
+    blocks.push([[null, "public void changeKey(int k, Key key)"], [null, "{"], ["ck.1", "   pq[k] = key;"],
+      ["ck.2", "   swim(k);"], ["ck.3", "   sink(k);"], ["ck.e", "}"]]);
+    blocks.push([[null, "private void swim(int k)"], [null, "{"], ["sw.w", "   while (k > 1 && " + L + "(k/2, k))"], [null, "   {"],
+      ["sw.x", "      exch(k, k/2);"], ["sw.k", "      k = k/2;"], [null, "   }"], [null, "}"]]);
+  } else {
+    blocks.push([[null, "public " + Mx + "PQ(Key[] keys)"], [null, "{"], ["c.copy", "   n = keys.length;"],
+      ["c.copy", "   pq = (Key[]) new Comparable[n+1];"], ["c.copy", "   for (int i = 0; i < n; i++)"],
+      ["c.copy", "      pq[i+1] = keys[i];"], ["c.for", "   for (int k = n/2; k >= 1; k--)"], ["c.sink", "      sink(k);"], ["c.end", "}"]]);
+  }
+  blocks.push([[null, "private void sink(int k)"], [null, "{"], ["sk.w", "   while (2*k <= n)"], [null, "   {"],
+    ["sk.j", "      int j = 2*k;"], ["sk.c", "      if (j < n && " + L + "(j, j+1)) j++;"], ["sk.b", "      if (!" + L + "(k, j)) break;"],
+    ["sk.x", "      exch(k, j);"], ["sk.k", "      k = j;"], [null, "   }"], [null, "}"]]);
+  blocks.push([["less", "private boolean " + L + "(int i, int j)"], ["less", "{  return pq[i].compareTo(pq[j]) " + op + " 0;  }"]]);
+  blocks.push([["exch", "private void exch(int i, int j)"], ["exch", "{  Key t = pq[i]; pq[i] = pq[j]; pq[j] = t;  }"]]);
+  return blocks;
+}
+function hiJava(s) {
+  s = esc(s);
+  s = s.replace(/\b(public|private|void|boolean|int|while|if|for|return|new|break|null)\b/g, '<span class="kw">$1</span>');
+  s = s.replace(/\b(Key|Comparable)\b/g, '<span class="ty">$1</span>');
+  return s;
+}
+let codeLines = [];
+function renderCode() {
+  const body = el("codeBody");
+  let h = "", ln = 0;
+  codeSpec().forEach((blk, bi) => {
+    if (bi) h += '<div class="cline gap"></div>';
+    for (const [id, txt] of blk) {
+      ln++;
+      h += '<div class="cline"' + (id ? ' data-id="' + id + '"' : "") + '><span class="ln">' + ln + "</span><span>" + hiJava(txt) + "</span></div>";
+    }
+  });
+  body.innerHTML = h;
+  codeLines = Array.from(body.querySelectorAll(".cline[data-id]"));
+  el("codeTitle").textContent = "Java code · " + MX() + "PQ";
+  el("codeNote").innerHTML = S.tab === "ops"
+    ? "From Sedgewick &amp; Wayne’s <code>" + MX() + "PQ</code>" + (isMax() ? "" : " (the min-oriented version replaces <code>less</code> by <code>greater</code>)") +
+      ". <code>changeKey</code> takes the index <i>k</i> of the key to change and repairs the order with <code>swim</code> and <code>sink</code>, " +
+      "as their indexed priority queue does."
+    : "Sedgewick &amp; Wayne’s constructor <code>" + MX() + "PQ(Key[] keys)</code>: the heapsort’s first pass, as a constructor." +
+      (isMax() ? "" : " Min-oriented: <code>less</code> replaced by <code>greater</code>.");
+}
+function markCode(B) {
+  const st = new Set(B.stack || []);
+  for (const d of codeLines) {
+    const id = d.getAttribute("data-id");
+    d.classList.toggle("on", id === B.line);
+    d.classList.toggle("call", st.has(id) && id !== B.line);
+    d.classList.toggle("aux", id === B.aux);
+  }
+  const on = codeLines.find(d => d.classList.contains("on"));
+  if (on) {
+    const box = el("codeBody"), r = on.getBoundingClientRect(), rb = box.getBoundingClientRect();
+    if (r.top < rb.top || r.bottom > rb.bottom) { /* the panel is not scrollable itself; nothing to do */ }
+  }
+}
+
+/* =====================================================================
+   Side panels
+   ===================================================================== */
+function renderSide(B) {
+  el("statusBox").innerHTML = B.txt || "";
+  const ph = phases[B.phase];
+  el("phaseName").textContent = ph ? ph.name : "";
+  markCode(B);
+  el("drawTitle").textContent = (S.tab === "ops" ? "The heap" : "Building the heap") + " · n = " + B.n +
+    (B.n ? ", h = ⌊lg n⌋ = " + ilog2(B.n) : "");
+  el("stepNo").textContent = (cur + 1) + " / " + vis.length;
+  el("scrubber").value = cur;
+  updatePhaseBar();
+  if (S.tab === "ops") renderOpsPanel(B); else renderAnalysis(B);
+}
+
+function renderOpsPanel(B) {
+  const oi = B.opInfo;
+  let bound = "—";
+  if (oi && B.op >= 0) {
+    if (oi.kind === "ins") bound = "≤ ⌊lg n⌋ = " + ilog2(Math.max(1, B.n)) + " comparisons (swim)";
+    else if (oi.kind === "del") bound = "≤ 2h = " + 2 * oi.h0 + " comparisons (sink)";
+    else bound = "swim, then sink";
+  }
+  el("meters").innerHTML =
+    '<span class="m-l">this operation</span><span class="m-v"><b>' + (B.op >= 0 ? B.opCmp : 0) + "</b> comparisons, <b>" + (B.op >= 0 ? B.opExch : 0) + "</b> exchanges</span>" +
+    '<span class="m-l">bound</span><span class="m-v">' + bound + "</span>" +
+    '<span class="m-l">all operations</span><span class="m-v">' + B.cmp + " comparisons, " + B.exch + " exchanges</span>";
+  el("opsMeta").textContent = B.op >= 0 ? "operation " + (B.op + 1) + " of " + opsInput.ops.length : "";
+  el("outTitle").textContent = "Returned by " + DELNAME() + "()";
+  const out = el("outRow");
+  if (!B.out.length) out.innerHTML = '<span class="empty">nothing yet</span>';
+  else out.innerHTML = B.out.map((k, i) => '<span class="chip' + (B.gone && i === B.out.length - 1 ? " fresh" : "") + '">' + esc(k) + "</span>").join("");
+}
+
+/* ---- analysis of bottom-up construction ---- */
+let anaH = -1;
+function buildAnalysisSkeleton() {
+  if (S.tab !== "build") return;
+  const n = steps[0].n, h = ilog2(n);
+  anaH = h;
+  el("hmlText").innerHTML = "\\(h-\\ell\\)";
+  el("formula").innerHTML = "\\[\\begin{aligned}\\text{cost} &\\;\\le\\; 1\\cdot h + 2\\cdot(h-1) + 4\\cdot(h-2) + \\cdots + 2^{h}\\cdot 0" +
+    "\\\\ &\\;=\\; \\sum_{\\ell=0}^{h} 2^{\\ell}\\,(h-\\ell) \\;=\\; 2^{h}\\sum_{i=0}^{h}\\frac{i}{2^{i}} \\;\\le\\; 2\\cdot 2^{h} \\;\\le\\; 4n\\end{aligned}\\]";
+  let t = "<tr><th>\\(\\ell\\)</th><th>nodes</th><th>\\(h-\\ell\\)</th><th>\\(2^\\ell(h-\\ell)\\)</th><th>exchanges</th><th></th><th>comparisons</th></tr>";
+  for (let l = 0; l <= h; l++) {
+    const cnt = Math.min(1 << l, n - (1 << l) + 1);
+    t += '<tr id="lvr' + l + '"><td>' + l + "</td><td>" + cnt + "</td><td>" + (h - l) + "</td><td>" + ((1 << l) * (h - l)) +
+      '</td><td id="lvx' + l + '"></td><td class="bar"><div class="barbox"><div class="b" id="lvb' + l + '"></div></div></td><td id="lvc' + l + '"></td></tr>';
+  }
+  let sum = 0; for (let l = 0; l <= h; l++) sum += (1 << l) * (h - l);
+  t += '<tr class="tot"><td colspan="3" style="text-align:left">total</td><td>' + sum + '</td><td id="lvxT"></td><td></td><td id="lvcT"></td></tr>';
+  el("lvTable").innerHTML = t;
+  el("chain").innerHTML = '<table class="lv"><tr><th>exchanges so far</th><th>\\(\\sum_\\ell 2^\\ell(h-\\ell)\\)</th>' +
+    "<th>\\(2\\cdot 2^h\\)</th><th>\\(4n\\)</th></tr>" +
+    '<tr><td id="chX" class="v"></td><td>' + sum + "</td><td>" + (2 << h) + "</td><td>" + 4 * n + "</td></tr></table>";
+  // repeated insertion on the same keys, for comparison
+  const ins = fastInserts(steps[0].keys.slice(1, n + 1), (a, b) => codeLess(a, b));
+  el("cmpNote").innerHTML = "Each exchange in <code>sink</code> costs at most 2 comparisons, plus at most 2 for the final check at each node. " +
+    "For comparison: inserting the same keys one by one (<i>n</i> times <code>insert</code>) would take <b>" + ins.c +
+    "</b> comparisons and <b>" + ins.x + "</b> exchanges.";
+  el("anaMeta").textContent = "n = " + n + ", h = " + h;
+  typeset(el("buildPanel"));
+  if (el("scaleDetails").open) drawChart(n);
+}
+function renderAnalysis(B) {
+  const n = B.n, h = ilog2(n);
+  if (h !== anaH) buildAnalysisSkeleton();
+  const curL = B.bk != null ? ilog2(B.bk) : -1;
+  let tx = 0, tc = 0;
+  for (let l = 0; l <= h; l++) {
+    const x = B.lvlEx[l] || 0, c = B.lvlCmp[l] || 0, bd = (1 << l) * (h - l);
+    tx += x; tc += c;
+    el("lvx" + l).textContent = x; el("lvc" + l).textContent = c;
+    el("lvb" + l).style.width = (bd ? Math.min(100, 100 * x / bd) : 0) + "%";
+    el("lvr" + l).classList.toggle("cur", l === curL);
+  }
+  el("lvxT").textContent = tx; el("lvcT").textContent = tc;
+  el("chX").textContent = tx;
+}
+
+/* fast, non-recording versions for the comparison and the chart */
+function fastBuild(keys, less) {
+  const a = [null].concat(keys), n = keys.length; let c = 0, x = 0;
+  const L = (i, j) => { c++; return less(a[i], a[j]); };
+  for (let k = n >> 1; k >= 1; k--) {
+    let q = k;
+    while (2 * q <= n) { let j = 2 * q; if (j < n && L(j, j + 1)) j++; if (!L(q, j)) break; const t = a[q]; a[q] = a[j]; a[j] = t; x++; q = j; }
+  }
+  return { c: c, x: x };
+}
+function fastInserts(keys, less) {
+  const a = [null]; let c = 0, x = 0;
+  for (const key of keys) {
+    a.push(key); let k = a.length - 1;
+    while (k > 1) { c++; if (!less(a[k >> 1], a[k])) break; const t = a[k]; a[k] = a[k >> 1]; a[k >> 1] = t; x++; k >>= 1; }
+  }
+  return { c: c, x: x };
+}
+let chartData = null;
+function computeChart() {
+  const ns = []; for (let e = 1; e <= 10; e += 0.25) ns.push(Math.round(Math.pow(2, e)));
+  const uniq = Array.from(new Set(ns));
+  const less = (a, b) => a < b;   // max-oriented; the min version is the mirror image, same counts
+  const rnd = mulberry(20261019);
+  const rows = uniq.map(n => {
+    const asc = []; for (let i = 1; i <= n; i++) asc.push(i);
+    const wb = fastBuild(asc, less), wi = fastInserts(asc, less);
+    let rb = 0, ri = 0;
+    for (let r = 0; r < 5; r++) {
+      const p = asc.slice();
+      for (let i = p.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const t = p[i]; p[i] = p[j]; p[j] = t; }
+      rb += fastBuild(p, less).c; ri += fastInserts(p, less).c;
+    }
+    return { n: n, wb: wb.c / n, wi: wi.c / n, rb: rb / 5 / n, ri: ri / 5 / n };
+  });
+  return rows;
+}
+function drawChart(nCur) {
+  if (!chartData) chartData = computeChart();
+  const Wc = 380, Hc = 220, ml = 34, mr = 20, mt = 10, mb = 26;
+  const xs = n => ml + (Math.log2(n) - 1) / 9 * (Wc - ml - mr);
+  const ymax = Math.ceil(Math.max(...chartData.map(r => Math.max(r.wi, r.wb)))) + 0.5;
+  const ys = v => mt + (1 - v / ymax) * (Hc - mt - mb);
+  const line = (key, color, dash) => '<polyline fill="none" stroke="' + color + '" stroke-width="2"' + (dash ? ' stroke-dasharray="5 4"' : "") +
+    ' points="' + chartData.map(r => xs(r.n).toFixed(1) + "," + ys(r[key]).toFixed(1)).join(" ") + '"/>';
+  let s = '<svg viewBox="0 0 ' + Wc + " " + Hc + '" width="100%" style="max-width:' + Wc + 'px;display:block">';
+  for (let v = 0; v <= ymax; v += 2) s += '<line x1="' + ml + '" x2="' + (Wc - mr) + '" y1="' + ys(v) + '" y2="' + ys(v) +
+    '" stroke="#e3d6c1"/><text x="' + (ml - 5) + '" y="' + (ys(v) + 4) + '" text-anchor="end" font-size="10" fill="#8b8779" font-family="ui-monospace,monospace">' + v + "</text>";
+  for (let e = 1; e <= 10; e++) s += '<text x="' + xs(1 << e) + '" y="' + (Hc - 8) + '" text-anchor="middle" font-size="10" fill="#8b8779" font-family="ui-monospace,monospace">' + (1 << e) + "</text>";
+  s += line("wi", "#2a6a63") + line("ri", "#2a6a63", 1) + line("wb", "#902015") + line("rb", "#902015", 1);
+  if (nCur >= 2) s += '<line x1="' + xs(nCur) + '" x2="' + xs(nCur) + '" y1="' + mt + '" y2="' + (Hc - mb) + '" stroke="#cc2f22" stroke-dasharray="2 3"/>';
+  s += "</svg>";
+  el("chartBox").innerHTML = s +
+    '<div class="legend" style="margin-top:4px">' +
+    '<span class="item"><span class="swb" style="background:#902015;height:3px"></span>bottom-up, worst</span>' +
+    '<span class="item"><span class="swb" style="border-top:3px dashed #902015;height:0"></span>bottom-up, random</span>' +
+    '<span class="item"><span class="swb" style="background:#2a6a63;height:3px"></span><i>n</i> inserts, worst</span>' +
+    '<span class="item"><span class="swb" style="border-top:3px dashed #2a6a63;height:0"></span><i>n</i> inserts, random</span></div>' +
+    '<div class="chartlab">Horizontal: <i>n</i> (log scale); vertical: comparisons divided by <i>n</i>. ' +
+    "Bottom-up stays below a constant, while <i>n</i> inserts on sorted input grow like lg <i>n</i>. The dotted line marks the current <i>n</i>.</div>";
+}
+
+/* =====================================================================
+   Transport, phases
+   ===================================================================== */
+function computeVis() {
+  vis = [];
+  steps.forEach((st, i) => { if (S.gran === "line" || st.major || i === 0) vis.push(i); });
+  phases.forEach((ph, k) => {
+    const to = k + 1 < phases.length ? phases[k + 1].from : steps.length;
+    ph.to = to;
+    ph.vFrom = vis.findIndex(i => i >= ph.from);
+    let last = -1; vis.forEach((i, vi) => { if (i < to) last = vi; });
+    ph.vTo = last;
+  });
+  el("scrubber").max = Math.max(0, vis.length - 1);
+}
+function renderPhases() {
+  const bar = el("phaseBar");
+  bar.innerHTML = "";
+  phases.forEach((ph, k) => {
+    const cnt = Math.max(1, ph.vTo - ph.vFrom + 1);
+    const b = document.createElement("button");
+    b.className = "phasebtn"; b.style.flexGrow = cnt;
+    b.title = phaseTitle(ph) + " — click to jump to its start";
+    b.innerHTML = '<span class="fill empty"></span><span class="lab">' + esc(ph.name) + "</span>";
+    b.addEventListener("click", () => { stopPlay(); go(ph.vFrom); });
+    bar.appendChild(b);
+  });
+  updatePhaseBar();
+}
+function phaseTitle(ph) {
+  if (ph.kind === "ins") return "insert(" + ph.name.slice(1) + ")";
+  if (ph.kind === "del") return DELNAME() + "()";
+  if (ph.kind === "ck") { const [k, x] = ph.name.split(":"); return "changeKey(" + k + ", " + x + ")"; }
+  if (ph.kind === "lvl") return "sink every node on " + ph.name;
+  if (ph.kind === "copy") return "copy the keys into the array";
+  if (ph.kind === "done") return "finished heap";
+  return "starting state";
+}
+function updatePhaseBar() {
+  const btns = el("phaseBar").children;
+  phases.forEach((ph, k) => {
+    const b = btns[k]; if (!b) return;
+    const on = cur >= ph.vFrom && cur <= ph.vTo, past = cur > ph.vTo;
+    b.classList.toggle("on", on); b.classList.toggle("past", past);
+    const f = b.firstChild, cnt = Math.max(1, ph.vTo - ph.vFrom + 1);
+    const w = past ? 100 : on ? 100 * (cur - ph.vFrom + 1) / cnt : 0;
+    f.style.width = w + "%"; f.classList.toggle("empty", w === 0);
+  });
+}
+function go(v, animate) {
+  v = Math.max(0, Math.min(vis.length - 1, v));
+  const prev = steps[vis[cur]];
+  const adj = Math.abs(v - cur) === 1;
+  cur = v;
+  hidePopover();
+  render(animate !== false, adj || animate ? prev : null);
+}
+let playTimer = null, playUntil = null;
+function stopPlay() {
+  if (playTimer) clearTimeout(playTimer);
+  playTimer = null; playUntil = null;
+  el("playBtn").innerHTML = "&#x25B6;&#xFE0E;"; el("playBtn").title = "Play / pause  (space)";
+}
+function tickPlay() {
+  if (cur >= vis.length - 1 || (playUntil != null && cur >= playUntil)) { stopPlay(); return; }
+  go(cur + 1);
+  playTimer = setTimeout(tickPlay, S.delay);
+}
+function togglePlay(until) {
+  if (playTimer) { stopPlay(); return; }
+  if (cur >= vis.length - 1) go(0, false);
+  playUntil = until != null ? until : null;
+  el("playBtn").innerHTML = "&#x23F8;&#xFE0E;";
+  playTimer = setTimeout(tickPlay, 120);
+}
+
+/* =====================================================================
+   (Re)building the trace
+   ===================================================================== */
+function rebuild(keepPhase) {
+  const oldPh = (steps.length && vis.length) ? curStep().phase : 0;
+  const T = S.tab === "ops" ? traceOps(opsInput) : traceBuild(buildKeys);
+  steps = T.steps; phases = T.phases;
+  computeVis();
+  buildScene();
+  renderCode();
+  anaH = -1;
+  if (S.tab === "build") buildAnalysisSkeleton();
+  renderPhases();
+  const ph = phases[Math.min(keepPhase ? oldPh : 0, phases.length - 1)];
+  cur = keepPhase ? Math.max(0, ph.vFrom) : 0;
+  hoverIdx = 0;
+  render(false);
+  syncEditor();
+}
+function tryRebuild(keepPhase, errBox) {
+  const saveOps = JSON.stringify(opsInput), saveB = buildKeys.slice();
+  try { rebuild(keepPhase); if (errBox) el(errBox).textContent = ""; return true; }
+  catch (e) {
+    if (errBox) el(errBox).textContent = e.message;
+    opsInput = JSON.parse(saveOps); buildKeys = saveB;
+    try { rebuild(keepPhase); } catch (e2) { /* previous state was valid */ }
+    if (errBox) el(errBox).textContent = e.message;
+    return false;
+  }
+}
+function syncEditor() {
+  el("inputText").value = S.tab === "ops" ? opsToText(opsInput) : buildKeys.join(" ");
+  el("buildKeys").value = buildKeys.join(" ");
+}
+
+/* interactive operations are inserted right after the operation on screen */
+function addOp(o) { addOps([o], true); }
+function addOps(list, animate) {
+  const B = curStep();
+  const pos = B.op + 1;
+  opsInput.ops.splice(pos, 0, ...list);
+  if (!tryRebuild(false, "opErr")) return;
+  if (animate) { const ph = phases[pos + 1]; if (ph) { go(ph.vFrom, false); togglePlay(ph.vTo); } }
+  else { const ph = phases[pos + list.length]; if (ph) go(ph.vTo, false); }
+}
+/* a random key of the same kind as the keys already in use (letters or numbers 1..99),
+   avoiding keys currently in the heap where possible */
+function randomKey(extra) {
+  const used = allOpsKeys(opsInput).concat((extra || []).map(o => o.key));
+  const words = used.length > 0 && !detectNumeric(used);
+  const inHeap = new Set(curStep().keys.filter(k => k != null).concat((extra || []).map(o => o.key)));
+  const pool = [];
+  if (words) { for (let c = 65; c <= 90; c++) pool.push(String.fromCharCode(c)); }
+  else for (let i = 1; i <= 99; i++) pool.push(String(i));
+  const fresh = pool.filter(k => !inHeap.has(k));
+  const src = fresh.length ? fresh : pool;
+  return src[Math.floor(Math.random() * src.length)];
+}
+function currentEndN() {
+  // heap size after the operation on screen completes
+  const B = curStep(), ph = phases[B.phase];
+  return steps[ph.to - 1].n;
+}
+
+/* =====================================================================
+   UI wiring
+   ===================================================================== */
+function segOn(id, v) { for (const b of el(id).children) b.classList.toggle("on", b.dataset.v === v); }
+function fillPresets() {
+  const sel = el("presetSel"), list = S.tab === "ops" ? OPS_PRESETS : BUILD_PRESETS;
+  sel.innerHTML = '<option value="">— choose —</option>' + list.map((p, i) => '<option value="' + i + '">' + esc(p.name) + "</option>").join("");
+}
+function loadPresetIdx(i) {
+  const list = S.tab === "ops" ? OPS_PRESETS : BUILD_PRESETS, p = list[i];
+  if (!p) return;
+  const txt = presetText(p);
+  loadText(txt, "parseErr");
+}
+function loadText(txt, errBox) {
+  try {
+    if (S.tab === "ops") opsInput = parseOps(txt); else buildKeys = parseBuild(txt);
+  } catch (e) { el(errBox).textContent = e.message; return false; }
+  return tryRebuild(false, errBox);
+}
+function setTab(t) {
+  stopPlay();
+  S.tab = t; segOn("tabSeg", t);
+  el("opbarOps").style.display = t === "ops" ? "" : "none";
+  el("opbarBuild").style.display = t === "build" ? "" : "none";
+  el("opsPanel").style.display = t === "ops" ? "" : "none";
+  el("buildPanel").style.display = t === "build" ? "" : "none";
+  fillPresets();
+  renderSubtitle(); renderLegend(); renderHint();
+  el("parseErr").textContent = el("opErr").textContent = el("buildErr").textContent = "";
+  tryRebuild(false, t === "ops" ? "opErr" : "buildErr");
+}
+function setOrient(o) {
+  stopPlay();
+  const was = S.orient;
+  S.orient = o; segOn("orientSeg", o);
+  el("delBtn").textContent = DELNAME() + "()";
+  renderSubtitle(); renderLegend(); renderHint();
+  if (!tryRebuild(true, S.tab === "ops" ? "opErr" : "buildErr")) {
+    // an init line that fits only the other order: offer the mirrored script
+    if (S.tab === "ops" && opsInput.init) {
+      const mir = parseOps(mirrorText(opsToText(opsInput)));
+      const save = opsInput; opsInput = mir;
+      if (tryRebuild(false, "opErr"))
+        el("opErr").textContent = "The starting heap was mirrored (A↔Z) so that it is a " + mx() + "-heap.";
+      else { opsInput = save; S.orient = was; segOn("orientSeg", was); tryRebuild(true, "opErr"); }
+    }
+  }
+}
+function setGran(g) {
+  S.gran = g; segOn("granSeg", g);
+  const st = vis[cur];
+  computeVis(); renderPhases();
+  let best = 0; vis.forEach((i, k) => { if (i <= st) best = k; });
+  cur = best; render(false);
+}
+function renderSubtitle() {
+  const M = isMax();
+  el("subtitle").innerHTML = S.tab === "ops"
+    ? "A binary heap stores a complete binary tree level by level in <code>pq[1..n]</code>: the parent of index <i>k</i> is " +
+      "⌊<i>k</i>/2⌋, its children are 2<i>k</i> and 2<i>k</i>+1. Heap order: every parent is " + (M ? "at least as large as" : "at most as large as") +
+      " its children, so the " + (M ? "maximum" : "minimum") + " sits at the root. <code>insert</code> appends and lets the new key <b>swim</b> up; " +
+      "<code>" + DELNAME() + "</code> moves the last key into the root and lets it <b>sink</b>. " +
+      "Switch the drawing to see the same tree laid out over the array. Hover a node for its neighbours; click it to change its key."
+    : "Instead of <i>n</i> inserts, bottom-up construction treats the input as a complete binary tree. The leaves are heaps already. " +
+      "For <i>k</i> = <i>n</i>/2 down to 1, <code>sink(k)</code> merges the two heaps below <i>k</i> with the key at <i>k</i> into one heap that is one level higher. " +
+      "Most nodes are near the bottom and can sink only a little, which makes the total linear. Green regions are finished heaps, the red region is the merge in progress.";
+}
+function renderLegend() {
+  const sw = (f, s, w, d) => '<span class="sw" style="background:' + f + ";border-color:" + s + (w ? ";border-width:" + w + "px" : "") + (d ? ";border-style:dashed" : "") + '"></span>';
+  let h = '<span class="item">' + sw("#f7ebcf", "var(--wi-examine)", 2.5) + "compared</span>" +
+          '<span class="item">' + sw("#f6ded6", "var(--wi-active)", 2.5) + "exchanged</span>";
+  if (S.tab === "ops") {
+    h += '<span class="item">' + sw("#e5eedb", "var(--wi-relax)", 2.5) + "new / changed key</span>" +
+         '<span class="item">' + sw("var(--node-fill)", "var(--wi-accent)", 3) + "the " + mx() + "</span>" +
+         '<span class="item">' + sw("var(--wi-panel-2)", "var(--node-stroke)", 1.5, 1) + "outside the heap (index &gt; n)</span>" +
+         '<span class="item"><span class="swb" style="background:var(--hull-in);border:2px solid var(--hull-out)"></span>the heap</span>';
+  } else {
+    h += '<span class="item"><span class="swb" style="background:var(--done-in);border:2px solid var(--done-out)"></span>finished heaps</span>' +
+         '<span class="item"><span class="swb" style="background:var(--act-in);border:2px solid var(--act-out)"></span>sink(k): merging</span>' +
+         '<span class="item">' + sw("var(--wi-panel-2)", "var(--wi-ink-soft)", 1.5) + "not yet processed</span>";
+  }
+  h += '<span class="item"><b style="color:var(--wi-accent);font-family:var(--mono)">k</b>&nbsp;<b style="color:var(--wi-examine);font-family:var(--mono)">j</b>&nbsp;variables of the code</span>';
+  el("legend").innerHTML = h;
+}
+function renderHint() {
+  el("inputHint").innerHTML = S.tab === "ops"
+    ? "One script of operations, as in Sedgewick &amp; Wayne’s test client (<code>tinyPQ.txt</code>): a key is inserted, " +
+      "<code>-</code> calls <code>" + DELNAME() + "()</code>, and <code>k:x</code> calls <code>changeKey(k, x)</code> on index <i>k</i>. " +
+      "An optional line <code>init: T S R P N O A E I H G</code> gives a starting heap in level order; it must already be heap-ordered. " +
+      "Keys are words of up to " + MAXKEYLEN + " characters or numbers (not mixed); <code>#</code> starts a comment. " +
+      "Buttons and clicks on nodes add operations to this script."
+    : "The keys to build a heap from, separated by spaces, in array order (index 1 first), as in Sedgewick &amp; Wayne’s " +
+      "<code>tiny.txt</code>. Up to " + MAXN + " keys; words of up to " + MAXKEYLEN + " characters or numbers (not mixed). " +
+      "<code>#</code> starts a comment.";
+}
+
+/* tooltip, hover, click */
+function idxFromTarget(t) {
+  const g = t.closest && t.closest("[data-id],[data-i]");
+  if (!g) return 0;
+  if (g.hasAttribute("data-i")) { const i = +g.getAttribute("data-i"); return curStep().pq[i] != null ? i : 0; }
+  const id = g.getAttribute("data-id"), B = curStep();
+  return B.pq.indexOf(id) > 0 ? B.pq.indexOf(id) : 0;
+}
+function tipHtml(i) {
+  const B = curStep(), n = B.n, l = ilog2(i);
+  let h = '<div class="tt-h">pq[' + i + "] = " + esc(B.keys[i]) + "</div>";
+  if (i > n) return h + '<div class="tt-s">index &gt; n = ' + n + ": no longer part of the heap</div>";
+  h += "<div>level ℓ = " + l + (i > 1 ? ", parent ⌊" + i + "/2⌋ = " + (i >> 1) + " (" + esc(B.keys[i >> 1]) + ")" : ", the root") + "</div>";
+  const ch = [2 * i, 2 * i + 1].filter(c => c <= n);
+  h += "<div>" + (ch.length ? "children " + ch.map(c => c + " (" + esc(B.keys[c]) + ")").join(", ") : "a leaf: 2·" + i + " = " + (2 * i) + " &gt; n") + "</div>";
+  if (S.tab === "build") {
+    const ht = ilog2(Math.floor(n / i));
+    h += '<div class="tt-s">subtree height ' + ht + " (≤ h − ℓ = " + (ilog2(n) - l) + ")</div>";
+    const si = B.sinkInfo[i];
+    if (i > n >> 1) h += '<div class="tt-s">a leaf: a heap from the start</div>';
+    else if (si && (B.bk !== i || B.done)) h += '<div class="tt-s">sink(' + i + "): " + si.x + " exchanges, " + si.c + " comparisons" + (B.bk === i ? " so far" : "") + "</div>";
+    else if (si) h += '<div class="tt-s">sink(' + i + ") running: " + si.x + " exchanges so far</div>";
+    else h += '<div class="tt-s">sink(' + i + ") comes later</div>";
+  } else if (i <= n) h += '<div class="tt-s">click to change this key</div>';
+  return h;
+}
+function showTip(ev, i) {
+  const t = el("tooltip");
+  if (!i) { t.style.display = "none"; return; }
+  t.innerHTML = tipHtml(i); t.style.display = "block";
+  const x = Math.min(window.innerWidth - t.offsetWidth - 8, ev.clientX + 14);
+  t.style.left = x + "px"; t.style.top = (ev.clientY + 16) + "px";
+}
+function setHover(i) { if (i !== hoverIdx) { hoverIdx = i; renderClassesOnly(); } }
+function renderClassesOnly() {
+  // re-run classes without starting a new movement
+  const saveTw = tw, saveMoves = moves, saveMk = mkMoves;
+  render(false);
+  tw = saveTw; moves = saveMoves; mkMoves = saveMk; kick();
+}
+let popIdx = 0;
+function openPopover(ev, i) {
+  const B = curStep();
+  popIdx = i;
+  el("popHead").innerHTML = "changeKey(" + i + ", ?) &nbsp;<span style=\"color:var(--wi-ink-faint)\">now " + esc(B.keys[i]) + "</span>";
+  const p = el("popover");
+  p.style.display = "block";
+  p.style.left = Math.min(window.innerWidth - p.offsetWidth - 8, ev.clientX + 8) + "px";
+  p.style.top = (ev.clientY + 12) + "px";
+  el("popKey").value = ""; el("popKey").focus();
+}
+function hidePopover() { el("popover").style.display = "none"; popIdx = 0; }
+function applyPopover() {
+  const k = el("popKey").value.trim();
+  if (!k) return;
+  const e = validKey(k) || keyTypeError(k);
+  if (e) { el("opErr").textContent = e; return; }
+  const i = popIdx; hidePopover();
+  addOp({ t: "ck", k: i, key: k });
+}
+function keyTypeError(k) {
+  const ks = allOpsKeys(opsInput);
+  if (!ks.length) return null;
+  return (detectNumeric(ks) !== isNum(k)) ? "Use either only numbers or only words as keys." : null;
+}
+
+function initSplitters() {
+  const sp = el("splitter"), stage = el("stage");
+  let drag = false;
+  sp.addEventListener("pointerdown", e => { drag = true; sp.classList.add("drag"); sp.setPointerCapture(e.pointerId); });
+  sp.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const r = stage.getBoundingClientRect();
+    const w = Math.max(320, Math.min(r.width - 330, e.clientX - r.left));
+    stage.style.setProperty("--left", w + "px");
+    stage.style.gridTemplateColumns = w + "px 10px minmax(320px,1fr)";
+    if (scene) applyZoom();
+  });
+  sp.addEventListener("pointerup", () => { drag = false; sp.classList.remove("drag"); });
+  const vr = el("vresize"), sc = el("svgScroll");
+  let vd = false, y0 = 0, h0 = 0;
+  vr.addEventListener("pointerdown", e => { vd = true; vr.classList.add("drag"); vr.setPointerCapture(e.pointerId); y0 = e.clientY; h0 = sc.getBoundingClientRect().height; });
+  vr.addEventListener("pointermove", e => { if (vd) sc.style.setProperty("--canvas-h", Math.max(140, h0 + e.clientY - y0) + "px"); });
+  vr.addEventListener("pointerup", () => { vd = false; vr.classList.remove("drag"); });
+  vr.addEventListener("dblclick", () => sc.style.removeProperty("--canvas-h"));
+}
+
+function readHash() {
+  const h = {};
+  location.hash.replace(/^#/, "").split("&").forEach(kv => { const [k, v] = kv.split("="); if (k) h[k] = v; });
+  return h;
+}
+
+function init() {
+  const hp = readHash();
+  if (hp.order === "min") S.orient = "min";
+  if (hp.layout === "array") S.layout = "array";
+  if (hp.detail === "swap") S.gran = "swap";
+  segOn("orientSeg", S.orient); segOn("granSeg", S.gran); segOn("layoutSeg", S.layout);
+  lay = { from: 0, to: S.layout === "array" ? 1 : 0, t0: 0, dur: 0 };
+  el("delBtn").textContent = DELNAME() + "()";
+
+  opsInput = parseOps(OPS_PRESETS[0].text);
+  buildKeys = parseBuild(BUILD_PRESETS[0].text);
+
+  for (const b of el("tabSeg").children) b.addEventListener("click", () => setTab(b.dataset.v));
+  for (const b of el("orientSeg").children) b.addEventListener("click", () => setOrient(b.dataset.v));
+  for (const b of el("layoutSeg").children) b.addEventListener("click", () => setLayout(b.dataset.v, true));
+  for (const b of el("granSeg").children) b.addEventListener("click", () => setGran(b.dataset.v));
+  el("presetSel").addEventListener("change", e => { stopPlay(); loadPresetIdx(+e.target.value); e.target.value = ""; });
+
+  el("resetBtn").addEventListener("click", () => { stopPlay(); go(0, false); });
+  el("backBtn").addEventListener("click", () => { stopPlay(); go(cur - 1); });
+  el("stepBtn").addEventListener("click", () => { stopPlay(); go(cur + 1); });
+  el("playBtn").addEventListener("click", () => togglePlay());
+  el("scrubber").addEventListener("input", e => { stopPlay(); go(+e.target.value); });
+  el("speed").addEventListener("input", e => { S.delay = +e.target.value; el("speedVal").textContent = S.delay + "ms"; });
+  el("zoom").addEventListener("input", e => { S.zoom = e.target.value / 100; el("zoomVal").textContent = e.target.value + "%"; applyZoom(); });
+  el("nixChk").addEventListener("change", e => { S.showNix = e.target.checked; render(false); });
+
+  el("insBtn").addEventListener("click", () => {
+    const k = el("insKey").value.trim() || randomKey();
+    const e = validKey(k) || keyTypeError(k);
+    if (e) { el("opErr").textContent = e; return; }
+    if (currentEndN() >= MAXN) { el("opErr").textContent = "The heap is limited to " + MAXN + " keys here."; return; }
+    el("opErr").textContent = ""; el("insKey").value = "";
+    addOp({ t: "ins", key: k });
+  });
+  el("insKey").addEventListener("keydown", e => { if (e.key === "Enter") el("insBtn").click(); });
+  el("delBtn").addEventListener("click", () => {
+    if (currentEndN() === 0) { el("opErr").textContent = "The heap is empty."; return; }
+    el("opErr").textContent = "";
+    addOp({ t: "del" });
+  });
+  el("addRandBtn").addEventListener("click", () => {
+    stopPlay();
+    const room = MAXN - currentEndN();
+    const cnt = Math.min(room, Math.max(1, +el("addN").value || 8));
+    if (cnt <= 0) { el("opErr").textContent = "The heap is limited to " + MAXN + " keys here."; return; }
+    el("opErr").textContent = "";
+    const list = [];
+    for (let i = 0; i < cnt; i++) list.push({ t: "ins", key: randomKey(list) });
+    addOps(list, false);
+  });
+  el("buildBtn").addEventListener("click", () => loadText(el("buildKeys").value, "buildErr"));
+  el("buildKeys").addEventListener("keydown", e => { if (e.key === "Enter") el("buildBtn").click(); });
+  el("randBtn").addEventListener("click", () => {
+    const n = Math.max(1, Math.min(MAXN, +el("randN").value || 15)); el("randN").value = n;
+    loadText(randomKeys(n).join(" "), "buildErr");
+  });
+  el("worstBtn").addEventListener("click", () => {
+    const n = Math.max(1, Math.min(MAXN, +el("randN").value || 15)); el("randN").value = n;
+    loadText(worstKeys(n).join(" "), "buildErr");
+  });
+  el("toInsertsBtn").addEventListener("click", () => {
+    const keys = buildKeys.slice();
+    S.tab = "ops"; opsInput = { init: null, ops: keys.map(k => ({ t: "ins", key: k })) };
+    setTabKeep();
+  });
+  el("loadBtn").addEventListener("click", () => loadText(el("inputText").value, "parseErr"));
+  el("scaleDetails").addEventListener("toggle", () => { if (el("scaleDetails").open) drawChart(steps[0].n); });
+
+  const svg = el("svg");
+  svg.addEventListener("pointermove", ev => { const i = idxFromTarget(ev.target); setHover(i); showTip(ev, i); });
+  svg.addEventListener("pointerleave", () => { setHover(0); showTip(null, 0); });
+  svg.addEventListener("click", ev => {
+    const i = idxFromTarget(ev.target);
+    if (!i || S.tab !== "ops") return;
+    const B = curStep();
+    if (i > B.n) return;
+    const ph = phases[B.phase];
+    if (B.op >= 0 && vis[cur] !== ph.to - 1) {
+      go(ph.vTo, false);
+      el("statusBox").innerHTML += '<br><i>Jumped to the end of this operation. Click a node again to change its key.</i>';
+      return;
+    }
+    showTip(null, 0);
+    openPopover(ev, i);
+  });
+  el("popApply").addEventListener("click", applyPopover);
+  el("popCancel").addEventListener("click", hidePopover);
+  el("popKey").addEventListener("keydown", e => { if (e.key === "Enter") applyPopover(); if (e.key === "Escape") hidePopover(); });
+
+  document.addEventListener("keydown", ev => {
+    const t = ev.target.tagName;
+    if (t === "INPUT" || t === "TEXTAREA" || t === "SELECT") return;
+    if (ev.key === "ArrowRight") { stopPlay(); go(cur + 1); ev.preventDefault(); }
+    else if (ev.key === "ArrowLeft") { stopPlay(); go(cur - 1); ev.preventDefault(); }
+    else if (ev.key === " ") { togglePlay(); ev.preventDefault(); }
+    else if (ev.key === "Home") { stopPlay(); go(0, false); }
+    else if (ev.key === "End") { stopPlay(); go(vis.length - 1, false); }
+  });
+  initSplitters();
+  let rzT = null;
+  window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(() => { if (scene) applyZoom(); }, 80); });
+  setTab(hp.tab === "build" ? "build" : "ops");
+}
+function setTabKeep() {
+  // switch to the ops view without replacing opsInput
+  stopPlay();
+  segOn("tabSeg", S.tab);
+  el("opbarOps").style.display = ""; el("opbarBuild").style.display = "none";
+  el("opsPanel").style.display = ""; el("buildPanel").style.display = "none";
+  fillPresets(); renderSubtitle(); renderLegend(); renderHint();
+  tryRebuild(false, "opErr");
+}
+document.addEventListener("DOMContentLoaded", init);
+
+</script>
+</body>
+</html>

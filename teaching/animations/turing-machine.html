@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Turing machines · configurations, nondeterminism and the tableau, step by step</title>
+<style>
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#8d897c;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-font-mono:ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    /* the two edge kinds of the slides: blue!50!black for clause triangles, green!50!black for negations */
+    --e-clause:#2b3a80; --e-neg:#2f7a2a;
+    --s-fill:#f0d7cd;          /* headingscolor!20!backcolor: "fat" vertices of the cover */
+    --out-fill:#e6efe0;        /* light green: V \ S in the equivalence tab */
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title,.wi-caption { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:18px;
+              flex-wrap:wrap; margin:0 0 6px; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 16px; max-width:92ch; line-height:1.5; }
+  .subtitle code, .hint code, .expl code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; }
+  i.m { font-style:italic; }
+
+  /* --- control chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:14px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:12px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; }
+  .ctl > label, .lbl { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer;
+           transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text;
+                font-size:1.02rem; line-height:1.1; padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  input[type=number] { width:4.2em; }
+  input[type=range] { accent-color:var(--wi-accent); cursor:pointer; vertical-align:middle; }
+  .seg { display:inline-flex; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  .seg.tabs button { padding:7px 16px; font-size:.86rem; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+
+  .tabrow { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin:0 0 14px; }
+  .tabrow .tabhint { font-size:.8rem; color:var(--wi-ink-faint); }
+
+  /* --- operation bar --- */
+  .opbar { display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; padding:10px 18px;
+           background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+           border-radius:var(--wi-radius-lg); margin-bottom:14px; }
+  .opnote { font-size:.78rem; color:var(--wi-ink-faint); }
+  .opnote b { color:var(--wi-accent); }
+
+  /* --- transport: slider + phase bar --- */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:18px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; --thumb:8px; }
+  .progress input[type=range] { display:block; width:100%; margin:0; }
+  .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint);
+            white-space:nowrap; text-align:right; padding-top:4px; }
+  .phasebar { display:flex; margin:5px var(--thumb) 0;
+              width:calc(100% - var(--thumb) - var(--thumb)); }
+  .phasebtn { position:relative; overflow:hidden;
+              flex-grow:1; flex-basis:0; min-width:0; padding:3px 4px; font-size:.68rem; line-height:1.3;
+              font-family:var(--wi-font-head); letter-spacing:.03em;
+              background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+              border-left-width:0; border-radius:0; color:var(--wi-ink-faint); cursor:pointer;
+              text-overflow:ellipsis; white-space:nowrap; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3;
+                    border-right:1px solid var(--wi-accent-soft); transition:width .12s linear; }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+
+  /* --- stage --- */
+  .stage { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(330px,1fr); gap:18px; align-items:start; }
+  @media (max-width:1080px) { .stage { grid-template-columns:1fr; } }
+  .col-side { display:flex; flex-direction:column; gap:14px; }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+             border-radius:var(--wi-radius-lg); padding:12px 15px; }
+  .sim-box + .sim-box { margin-top:14px; }
+  .col-side .sim-box + .sim-box { margin-top:0; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em;
+               color:var(--wi-ink-faint); margin:0 0 9px; display:flex; justify-content:space-between;
+               align-items:baseline; gap:10px; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--wi-font-mono);
+                    font-size:.9em; color:var(--wi-ink-soft); }
+  svg.stagesvg { display:block; margin:0 auto; background:var(--wi-bg); border-radius:var(--wi-radius); touch-action:manipulation; }
+  .svgscroll { overflow-x:auto; overflow-y:hidden; }
+  .svgscroll svg { max-width:none; }
+
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+            border-radius:var(--wi-radius); padding:10px 13px; font-size:.9rem;
+            color:var(--wi-ink-strong); min-height:88px; }
+  .status .ans { display:block; margin-top:6px; font-size:.95rem; color:var(--wi-accent); }
+  .status .ok  { color:var(--wi-relax); font-weight:bold; }
+  .status .bad { color:var(--wi-active); font-weight:bold; }
+  .status .ca { color:var(--e-clause); font-weight:bold; }
+  .status .ne { color:var(--e-neg); font-weight:bold; }
+  .status .inS { background:var(--s-fill); border-radius:3px; padding:0 4px; }
+
+  .legend { display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:9px; font-size:.72rem;
+            color:var(--wi-ink-soft); }
+  .legend .item { display:flex; align-items:center; gap:6px; }
+  .sw { width:.85em; height:.85em; border-radius:50%; border:1px solid var(--wi-border); display:inline-block; }
+  .sw.line { height:3px; width:1.3em; border:0; border-radius:1px; }
+
+  /* --- editor --- */
+  .editor { margin-top:18px; }
+  .editor-body { display:grid; grid-template-columns:minmax(0,340px) 1fr;
+                 gap:16px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  textarea { width:100%; height:170px; font-family:var(--wi-font-mono); font-size:.78rem;
+             background:var(--wi-panel-2); color:var(--wi-ink); border:1px solid var(--wi-border);
+             border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.76rem; color:var(--wi-ink-soft); line-height:1.5; }
+  .hint pre { background:var(--wi-panel-2); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius);
+              padding:6px 9px; font-size:.9em; margin:6px 0; }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+
+  .tooltip { position:fixed; z-index:40; pointer-events:none; background:var(--wi-panel-2);
+             border:1px solid var(--wi-border-strong); border-radius:var(--wi-radius);
+             padding:6px 9px; font-size:.76rem; color:var(--wi-ink-strong);
+             box-shadow:0 3px 10px rgba(0,0,0,.12); max-width:290px; display:none; line-height:1.45; }
+  .tooltip .tt-h { font-family:var(--wi-font-head); letter-spacing:.04em; color:var(--wi-accent); }
+  .tooltip .tt-s { color:var(--wi-ink-faint); }
+
+  .mobile-note { display:none; background:var(--wi-controls); border:1px solid var(--wi-accent-soft);
+                 border-radius:var(--wi-radius-lg); padding:11px 15px; font-size:.82rem;
+                 color:var(--wi-ink-strong); margin-bottom:14px; }
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    .titlebar { flex-direction:column; align-items:flex-start; gap:8px; }
+    h1 { font-size:1.3rem; }
+    .controls, .opbar { gap:8px 12px; padding:10px 12px; }
+    .ctl { flex-wrap:wrap; gap:6px; }
+    .seg { flex-wrap:wrap; overflow:visible; border-radius:var(--wi-radius); }
+    .seg button { padding:5px 9px; font-size:.74rem; border-radius:0; }
+    .lbl, .ctl > label { font-size:.64rem; }
+    button { padding:6px 10px; font-size:.8rem; }
+    .phasebtn { font-size:.6rem; padding:3px 2px; }
+    .stepno { font-size:.7rem; }
+    .mobile-note { display:block; }
+    .desk-only { display:none !important; }
+  }
+
+  /* --- tape --- */
+  .cell { fill:var(--wi-panel-2); stroke:var(--wi-border-strong); stroke-width:1.4; }
+  .cell.blank { fill:var(--wi-panel); stroke-dasharray:3 3; stroke:var(--wi-border); }
+  .cell.outside { fill:none; stroke:none; }
+  .cell.head { fill:#f6e6df; stroke:var(--wi-accent); stroke-width:2.2; }
+  .cell.alpha { fill:#f7f0e2; }
+  .sym { font-family:var(--wi-font-mono); font-size:17px; fill:var(--wi-ink-strong); text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  .sym.blank { fill:var(--wi-ink-faint); }
+  .sym.pop { animation:vpop .34s cubic-bezier(.2,1.3,.5,1) both; transform-box:fill-box; transform-origin:center; }
+  .posix { font-family:var(--wi-font-mono); font-size:10px; fill:var(--wi-ink-faint); text-anchor:middle; }
+  .dots { font-family:var(--wi-font-body); font-size:16px; fill:var(--wi-ink-faint); text-anchor:middle; dominant-baseline:central; }
+  .headg { transition:transform .32s cubic-bezier(.3,.7,.3,1); }
+  .headbox { fill:#f6e6df; stroke:var(--wi-accent); stroke-width:2; }
+  .headbox.halt { fill:#e8f0e2; stroke:var(--wi-relax); }
+  .headbox.dead { fill:#f6d9d3; stroke:var(--wi-active); }
+  .headbox.fork { fill:#f7ecd2; stroke:var(--wi-examine); stroke-width:3; animation:forkpulse 1.1s ease-in-out infinite; }
+  .forkmark { font-family:var(--wi-font-head); font-size:15px; fill:var(--wi-examine); dominant-baseline:central; font-weight:bold; }
+  .sym.outside { opacity:.45; }
+  .cell.outside { opacity:.6; }
+  @keyframes forkpulse { 0%,100% { stroke-width:2.2; } 50% { stroke-width:4.5; } }
+  .forkwarn { background:#f7ecd2; border:1.5px solid var(--wi-examine); border-left-width:6px; border-radius:var(--wi-radius);
+              padding:7px 12px; margin:0 0 10px; font-size:.86rem; color:var(--wi-ink-strong); line-height:1.6; }
+  .forkwarn .fw-h { font-family:var(--wi-font-head); letter-spacing:.06em; text-transform:uppercase; font-size:.76rem; color:#8a5f0c; margin-right:6px; }
+  .forkwarn .fw-opts { display:inline-flex; flex-wrap:wrap; gap:6px; margin-left:8px; vertical-align:middle; }
+  .forkwarn .fw-opt { font-family:var(--wi-font-body); font-size:.82rem; padding:2px 10px; border-color:var(--wi-examine); }
+  .forkwarn .fw-opt.on { background:var(--wi-examine); color:var(--wi-panel-2); }
+  .exnote { display:block; margin-bottom:6px; padding-bottom:6px; border-bottom:1px dashed var(--wi-border); color:var(--wi-ink-soft); }
+  table.delta tr.appl.pick td { background:#f7ecd2; }
+  table.delta tr.appl.pick.next td { background:#efd9a8; font-weight:bold; }
+  .tnode.loop circle.body { fill:var(--wi-controls); stroke:var(--wi-active); stroke-dasharray:3 2; }
+  .tnode.cur.fork circle.body { stroke:var(--wi-examine); stroke-width:4; animation:forkpulse 1.1s ease-in-out infinite; }
+  .headlab { font-family:var(--wi-font-body); font-size:16px; fill:var(--wi-accent-dark); text-anchor:middle; dominant-baseline:central; font-style:italic; pointer-events:none; }
+  .headlab tspan.sub { font-size:11px; font-style:normal; }
+  .brace { fill:none; stroke:var(--wi-ink-faint); stroke-width:1.2; }
+  .bracelab { font-family:var(--wi-font-body); font-size:14px; fill:var(--wi-ink-soft); text-anchor:middle; font-style:italic; }
+  .tapehit { fill:transparent; cursor:default; }
+
+  /* --- configuration string --- */
+  .cfg { font-family:var(--wi-font-mono); font-size:1.02rem; color:var(--wi-ink-strong); line-height:1.7; word-break:break-all; }
+  .cfg .al { background:#f7f0e2; padding:1px 2px; border-radius:3px; }
+  .cfg .st { color:var(--wi-accent); font-weight:bold; font-family:var(--wi-font-body); font-style:italic; padding:0 4px; }
+  .cfg .st sub { font-style:normal; font-size:.7em; }
+  .cfg .be { background:#f6e6df; padding:1px 2px; border-radius:3px; }
+  .cfg .be .hd { text-decoration:underline; text-decoration-color:var(--wi-accent); text-decoration-thickness:2px; }
+  .cfg .lab { font-family:var(--wi-font-body); color:var(--wi-ink-faint); font-size:.85rem; margin-right:8px; }
+  .rule { font-size:.86rem; color:var(--wi-ink); margin-top:6px; line-height:1.5; }
+  .rule .case { font-family:var(--wi-font-head); font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:var(--wi-accent);
+                border:1px solid var(--wi-accent-soft); border-radius:3px; padding:0 6px; margin-right:6px; }
+  .rule code { font-family:var(--wi-font-mono); background:var(--wi-panel-2); padding:0 4px; border-radius:3px; }
+  .cnt { display:flex; flex-wrap:wrap; gap:6px 18px; margin-top:8px; font-size:.86rem; color:var(--wi-ink-soft); }
+  .cnt b { color:var(--wi-ink-strong); font-family:var(--wi-font-mono); font-weight:normal; }
+
+  /* --- transition table (as on the slides) --- */
+  table.delta { border-collapse:collapse; font-size:.88rem; width:100%; }
+  table.delta th { font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; color:var(--wi-ink-faint);
+                   text-align:center; padding:4px 6px; border-bottom:1px solid var(--wi-border); font-weight:normal; }
+  table.delta td { text-align:center; padding:3px 6px; border-bottom:1px dashed var(--wi-border-soft); font-family:var(--wi-font-mono); color:var(--wi-ink-strong); }
+  table.delta td.st { font-family:var(--wi-font-body); font-style:italic; }
+  table.delta td.st sub { font-style:normal; font-size:.7em; }
+  table.delta td.arrow { color:var(--wi-ink-faint); }
+  table.delta tr.fired td { background:#f6e6df; }
+  table.delta tr.appl td { background:#f7f0e2; }
+  table.delta tr.pick { cursor:pointer; }
+  table.delta tr.pick:hover td { background:#eedcd3; }
+  table.delta tr.halt td { color:var(--wi-ink-faint); font-style:italic; }
+  table.delta td.opt { font-family:var(--wi-font-head); font-size:.7rem; color:var(--wi-accent); text-align:right; width:2.2em; }
+
+  /* --- computation tree --- */
+  .tnode circle.body { fill:var(--wi-panel-2); stroke:var(--wi-border-strong); stroke-width:1.4; }
+  .tnode.onpath circle.body { stroke:var(--wi-accent); stroke-width:2.4; fill:#f6e6df; }
+  .tnode.cur circle.body { stroke:var(--wi-active); stroke-width:3; fill:#f6e6df; }
+  .tnode.acc circle.body { fill:#e8f0e2; stroke:var(--wi-relax); }
+  .tnode.rej circle.body { fill:var(--wi-controls); }
+  .tnode.dead circle.body { fill:#f6d9d3; stroke:var(--wi-active); stroke-dasharray:3 2; }
+  .tnode.cut circle.body { fill:none; stroke:var(--wi-border); stroke-dasharray:2 2; }
+  .tnode.hov circle.body { stroke:var(--wi-ink-strong); stroke-width:3; }
+  .tnode text { font-family:var(--wi-font-body); font-size:12px; font-style:italic; fill:var(--wi-ink-strong); text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  .tnode text tspan.sub { font-size:8px; font-style:normal; }
+  .tnode.acc text, .tnode.dead text, .tnode.rej text { font-style:normal; font-size:13px; }
+  .tedge { fill:none; stroke:var(--wi-border-strong); stroke-width:1.6; }
+  .tedge.onpath { stroke:var(--wi-accent); stroke-width:3; }
+  .tedgelab { font-family:var(--wi-font-mono); font-size:10px; fill:var(--wi-ink-faint); text-anchor:middle; dominant-baseline:central; }
+  .tedgelab.onpath { fill:var(--wi-accent); }
+  .tedgelab.choice { font-family:var(--wi-font-head); font-size:10px; }
+  .tdepth { font-family:var(--wi-font-mono); font-size:10px; fill:var(--wi-ink-faint); text-anchor:end; dominant-baseline:central; }
+  .thit { fill:transparent; stroke:none; cursor:pointer; }
+  .cert { display:flex; flex-wrap:wrap; gap:5px; align-items:center; margin-top:6px; }
+  .cert .c { font-family:var(--wi-font-mono); font-size:.8rem; padding:1px 8px; border-radius:10px; border:1px solid var(--wi-accent-soft); background:#f6e6df; color:var(--wi-ink-strong); cursor:pointer; }
+  .cert .c.fut { opacity:.45; }
+  .cert .c.now { border-color:var(--wi-active); font-weight:bold; }
+  .cert .empty { font-size:.82rem; color:var(--wi-ink-faint); font-style:italic; }
+
+  /* --- tableau --- */
+  .tabwrap { overflow:auto; max-height:520px; }
+  table.tableau { border-collapse:collapse; font-family:var(--wi-font-mono); font-size:.8rem; }
+  table.tableau th { font-weight:normal; color:var(--wi-ink-faint); font-size:.68rem; padding:1px 4px; position:sticky; background:var(--wi-panel); z-index:1; }
+  table.tableau thead th { top:0; }
+  table.tableau th.t { text-align:right; left:0; padding-right:8px; }
+  table.tableau td { width:2.3em; min-width:2.3em; height:2.5em; text-align:center; border:1px solid var(--wi-border-soft); color:var(--wi-ink-strong);
+                     background:var(--wi-panel-2); padding:0; vertical-align:middle; line-height:1.15; }
+  table.tableau td.blank { color:var(--wi-ink-faint); background:var(--wi-panel); }
+  table.tableau td.outside { border-color:transparent; background:transparent; }
+  table.tableau td.hd { background:#f6e6df; border:1.5px solid var(--wi-accent); font-weight:bold; }
+  table.tableau td.hd .q { display:block; font-family:var(--wi-font-body); font-style:italic; font-weight:normal; font-size:.78em; color:var(--wi-accent); }
+  table.tableau td.hd .q sub { font-style:normal; font-size:.75em; }
+  table.tableau tr.now td:not(.outside) { box-shadow:inset 0 0 0 1px var(--wi-active); }
+  table.tableau tr.now th { color:var(--wi-active); font-weight:bold; }
+  table.tableau tr.fut td { opacity:.35; }
+  .note-inline { font-size:.76rem; color:var(--wi-ink-faint); margin-top:6px; line-height:1.45; }
+  .ok { color:var(--wi-relax); font-weight:bold; }
+  .bad { color:var(--wi-active); font-weight:bold; }
+  .status i.q { color:var(--wi-accent); }
+  .status code { font-family:var(--wi-font-mono); font-size:.86em; background:var(--wi-panel-2); padding:1px 4px; border-radius:3px; }
+
+  @keyframes vpop { from { transform:scale(.55); opacity:.3; } to { transform:none; opacity:1; } }
+  @media (prefers-reduced-motion:reduce) {
+    * { animation-duration:.001ms !important; transition-duration:.001ms !important; }
+  }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption { font-family: var(--wi-font-head); letter-spacing: .05em; }
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1>Turing machines &nbsp;·&nbsp; configurations, nondeterminism and the tableau</h1>
+</div>
+
+<p class="subtitle">
+  A Turing machine is a finite control with a read/write head on an unbounded tape — and a <b>configuration</b>
+  <i>C</i> = <i>α q β</i> is nothing but a <i>word</i>: tape content <i>αβ</i>, current state <i>q</i>, head on the first
+  symbol of <i>β</i>.  The page runs a machine step by step and shows, side by side, the tape picture, the
+  configuration string, and the case of the computation relation ⊢ that produced it, while counting time and space.
+  For a <b>nondeterministic</b> machine the computation is a tree: pick branches by clicking, or let the page
+  find an accepting computation — the sequence of choices is the certificate.
+</p>
+
+<div class="mobile-note">
+  <b>Small screen:</b> this is the compact demo. The transition table and the tableau are on the desktop version.
+</div>
+
+<div class="controls">
+  <div class="ctl">
+    <label for="presetSel">Machine</label>
+    <select id="presetSel"></select>
+  </div>
+  <div class="ctl">
+    <label for="inWord">Input x</label>
+    <input type="text" id="inWord" class="str" spellcheck="false" style="font-family:var(--wi-font-mono);width:12em">
+    <button id="applyBtn" class="pri">Run</button>
+    <button id="randBtn" title="a random word over the input alphabet">Random x</button>
+  </div>
+  <div class="ctl">
+    <label for="capIn">Time limit T</label>
+    <input type="number" id="capIn" min="5" max="2000" value="200" title="steps after which the run is cut off (TIMEOUT)">
+  </div>
+  <div class="ctl">
+    <label class="chk"><input type="checkbox" id="tabChk"> tableau (time × cells)</label>
+  </div>
+</div>
+
+<div class="opbar">
+  <span class="opnote" id="modeNote"></span>
+  <span class="ctl" id="ntmCtl" style="display:none;gap:8px">
+    <button id="findBtn" title="breadth-first search for a halting configuration with output 1">Find an accepting computation</button>
+    <button id="firstBtn" title="always take the first listed transition">Always first choice</button>
+  </span>
+  <span class="opnote" style="margin-left:auto">Arrow keys step. Hover a cell or a tree node for details.</span>
+</div>
+
+<div class="transport">
+  <div class="transport-row">
+    <span class="ctl" style="gap:6px">
+      <button id="resetBtn" class="icon" title="Back to the start configuration" aria-label="Back to the first step">&#x21BA;</button>
+      <button id="backBtn" class="icon" title="One step back  (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+      <button id="stepBtn" class="icon pri" title="One step forward  (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+      <button id="playBtn" class="icon" title="Play / pause" aria-label="Play">&#x25B6;&#xFE0E;</button>
+    </span>
+    <span class="progress">
+      <input type="range" id="scrubber" min="0" max="0" value="0">
+      <div class="phasebar" id="phaseBar"></div>
+    </span>
+    <span class="stepno" id="stepNo">— / —</span>
+    <span class="ctl" style="gap:6px">
+      <span class="lbl">Speed</span>
+      <input type="range" id="speed" min="80" max="1500" value="500" style="width:88px">
+      <span class="stepno" id="speedVal">500ms</span>
+    </span>
+  </div>
+</div>
+
+<div class="stage">
+  <div>
+    <div class="sim-box">
+      <div class="sim-title"><span>Tape and head</span><span class="rhs" id="tapeMeta"></span></div>
+      <div class="forkwarn" id="forkBox" style="display:none"></div>
+      <div class="svgscroll"><svg id="tapeSvg" class="stagesvg"></svg></div>
+      <div class="cfg" id="cfgBox"></div>
+      <div class="rule" id="ruleBox"></div>
+      <div class="cnt" id="cntBox"></div>
+    </div>
+    <div class="sim-box" id="tabBox" style="display:none">
+      <div class="sim-title"><span>Tableau — rows are time, columns are tape cells</span><span class="rhs" id="tabMeta"></span></div>
+      <div class="tabwrap" id="tabWrap"></div>
+      <div class="note-inline">Row <i>t</i> is the configuration <i>C<sub>t</sub></i>; the marked cell carries the head and the state.
+        Each row is determined by the row above and δ alone, cell by cell from its three upper neighbours — this locality is what
+        the Cook–Levin construction encodes as a Boolean formula: variables <i>y<sub>c,i,t</sub></i> (cell <i>i</i> holds <i>c</i> at time <i>t</i>),
+        <i>z<sub>i,t</sub></i> (head at <i>i</i> at time <i>t</i>), <i>x<sub>q,t</sub></i> (state <i>q</i> at time <i>t</i>).</div>
+    </div>
+    <div class="sim-box" id="treeBox" style="display:none">
+      <div class="sim-title"><span>Computation tree</span><span class="rhs" id="treeMeta"></span></div>
+      <div class="svgscroll"><svg id="treeSvg" class="stagesvg"></svg></div>
+      <div class="legend">
+        <span class="item"><span class="sw" style="background:#f6e6df;border-color:var(--wi-accent)"></span> current computation</span>
+        <span class="item"><span class="sw" style="background:#e8f0e2;border-color:var(--wi-relax)"></span> halts with output 1 (accepts)</span>
+        <span class="item"><span class="sw" style="background:var(--wi-controls)"></span> halts otherwise</span>
+        <span class="item"><span class="sw" style="background:#f6d9d3;border-color:var(--wi-active)"></span> dead end: δ(q,a) = ∅</span>
+        <span class="item"><span class="sw" style="border:1px dashed var(--wi-border)"></span> cut off (limit)</span>
+        <span class="item"><span class="sw" style="background:var(--wi-controls);border:1px dashed var(--wi-active)"></span> ↻ repeats an earlier configuration (cycle)</span>
+        <span class="item"><span class="sw" style="border:2.5px solid var(--wi-examine)"></span> branching point (current)</span>
+      </div>
+      <div class="note-inline">Long runs without a choice are drawn as one edge labelled with the number of steps. Click a node to follow that
+        branch; the scrubber then runs along the highlighted computation.</div>
+    </div>
+  </div>
+
+  <div class="col-side">
+    <div class="sim-box">
+      <div class="sim-title"><span>What just happened</span><span class="rhs" id="phaseName"></span></div>
+      <div class="status" id="statusBox"></div>
+    </div>
+    <div class="sim-box" id="certBox">
+      <div class="sim-title"><span>Choices made so far — the certificate</span><span class="rhs" id="certMeta"></span></div>
+      <div id="certList"></div>
+    </div>
+    <div class="sim-box desk-only">
+      <div class="sim-title"><span>Finite control δ</span><span class="rhs" id="deltaMeta"></span></div>
+      <div id="deltaBox"></div>
+      <div class="note-inline" id="deltaNote"></div>
+    </div>
+  </div>
+</div>
+
+<div class="sim-box editor" id="editorDetails">
+  <div class="sim-title"><span>Machine description</span><span class="rhs">plain text · load to run</span></div>
+  <div class="editor-body">
+    <div>
+      <textarea id="inputText" spellcheck="false" style="height:260px"></textarea>
+      <div style="margin-top:8px"><button class="pri" id="loadBtn">Load</button></div>
+      <div class="err" id="parseErr"></div>
+    </div>
+    <div class="hint">
+      One transition per line, <code>q a -&gt; q' b D</code> with <i>D</i> ∈ {L, R, N} (read <i>a</i> in state <i>q</i>: write <i>b</i>,
+      move <i>D</i>, go to <i>q'</i>).  The blank □ is written <code>_</code>.  Several lines for the same (<i>q</i>, <i>a</i>) make the
+      machine nondeterministic; a missing line makes δ(<i>q</i>,<i>a</i>) = ∅, a dead end.
+      <pre># the machine of the slides
+name: the machine of the slides
+start: q0
+halt: qhalt
+input: abaaabaaa
+q0 a -> q0 a R
+q0 b -> q1 b R
+q0 _ -> qhalt _ N
+q1 a -> q1 b R
+q1 b -> q0 b R
+q1 _ -> qhalt _ N</pre>
+      Directives: <code>start</code> (default: state of the first transition), <code>halt</code> (default <code>qhalt</code>),
+      <code>input</code> (the word to run on), <code>sigma</code> (input alphabet, default: all non-blank symbols read from the input),
+      <code>name</code>, <code>limit</code> (time limit),
+      <code>note</code> (a remark shown at the start of the run).  Lines starting with <code>#</code> are comments.
+      <br><br>
+      <b>Conventions, as in the lecture.</b> A configuration <i>α q β</i> ∈ Γ*QΓ<sup>+</sup> is identified with all versions that differ in
+      leading □s of <i>α</i> or trailing □s of <i>β</i>; the page always shows the <b>shortest representative</b> (keeping <i>β</i> ≠ ε).
+      At the boundary (<i>n</i> = 1 moving right, <i>m</i> = 0 moving left) the rule of ⊢ is applied to <i>αqβ</i>□ resp. □<i>αqβ</i>.
+      <i>M</i>(<i>x</i>) = {<i>y</i> : <i>q</i><sub>0</sub><i>x</i> ⊢* <i>q</i><sub>halt</sub><i>y</i>}: the machine produces output only if
+      it halts with nothing left of the head; then <i>y</i> = <i>β</i> ∈ Γ<sup>+</sup>.  <i>M</i> accepts <i>x</i> iff 1 ∈ <i>M</i>(<i>x</i>).
+      time<sub>M</sub>(<i>x</i>) = sup{<i>t</i> : <i>q</i><sub>0</sub><i>x</i> ⊢<sup>t</sup> <i>q</i><sub>halt</sub><i>y</i>} ∪ {0},
+      space<sub>M</sub>(<i>x</i>) = sup{|<i>αβ</i>| : <i>q</i><sub>0</sub><i>x</i> ⊢* <i>αqβ</i>} ∪ {0}.
+      The <i>Corner cases</i> examples in the machine menu exercise each of these rules.
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+"use strict";
+
+/* ==========================================================================
+   Turing machines exactly as defined on the slides.
+
+     M = (Q, Σ, Γ, δ, q0, □, q_halt),  δ : (Q \ {q_halt}) × Γ → 2^(Q × Γ × {L,R,N})
+     configuration C = α q β ∈ Γ* Q Γ+  (head on the first symbol of β);
+       configurations differing in leading □s of α or trailing □s of β are identified
+       (keeping β ≠ ε); we always use the SHORTEST representative.
+     a1..am q b1..bn ⊢  a1..am     q' c b2..bn        δ(q,b1) ∋ (q',c,N)                (N)
+                        a1..am c   q' b2..bn          δ(q,b1) ∋ (q',c,R), n ≥ 2         (R)
+                        a1..am-1   q' am c b2..bn     δ(q,b1) ∋ (q',c,L), m ≥ 1         (L)
+       for n = 1 resp. m = 0 the rule is applied to α q β□ resp. □α q β.
+     M(x) = { y : q0 x ⊢* q_halt y }   (on shortest representatives: α = ε, y = β ∈ Γ+)
+     time_M(x)  = sup { t : q0 x ⊢^t q_halt y } ∪ {0}
+     space_M(x) = sup { |αβ| : q0 x ⊢* α q β } ∪ {0}
+
+   Internally a configuration is stored with absolute cell positions: the
+   non-blank cells, head position and state; [lo, hi] is the range of the
+   shortest representative: lo = min(head, leftmost non-blank),
+   hi = max(head, rightmost non-blank).  α = cells lo..head-1, β = head..hi.
+   ========================================================================== */
+
+const el  = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const BLANK = "_", BOX = "□";
+const showSym = c => c === BLANK ? BOX : c;
+/* q0 -> q<sub>0</sub>, qhalt -> q<sub>halt</sub>, qe -> q<sub>e</sub>; other names verbatim */
+function stHtml(q) {
+  const m = q.match(/^([A-Za-z])_?\{?([A-Za-z0-9']+)\}?$/);
+  return m ? "<i>" + esc(m[1]) + "</i><sub>" + esc(m[2]) + "</sub>" : "<i>" + esc(q) + "</i>";
+}
+function stSvg(q) {
+  const m = q.match(/^([A-Za-z])_?\{?([A-Za-z0-9']+)\}?$/);
+  return m ? esc(m[1]) + '<tspan class="sub" dy=".35em">' + esc(m[2]) + "</tspan>" : esc(q);
+}
+
+/* ---------- presets ------------------------------------------------------ */
+
+const PRESETS = {
+  slides: { group: "Lecture examples", name: "the machine of the slides", text:
+`name: the machine of the slides
+note: After an odd number of b's, a's are flipped to b's. The machine halts with the head right of the content, so the halting configuration is NOT of the form q_halt y: M(x) = ∅. Compare the next example.
+start: q0
+halt: qhalt
+input: abaaabaaa
+q0 a -> q0 a R
+q0 b -> q1 b R
+q0 _ -> qhalt _ N
+q1 a -> q1 b R
+q1 b -> q0 b R
+q1 _ -> qhalt _ N` },
+  slidesRet: { group: "Lecture examples", name: "… the same, returning to the left end", text:
+`name: flip a's after an odd number of b's, then return
+note: As on the slides, but the head walks back to the first symbol before halting, so the result is a proper output y.
+start: q0
+halt: qhalt
+input: abaaabaaa
+q0 a -> q0 a R
+q0 b -> q1 b R
+q0 _ -> qL _ L
+q1 a -> q1 b R
+q1 b -> q0 b R
+q1 _ -> qL _ L
+qL a -> qL a L
+qL b -> qL b L
+qL _ -> qhalt _ R` },
+  palin: { group: "Lecture examples", name: "palindromes over {a,b} (decides)", text:
+`name: palindrome
+note: Decides L = { w : w is a palindrome } by erasing matching first and last symbols; outputs 1 or 0.
+start: q0
+halt: qhalt
+input: abbabba
+q0 a -> qa _ R
+q0 b -> qb _ R
+q0 _ -> qhalt 1 N
+qa a -> qa a R
+qa b -> qa b R
+qa _ -> qa' _ L
+qb a -> qb a R
+qb b -> qb b R
+qb _ -> qb' _ L
+qa' a -> qL _ L
+qa' b -> qE _ L
+qa' _ -> qhalt 1 N
+qb' b -> qL _ L
+qb' a -> qE _ L
+qb' _ -> qhalt 1 N
+qL a -> qL a L
+qL b -> qL b L
+qL _ -> q0 _ R
+qE a -> qE _ L
+qE b -> qE _ L
+qE _ -> qhalt 0 N` },
+  incr: { group: "Lecture examples", name: "binary increment (computes a function)", text:
+`name: increment
+note: Computes f(x) = x + 1 in binary. On 111 the carry runs off the left end (case m = 0).
+start: q0
+halt: qhalt
+input: 10111
+q0 0 -> q0 0 R
+q0 1 -> q0 1 R
+q0 _ -> q1 _ L
+q1 1 -> q1 0 L
+q1 0 -> q2 1 L
+q1 _ -> q2 1 N
+q2 0 -> q2 0 L
+q2 1 -> q2 1 L
+q2 _ -> qhalt _ R` },
+  aba: { group: "Lecture examples", name: "nondeterministic: does x contain aba?", text:
+`name: contains aba
+note: In state q0 on an a, the machine may guess that the factor aba starts here.
+start: q0
+halt: qhalt
+input: bbabbaba
+q0 a -> q0 a R
+q0 a -> q1 a R
+q0 b -> q0 b R
+q0 _ -> qF _ L
+q1 b -> q2 b R
+q2 a -> qA a R
+qA a -> qA a R
+qA b -> qA b R
+qA _ -> qA' _ L
+qA' a -> qA' _ L
+qA' b -> qA' _ L
+qA' _ -> qhalt 1 N
+qF a -> qF _ L
+qF b -> qF _ L
+qF _ -> qhalt 0 N` },
+  guess: { group: "Lecture examples", name: "nondeterministic: guess a subsequence abb", text:
+`name: subsequence abb
+note: For every symbol the machine guesses whether to keep or skip it; the guesses form the certificate.
+start: q0
+halt: qhalt
+input: aabab
+q0 a -> q1 _ R
+q0 a -> q0 _ R
+q0 b -> q0 _ R
+q0 _ -> qhalt 0 N
+q1 b -> q2 _ R
+q1 b -> q1 _ R
+q1 a -> q1 _ R
+q1 _ -> qhalt 0 N
+q2 b -> qE _ R
+q2 b -> q2 _ R
+q2 a -> q2 _ R
+q2 _ -> qhalt 0 N
+qE a -> qE _ R
+qE b -> qE _ R
+qE _ -> qhalt 1 N` },
+
+  c_empty: { group: "Corner cases: configurations and ⊢", name: "empty input: q0ε is written q0□", text:
+`name: empty input
+note: For x = ε the start configuration q0 x = q0 is not a configuration (β must be non-empty); its shortest representative is q0 □. Try also input a.
+sigma: a
+start: q0
+halt: qhalt
+input:
+q0 _ -> qhalt 1 N
+q0 a -> qhalt 0 N` },
+  c_right: { group: "Corner cases: configurations and ⊢", name: "n = 1: moving right off the content", text:
+`name: right boundary
+note: Step 1 moves right from the last symbol: the rule is applied to αqβ□. Step 2 moves back left, and the trailing □ disappears from the shortest representative (but β ≠ ε is kept at step 1).
+sigma: ab
+start: q0
+halt: qhalt
+input: a
+q0 a -> q1 b R
+q1 _ -> q2 _ L
+q2 b -> qhalt b N` },
+  c_left: { group: "Corner cases: configurations and ⊢", name: "m = 0: moving left off the content", text:
+`name: left boundary
+note: Step 1 moves left from the first symbol: the rule is applied to □αqβ. Step 2 moves right again, and the leading □ disappears from the shortest representative.
+sigma: ab
+start: q0
+halt: qhalt
+input: ab
+q0 a -> q1 a L
+q1 _ -> q2 _ R
+q2 a -> qhalt a N` },
+  c_space: { group: "Corner cases: configurations and ⊢", name: "space: blanks between content and head count", text:
+`name: walking on blanks
+note: The head walks two cells right of the content and back. |αβ| counts the blanks between content and head, but trailing blanks behind the head are dropped. Try input ε: walking on an empty tape has space 1 throughout.
+sigma: a
+start: q0
+halt: qhalt
+input: a
+q0 a -> q0 a R
+q0 _ -> q1 _ R
+q1 _ -> q2 _ R
+q2 _ -> q3 _ L
+q3 _ -> q3 _ L
+q3 a -> qhalt a N` },
+  c_shrink: { group: "Corner cases: configurations and ⊢", name: "erasing: the representative shrinks", text:
+`name: erase from the left
+note: Each step erases the first symbol and moves right: the leading □ is dropped immediately, so |αβ| shrinks. The empty tape ends as qhalt □.
+sigma: ab
+start: q0
+halt: qhalt
+input: abab
+q0 a -> q0 _ R
+q0 b -> q0 _ R
+q0 _ -> qhalt _ N` },
+
+  c_mid: { group: "Corner cases: output, time and space", name: "halting inside the content: no output", text:
+`name: halt in the middle
+note: The machine halts as a qhalt b. Since α ≠ ε, this is not of the form q_halt y: M(x) = ∅ and time_M(x) = 0, although the machine halted after 2 steps.
+sigma: ab
+start: q0
+halt: qhalt
+input: ab
+q0 a -> q0 a R
+q0 b -> qhalt b N` },
+  c_blankfirst: { group: "Corner cases: output, time and space", name: "halting on a blank left of the content: y = □ab", text:
+`name: head left of the content
+note: The machine halts on the blank left of ab. The shortest representative is qhalt □ab, so y = □ab ∈ Γ+ — an output starting with a blank.
+sigma: ab
+start: q0
+halt: qhalt
+input: ab
+q0 a -> q1 a L
+q1 _ -> qhalt _ N` },
+  c_inner: { group: "Corner cases: output, time and space", name: "a blank inside the output: y = a□a", text:
+`name: blank inside
+note: The middle symbol is erased; the output y = a□a contains a blank. The definition allows any y ∈ Γ+.
+sigma: ab
+start: q0
+halt: qhalt
+input: aba
+q0 a -> q1 a R
+q1 b -> q2 _ L
+q2 a -> qhalt a N` },
+  c_erase: { group: "Corner cases: output, time and space", name: "empty tape at the end: y = □, not ε", text:
+`name: erase everything
+note: The machine erases its input. The halting configuration is qhalt □ (β ≠ ε), so M(x) = {□}, never {ε}.
+sigma: ab
+start: q0
+halt: qhalt
+input: ab
+q0 a -> q0 _ R
+q0 b -> q0 _ R
+q0 _ -> q1 _ L
+q1 _ -> qhalt _ N` },
+  c_gamma: { group: "Corner cases: output, time and space", name: "output uses tape symbols outside Σ", text:
+`name: marker output
+note: The output y = X is a word over Γ, not over Σ = {a, b}.
+sigma: ab
+start: q0
+halt: qhalt
+input: a
+q0 a -> qhalt X N
+q0 b -> qhalt X N` },
+  c_dead: { group: "Corner cases: output, time and space", name: "missing transition: not a valid deterministic TM", text:
+`name: undefined transition
+note: δ(q0, b) is missing. For a deterministic TM, δ must be total on (Q \ {qhalt}) × Γ, so strictly this machine is a nondeterministic TM with δ(q0, b) = ∅.
+sigma: ab
+start: q0
+halt: qhalt
+input: aab
+q0 a -> q0 a R
+q0 _ -> qhalt 1 N` },
+  c_cycle: { group: "Corner cases: output, time and space", name: "never halts (a cycle): time_M(x) = 0", text:
+`name: ping-pong
+note: The head moves back and forth forever; the configuration repeats. Since time_M(x) = sup ∅ ∪ {0}, the time is 0 — which is why the lecture restricts to always-terminating TMs.
+sigma: a
+start: q0
+halt: qhalt
+input: a
+q0 a -> q1 a R
+q1 _ -> q0 _ L` },
+  c_spaceinf: { group: "Corner cases: output, time and space", name: "never halts, space grows without bound", text:
+`name: runaway writer
+note: The machine writes 1s to the right forever: no configuration repeats, the run is cut off at the time limit T, and space_M(x) = ∞ while time_M(x) = 0.
+sigma: a
+start: q0
+halt: qhalt
+input: a
+limit: 40
+q0 a -> q0 a R
+q0 _ -> q0 1 R` },
+
+  n_inf: { group: "Corner cases: nondeterminism", name: "time_M(x) = ∞: halting after any number of steps", text:
+`name: wait, then halt
+note: In every step the machine may wait (stay in q0) or halt with output 1. There are halting computations of every length t ≥ 1, so time_M(x) = sup = ∞, while space_M(x) = 1. The default computation (always the first choice) waits forever.
+sigma: a
+start: q0
+halt: qhalt
+input: a
+q0 a -> q0 a N
+q0 a -> qhalt 1 N` },
+  n_zero: { group: "Corner cases: nondeterminism", name: "time_M(x) = 0: no computation produces output", text:
+`name: no proper halt
+note: One computation halts with α ≠ ε (no output), the other runs into δ = ∅. No computation reaches a configuration q_halt y: M(x) = ∅, x ∉ L(M), time_M(x) = 0, but space_M(x) = 2.
+sigma: a
+start: q0
+halt: qhalt
+input: a
+q0 a -> qhalt a R
+q0 a -> q1 a N` },
+  n_two: { group: "Corner cases: nondeterminism", name: "|M(x)| = 2, and time counts rejecting computations", text:
+`name: two answers
+note: One computation outputs 1 after 1 step, another outputs 0 after 3 steps: M(x) = {0, 1}, so x ∈ L(M). time_M(x) = 3: the sup ranges over all computations reaching q_halt y, not only the accepting ones.
+sigma: a
+start: q0
+halt: qhalt
+input: a
+q0 a -> qhalt 1 N
+q0 a -> q1 a R
+q1 _ -> q2 _ L
+q2 a -> qhalt 0 N` },
+  n_branchfirst: { group: "Corner cases: nondeterminism", name: "branching in the very first step", text:
+`name: three-way start
+note: Already the start configuration is a branching point with three continuations: halt with 0, halt with 1, or fall into δ = ∅.
+sigma: a
+start: q0
+halt: qhalt
+input: a
+q0 a -> q1 a N
+q0 a -> qhalt 0 N
+q0 a -> qhalt 1 N` }
+};
+
+/* ---------- state -------------------------------------------------------- */
+
+let M = null;              /* { name, states, sigma, gamma, delta:[{q,read,to,write,dir}], byKey:{ "q|a": [indices] }, start, halt } */
+let word = "";
+let limit = 200;
+let plan = [];             /* plan[t] = index (into the applicable list) of the choice taken at step t */
+let steps = [], phases = [], cur = 0;
+let timer = null;
+let tree = null;           /* compressed computation tree for the NTM view */
+let showTab = false;
+let hovCell = null, hovNode = -1;
+
+/* ---------- parsing ------------------------------------------------------ */
+
+function parseMachine(text) {
+  const m = { name: "", note: "", delta: [], byKey: {}, start: null, halt: "qhalt", input: null, sigma: null, limit: null };
+  const lines = text.split(/\r?\n/);
+  for (let ln = 0; ln < lines.length; ln++) {
+    let line = lines[ln].replace(/#.*$/, "").trim();
+    if (!line) continue;
+    let mm;
+    if ((mm = line.match(/^(name|start|halt|input|sigma|limit|note)\s*[:=]\s*(.*)$/i))) {
+      const k = mm[1].toLowerCase(), v = mm[2].trim();
+      if (k === "name") m.name = v;
+      else if (k === "note") m.note = (m.note ? m.note + " " : "") + v;
+      else if (k === "start") m.start = v;
+      else if (k === "halt") m.halt = v;
+      else if (k === "input") m.input = v.replace(/\s+/g, "");
+      else if (k === "sigma") m.sigma = v.replace(/[\s,]+/g, "").split("");
+      else if (k === "limit") m.limit = parseInt(v, 10);
+      continue;
+    }
+    /* transition: q a -> q' b D   (also "q,a -> q',b,D" or without the arrow) */
+    const toks = line.replace(/->|→|⟶/g, " ").replace(/[,;()]/g, " ").split(/\s+/).filter(Boolean);
+    if (toks.length !== 5) throw new Error("Line " + (ln + 1) + ': expected "q a -> q\' b D", found ' + toks.length + " tokens.");
+    const [q, a, to, b, d0] = toks;
+    const d = d0.toUpperCase();
+    if (a.length !== 1 || b.length !== 1) throw new Error("Line " + (ln + 1) + ": tape symbols are single characters (□ is _).");
+    if (!"LRN".includes(d) || d.length !== 1) throw new Error("Line " + (ln + 1) + ": direction must be L, R or N.");
+    m.delta.push({ q: q, read: a, to: to, write: b, dir: d, ln: ln + 1 });
+  }
+  if (!m.delta.length) throw new Error("No transition found.");
+  if (!m.start) m.start = m.delta[0].q;
+  m.delta.forEach((t, k) => {
+    if (t.q === m.halt) throw new Error("Line " + t.ln + ": δ is not defined on the halting state " + m.halt + ".");
+    const key = t.q + "|" + t.read;
+    (m.byKey[key] = m.byKey[key] || []).push(k);
+  });
+  const st = new Set([m.start, m.halt]); m.delta.forEach(t => { st.add(t.q); st.add(t.to); });
+  m.states = [...st];
+  const gam = new Set([BLANK]); m.delta.forEach(t => { gam.add(t.read); gam.add(t.write); });
+  m.gamma = [...gam];
+  if (!m.sigma) { const sg = new Set(); m.delta.forEach(t => { if (t.read !== BLANK) sg.add(t.read); }); m.sigma = [...sg]; }
+  if (m.sigma.includes(BLANK)) throw new Error("The blank □ (_) must not be in Σ.");
+  if (m.input !== null) { const bad = [...m.input].filter(ch => !m.sigma.includes(ch)); if (bad.length) throw new Error("input: symbols must be from Σ = {" + m.sigma.join(", ") + "}; found " + bad.join(", ") + "."); }
+  m.det = Object.values(m.byKey).every(l => l.length <= 1);
+  return m;
+}
+
+/* ---------- configurations ----------------------------------------------- */
+
+function normalize(c) {
+  let lo = c.head, hi = c.head;
+  c.cells.forEach((v, k) => { if (k < lo) lo = k; if (k > hi) hi = k; });
+  c.lo = lo; c.hi = hi; return c;
+}
+function initialConfig(x) {
+  const cells = new Map();
+  for (let i = 0; i < x.length; i++) cells.set(i, x[i]);
+  return normalize({ cells: cells, head: 0, state: M.start });
+}
+const symAt = (c, pos) => c.cells.get(pos) || BLANK;
+function applicable(c) {
+  if (c.state === M.halt) return [];
+  return M.byKey[c.state + "|" + symAt(c, c.head)] || [];
+}
+/* one step; returns the new (shortest) configuration, the case of ⊢ that applies,
+   and the configuration exactly as the rule writes it (before removing □s) */
+function doStep(c, t) {
+  const cells = new Map(c.cells);
+  if (t.write === BLANK) cells.delete(c.head); else cells.set(c.head, t.write);
+  const m = c.head - c.lo, n = c.hi - c.head + 1;
+  let head = c.head, rlo = c.lo, rhi = c.hi, rule;
+  if (t.dir === "N") rule = "N";
+  else if (t.dir === "R") { head++; if (n >= 2) rule = "R"; else { rule = "R1"; rhi = head; } }
+  else { head--; if (m >= 1) rule = "L"; else { rule = "L0"; rlo = head; } }
+  const cfg = normalize({ cells: cells, head: head, state: t.to });
+  return { cfg: cfg, raw: { cells: cells, head: head, state: t.to, lo: rlo, hi: rhi }, rule: rule, m: m, n: n,
+           stripped: cfg.lo !== rlo || cfg.hi !== rhi };
+}
+const alphaOf = c => { let s = ""; for (let p = c.lo; p < c.head; p++) s += symAt(c, p); return s; };
+const betaOf  = c => { let s = ""; for (let p = c.head; p <= c.hi; p++) s += symAt(c, p); return s; };
+const spaceOf = c => c.hi - c.lo + 1;
+/* position-independent key: two configurations are equal iff their shortest representatives are */
+const cfgKey  = c => c.state + "|" + alphaOf(c) + "|" + betaOf(c);
+const cfgStr  = c => esc([...alphaOf(c)].map(showSym).join("")) + " " + stHtml(c.state) + " " + esc([...betaOf(c)].map(showSym).join(""));
+
+/* output of a halting configuration: q_halt y on the shortest representative,
+   i.e. α = ε (head on the leftmost non-blank cell, or on a blank left of all content);
+   then y = β ∈ Γ+.  y may contain □ (inside or as first symbol) and symbols of Γ \ Σ. */
+function outputOf(c) {
+  const ok = c.head === c.lo;
+  const y = ok ? betaOf(c) : null;
+  return { y: y, ok: ok, accept: ok && y === "1",
+           hasBlank: ok && y.includes(BLANK), nonSigma: ok && [...y].some(ch => ch !== BLANK && !M.sigma.includes(ch)) };
+}
+const yHtml = y => "<code>" + esc([...y].map(showSym).join("")) + "</code>";
+
+/* ---------- the computation along the current plan ----------------------- */
+
+function mkPhase(name) { phases.push({ name: name, from: steps.length, to: steps.length }); }
+function add(o) { o.ph = phases.length - 1; steps.push(o); phases[phases.length - 1].to = steps.length - 1; }
+
+function haltText(c, t) {
+  const o = outputOf(c);
+  let txt = " <b>Halting state reached</b> after " + t + " step" + (t === 1 ? "" : "s") + ": δ is not defined on " + stHtml(M.halt) + ". ";
+  if (o.ok) {
+    txt += "The (shortest) configuration is " + stHtml(M.halt) + "<i>y</i> with <i>y</i> = " + yHtml(o.y) + ", so <i>y</i> ∈ <i>M</i>(<i>x</i>)" +
+           (o.accept ? ' — <span class="ok">1 ∈ M(x): x is accepted</span>.' : o.y === "0" ? ' — <span class="bad">0 ∈ M(x)</span>: this computation does not accept.' : ".");
+    if (o.y === BLANK) txt += " Note: an empty tape gives <i>y</i> = □, not ε, because β ≠ ε is kept.";
+    else if (o.hasBlank) txt += " Note: <i>y</i> contains □ — the definition allows any <i>y</i> ∈ Γ<sup>+</sup>.";
+    if (o.nonSigma) txt += " Note: <i>y</i> uses tape symbols outside Σ.";
+  } else {
+    txt += '<span class="bad">No output:</span> the head is not on the first symbol of the content (α = <code>' +
+           esc([...alphaOf(c)].map(showSym).join("")) + "</code> ≠ ε), so the configuration is not of the form " + stHtml(M.halt) + "<i>y</i>. " +
+           "This computation contributes nothing to <i>M</i>(<i>x</i>) and does not count for time<sub>M</sub>(<i>x</i>).";
+  }
+  return { txt: txt, o: o };
+}
+
+function build() {
+  steps = []; phases = []; cur = 0;
+  let c = initialConfig(word);
+  let choicePoints = 0;
+  const seen = new Map([[cfgKey(c), 0]]);
+  mkPhase(M.det ? "computation" : "start");
+  add({ cfg: c, t: 0, fired: null, rule: null, options: applicable(c).length, choice: null, maxSpace: spaceOf(c),
+        txt: (M.note ? '<span class="exnote"><b>This example:</b> ' + esc(M.note) + "</span>" : "") + "<b>Start configuration</b> <i>C</i><sub>0</sub> = " + stHtml(M.start) + "<i>x</i>: the input <code>" + esc(word || "ε") + "</code> is on the tape, " +
+             "the head is on its first symbol, all other cells are blank. " +
+             (word.length ? "" : "For the empty input, " + stHtml(M.start) + "ε is not a configuration (β must be non-empty); its shortest representative is " +
+                                 stHtml(M.start) + "□: the head reads a blank. ") +
+             "The machine now applies δ to (state, symbol under the head) — a step of the computation relation ⊢." });
+  for (let t = 0; t < limit; t++) {
+    const last = steps[steps.length - 1];
+    const opts = applicable(c);
+    if (c.state === M.halt) {
+      const h = haltText(c, t);
+      last.final = "halt"; last.txt += h.txt;
+      last.ans = h.o.ok ? "y = " + [...h.o.y].map(showSym).join("") : "halted without output";
+      break;
+    }
+    if (!opts.length) {
+      last.final = "dead";
+      last.txt += ' <span class="bad">Dead end:</span> δ(' + stHtml(c.state) + ", " + showSym(symAt(c, c.head)) + ") = ∅. " +
+        "This computation stops without reaching " + stHtml(M.halt) + " — it contributes nothing to <i>M</i>(<i>x</i>). " +
+        (M.det ? "<b>Strictly speaking this is not a deterministic TM</b>: there δ must be a total function on (Q∖{q<sub>halt</sub>})×Γ. " +
+                 "Read as a nondeterministic TM with δ(" + stHtml(c.state) + ", " + showSym(symAt(c, c.head)) + ") = ∅, we get M(x) = ∅."
+               : "In a nondeterministic machine that is harmless: only <i>some</i> computation has to accept.");
+      last.ans = "no successor configuration";
+      break;
+    }
+    let ci = plan[t] === undefined ? 0 : Math.min(plan[t], opts.length - 1);
+    plan[t] = ci;
+    const tr = M.delta[opts[ci]];
+    if (opts.length > 1) { choicePoints++; mkPhase("choice " + choicePoints); }
+    const r = doStep(c, tr);
+    const prev = c; c = r.cfg;
+    const maxSpace = Math.max(last.maxSpace, spaceOf(c));
+    const caseTxt = { N: "case (N): the head stays", R: "case (R): the head moves right, n ≥ 2", L: "case (L): the head moves left, m ≥ 1",
+                      R1: "case (R) with n = 1: the rule is applied to αqβ□, i.e. a □ is appended first",
+                      L0: "case (L) with m = 0: the rule is applied to □αqβ, i.e. a □ is prepended first" }[r.rule];
+    const st = { cfg: c, raw: r.raw, stripped: r.stripped, t: t + 1, fired: opts[ci], rule: r.rule, m: r.m, n: r.n, options: applicable(c).length,
+          choice: opts.length > 1 ? ci : null, nopts: opts.length, prevHead: prev.head, wrote: tr.write !== tr.read, maxSpace: maxSpace,
+          txt: "<b>Step " + (t + 1) + ":</b> in state " + stHtml(tr.q) + " reading <code>" + showSym(tr.read) + "</code>" +
+               (opts.length > 1 ? " there were " + opts.length + " possible transitions; this computation took option " + (ci + 1) + ": " : ", δ gives ") +
+               "(" + stHtml(tr.to) + ", <code>" + showSym(tr.write) + "</code>, " + tr.dir + "). " +
+               (tr.write !== tr.read ? "The head overwrites <code>" + showSym(tr.read) + "</code> with <code>" + showSym(tr.write) + "</code>, " : "The symbol is left as it is, ") +
+               (tr.dir === "N" ? "does not move, " : "moves " + (tr.dir === "R" ? "right" : "left") + ", ") + "and the state becomes " + stHtml(tr.to) + ". " +
+               "On the configuration string this is " + caseTxt + "." +
+               (r.stripped ? " The result has " + (r.raw.lo < c.lo ? "leading" : "") + (r.raw.lo < c.lo && r.raw.hi > c.hi ? " and " : "") +
+                             (r.raw.hi > c.hi ? "trailing" : "") + " □s, which are dropped: we use the <b>shortest representative</b>." : "") +
+               (spaceOf(c) > spaceOf(prev) ? " |αβ| grows to " + spaceOf(c) + "." : spaceOf(c) < spaceOf(prev) ? " |αβ| shrinks to " + spaceOf(c) + "." : "") };
+    add(st);
+    const key = cfgKey(c);
+    if (seen.has(key) && c.state !== M.halt) {
+      const s0 = seen.get(key);
+      st.final = "loop";
+      st.txt += ' <span class="bad">Configuration repeats:</span> <i>C</i><sub>' + (t + 1) + "</sub> = <i>C</i><sub>" + s0 + "</sub> (up to position on the tape). " +
+        (M.det ? "A deterministic machine is now caught in a cycle and <b>never halts</b>: no <i>y</i> with " + stHtml(M.start) + "<i>x</i> ⊢* " + stHtml(M.halt) +
+                 "<i>y</i> exists, so <i>M</i>(<i>x</i>) = ∅ and time<sub>M</sub>(<i>x</i>) = sup ∅ ∪ {0} = 0."
+               : "Following the same choices again, this computation can go around the cycle forever.");
+      st.ans = "cycle: C" + (t + 1) + " = C" + s0;
+      break;
+    }
+    seen.set(key, t + 1);
+  }
+  const lastSt = steps[steps.length - 1];
+  if (lastSt.final === undefined && c.state !== M.halt && applicable(c).length) {
+    lastSt.final = "timeout";
+    lastSt.txt += ' <span class="bad">TIMEOUT</span> after <i>T</i> = ' + limit + " steps: the run is cut off, as the always-terminating simulation " +
+      "<i>M′</i> of the lemma would do. Raise the time limit to see more (this machine may or may not halt).";
+    lastSt.ans = "TIMEOUT after T = " + limit + " steps";
+  }
+  plan.length = Math.min(plan.length, steps.length);
+  buildTree();
+  summarize();
+}
+
+/* M(x), time_M(x), space_M(x) over ALL computations (as far as explored) */
+let summary = null;
+function summarize() {
+  if (M.det) {
+    const last = steps[steps.length - 1], sp = Math.max(...steps.map(s => s.maxSpace));
+    const o = last.final === "halt" ? outputOf(last.cfg) : null;
+    const known = last.final !== "timeout";
+    summary = { outs: o && o.ok ? [o.y] : [], time: o && o.ok ? String(last.t) : known ? "0" : "?", space: (known ? "" : "≥ ") + sp,
+                partial: !known, note: !known ? "not halted within T: M(x) and time are not determined by this run" : "" };
+    return;
+  }
+  const all = treeRawNodes(treeRaw.root);
+  const outs = new Set(); let tmax = 0, sp = 0, cut = false, inf = false;
+  all.forEach(nd => {
+    sp = Math.max(sp, spaceOf(nd.cfg));
+    if (nd.status === "cut") cut = true;
+    if ((nd.status === "acc" || nd.status === "rej") && nd.out.ok) { outs.add(nd.out.y); tmax = Math.max(tmax, nd.depth); }
+  });
+  /* time = ∞ if a configuration repeats on a path and an output-halting configuration is reachable from it */
+  all.filter(nd => nd.status === "loop").forEach(nd => {
+    const anc = nd.loopOf, stack = [anc];
+    while (stack.length) { const x = stack.pop(); if ((x.status === "acc" || x.status === "rej") && x.out.ok) { inf = true; break; } x.children.forEach(ch => stack.push(ch)); }
+  });
+  summary = { outs: [...outs], time: inf ? "∞" : (cut ? "≥ " : "") + tmax, space: (cut ? "≥ " : "") + sp, partial: cut,
+              note: inf ? "a cycle can be repeated arbitrarily often before halting: halting computations of every length" : cut ? "tree cut off: values are lower bounds" : "" };
+}
+
+/* ---------- the computation tree (nondeterministic view) ----------------- */
+
+const TREE_NODES = 700, TREE_DEPTH = 400;
+
+function buildTree() {
+  tree = null; treeRaw = null;
+  if (M.det) return;
+  /* breadth-first enumeration of configurations, as a tree (no merging of equal configurations) */
+  const root = { cfg: initialConfig(word), depth: 0, parent: null, ci: null, nopts: 0, children: [], status: "open" };
+  const queue = [root]; let count = 1;
+  const nodes = [root];
+  while (queue.length) {
+    const nd = queue.shift();
+    if (nd.cfg.state === M.halt) { const o = outputOf(nd.cfg); nd.status = o.accept ? "acc" : "rej"; nd.out = o; continue; }
+    const opts = applicable(nd.cfg);
+    if (!opts.length) { nd.status = "dead"; continue; }
+    { const k = cfgKey(nd.cfg); let a = nd.parent; while (a && cfgKey(a.cfg) !== k) a = a.parent;
+      if (a) { nd.status = "loop"; nd.loopOf = a; continue; } }
+    if (nd.depth >= Math.min(limit, TREE_DEPTH) || count + opts.length > TREE_NODES) { nd.status = "cut"; continue; }
+    nd.nopts = opts.length;
+    opts.forEach((k, ci) => {
+      const ch = { cfg: doStep(nd.cfg, M.delta[k]).cfg, depth: nd.depth + 1, parent: nd, ci: ci, nopts: opts.length, children: [], status: "open", tr: k };
+      nd.children.push(ch); queue.push(ch); nodes.push(ch); count++;
+    });
+  }
+  treeRaw = { root: root, count: count };
+}
+
+let treeRaw = null;
+
+function compressTree() {
+  tree = null;
+  if (!treeRaw) return;
+  const root = treeRaw.root, count = treeRaw.count;
+  treeRawNodes(root).forEach(nd => nd.onPath = false);
+  /* the node of the current computation at each depth */
+  const pathNodes = [root];
+  for (let t = 0; t < steps.length - 1; t++) {
+    const nd = pathNodes[t]; if (!nd || !nd.children.length) break;
+    const st = steps[t + 1];
+    const ci = st.choice === null ? 0 : st.choice;
+    pathNodes.push(nd.children[Math.min(ci, nd.children.length - 1)]);
+  }
+  pathNodes.forEach(nd => nd.onPath = true);
+  /* compress chains: keep root, branch nodes, children of branch nodes, leaves, and the current node */
+  const curNode = pathNodes[Math.min(cur, pathNodes.length - 1)];
+  const keep = nd => nd === root || nd.children.length !== 1 || (nd.parent && nd.parent.children.length > 1) || nd === curNode;
+  const build = nd => {
+    const out = { ref: nd, kids: [], depth: nd.depth };
+    nd.children.forEach(ch => {
+      let x = ch, skipped = 0;
+      while (!keep(x)) { x = x.children[0]; skipped++; }
+      const sub = build(x); sub.skipped = skipped; sub.ci = ch.ci; sub.nopts = ch.nopts; out.kids.push(sub);
+    });
+    return out;
+  };
+  const croot = build(root);
+  /* layout: x by leaf order, y by kept-depth (row) */
+  let leaf = 0;
+  const place = (nd, row) => {
+    nd.row = row;
+    if (!nd.kids.length) { nd.x = leaf++; return; }
+    nd.kids.forEach(k => place(k, row + 1));
+    nd.x = (nd.kids[0].x + nd.kids[nd.kids.length - 1].x) / 2;
+  };
+  place(croot, 0);
+  tree = { root: croot, leaves: leaf, pathNodes: pathNodes, curNode: curNode, count: count, flat: [] };
+  const flat = nd => { nd.id = tree.flat.length; tree.flat.push(nd); nd.kids.forEach(flat); };
+  flat(croot);
+  tree.rows = Math.max(...tree.flat.map(n => n.row)) + 1;
+}
+
+function treeRawNodes(root) { const out = []; const st = [root]; while (st.length) { const n = st.pop(); out.push(n); n.children.forEach(c => st.push(c)); } return out; }
+
+/* breadth-first search for an accepting computation; returns the plan or null */
+function findAccepting() {
+  const root = { cfg: initialConfig(word), depth: 0, parent: null, ci: null };
+  const queue = [root]; const seen = new Set([cfgKey(root.cfg)]); let budget = 60000;
+  while (queue.length && budget-- > 0) {
+    const nd = queue.shift();
+    if (nd.cfg.state === M.halt) { if (outputOf(nd.cfg).accept) { const p = []; let x = nd; while (x.parent) { p.unshift(x.ci); x = x.parent; } return p; } continue; }
+    if (nd.depth >= limit) continue;
+    applicable(nd.cfg).forEach((k, ci) => {
+      const c = doStep(nd.cfg, M.delta[k]).cfg, key = cfgKey(c);
+      if (seen.has(key)) return; seen.add(key);
+      queue.push({ cfg: c, depth: nd.depth + 1, parent: nd, ci: ci });
+    });
+  }
+  return null;
+}
+
+/* ---------- tape drawing -------------------------------------------------- */
+
+const CW = 40, CH = 40, TX0 = 46, TY0 = 26;
+let tapeLo = 0, tapeHi = 0;         /* cell range shown, fixed for the whole computation so nothing jumps */
+
+function tapeRange() {
+  let lo = 0, hi = Math.max(0, word.length - 1);
+  steps.forEach(s => { lo = Math.min(lo, s.cfg.lo); hi = Math.max(hi, s.cfg.hi); });
+  tapeLo = lo - 2; tapeHi = hi + 2;
+}
+const cellX = pos => TX0 + (pos - tapeLo) * CW;
+
+function drawTape() {
+  const st = steps[cur] || {}, c = st.cfg;
+  const svg = el("tapeSvg");
+  tapeRange();
+  const W = TX0 * 2 + (tapeHi - tapeLo + 1) * CW, H = TY0 + CH + 96;
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  const out = [];
+  out.push('<text class="dots" x="' + (TX0 - 22) + '" y="' + (TY0 + CH / 2) + '">…</text>');
+  out.push('<text class="dots" x="' + (W - TX0 + 22) + '" y="' + (TY0 + CH / 2) + '">…</text>');
+  for (let pos = tapeLo; pos <= tapeHi; pos++) {
+    const x = cellX(pos), sym = symAt(c, pos);
+    const inside = pos >= c.lo && pos <= c.hi;
+    let cls = "cell";
+    if (!inside) cls += " blank outside"; else if (sym === BLANK) cls += " blank";
+    if (inside && pos < c.head) cls += " alpha";
+    if (pos === c.head) cls += " head";
+    out.push('<rect class="' + cls + '" x="' + x + '" y="' + TY0 + '" width="' + CW + '" height="' + CH + '"/>');
+    const pop = (st.wrote && pos === st.prevHead) ? " pop" : "";
+    out.push('<text class="sym' + (sym === BLANK ? " blank" : "") + (inside ? "" : " outside") + pop + '" x="' + (x + CW / 2) + '" y="' + (TY0 + CH / 2) + '">' + esc(showSym(sym)) + "</text>");
+    out.push('<text class="posix" x="' + (x + CW / 2) + '" y="' + (TY0 - 8) + '">' + pos + "</text>");
+    out.push('<rect class="tapehit" data-pos="' + pos + '" x="' + x + '" y="' + (TY0 - 16) + '" width="' + CW + '" height="' + (CH + 16) + '"/>');
+  }
+  /* braces for α and β under the content */
+  const by = TY0 + CH + 8;
+  const brace = (from, to, label, cls) => {
+    if (to < from) return;
+    const x1 = cellX(from) + 3, x2 = cellX(to) + CW - 3, mid = (x1 + x2) / 2;
+    out.push('<path class="brace" d="M' + x1 + "," + by + " v5 H" + x2 + " v-5 M" + mid + "," + (by + 5) + ' v4"/>');
+    out.push('<text class="bracelab ' + cls + '" x="' + mid + '" y="' + (by + 22) + '">' + label + "</text>");
+  };
+  brace(c.lo, c.head - 1, "α", "");
+  brace(c.head, c.hi, "β", "");
+  /* the head: a small box with the state, drawn as a persistent group so it glides */
+  const hx = cellX(c.head) + CW / 2, hy = TY0 + CH + 58;
+  const fork = !M.det && !st.final && st.options > 1;
+  const kind = st.final === "halt" ? " halt" : (st.final === "dead" || st.final === "loop") ? " dead" : fork ? " fork" : "";
+  out.push('<g class="headg" style="transform:translate(' + hx + 'px,' + hy + 'px)">' +
+           '<path d="M0,-22 l-7,-8 h14 z" fill="var(--wi-accent)"/>' +
+           '<rect class="headbox' + kind + '" x="-26" y="-22" width="52" height="30" rx="4"/>' +
+           '<text class="headlab" x="0" y="-7">' + stSvg(c.state) + "</text>" +
+           (fork ? '<text class="forkmark" x="38" y="-7">⑂ ' + st.options + "</text>" : "") + "</g>");
+  svg.innerHTML = out.join("");
+}
+
+/* ---------- configuration string, rule, counters ------------------------- */
+
+function renderCfg() {
+  const st = steps[cur] || {}, c = st.cfg;
+  const a = alphaOf(c), b = betaOf(c);
+  const bHtml = b.length ? '<span class="hd">' + esc(showSym(b[0])) + "</span>" + esc([...b.slice(1)].map(showSym).join("")) : "";
+  el("cfgBox").innerHTML = '<span class="lab">C<sub>' + st.t + "</sub> =</span>" +
+    '<span class="al">' + (a.length ? esc([...a].map(showSym).join("")) : "") + "</span>" +
+    '<span class="st">' + stHtml(c.state) + "</span>" +
+    '<span class="be">' + bHtml + "</span>" +
+    (a.length ? "" : '<span class="lab" style="margin-left:10px">(α = ε)</span>');
+  const rb = el("ruleBox");
+  const show = x => esc([...x].map(showSym).join(""));
+  const rawStr = r => { let a = "", b = ""; for (let p = r.lo; p < r.head; p++) a += symAt(r, p); for (let p = r.head; p <= r.hi; p++) b += symAt(r, p);
+                        return show(a) + " " + stHtml(r.state) + " " + show(b); };
+  if (st.fired === null || st.fired === undefined) {
+    rb.innerHTML = '<span class="lab" style="font-family:var(--wi-font-body);color:var(--wi-ink-faint)">' +
+      (st.t === 0 ? "The first step follows from δ(" + stHtml(c.state) + ", " + showSym(symAt(c, c.head)) + ")." : "") + "</span>";
+  } else {
+    const tr = M.delta[st.fired], prev = steps[cur - 1].cfg;
+    const pa = alphaOf(prev), pb = betaOf(prev);
+    let lhs = "<code>" + show(pa) + " " + stHtml(prev.state) + " " + show(pb) + "</code>";
+    if (st.rule === "R1") lhs += " = <code>" + show(pa) + " " + stHtml(prev.state) + " " + show(pb) + "<b>□</b></code>";
+    if (st.rule === "L0") lhs += " = <code><b>□</b>" + show(pa) + " " + stHtml(prev.state) + " " + show(pb) + "</code>";
+    let rhs = "<code>" + rawStr(st.raw) + "</code>";
+    if (st.stripped) rhs += ' = <code>' + show(a) + " " + stHtml(c.state) + " " + show(b) + '</code> <span class="lab">(shortest)</span>';
+    const caseName = { N: "case (N)", R: "case (R)", L: "case (L)", R1: "(R), n = 1: pad □", L0: "(L), m = 0: pad □" }[st.rule];
+    rb.innerHTML = '<span class="case">' + caseName + "</span> δ(" + stHtml(tr.q) + ", " + showSym(tr.read) + ") " + (M.det ? "=" : "∋") +
+      " (" + stHtml(tr.to) + ", " + showSym(tr.write) + ", " + tr.dir + "),&nbsp; m = " + st.m + ", n = " + st.n + ":&nbsp; " + lhs + " ⊢ " + rhs;
+  }
+  const S = summary;
+  el("cntBox").innerHTML = "<span>this computation: <b>t = " + st.t + "</b></span>" +
+    "<span>|αβ| = <b>" + spaceOf(c) + "</b></span>" +
+    "<span>max |αβ| so far = <b>" + st.maxSpace + "</b></span>" +
+    '<span style="flex-basis:100%;height:0"></span>' +
+    "<span>" + (M.det ? "" : "all computations: ") + "<i>M</i>(<i>x</i>) = <b>" + (S.partial && !S.outs.length ? "?" : "{" + [...S.outs].sort().map(y => [...y].map(showSym).join("")).join(", ") + "}" + (S.partial ? " ∪ …" : "")) + "</b></span>" +
+    "<span>time<sub>M</sub>(<i>x</i>) = <b>" + S.time + "</b></span>" +
+    "<span>space<sub>M</sub>(<i>x</i>) = <b>" + S.space + "</b></span>" +
+    (S.note ? '<span class="lab" style="font-size:.78rem">(' + S.note + ")</span>" : "");
+  el("tapeMeta").textContent = "|x| = " + word.length + " · |Σ| = " + M.sigma.length + " · |Γ| = " + M.gamma.length + " · |Q| = " + M.states.length;
+}
+
+/* ---------- tableau ------------------------------------------------------- */
+
+function renderTableau() {
+  el("tabBox").style.display = showTab ? "" : "none";
+  if (!showTab) return;
+  const lo = tapeLo + 1, hi = tapeHi - 1;
+  const rows = ['<table class="tableau"><thead><tr><th class="t">t</th>'];
+  for (let p = lo; p <= hi; p++) rows.push("<th>" + p + "</th>");
+  rows.push("<th></th></tr></thead><tbody>");
+  steps.forEach((s, k) => {
+    const c = s.cfg;
+    rows.push('<tr class="' + (k === cur ? "now" : k > cur ? "fut" : "") + '"><th class="t">' + s.t + "</th>");
+    for (let p = lo; p <= hi; p++) {
+      const sym = symAt(c, p), inside = p >= c.lo && p <= c.hi;
+      let cls = inside ? (sym === BLANK ? "blank" : "") : "outside";
+      if (p === c.head) cls += " hd";
+      rows.push('<td class="' + cls + '">' + (inside ? esc(showSym(sym)) : "") + (p === c.head ? '<span class="q">' + stHtml(c.state) + "</span>" : "") + "</td>");
+    }
+    rows.push("<th></th></tr>");
+  });
+  rows.push("</tbody></table>");
+  el("tabWrap").innerHTML = rows.join("");
+  el("tabMeta").textContent = steps.length + " rows × " + (hi - lo + 1) + " cells";
+  const now = el("tabWrap").querySelector("tr.now");
+  if (now && now.scrollIntoView) now.scrollIntoView({ block: "nearest" });
+}
+
+/* ---------- tree drawing -------------------------------------------------- */
+
+const TR = 13, TDX = 40, TDY = 50, TXPAD = 50, TYPAD = 26;
+
+function drawTree() {
+  const box = el("treeBox");
+  if (!tree) { box.style.display = "none"; return; }
+  box.style.display = "";
+  const svg = el("treeSvg");
+  const W = TXPAD * 2 + Math.max(1, tree.leaves - 1) * TDX, H = TYPAD * 2 + (tree.rows - 1) * TDY;
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  const X = nd => TXPAD + nd.x * TDX, Y = nd => TYPAD + nd.row * TDY;
+  const out = [];
+  tree.flat.forEach(nd => {
+    nd.kids.forEach(k => {
+      const on = nd.ref.onPath && k.ref.onPath;
+      const x1 = X(nd), y1 = Y(nd), x2 = X(k), y2 = Y(k);
+      out.push('<path class="tedge' + (on ? " onpath" : "") + '" d="M' + x1 + "," + (y1 + TR) + " C" + x1 + "," + (y1 + TDY / 2) + " " + x2 + "," + (y2 - TDY / 2) + " " + x2 + "," + (y2 - TR) + '"/>');
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+      if (k.nopts > 1) out.push('<text class="tedgelab choice' + (on ? " onpath" : "") + '" x="' + (mx + (x2 >= x1 ? 8 : -8)) + '" y="' + (my - 6) + '">' + (k.ci + 1) + "</text>");
+      if (k.skipped > 0) out.push('<text class="tedgelab' + (on ? " onpath" : "") + '" x="' + (mx + (x2 >= x1 ? 8 : -8)) + '" y="' + (my + (k.nopts > 1 ? 7 : 0)) + '">+' + k.skipped + "</text>");
+    });
+  });
+  tree.flat.forEach(nd => {
+    const r = nd.ref;
+    let cls = "tnode";
+    if (r.onPath) cls += " onpath";
+    if (r === tree.curNode) cls += " cur";
+    if (r.status === "acc") cls += " acc"; else if (r.status === "rej") cls += " rej"; else if (r.status === "dead") cls += " dead"; else if (r.status === "cut") cls += " cut"; else if (r.status === "loop") cls += " loop";
+    if (r === tree.curNode && r.children.length > 1) cls += " fork";
+    if (hovNode === nd.id) cls += " hov";
+    const lab = r.status === "acc" ? "1" : r.status === "rej" ? (r.out.ok ? esc([...r.out.y].map(showSym).join("")).slice(0, 3) : "–") : r.status === "loop" ? "↻" : r.status === "dead" ? "∅" : r.status === "cut" ? "⋯" : stSvg(r.cfg.state);
+    out.push('<g class="' + cls + '"><circle class="body" cx="' + X(nd) + '" cy="' + Y(nd) + '" r="' + TR + '"/>' +
+             '<text x="' + X(nd) + '" y="' + (Y(nd) - 1) + '">' + lab + "</text>" +
+             '<circle class="thit" data-n="' + nd.id + '" cx="' + X(nd) + '" cy="' + Y(nd) + '" r="' + (TR + 4) + '"/></g>');
+    out.push('<text class="tdepth" x="' + (TXPAD - 24) + '" y="' + Y(nd) + '">' + (nd.x === Math.min(...tree.flat.filter(z => z.row === nd.row).map(z => z.x)) ? "t=" + r.depth : "") + "</text>");
+  });
+  svg.innerHTML = out.join("");
+  const acc = tree.flat.filter(n => n.ref.status === "acc").length, dead = tree.flat.filter(n => n.ref.status === "dead").length,
+        rej = tree.flat.filter(n => n.ref.status === "rej").length, cut = tree.flat.filter(n => n.ref.status === "cut").length, loops = tree.flat.filter(n => n.ref.status === "loop").length;
+  el("treeMeta").textContent = tree.count + " configurations · " + acc + " accepting, " + rej + " other halting, " + dead + " dead ends" + (loops ? ", " + loops + " cycles" : "") + (cut ? ", " + cut + " cut off" : "");
+}
+
+/* ---------- certificate, status, δ table --------------------------------- */
+
+function renderCert() {
+  const box = el("certBox");
+  if (M.det) { box.style.display = "none"; return; }
+  box.style.display = "";
+  const chips = [];
+  steps.forEach((s, k) => {
+    if (s.choice === null || s.choice === undefined) return;
+    chips.push('<span class="c' + (k > cur ? " fut" : "") + (k === cur ? " now" : "") + '" data-k="' + k + '" title="step ' + s.t + ': option ' + (s.choice + 1) + " of " + s.nopts + '">' +
+               (s.choice + 1) + "</span>");
+  });
+  el("certList").innerHTML = chips.length ? '<div class="cert">' + chips.join("") + "</div>" : '<span class="empty">This computation makes no choices.</span>';
+  const last = steps[steps.length - 1];
+  el("certMeta").textContent = chips.length + " choice" + (chips.length === 1 ? "" : "s") + (last.final === "halt" ? (outputOf(last.cfg).accept ? " · accepting" : " · not accepting") : "");
+}
+
+function renderDelta() {
+  const st = steps[cur] || {};
+  const c = st.cfg, appl = new Set(applicable(c));
+  const rows = ['<table class="delta"><thead><tr>' + (M.det ? "" : "<th></th>") + "<th>state</th><th>symbol</th><th></th><th>new symbol</th><th>move</th><th>new state</th></tr></thead><tbody>"];
+  let lastKey = null, optNo = 0;
+  M.delta.forEach((t, k) => {
+    const key = t.q + "|" + t.read;
+    optNo = key === lastKey ? optNo + 1 : 1; lastKey = key;
+    const many = M.byKey[key].length > 1;
+    let cls = "";
+    if (st.fired === k) cls = "fired"; else if (appl.has(k)) cls = "appl";
+    if (appl.has(k) && M.byKey[key].length > 1) { cls += " pick"; if (steps[cur + 1] && steps[cur + 1].fired === k) cls += " next"; }
+    rows.push('<tr class="' + cls + '" data-k="' + k + '">' + (M.det ? "" : '<td class="opt">' + (many ? optNo : "") + "</td>") +
+              '<td class="st">' + stHtml(t.q) + '</td><td>' + esc(showSym(t.read)) + '</td><td class="arrow">→</td><td>' + esc(showSym(t.write)) +
+              "</td><td>" + t.dir + '</td><td class="st">' + stHtml(t.to) + "</td></tr>");
+  });
+  rows.push('<tr class="halt">' + (M.det ? "" : "<td></td>") + '<td class="st">' + stHtml(M.halt) + '</td><td>—</td><td colspan="4">— terminate the computation —</td></tr></tbody></table>');
+  el("deltaBox").innerHTML = rows.join("");
+  el("deltaMeta").textContent = M.delta.length + " transitions · " + (M.det ? "deterministic" : "nondeterministic");
+  el("deltaNote").innerHTML = M.det
+    ? "Highlighted: the transition applied in this step; lightly: the one that applies next."
+    : "Highlighted: the transition applied in this step; lightly: the transitions applicable now — <b>click one</b> to take it in the next step.";
+}
+
+/* ---------- transport / render pass ------------------------------------- */
+
+function renderPhases() {
+  const bar = el("phaseBar");
+  bar.innerHTML = "";
+  phases.forEach(p => {
+    const span = p.to - p.from + 1;
+    const pct = cur > p.to ? 100 : cur < p.from ? 0 : ((cur - p.from + 1) / span) * 100;
+    const b = document.createElement("button");
+    b.className = "phasebtn" + (cur >= p.from && cur <= p.to ? " on" : (cur > p.to ? " past" : ""));
+    b.style.flexGrow = String(Math.max(1, span));
+    b.innerHTML = '<span class="fill' + (pct === 0 ? " empty" : "") + '" style="width:' + pct.toFixed(2) + '%"></span><span class="lab">' + esc(p.name) + "</span>";
+    b.title = p.name + " — steps " + (p.from + 1) + "–" + (p.to + 1);
+    b.addEventListener("click", () => { stopPlay(); cur = p.from; render(); });
+    bar.appendChild(b);
+  });
+}
+
+function renderFork() {
+  const st = steps[cur] || {}, box = el("forkBox");
+  const opts = st.cfg ? applicable(st.cfg) : [];
+  if (M.det || st.final || opts.length < 2) { box.style.display = "none"; return; }
+  const next = steps[cur + 1] ? steps[cur + 1].fired : opts[Math.min(plan[st.t] || 0, opts.length - 1)];
+  box.style.display = "";
+  box.innerHTML = '<span class="fw-h">⑂ Branching point</span> δ(' + stHtml(st.cfg.state) + ", " + showSym(symAt(st.cfg, st.cfg.head)) + ") has <b>" + opts.length +
+    "</b> possible continuations — the computation splits here. Next step takes:" +
+    '<span class="fw-opts">' + opts.map((k, i) => { const t = M.delta[k];
+      return '<button class="fw-opt' + (k === next ? " on" : "") + '" data-k="' + k + '" title="take this transition">' + (i + 1) + ": (" + stHtml(t.to) + ", " +
+             esc(showSym(t.write)) + ", " + t.dir + ")</button>"; }).join("") + "</span>";
+}
+
+function render() {
+  const st = steps[cur] || {};
+  renderFork();
+  compressTree();
+  drawTape(); renderCfg(); renderTableau(); drawTree(); renderCert(); renderPhases();
+  if (window.innerWidth > 760) renderDelta();
+  el("statusBox").innerHTML = (st.txt || "") + (st.ans ? '<b class="ans">' + st.ans + "</b>" : "");
+  el("phaseName").textContent = phases[st.ph] ? phases[st.ph].name : "";
+  el("scrubber").max = String(Math.max(0, steps.length - 1));
+  el("scrubber").value = String(cur);
+  el("stepNo").textContent = steps.length ? (cur + 1) + " / " + steps.length : "— / —";
+  el("backBtn").disabled = cur <= 0;
+  el("stepBtn").disabled = cur >= steps.length - 1;
+  el("ntmCtl").style.display = M.det ? "none" : "";
+  const nch = steps.filter(s => s.choice !== null && s.choice !== undefined).length;
+  el("modeNote").innerHTML = "<b>" + esc(M.name || "machine") + "</b> on <code>" + esc(word || "ε") + "</code> — " +
+    (M.det ? "deterministic: exactly one computation." : "nondeterministic: this computation makes " + nch + " choice" + (nch === 1 ? "" : "s") + ".");
+}
+
+const PLAY = "\u25B6\uFE0E", PAUSE = "\u23F8\uFE0E";
+function stepFwd() { if (cur < steps.length - 1) { cur++; render(); } else stopPlay(); }
+function stepBack() { if (cur > 0) { cur--; render(); } }
+function stopPlay() {
+  if (timer) { clearInterval(timer); timer = null; el("playBtn").textContent = PLAY; el("playBtn").setAttribute("aria-label", "Play"); }
+}
+function togglePlay() {
+  if (timer) { stopPlay(); return; }
+  el("playBtn").textContent = PAUSE; el("playBtn").setAttribute("aria-label", "Pause");
+  timer = setInterval(stepFwd, Number(el("speed").value));
+}
+
+/* ---------- tooltips ------------------------------------------------------ */
+
+function moveTip(ev) {
+  const t = el("tooltip");
+  const x = Math.min(ev.clientX + 14, window.innerWidth - t.offsetWidth - 10);
+  const y = Math.min(ev.clientY + 16, window.innerHeight - t.offsetHeight - 10);
+  t.style.left = x + "px"; t.style.top = y + "px";
+}
+function showTip(html, ev) { const t = el("tooltip"); t.innerHTML = html; t.style.display = "block"; moveTip(ev); }
+function hideTip() { el("tooltip").style.display = "none"; }
+
+function tipCell(pos) {
+  const c = steps[cur].cfg, sym = symAt(c, pos);
+  const inside = pos >= c.lo && pos <= c.hi;
+  let h = '<span class="tt-h">cell ' + pos + "</span><br>" + (inside ? "symbol <code>" + esc(showSym(sym)) + "</code>" : "blank — outside the shortest representative αβ");
+  if (inside) h += "<br>" + (pos < c.head ? "in α" : pos === c.head ? "under the head — first symbol of β" : "in β");
+  /* history of this cell: when was it written? */
+  let writes = 0; for (let k = 1; k <= cur; k++) if (steps[k].wrote && steps[k].prevHead === pos) writes++;
+  h += "<br><span class='tt-s'>rewritten " + writes + " time" + (writes === 1 ? "" : "s") + " so far</span>";
+  return h;
+}
+function tipNode(nd) {
+  const r = nd.ref, c = r.cfg;
+  const show = s => esc([...s].map(showSym).join(""));
+  let h = '<span class="tt-h">t = ' + r.depth + "</span><br><code>" + show(alphaOf(c)) + " " + stHtml(c.state) + " " + show(betaOf(c)) + "</code><br>";
+  h += r.status === "acc" ? "halts with y = 1 — accepting" : r.status === "rej" ? (r.out.ok ? "halts with y = " + yHtml(r.out.y) : "halts with α ≠ ε: not of the form q_halt y, no output") :
+       r.status === "loop" ? "repeats the configuration at t = " + r.loopOf.depth + ": a cycle" :
+       r.status === "dead" ? "dead end: δ = ∅" : r.status === "cut" ? "cut off by the limit" : "";
+  if (nd.skipped) h += "<br><span class='tt-s'>" + nd.skipped + " deterministic step" + (nd.skipped === 1 ? "" : "s") + " before this node</span>";
+  h += "<br><span class='tt-s'>click: follow this branch</span>";
+  return h;
+}
+
+/* ---------- interaction --------------------------------------------------- */
+
+function followNode(nd) {
+  /* plan := the choices leading to this node, first option afterwards */
+  const p = []; let x = nd.ref;
+  while (x.parent) { p.unshift(x.ci); x = x.parent; }
+  plan = p;
+  const depth = nd.ref.depth;
+  build(); cur = Math.min(depth, steps.length - 1); render();
+}
+function chooseTransition(k) {
+  const st = steps[cur];
+  const opts = applicable(st.cfg);
+  const ci = opts.indexOf(k);
+  if (ci < 0) return;
+  plan = plan.slice(0, st.t); plan[st.t] = ci;
+  const keep = cur;
+  build(); cur = Math.min(keep + 1, steps.length - 1); render();
+}
+
+/* ---------- input --------------------------------------------------------- */
+
+function fillPresets() {
+  const s = el("presetSel"); s.innerHTML = "";
+  const groups = {};
+  Object.keys(PRESETS).forEach(k => {
+    const g = PRESETS[k].group || "Examples";
+    if (!groups[g]) { groups[g] = document.createElement("optgroup"); groups[g].label = g; s.appendChild(groups[g]); }
+    const o = document.createElement("option"); o.value = k; o.textContent = PRESETS[k].name; groups[g].appendChild(o);
+  });
+  const o = document.createElement("option"); o.value = "custom"; o.textContent = "(custom machine)"; s.appendChild(o);
+}
+function loadMachine(text, fromPreset) {
+  let m;
+  try { m = parseMachine(text); } catch (e) { el("parseErr").textContent = e.message; return false; }
+  el("parseErr").textContent = "";
+  M = m;
+  word = m.input !== null ? m.input : word;
+  limit = m.limit || 200; el("capIn").value = limit;
+  plan = [];
+  build(); cur = 0;
+  el("inWord").value = word;
+  el("inputText").value = text;
+  if (!fromPreset) el("presetSel").value = "custom";
+  render();
+  return true;
+}
+function setWord(w) {
+  const bad = [...w].filter(ch => !M.sigma.includes(ch));
+  if (bad.length) { el("parseErr").textContent = "Input symbols must be from Σ = {" + M.sigma.join(", ") + "}; found " + bad.join(", ") + "."; return; }
+  el("parseErr").textContent = "";
+  word = w; plan = []; build(); cur = 0; el("inWord").value = word; render();
+}
+
+function init() {
+  fillPresets();
+  el("presetSel").addEventListener("change", e => { const p = PRESETS[e.target.value]; if (p) loadMachine(p.text, true); });
+  el("applyBtn").addEventListener("click", () => setWord(el("inWord").value.trim()));
+  el("inWord").addEventListener("keydown", ev => { if (ev.key === "Enter") setWord(el("inWord").value.trim()); });
+  el("randBtn").addEventListener("click", () => {
+    const n = 4 + Math.floor(Math.random() * 5);
+    let w = ""; for (let i = 0; i < n; i++) w += M.sigma[Math.floor(Math.random() * M.sigma.length)];
+    setWord(w);
+  });
+  el("capIn").addEventListener("change", e => { limit = Math.max(5, Math.min(2000, Number(e.target.value) || 200)); e.target.value = limit; const k = cur; build(); cur = Math.min(k, steps.length - 1); render(); });
+  el("tabChk").addEventListener("change", e => { showTab = e.target.checked; render(); });
+  el("loadBtn").addEventListener("click", () => loadMachine(el("inputText").value, false));
+  el("findBtn").addEventListener("click", () => {
+    const p = findAccepting();
+    if (!p) { el("modeNote").innerHTML += ' <span class="bad">No accepting computation within the time limit — x ∉ L(M) (as far as the search reached).</span>'; return; }
+    plan = p; build(); cur = 0; render();
+  });
+  el("firstBtn").addEventListener("click", () => { plan = []; build(); cur = 0; render(); });
+
+  el("stepBtn").addEventListener("click", () => { stopPlay(); stepFwd(); });
+  el("backBtn").addEventListener("click", () => { stopPlay(); stepBack(); });
+  el("playBtn").addEventListener("click", togglePlay);
+  el("resetBtn").addEventListener("click", () => { stopPlay(); cur = 0; render(); });
+  el("scrubber").addEventListener("input", e => { stopPlay(); cur = Number(e.target.value); render(); });
+  el("speed").addEventListener("input", e => { el("speedVal").textContent = e.target.value + "ms"; if (timer) { stopPlay(); togglePlay(); } });
+
+  const tape = el("tapeSvg");
+  tape.addEventListener("mousemove", ev => {
+    const t = ev.target;
+    if (t.classList.contains("tapehit")) showTip(tipCell(Number(t.dataset.pos)), ev); else hideTip();
+  });
+  tape.addEventListener("mouseleave", hideTip);
+
+  const tsvg = el("treeSvg");
+  tsvg.addEventListener("mousemove", ev => {
+    const t = ev.target;
+    const n = t.classList.contains("thit") ? Number(t.dataset.n) : -1;
+    if (n !== hovNode) { hovNode = n; drawTree(); }
+    if (n >= 0) showTip(tipNode(tree.flat[n]), ev); else hideTip();
+  });
+  tsvg.addEventListener("mouseleave", () => { hovNode = -1; hideTip(); drawTree(); });
+  tsvg.addEventListener("click", ev => {
+    const t = ev.target;
+    if (t.classList.contains("thit")) { stopPlay(); followNode(tree.flat[Number(t.dataset.n)]); }
+  });
+  el("forkBox").addEventListener("click", ev => {
+    const b = ev.target.closest(".fw-opt");
+    if (b) { stopPlay(); chooseTransition(Number(b.dataset.k)); }
+  });
+  el("deltaBox").addEventListener("click", ev => {
+    const tr = ev.target.closest("tr.pick");
+    if (tr) { stopPlay(); chooseTransition(Number(tr.dataset.k)); }
+  });
+  el("certList").addEventListener("click", ev => {
+    const c = ev.target.closest(".c");
+    if (c) { stopPlay(); cur = Number(c.dataset.k); render(); }
+  });
+
+  window.addEventListener("resize", () => render());
+  document.addEventListener("keydown", ev => {
+    if (ev.target.tagName === "TEXTAREA" || ev.target.tagName === "INPUT" || ev.target.tagName === "SELECT") return;
+    if (ev.key === "ArrowRight") { stopPlay(); stepFwd(); ev.preventDefault(); }
+    if (ev.key === "ArrowLeft")  { stopPlay(); stepBack(); ev.preventDefault(); }
+  });
+
+  el("presetSel").value = "slides";
+  loadMachine(PRESETS.slides.text, true);
+}
+
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>

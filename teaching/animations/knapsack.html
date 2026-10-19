@@ -1,0 +1,2446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knapsack · pseudopolynomial dynamic programming, step by step</title>
+<style>
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#8d897c;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-coin:#e6c66a; --wi-coin-edge:#9a7a1f;
+    --wi-font-body:texgyrepagella, Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-font-mono:var(--wi-font-mono);
+    --wi-radius:4px; --wi-radius-lg:5px;
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title,.wi-caption { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:18px;
+              flex-wrap:wrap; margin:0 0 6px; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 16px; max-width:92ch; line-height:1.5; }
+  .subtitle code, .hint code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; }
+
+  /* --- control chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:14px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:12px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; }
+  .ctl > label, .lbl { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer;
+           transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text;
+                font-size:1.02rem; line-height:1.1; padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  input[type=range] { accent-color:var(--wi-accent); cursor:pointer; vertical-align:middle; }
+  .seg { display:inline-flex; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+
+  /* --- operation bar --- */
+  .opbar { display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; padding:10px 18px;
+           background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+           border-radius:var(--wi-radius-lg); margin-bottom:14px; }
+  .opnote { font-size:.78rem; color:var(--wi-ink-faint); }
+  .opnote b { color:var(--wi-accent); }
+
+  /* --- transport: slider + phase bar --- */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:18px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; --thumb:8px; }
+  .progress input[type=range] { display:block; width:100%; margin:0; }
+  .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint);
+            white-space:nowrap; text-align:right; padding-top:4px; }
+  .phasebar { display:flex; margin:5px var(--thumb) 0;
+              width:calc(100% - var(--thumb) - var(--thumb)); }
+  .phasebtn { position:relative; overflow:hidden;
+              flex-grow:1; flex-basis:0; min-width:0; padding:3px 4px; font-size:.68rem; line-height:1.3;
+              font-family:var(--wi-font-head); letter-spacing:.03em;
+              background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+              border-left-width:0; border-radius:0; color:var(--wi-ink-faint); cursor:pointer;
+              text-overflow:ellipsis; white-space:nowrap; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3;
+                    border-right:1px solid var(--wi-accent-soft); transition:width .12s linear; }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+
+  /* --- stage --- */
+  /* two columns with a draggable divider between them: the left width is a
+     CSS variable the gutter script writes to (px once dragged, fr before) */
+  .stage { display:grid; grid-template-columns:minmax(280px, var(--left, 1.2fr)) 14px minmax(320px, 1fr);
+           gap:0 10px; align-items:start; --left:1.2fr; }
+  .gutter { align-self:stretch; cursor:col-resize; position:relative; border-radius:3px; touch-action:none;
+            user-select:none; -webkit-user-select:none; }
+  .gutter::before { content:""; position:absolute; left:50%; top:0; bottom:0; width:2px; margin-left:-1px;
+                    background:var(--wi-border-soft); transition:background .15s; }
+  .gutter::after { content:""; position:absolute; left:50%; top:50%; width:6px; height:44px; margin:-22px 0 0 -3px;
+                   border-radius:3px; background:var(--wi-border); border:1px solid var(--wi-border-strong);
+                   transition:background .15s; }
+  .gutter:hover::before, .gutter.dragging::before { background:var(--wi-accent-soft); }
+  .gutter:hover::after, .gutter.dragging::after { background:var(--wi-accent-soft); }
+  body.dragging { cursor:col-resize; user-select:none; }
+  @media (max-width:1080px) { .stage { grid-template-columns:1fr; gap:14px; } .gutter { display:none; } }
+  .col-side { display:flex; flex-direction:column; gap:14px; }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+             border-radius:var(--wi-radius-lg); padding:12px 15px; }
+  .sim-box + .sim-box { margin-top:14px; }
+  .col-side .sim-box + .sim-box { margin-top:0; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em;
+               color:var(--wi-ink-faint); margin:0 0 9px; display:flex; justify-content:space-between;
+               align-items:baseline; gap:10px; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--wi-font-mono);
+                    font-size:.9em; color:var(--wi-ink-soft); }
+  .sim-title .rhs.preview { color:var(--wi-examine); }
+  svg.stagesvg { display:block; background:var(--wi-bg); border-radius:var(--wi-radius); touch-action:manipulation; }
+  .svgscroll { overflow-x:auto; overflow-y:hidden; }
+  .svgscroll svg { max-width:none; }
+  svg.picsvg { display:block; width:100%; min-width:410px; max-width:600px; height:auto; background:var(--wi-bg);
+               border-radius:var(--wi-radius); }
+
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+            border-radius:var(--wi-radius); padding:10px 13px; font-size:.9rem;
+            color:var(--wi-ink-strong); min-height:88px; }
+  .status .ans { display:block; margin-top:6px; font-size:.95rem; color:var(--wi-accent); }
+  .status code { font-family:var(--wi-font-mono); font-size:.86em; background:var(--wi-panel-2);
+                 padding:1px 4px; border-radius:3px; }
+  .status .k-out { color:var(--wi-examine); font-weight:bold; }
+  .status .k-in { color:var(--wi-relax); font-weight:bold; }
+  .status .k-no { color:var(--wi-active); font-weight:bold; }
+
+  .legend { display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:9px; font-size:.72rem;
+            color:var(--wi-ink-soft); }
+  .legend .item { display:flex; align-items:center; gap:6px; }
+  .sw { width:.85em; height:.85em; border-radius:2px; border:1px solid var(--wi-border); display:inline-block; }
+
+  /* --- size meter: the pseudopolynomial point in numbers --- */
+  .meter { display:grid; grid-template-columns:auto 1fr; gap:3px 14px; font-size:.82rem; }
+  .meter .k { color:var(--wi-ink-faint); font-family:var(--wi-font-head); font-size:.7rem;
+              text-transform:uppercase; letter-spacing:.07em; padding-top:.2em; }
+  .meter .v { font-family:var(--wi-font-mono); font-size:.8rem; color:var(--wi-ink-strong); }
+  .meter .v b { color:var(--wi-accent); }
+  .meternote { font-size:.76rem; color:var(--wi-ink-soft); margin-top:9px; line-height:1.45; }
+
+  /* --- solution list --- */
+  .sol { list-style:none; margin:0; padding:0; font-size:.85rem; }
+  .sol li { padding:3px 0; border-bottom:1px solid var(--wi-border-soft); display:flex; gap:9px; align-items:baseline; }
+  .sol li:last-child { border-bottom:0; }
+  .sol .no { color:var(--wi-ink-faint); font-family:var(--wi-font-mono); font-size:.8rem; min-width:1.6em; }
+  .sol .nm { font-family:var(--wi-font-mono); background:var(--wi-panel-2); padding:0 5px; border-radius:3px; }
+  .sol .wv { color:var(--wi-ink-soft); font-size:.8rem; margin-left:auto; font-family:var(--wi-font-mono); }
+  .sol li.fresh { background:#e8f0e2; border-radius:3px; }
+  .placeholder { font-size:.82rem; color:var(--wi-ink-faint); line-height:1.5; }
+
+  /* --- pseudocode --- */
+  details.code { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+                 border-radius:var(--wi-radius-lg); padding:0; }
+  details.code > summary { cursor:pointer; padding:10px 15px; font-family:var(--wi-font-head);
+                           font-size:.72rem; text-transform:uppercase; letter-spacing:.1em;
+                           color:var(--wi-ink-faint); }
+  details.code[open] > summary { border-bottom:1px solid var(--wi-border-soft); color:var(--wi-accent); }
+  .codebody { padding:8px 6px 12px; }
+  .cline { display:flex; gap:9px; padding:2px 9px; font-family:var(--wi-font-mono); font-size:.75rem;
+           line-height:1.55; color:var(--wi-ink-strong); border-left:3px solid transparent;
+           white-space:pre; }
+  .cline .ln { color:var(--wi-ink-faint); min-width:1.4em; text-align:right; user-select:none; }
+  .cline.on { background:#f6e6df; border-left-color:var(--wi-active); }
+  .cline .kw { color:var(--wi-accent); }
+  .cline .cm { color:var(--wi-ink-faint); font-style:italic; }
+  .sublabel { font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.09em;
+              text-transform:uppercase; color:var(--wi-ink-faint); padding:10px 12px 3px;
+              border-top:1px solid var(--wi-border-soft); margin-top:6px; }
+  .sublabel:first-child { border-top:0; margin-top:0; padding-top:2px; }
+  .codenote { font-size:.72rem; color:var(--wi-ink-faint); padding:8px 15px 0; line-height:1.45; }
+  .codenote b { color:var(--wi-accent); }
+
+  /* --- editor --- */
+  details.editor { margin-top:18px; background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+                   border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:11px 16px; font-family:var(--wi-font-head);
+                             font-size:.78rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,280px) 1fr;
+                 gap:16px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  textarea { width:100%; height:190px; font-family:var(--wi-font-mono); font-size:.78rem;
+             background:var(--wi-panel-2); color:var(--wi-ink); border:1px solid var(--wi-border);
+             border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.76rem; color:var(--wi-ink-soft); line-height:1.5; }
+  .hint pre { background:var(--wi-controls); padding:6px 9px; border-radius:3px; font-size:.95em; margin:6px 0; }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+
+  .tooltip { position:fixed; z-index:40; pointer-events:none; background:var(--wi-panel-2);
+             border:1px solid var(--wi-border-strong); border-radius:var(--wi-radius);
+             padding:6px 9px; font-size:.76rem; color:var(--wi-ink-strong);
+             box-shadow:0 3px 10px rgba(0,0,0,.12); max-width:290px; display:none; line-height:1.45; }
+  .tooltip .tt-h { font-family:var(--wi-font-head); letter-spacing:.04em; color:var(--wi-accent); }
+  .tooltip .tt-s { color:var(--wi-ink-faint); }
+  .tooltip code { font-family:var(--wi-font-mono); font-size:.9em; }
+
+  .mobile-note { display:none; background:var(--wi-controls); border:1px solid var(--wi-accent-soft);
+                 border-radius:var(--wi-radius-lg); padding:11px 15px; font-size:.82rem;
+                 color:var(--wi-ink-strong); margin-bottom:14px; }
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    .titlebar { flex-direction:column; align-items:flex-start; gap:8px; }
+    h1 { font-size:1.3rem; }
+    .controls, .opbar { gap:8px 12px; padding:10px 12px; }
+    .ctl { flex-wrap:wrap; gap:6px; }
+    .seg { flex-wrap:wrap; overflow:visible; border-radius:var(--wi-radius); }
+    .seg button { padding:5px 9px; font-size:.74rem; border-radius:0; }
+    .lbl, .ctl > label { font-size:.64rem; }
+    button { padding:6px 10px; font-size:.8rem; }
+    .phasebtn { font-size:.6rem; padding:3px 2px; }
+    .stepno { font-size:.7rem; }
+    .mobile-note { display:block; }
+    .desk-only { display:none !important; }
+    .stage { grid-template-columns:1fr; }
+  }
+
+  /* --- SVG: the table --- */
+  .cellbg { fill:var(--wi-panel-2); stroke:var(--wi-border-soft); stroke-width:1; }
+  .cellbg.base { fill:var(--wi-controls); }
+  .cellbg.empty { fill:var(--wi-bg); stroke:var(--wi-border-soft); stroke-dasharray:2 3; }
+  .cellbg.pred { fill:#f7edd9; stroke:var(--wi-examine); stroke-width:1.6; }
+  .cellbg.best { fill:#e8f0e2; stroke:var(--wi-relax); stroke-width:1.8; }
+  .cellbg.cur  { fill:#f6e6df; stroke:var(--wi-active); stroke-width:2.2; }
+  .cellbg.path { fill:#f0d7cd; stroke:var(--wi-accent); stroke-width:1.8; }
+  .cellbg.sel  { stroke:var(--wi-accent-dark); stroke-width:2.6; }
+  .cellbg.hov  { stroke:var(--wi-examine); stroke-width:2; }
+  .cellval { font-family:var(--wi-font-mono); font-size:15px; fill:var(--wi-ink-strong);
+             text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  .cellval.big { font-weight:bold; fill:var(--wi-accent-dark); }
+  .hdrch { font-family:var(--wi-font-mono); font-size:15px; fill:var(--wi-ink-strong);
+           text-anchor:middle; dominant-baseline:central; }
+  .hdrch.hot { fill:var(--wi-accent); font-weight:bold; }
+  .hdrix { font-family:var(--wi-font-mono); font-size:11px; fill:var(--wi-ink-faint);
+           text-anchor:middle; dominant-baseline:central; }
+  .hdrix.hot { fill:var(--wi-accent); }
+  .hdrname { font-family:var(--wi-font-body); font-size:14px; fill:var(--wi-ink-soft); font-style:italic; }
+  .hdrwv { font-family:var(--wi-font-mono); font-size:10.5px; fill:var(--wi-ink-faint);
+           text-anchor:middle; dominant-baseline:central; }
+  .hdrwv.hot { fill:var(--wi-accent); }
+  .rowgone { fill:var(--wi-inert); opacity:.18; pointer-events:none; }
+  .arr { fill:none; stroke-width:2.2; pointer-events:none; }
+  .arrlab, .hdrch, .hdrix, .hdrname, .hdrwv { pointer-events:none; }
+  .arr.cand  { stroke:var(--wi-examine); }
+  .arr.best  { stroke:var(--wi-relax); stroke-width:3; }
+  .arr.taken { stroke:var(--wi-accent); stroke-width:3.4; }
+  .arr.faint { stroke:var(--wi-inert); stroke-width:1.6; opacity:.75; }
+  .arrlab { font-family:var(--wi-font-mono); font-size:11px; text-anchor:middle; dominant-baseline:central;
+            paint-order:stroke; stroke:var(--wi-bg); stroke-width:4px; stroke-linejoin:round; }
+  .arrlab.cand { fill:var(--wi-examine); }
+  .arrlab.best { fill:var(--wi-relax); font-weight:bold; }
+  .arrlab.taken { fill:var(--wi-accent); font-weight:bold; }
+  .hit { fill:transparent; cursor:pointer; }
+
+  /* --- SVG: the picture (items, coins, knapsack) --- */
+  .pcap { font-family:var(--wi-font-body); font-size:13px; fill:var(--wi-ink-soft); font-style:italic; }
+  .pcap.hot { fill:var(--wi-accent); font-style:normal; }
+  .ibox { fill:var(--wi-panel-2); stroke:var(--wi-border-strong); stroke-width:1.4; }
+  .ibox.cand { stroke:var(--wi-active); stroke-width:2.4; fill:#f6e6df; }
+  .ibox.packed { fill:var(--wi-bg); stroke:var(--wi-border-soft); stroke-dasharray:3 3; }
+  .ibox.gone { fill:#e9e3d6; stroke:var(--wi-inert); }
+  .ibox.rej { fill:var(--wi-bg); stroke:var(--wi-inert); stroke-dasharray:3 3; }
+  .iname { font-family:var(--wi-font-mono); font-size:14px; fill:var(--wi-ink-strong); text-anchor:middle;
+           dominant-baseline:central; pointer-events:none; }
+  .iname.dim { fill:var(--wi-ink-faint); }
+  .iname.cand { fill:var(--wi-accent-dark); font-weight:bold; }
+  .iw { font-family:var(--wi-font-mono); font-size:11px; fill:var(--wi-ink-soft); text-anchor:middle;
+        dominant-baseline:central; pointer-events:none; }
+  .iw.dim { fill:var(--wi-inert); }
+  .iv { font-family:var(--wi-font-mono); font-size:11px; fill:var(--wi-coin-edge); text-anchor:middle;
+        dominant-baseline:central; pointer-events:none; }
+  .iv.dim { fill:var(--wi-inert); }
+  .cross { stroke:var(--wi-active); stroke-width:2.2; stroke-linecap:round; opacity:.6; pointer-events:none; }
+  .coin { fill:var(--wi-coin); stroke:var(--wi-coin-edge); stroke-width:1; }
+  .coin.dim { fill:#e6dfd0; stroke:var(--wi-inert); }
+  .coin.top { fill:#f1d98a; }
+  .coin.top.dim { fill:#ece6d9; }
+  .bag { fill:#efe3cc; stroke:var(--wi-border-strong); stroke-width:1.6; }
+  .bagflap { fill:#e3d3b4; stroke:var(--wi-border-strong); stroke-width:1.6; }
+  .baginner { fill:var(--wi-panel-2); stroke:var(--wi-border-soft); stroke-width:1; }
+  .bagcut { fill:url(#hatch); stroke:none; }
+  .bagline { stroke:var(--wi-accent); stroke-width:1.8; stroke-dasharray:4 3; }
+  .baglab { font-family:var(--wi-font-mono); font-size:11px; fill:var(--wi-accent); text-anchor:middle;
+            dominant-baseline:central; }
+  .baglab.faint { fill:var(--wi-ink-faint); }
+  .pblock { fill:#dce9d3; stroke:var(--wi-relax); stroke-width:1.4; }
+  .pblock.cand { fill:#c9dfbc; stroke:var(--wi-relax); stroke-width:2.2; }
+  .pblock.nofit { fill:#f6e6df; stroke:var(--wi-active); stroke-width:2; stroke-dasharray:5 3; }
+  .pblock.ghost { fill:none; stroke:var(--wi-examine); stroke-width:1.8; stroke-dasharray:4 3; }
+  .vtot { font-family:var(--wi-font-mono); font-size:15px; fill:var(--wi-accent-dark); font-weight:bold;
+          text-anchor:middle; dominant-baseline:central; }
+  .vtot.plain { fill:var(--wi-ink-strong); font-weight:normal; }
+  .ihit { fill:transparent; cursor:pointer; }
+
+
+  /* --- tabs: one per problem --- */
+  .tabs { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 14px; border-bottom:1px solid var(--wi-border-soft); }
+  .tab { border:1px solid var(--wi-border-soft); border-bottom:0; border-radius:var(--wi-radius) var(--wi-radius) 0 0;
+         background:var(--wi-controls); color:var(--wi-ink-soft); padding:7px 16px; margin-bottom:-1px; font-size:.85rem; }
+  .tab:hover:not(:disabled) { background:var(--wi-panel-2); }
+  .tab.on { background:var(--wi-panel); color:var(--wi-accent); font-weight:bold; border-color:var(--wi-border);
+            border-bottom:1px solid var(--wi-panel); }
+  .cellval.yes { fill:var(--wi-relax); font-weight:bold; }
+  .cellval.no  { fill:var(--wi-inert); }
+  .cellval.inf { fill:var(--wi-inert); }
+  .arr.same { stroke-linecap:round; }
+  .ruler { stroke:var(--wi-border-strong); stroke-width:1.4; }
+  .tick { stroke:var(--wi-border); stroke-width:1; }
+  .ticklab { font-family:var(--wi-font-mono); font-size:10px; fill:var(--wi-ink-faint); text-anchor:middle; dominant-baseline:central; }
+  .target { stroke:var(--wi-accent); stroke-width:2.2; }
+  .bad { fill:#f6e6df; stroke:var(--wi-active); stroke-width:1.6; stroke-dasharray:4 3; }
+  .badx { stroke:var(--wi-active); stroke-width:2.6; stroke-linecap:round; }
+  .ok { stroke:var(--wi-relax); stroke-width:3; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  .ablock { fill:#dbe4ee; stroke:#4a6a8c; stroke-width:1.4; }
+  .ablock.cand { fill:#c7d6e6; stroke-width:2.2; }
+  .ablock.right { fill:#efe1d3; stroke:var(--wi-examine); }
+  .beam { stroke:var(--wi-ink-strong); stroke-width:4; stroke-linecap:round; }
+  .pivot { fill:var(--wi-border-strong); }
+  .pan { fill:none; stroke:var(--wi-ink-soft); stroke-width:1.6; }
+  .panstr { stroke:var(--wi-ink-faint); stroke-width:1; }
+  .cointype { fill:var(--wi-coin); stroke:var(--wi-coin-edge); stroke-width:1.4; }
+  .cointype.cand { stroke:var(--wi-active); stroke-width:2.6; }
+  .cointype.dim { fill:#e6dfd0; stroke:var(--wi-inert); }
+  .coinlab { font-family:var(--wi-font-mono); font-size:13px; fill:var(--wi-coin-edge); text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  .coinlab.cand { fill:var(--wi-accent-dark); font-weight:bold; }
+  .cblock { fill:#f1dd9a; stroke:var(--wi-coin-edge); stroke-width:1.4; }
+  .cblock.cand { fill:#e9cf7a; stroke-width:2.2; }
+  .g-tilt { transition:transform .6s cubic-bezier(.3,.9,.4,1); transform-box:view-box; }
+  @keyframes drop { from { transform:translateY(-70px); opacity:.3; } to { transform:none; opacity:1; } }
+  .drop { animation:drop .5s cubic-bezier(.3,.9,.4,1) both; }
+  @keyframes cellpop { from { opacity:0; transform:translateY(-8px) scale(.65); }
+                       to   { opacity:1; transform:none; } }
+  .pop { animation:cellpop .34s cubic-bezier(.2,1.3,.5,1) both; transform-box:fill-box;
+         transform-origin:center; }
+  @keyframes arrdraw { from { stroke-dashoffset:var(--len); } to { stroke-dashoffset:0; } }
+  .drawin { stroke-dasharray:var(--len); animation:arrdraw .38s ease-out both; }
+  @keyframes flyin { from { transform:translate(var(--dx), var(--dy)); opacity:.35; }
+                     to   { transform:none; opacity:1; } }
+  .fly { animation:flyin .5s cubic-bezier(.3,.9,.4,1) both; }
+  @keyframes flyout { from { transform:translate(var(--dx), var(--dy)); } to { transform:none; } }
+  .flyback { animation:flyout .45s ease-out both; }
+  @keyframes coinup { from { transform:translateY(10px); opacity:0; } to { transform:none; opacity:1; } }
+  .coinpop { animation:coinup .35s ease-out both; }
+  @keyframes shake { 0%,100% { transform:none; } 25% { transform:translateX(-4px); } 75% { transform:translateX(4px); } }
+  .shake { animation:shake .4s ease-in-out both; }
+  @media (prefers-reduced-motion:reduce) {
+    * { animation-duration:.001ms !important; transition-duration:.001ms !important; }
+  }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
+  font-family: var(--wi-font-head);
+  letter-spacing: .05em;
+}
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1 id="pageTitle"></h1>
+</div>
+
+<div class="tabs" id="tabs" role="tablist">
+  <button class="tab on" data-mode="knap" role="tab">Knapsack</button>
+  <button class="tab" data-mode="subset" role="tab">SubsetSum</button>
+  <button class="tab" data-mode="zerosum" role="tab">SubsetSum over ℤ</button>
+  <button class="tab" data-mode="partition" role="tab">Partition</button>
+  <button class="tab" data-mode="change" role="tab">MakingChange</button>
+</div>
+
+<p class="subtitle" id="subtitle"></p>
+
+<div class="mobile-note">
+  <b>Small screen:</b> this is the compact demo — the table, the scrubber and the picture. The pseudocode
+  with live line highlighting is on the desktop version.
+</div>
+
+<div class="controls">
+  <div class="ctl">
+    <label for="presetSel">Example</label>
+    <select id="presetSel"></select>
+    <button id="randBtn">Random instance</button>
+  </div>
+  <div class="ctl">
+    <span class="lbl">Detail</span>
+    <span class="seg" id="granSeg">
+      <button id="granRow">One step per row</button>
+      <button id="granCell" class="on">One step per cell</button>
+      <button id="granGuess">Every guess</button>
+    </span>
+  </div>
+  <div class="ctl">
+    <label class="chk"><input type="checkbox" id="allOptChk"> all optimal arrows</label>
+  </div>
+</div>
+
+<div class="opbar">
+  <span class="opnote" id="traceNote"></span>
+  <button id="wholeBtn" style="display:none">Back to the whole problem</button>
+  <span class="opnote" style="margin-left:auto">Arrow keys step; hover a cell to preview it, click to backtrace from it.</span>
+</div>
+
+<div class="transport">
+  <div class="transport-row">
+    <span class="ctl" style="gap:6px">
+      <button id="resetBtn" class="icon" title="Back to the first step" aria-label="Back to the first step">&#x21BA;</button>
+      <button id="backBtn" class="icon" title="One step back  (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+      <button id="stepBtn" class="icon pri" title="One step forward  (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+      <button id="playBtn" class="icon" title="Play / pause" aria-label="Play">&#x25B6;&#xFE0E;</button>
+    </span>
+    <span class="progress">
+      <input type="range" id="scrubber" min="0" max="0" value="0">
+      <div class="phasebar" id="phaseBar"></div>
+    </span>
+    <span class="stepno" id="stepNo">— / —</span>
+    <span class="ctl" style="gap:6px">
+      <span class="lbl">Speed</span>
+      <input type="range" id="speed" min="60" max="1400" value="520" style="width:88px">
+      <span class="stepno" id="speedVal">520ms</span>
+    </span>
+  </div>
+</div>
+
+<div class="stage">
+  <div>
+    <div class="sim-box">
+      <div class="sim-title"><span id="tabTitle">The table V[n′, b′]</span><span class="rhs" id="tabMeta"></span></div>
+      <div class="svgscroll"><svg id="gridSvg" class="stagesvg"></svg></div>
+      <div class="legend" id="tabLegend"></div>
+    </div>
+
+    <div class="sim-box">
+      <div class="sim-title"><span>Why “pseudo”polynomial</span><span class="rhs" id="meterMeta"></span></div>
+      <div class="meter" id="meterBox"></div>
+      <div class="meternote" id="meterNote"></div>
+    </div>
+  </div>
+
+  <div class="gutter" id="gutter" title="Drag to resize the columns; double-click to reset"
+       role="separator" aria-orientation="vertical" aria-label="Resize columns"></div>
+
+  <div class="col-side">
+    <div class="sim-box">
+      <div class="sim-title"><span>The subproblem, pictured</span><span class="rhs" id="picMeta"></span></div>
+      <div class="svgscroll"><svg id="picSvg" class="picsvg"></svg></div>
+      <div class="legend" id="picLegend"></div>
+    </div>
+
+    <div class="sim-box">
+      <div class="sim-title"><span>What just happened</span><span class="rhs" id="phaseName"></span></div>
+      <div class="status" id="statusBox"></div>
+    </div>
+
+    <div class="sim-box">
+      <div class="sim-title"><span id="solTitle">Solution T</span><span class="rhs" id="solMeta"></span></div>
+      <div id="solBox"></div>
+    </div>
+  </div>
+</div>
+
+<details class="code desk-only" id="codeBox" open style="margin-top:18px">
+  <summary>Recurrence &amp; pseudocode</summary>
+  <div class="codebody" id="codeBody"></div>
+  <div class="codenote" id="codeNote"></div>
+</details>
+
+<details class="editor">
+  <summary>Input</summary>
+  <div class="editor-body">
+    <div>
+      <textarea id="inputText" spellcheck="false"></textarea>
+      <div style="margin-top:8px"><button class="pri" id="loadBtn">Load</button></div>
+      <div class="err" id="parseErr"></div>
+    </div>
+    <div class="hint" id="inputHint"></div>
+  </div>
+</details>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const PAGE_MODES = ["knap"];
+"use strict";
+
+/* ==========================================================================
+   Four pseudopolynomial dynamic programs on one page.
+
+   Knapsack (the lecture's DP, exactly):
+     V[n', b'] = 0                                       if n' = 0
+                 V[n'-1, b']                             if n' >= 1 and w_{n'} >  b'
+                 max { V[n'-1, b'], v_{n'} + V[n'-1, b'-w_{n'}] }   otherwise
+   SubsetSum  R[n', s] = [s = 0] / R[n'-1, s] / R[n'-1, s] or R[n'-1, s-a_{n'}]
+   Partition  = SubsetSum with target t = (sum a_i)/2  (odd sum: no)
+   MakingChange  C[s] = 0 if s = 0, else 1 + min { C[s - c_k] : c_k <= s }
+
+   Conventions
+     * items / coins are 1-based, as in the recurrences.
+     * ties: the first case of the recurrence wins, so an item that is not
+       needed is left OUT, and the first coin (in input order) is used.
+   ========================================================================== */
+
+const el = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const nm  = i => '<code>' + esc(NAME[i]) + "</code>";
+const INF = Infinity;
+
+/* ---------- the four problems --------------------------------------------- */
+
+const MODES = {
+  knap: {
+    title: "Knapsack &nbsp;·&nbsp; a pseudopolynomial dynamic program, step by step",
+    tab: "The table V[n′, b′]", sol: "Solution T", colLab: "b′ → capacity", rowLab: "n′ ↓ items",
+    sub: "<i>n</i> items with weights <i>w<sub>i</sub></i> and values <i>v<sub>i</sub></i>, a knapsack of capacity <i>b</i>: " +
+         "pack a subset <i>T</i> of maximal total value whose total weight stays within <i>b</i>. The subproblem " +
+         "(<i>n′</i>, <i>b′</i>) uses only the first <i>n′</i> items and capacity <i>b′</i>; the guess is whether item " +
+         "<i>n′</i> goes in. The table is <i>V</i>[<i>n′</i>, <i>b′</i>], the best value of that subproblem — one row per " +
+         "item, one <b>column per unit of capacity</b>. That is where the <b>pseudopolynomial</b> running time hides: " +
+         "(<i>n</i>+1)(<i>b</i>+1) cells, but <i>b</i> takes only log <i>b</i> bits of input. Hover a cell to see its " +
+         "subproblem packed; <b>click a cell to backtrace from there</b>.",
+    hint: "First non-comment line: the capacity <i>b</i>. Then one item per line, <code>weight value</code>, optionally " +
+          "followed by a short name; items are numbered 1, 2, … in the order given. Lines starting with <code>#</code> are ignored." +
+          "<pre># capacity\n10\n# weight value name\n5 10 A\n4 40 B\n6 30 C\n3 50 D</pre>" +
+          "Positive integers only; at most 12 items, capacity at most 60, at most 800 cells.",
+    presets: {
+      textbook: { name: "four items, b = 10", cap: 10, items: [[5, 10, "A"], [4, 40, "B"], [6, 30, "C"], [3, 50, "D"]] },
+      small:    { name: "tiny: three items, b = 5", cap: 5, items: [[2, 3, "A"], [3, 4, "B"], [4, 5, "C"]] },
+      greedy:   { name: "greedy by value/weight fails", cap: 6, items: [[1, 3, "A"], [4, 8, "B"], [3, 6, "C"], [3, 6, "D"]] },
+      ties:     { name: "many ties", cap: 8, items: [[2, 4, "A"], [2, 4, "B"], [4, 8, "C"], [3, 6, "D"], [1, 2, "E"]] },
+      heavy:    { name: "an item that never fits", cap: 7, items: [[3, 20, "A"], [9, 99, "B"], [4, 25, "C"], [2, 12, "D"]] },
+      bigv:     { name: "huge values, small b", cap: 8, items: [[3, 3100, "A"], [5, 4900, "B"], [2, 2300, "C"], [4, 4200, "D"]] },
+      wide:     { name: "b = 30: a wide table", cap: 30, items: [[7, 13, "A"], [11, 19, "B"], [5, 8, "C"], [14, 26, "D"], [9, 15, "E"], [3, 4, "F"]] }
+    }
+  },
+  subset: {
+    title: "SubsetSum &nbsp;·&nbsp; the same trick as for Knapsack",
+    tab: "The table R[n′, s]", sol: "Solution S", colLab: "s → sum", rowLab: "n′ ↓ numbers",
+    sub: "Numbers <i>a</i><sub>1</sub>, …, <i>a<sub>n</sub></i> and a target <i>t</i>: is there a subset <i>S</i> whose " +
+         "numbers add up to <b>exactly</b> <i>t</i>? Subproblem (<i>n′</i>, <i>s</i>): can the first <i>n′</i> numbers " +
+         "reach the sum <i>s</i>? The guess is whether <i>a<sub>n′</sub></i> is used; the table <i>R</i>[<i>n′</i>, <i>s</i>] " +
+         "holds a yes/no. Each row is <i>the row above</i> OR <i>the row above shifted right by a<sub>n′</sub></i> — " +
+         "(<i>n</i>+1)(<i>t</i>+1) cells, one <b>column per unit of the target</b>. Hover a cell to see how its sum is " +
+         "reached; <b>click a cell to backtrace from there</b>.",
+    hint: "First non-comment line: the target <i>t</i>. Then one number per line, optionally followed by a short name." +
+          "<pre># target\n9\n# number name\n3 A\n34 B\n4 C\n12 D\n5 E\n2 F</pre>" +
+          "Positive integers only; at most 12 numbers, target at most 60, at most 800 cells.",
+    presets: {
+      gfg:   { name: "six numbers, t = 9", cap: 9, items: [[3, 0, "A"], [34, 0, "B"], [4, 0, "C"], [12, 0, "D"], [5, 0, "E"], [2, 0, "F"]] },
+      no:    { name: "unreachable target", cap: 11, items: [[2, 0, "A"], [4, 0, "B"], [6, 0, "C"], [8, 0, "D"]] },
+      many:  { name: "many ways to reach t", cap: 6, items: [[1, 0, "A"], [2, 0, "B"], [3, 0, "C"], [4, 0, "D"], [5, 0, "E"]] },
+      dense: { name: "small numbers, t = 15", cap: 15, items: [[7, 0, "A"], [3, 0, "B"], [2, 0, "C"], [5, 0, "D"], [8, 0, "E"]] },
+      huge:  { name: "one huge number", cap: 10, items: [[4, 0, "A"], [977, 0, "B"], [3, 0, "C"], [3, 0, "D"]] }
+    }
+  },
+  partition: {
+    title: "Partition &nbsp;·&nbsp; SubsetSum with target Σ/2, on a balance",
+    tab: "The table R[n′, s]  (t = Σ/2)", sol: "The two halves", colLab: "s → sum", rowLab: "n′ ↓ numbers",
+    sub: "Numbers <i>a</i><sub>1</sub>, …, <i>a<sub>n</sub></i>: can they be split into two groups of <b>equal sum</b>? " +
+         "That is SubsetSum with target <i>t</i> = Σ/2 (and if Σ is odd the answer is no before any table is filled). " +
+         "The table is the same as for SubsetSum; the backtrace then puts every number on one side of a balance — " +
+         "chosen numbers on the left pan, the rest on the right — and the beam settles level exactly when " +
+         "<i>R</i>[<i>n</i>, Σ/2] is true. Hover a cell to preview it; <b>click a cell to backtrace from there</b>.",
+    hint: "One number per line, optionally followed by a short name; the target Σ/2 is computed." +
+          "<pre># number name\n3 A\n1 B\n1 C\n2 D\n2 E\n1 F</pre>" +
+          "Positive integers only; at most 12 numbers, Σ/2 at most 60.",
+    presets: {
+      six:  { name: "six numbers, Σ = 10", items: [[3, 0, "A"], [1, 0, "B"], [1, 0, "C"], [2, 0, "D"], [2, 0, "E"], [1, 0, "F"]] },
+      four: { name: "1, 5, 11, 5", items: [[1, 0, "A"], [5, 0, "B"], [11, 0, "C"], [5, 0, "D"]] },
+      odd:  { name: "odd total: trivially no", items: [[1, 0, "A"], [2, 0, "B"], [4, 0, "C"]] },
+      even: { name: "even total, still impossible", items: [[2, 0, "A"], [2, 0, "B"], [3, 0, "C"], [5, 0, "D"]] },
+      eight:{ name: "eight numbers, Σ = 40", items: [[7, 0, "A"], [4, 0, "B"], [6, 0, "C"], [9, 0, "D"], [3, 0, "E"], [5, 0, "F"], [2, 0, "G"], [4, 0, "H"]] }
+    }
+  },
+  zerosum: {
+    title: "SubsetSum over ℤ &nbsp;·&nbsp; a non-empty subset that sums to zero",
+    tab: "The table R[n′, s]  (s from −N to P)", sol: "Solution I", colLab: "s → sum", rowLab: "n′ ↓ numbers",
+    sub: "Integers <i>x</i><sub>1</sub>, …, <i>x<sub>n</sub></i> ∈ ℤ: is there a <b>non-empty</b> <i>I</i> ⊆ [<i>n</i>] with " +
+         "Σ<sub><i>i</i>∈<i>I</i></sub> <i>x<sub>i</sub></i> = 0? Sums of subsets lie between −<i>N</i> (all negatives) and <i>P</i> (all " +
+         "positives), so the table has one column per integer in that range. <i>R</i>[<i>n′</i>, <i>s</i>] says whether a non-empty " +
+         "subset of the first <i>n′</i> numbers sums to <i>s</i>; the guess is whether <i>x<sub>n′</sub></i> is used — alone, or " +
+         "together with a non-empty rest that sums to <i>s</i> − <i>x<sub>n′</sub></i>. Positives chosen go on the left pan, negatives " +
+         "on the right; the answer is <i>R</i>[<i>n</i>, 0], a level beam. Hover a cell to preview it; <b>click a cell to backtrace from there</b>.",
+    hint: "One integer per line (negative numbers allowed, 0 too), optionally followed by a short name." +
+          "<pre># integer name\n4 A\n-3 B\n5 C\n-6 D\n2 E</pre>" +
+          "At most 12 numbers; the range N + P of possible sums at most 60.",
+    presets: {
+      five:  { name: "4, −3, 5, −6, 2", items: [[4, 0, "A"], [-3, 0, "B"], [5, 0, "C"], [-6, 0, "D"], [2, 0, "E"]] },
+      four:  { name: "3, −7, 5, 2", items: [[3, 0, "A"], [-7, 0, "B"], [5, 0, "C"], [2, 0, "D"]] },
+      no:    { name: "no zero-sum subset", items: [[1, 0, "A"], [3, 0, "B"], [-5, 0, "C"], [8, 0, "D"]] },
+      zero:  { name: "a zero among the numbers", items: [[4, 0, "A"], [0, 0, "B"], [-9, 0, "C"]] },
+      pos:   { name: "all positive: trivially no", items: [[2, 0, "A"], [5, 0, "B"], [3, 0, "C"]] },
+      many:  { name: "seven numbers", items: [[6, 0, "A"], [-4, 0, "B"], [-2, 0, "C"], [7, 0, "D"], [-9, 0, "E"], [3, 0, "F"], [-1, 0, "G"]] }
+    }
+  },
+  change: {
+    title: "MakingChange &nbsp;·&nbsp; the fewest coins for an amount",
+    tab: "The table C[s]", sol: "The coins", colLab: "s → amount", rowLab: "",
+    sub: "Coin denominations <i>c</i><sub>1</sub>, …, <i>c<sub>k</sub></i> (unlimited supply) and an amount <i>t</i>: " +
+         "pay exactly <i>t</i> with as <b>few coins</b> as possible. The subproblem is just the amount <i>s</i>; the guess " +
+         "is <i>which coin is used last</i>, and what remains is the amount <i>s</i> − <i>c</i>. So the table is one " +
+         "row <i>C</i>[0..<i>t</i>], filled left to right, and each cell looks back at up to <i>k</i> earlier cells — " +
+         "(<i>t</i>+1) cells for an input of log <i>t</i> bits. Hover a cell to see its coins; " +
+         "<b>click a cell to backtrace from there</b>.",
+    hint: "First non-comment line: the amount <i>t</i>. Then the coin denominations, one per line or several per line." +
+          "<pre># amount\n6\n# coins\n1 3 4</pre>" +
+          "Positive integers only; at most 8 denominations, amount at most 60.",
+    presets: {
+      greedy: { name: "coins 1, 3, 4 — greedy fails at 6", cap: 6, items: [[1, 0, "1"], [3, 0, "3"], [4, 0, "4"]] },
+      usa:    { name: "1, 5, 10, 25 for 30", cap: 30, items: [[1, 0, "1"], [5, 0, "5"], [10, 0, "10"], [25, 0, "25"]] },
+      gap:    { name: "no 1-coin: some amounts impossible", cap: 12, items: [[2, 0, "2"], [5, 0, "5"]] },
+      odd:    { name: "coins 4 and 7", cap: 22, items: [[4, 0, "4"], [7, 0, "7"]] },
+      euro:   { name: "1, 2, 5, 10, 20 for 38", cap: 38, items: [[1, 0, "1"], [2, 0, "2"], [5, 0, "5"], [10, 0, "10"], [20, 0, "20"]] }
+    }
+  }
+};
+
+/* ---------- state -------------------------------------------------------- */
+
+let mode = "knap";
+let n = 0, cap = 0;                      /* items / coin types; capacity, target or amount */
+let A = [0], Vv = [0], NAME = [""];      /* 1-based; A = weights / numbers / coin values, Vv = knapsack values */
+let SUM = 0;                             /* sum of the numbers (partition) */
+let X = [0], LO = 0;                     /* zero-sum: signed numbers, and the sum of column 0 */
+let T = [];                              /* the table; T[i][j]  (change: T[0][j]) */
+let steps = [], phases = [], cur = 0;
+let gran = 1;                            /* 0 row, 1 cell, 2 guess */
+let traceFrom = null;                    /* [i, j] to backtrace from, null = the whole problem */
+let selCell = null, hoverCell = null;
+let showAll = false;
+let timer = null;
+
+const isBool  = () => mode === "subset" || mode === "partition" || mode === "zerosum";
+const ansCol  = () => mode === "zerosum" ? -LO : cap;   /* the column holding the answer */
+const sumOf   = j => j + LO;                                 /* the sum a column stands for */
+const lab     = i => mode === "zerosum" ? String(X[i]) : String(A[i]);
+const rows    = () => mode === "change" ? 1 : n + 1;
+const FULL    = () => rows() * (cap + 1);
+const ordOf   = (i, j) => i * (cap + 1) + j;
+const feasible = () => !(mode === "partition" && SUM % 2 === 1);
+
+/* ---------- the tables ---------------------------------------------------- */
+
+function computeTable() {
+  T = [];
+  if (mode === "knap") {
+    for (let i = 0; i <= n; i++) T.push(new Array(cap + 1).fill(0));
+    for (let i = 1; i <= n; i++) for (let j = 0; j <= cap; j++)
+      T[i][j] = A[i] > j ? T[i - 1][j] : Math.max(T[i - 1][j], Vv[i] + T[i - 1][j - A[i]]);
+  } else if (mode === "zerosum") {
+    for (let i = 0; i <= n; i++) T.push(new Array(cap + 1).fill(false));
+    for (let i = 1; i <= n; i++) for (let j = 0; j <= cap; j++) {
+      const pj = j - X[i];
+      T[i][j] = T[i - 1][j] || sumOf(j) === X[i] || (pj >= 0 && pj <= cap && T[i - 1][pj]);
+    }
+  } else if (isBool()) {
+    for (let i = 0; i <= n; i++) T.push(new Array(cap + 1).fill(false));
+    T[0][0] = true;
+    for (let i = 1; i <= n; i++) for (let j = 0; j <= cap; j++)
+      T[i][j] = A[i] > j ? T[i - 1][j] : (T[i - 1][j] || T[i - 1][j - A[i]]);
+  } else {
+    const C = new Array(cap + 1).fill(INF); C[0] = 0;
+    for (let s = 1; s <= cap; s++) for (let k = 1; k <= n; k++)
+      if (A[k] <= s && 1 + C[s - A[k]] < C[s]) C[s] = 1 + C[s - A[k]];
+    T.push(C);
+  }
+}
+
+/* the guesses for cell (i,j), in the order of the recurrence */
+function guesses(i, j) {
+  if (mode === "change") {
+    const g = [];
+    for (let k = 1; k <= n; k++) if (A[k] <= j)
+      g.push({ kind: "coin", coin: k, pi: 0, pj: j - A[k], add: 1, val: 1 + T[0][j - A[k]] });
+    return g;
+  }
+  const g = [{ kind: "out", pi: i - 1, pj: j, add: 0, val: T[i - 1][j] }];
+  if (mode === "zerosum") {
+    g.push({ kind: "alone", pi: -1, pj: -1, add: 0, val: sumOf(j) === X[i] });
+    const pj = j - X[i];
+    if (pj >= 0 && pj <= cap) g.push({ kind: "in", pi: i - 1, pj: pj, add: 0, val: T[i - 1][pj] });
+    return g;
+  }
+  if (A[i] <= j) g.push({ kind: "in", pi: i - 1, pj: j - A[i], add: mode === "knap" ? Vv[i] : 0,
+                          val: mode === "knap" ? Vv[i] + T[i - 1][j - A[i]] : T[i - 1][j - A[i]] });
+  return g;
+}
+/* does guess g attain the cell's value? */
+const attains = (g, i, j) => isBool() ? g.val === true : g.val === T[i][j];
+
+/* the solution the backtrace reconstructs for subproblem (i,j); null = none */
+function optSet(i, j) {
+  if (mode === "change") {
+    if (T[0][j] === INF) return null;
+    const L = []; let s = j, guard = 0;
+    while (s > 0 && guard++ < 1000) {
+      const g = guesses(0, s).find(x => x.val === T[0][s]);
+      L.push(g.coin); s -= A[g.coin];
+    }
+    return L;
+  }
+  if (isBool() && !T[i][j]) return null;
+  const S = [];
+  if (mode === "zerosum") {
+    while (i >= 1) {
+      if (T[i - 1][j]) { i--; continue; }
+      S.push(i);
+      if (sumOf(j) === X[i]) break;
+      j -= X[i]; i--;
+    }
+    return S.reverse();
+  }
+  while (i >= 1) {
+    const out = isBool() ? T[i - 1][j] : T[i][j] === T[i - 1][j];
+    if (!out) { S.push(i); j -= A[i]; }
+    i--;
+  }
+  return S.reverse();
+}
+const sumA = S => (S || []).reduce((s, i) => s + A[i], 0);
+const sumX = S => (S || []).reduce((s, i) => s + X[i], 0);
+const sumV = S => (S || []).reduce((s, i) => s + Vv[i], 0);
+const fmt  = x => x === INF ? "∞" : isBool() ? (x ? "yes" : "no") : String(x);
+
+/* ---------- step generation ---------------------------------------------- */
+
+function mkPhase(name) { phases.push({ name: name, from: steps.length, to: steps.length }); }
+function add(o) {
+  o.ph = phases.length - 1; o.hl = o.hl || [];
+  steps.push(o);
+  phases[phases.length - 1].to = steps.length - 1;
+}
+const cellsOf = (list, cls) => { const o = {}; list.forEach(c => o[c[0] + "," + c[1]] = cls); return o; };
+const cellsOfWhole = (S, cls) => { const o = {}; S.forEach(k => o[k] = cls); return o; };
+
+function build() {
+  computeTable();
+  steps = []; phases = []; cur = 0;
+  if (mode === "knap") buildKnap();
+  else if (mode === "zerosum") buildZero();
+  else if (isBool()) buildSubset();
+  else buildChange();
+}
+
+/* ---- Knapsack ------------------------------------------------------------- */
+
+function picCell(i, j) { return { np: i, bp: j, pack: optSet(i, j), cand: null, state: null }; }
+
+function buildKnap() {
+  const ti = traceFrom ? traceFrom[0] : n, tj = traceFrom ? traceFrom[1] : cap;
+  const picGuess = (i, j, kind, fly) => {
+    if (kind === "out") return { np: i, bp: j, pack: optSet(i - 1, j), cand: i, state: "out" };
+    if (kind === "no")  return { np: i, bp: j, pack: optSet(i - 1, j), cand: i, state: "nofit" };
+    return { np: i, bp: j, pack: optSet(i - 1, j - A[i]).concat([i]), cand: i, state: "in", fly: !!fly };
+  };
+
+  mkPhase("Base");
+  add({ filled: 0, txt: "<b>Subproblem (n′, b′)</b>: only items 1, …, n′ may be used, and the total weight may be at " +
+         "most b′. The original problem is the bottom-right corner (" + n + ", " + cap + "). The <b>guess</b> is whether " +
+         "item n′ is packed; either way, what remains is a smaller subproblem in the row above.",
+        hl: ["head"], pic: { np: n, bp: cap, pack: [], cand: null, state: null, intro: true } });
+  const row0 = []; for (let j = 0; j <= cap; j++) row0.push([0, j]);
+  add({ filled: cap + 1, write: row0, cells: cellsOf(row0, "cur"),
+        txt: "<b>n′ = 0</b>: no items at all, so nothing can be packed &mdash; <code>V[0, b′] = 0</code> for every b′.",
+        hl: ["base"], hlp: ["p_base"], pic: { np: 0, bp: cap, pack: [], cand: null, state: null } });
+
+  for (let i = 1; i <= n; i++) {
+    mkPhase(esc(NAME[i]) + " (" + A[i] + "/" + Vv[i] + ")");
+    const w = A[i], v = Vv[i];
+    if (gran === 0) {
+      const row = []; for (let j = 0; j <= cap; j++) row.push([i, j]);
+      add({ filled: ordOf(i, 0) + cap + 1, write: row, cells: cellsOf(row, "cur"), rowOf: i,
+            txt: "<b>Row n′ = " + i + "</b> (item " + nm(i) + ", w = " + w + ", v = " + v + "): for b′ &lt; " + w +
+                 " the item does not fit and the row above is copied; from b′ = " + w + " on, each cell is the better of " +
+                 "<i>leave it out</i> (<code>V[" + (i - 1) + ", b′]</code>) and <i>take it</i> (<code>" + v + " + V[" + (i - 1) +
+                 ", b′ − " + w + "]</code>).",
+            hl: ["skip", "max_out", "max_in"], hlp: ["p_loop", "p_if", "p_copy", "p_else", "p_max"], pic: picCell(i, cap) });
+      continue;
+    }
+    for (let j = 0; j <= cap; j++) {
+      const best = T[i][j], pre = ordOf(i, j), g = guesses(i, j);
+      if (w > j) {
+        add({ filled: pre + 1, cell: [i, j], write: [[i, j]],
+              cells: { [(i - 1) + "," + j]: "best", [i + "," + j]: "cur" },
+              arrows: [{ from: [i - 1, j], to: [i, j], kind: "out", lab: "+0", cls: "best" }],
+              txt: "<b>V[" + i + ", " + j + "]</b>: item " + nm(i) + ' <span class="k-no">does not fit</span>, w<sub>' + i +
+                   "</sub> = " + w + " &gt; " + j + " = b′. The only option is to leave it out: <code>V[" + i + ", " + j +
+                   "] = V[" + (i - 1) + ", " + j + "] = " + best + "</code>.",
+              hl: ["skip"], hlp: ["p_if", "p_copy"], pic: picGuess(i, j, "no") });
+        continue;
+      }
+      const predCells = {}; g.forEach(x => predCells[x.pi + "," + x.pj] = x.val === best ? "best" : "pred");
+      const arrowsAll = g.map(x => ({ from: [x.pi, x.pj], to: [i, j], kind: x.kind, lab: "+" + x.add, cls: x.val === best ? "best" : "cand" }));
+      if (gran === 2) g.forEach((x, k) => {
+        const c = {}; c[x.pi + "," + x.pj] = "pred"; c[i + "," + j] = "cur";
+        const isIn = x.kind === "in";
+        add({ filled: pre, cell: [i, j], cells: c,
+              arrows: [{ from: [x.pi, x.pj], to: [i, j], kind: x.kind, lab: "+" + x.add, cls: "cand" }],
+              txt: "<b>V[" + i + ", " + j + "]</b>, guess " + (k + 1) + " of 2: " +
+                   (isIn ? '<span class="k-in">take</span> item ' + nm(i) + " (w = " + w + " fits into " + j + "). It brings v<sub>" +
+                           i + "</sub> = " + v + " and leaves capacity " + (j - w) + " for items 1…" + (i - 1) + ": <code>" + v +
+                           " + V[" + (i - 1) + ", " + (j - w) + "] = " + v + " + " + T[i - 1][j - w] + " = " + x.val + "</code>."
+                         : '<span class="k-out">leave out</span> item ' + nm(i) + ". Then the best we can do is the subproblem " +
+                           "above: <code>V[" + (i - 1) + ", " + j + "] = " + x.val + "</code>."),
+              hl: [isIn ? "max_in" : "max_out"], hlp: ["p_else", "p_max"], pic: picGuess(i, j, x.kind, isIn) });
+      });
+      const win = g.filter(x => x.val === best), chosen = win[0];
+      const cells = Object.assign({}, predCells); cells[i + "," + j] = "cur";
+      add({ filled: pre + 1, cell: [i, j], write: [[i, j]], cells: cells, arrows: arrowsAll,
+            txt: "<b>V[" + i + ", " + j + "] = " + best + "</b> = max{ " + g.map(x => x.val).join(", ") + " }: " +
+                 (win.length > 1 ? "taking item " + nm(i) + " or leaving it out is <i>equally good</i> here."
+                  : chosen.kind === "in" ? '<span class="k-in">take</span> item ' + nm(i) + " (" + v + " + V[" + (i - 1) + ", " + (j - w) +
+                                           "] = " + v + " + " + T[i - 1][j - w] + ")."
+                  : '<span class="k-out">leave out</span> item ' + nm(i) + " (V[" + (i - 1) + ", " + j + "] = " + best + " beats " + v +
+                    " + " + T[i - 1][j - w] + ")."),
+            hl: ["max_out", "max_in"], hlp: ["p_else", "p_max"], pic: picGuess(i, j, chosen.kind, chosen.kind === "in" && gran !== 2) });
+    }
+  }
+
+  const full = FULL();
+  mkPhase("Backtrace");
+  let i = ti, j = tj, S = [], rej = [], path = [[ti, tj]];
+  const whole = (ti === n && tj === cap);
+  add({ filled: full, cells: cellsOf(path, "path"), path: path.slice(), S: [], rej: [],
+        txt: "The table holds <i>values</i> only. To get the set T, retrace the recurrence from <b>V[" + ti + ", " + tj + "] = " +
+             T[ti][tj] + "</b>" + (whole ? "" : " &mdash; the cell you clicked") + ": at each row ask whether the value came from " +
+             "the cell straight above (item left out) or from the shifted cell (item taken), and follow that arrow back.",
+        hl: ["head"], hlp: ["t_head", "t_init"], trace: true,
+        pic: { np: ti, bp: tj, pack: [], cand: null, state: null, decided: {}, trace: true } });
+  while (i >= 1) {
+    const out = T[i][j] === T[i - 1][j], fits = A[i] <= j;
+    const tie = out && fits && Vv[i] + T[i - 1][j - A[i]] === T[i][j];
+    const pi = i - 1, pj = out ? j : j - A[i];
+    if (out) rej = rej.concat([i]); else S = [i].concat(S);
+    path = path.concat([[pi, pj]]);
+    const cells = cellsOf(path, "path"); cells[i + "," + j] = "cur";
+    const decided = Object.assign(cellsOfWhole(S, "in"), cellsOfWhole(rej, "out"));
+    add({ filled: full, cell: [i, j], cells: cells, path: path.slice(), S: S.slice(), rej: rej.slice(),
+          arrows: [{ from: [pi, pj], to: [i, j], kind: out ? "out" : "in", lab: "+" + (out ? 0 : Vv[i]), cls: "taken" }],
+          txt: out
+            ? "<code>V[" + i + ", " + j + "] = " + T[i][j] + " = V[" + (i - 1) + ", " + j + "]</code>: the value was reached without " +
+              "item " + nm(i) + ', so <span class="k-out">it stays out</span>; the capacity stays b′ = ' + j + "." +
+              (tie ? " <i>(Taking it would have been equally good &mdash; the code takes the first case of the recurrence, " +
+                     "so on a tie the item is left out.)</i>" : "")
+            : "<code>V[" + i + ", " + j + "] = " + T[i][j] + " ≠ V[" + (i - 1) + ", " + j + "] = " + T[i - 1][j] + "</code>, so the value " +
+              'must come from the other case: <span class="k-in">item ' + nm(i) + " is in T</span>. It uses w<sub>" + i + "</sub> = " +
+              A[i] + " of the capacity; continue with b′ = " + j + " − " + A[i] + " = " + pj + ".",
+          hl: [out ? "max_out" : "max_in"], hlp: [out ? "t_out" : "t_in"], trace: true, fresh: out ? null : i,
+          pic: { np: i - 1, bp: pj, pack: S.slice(), cand: i, state: out ? "rej" : "in", fly: !out, decided: decided, trace: true, wholeItems: true } });
+    i = pi; j = pj;
+  }
+  const decided = Object.assign(cellsOfWhole(S, "in"), cellsOfWhole(rej, "out"));
+  add({ filled: full, cells: cellsOf(path, "path"), path: path.slice(), S: S.slice(), rej: rej.slice(),
+        txt: "Row 0 reached. T = {" + S.map(k => esc(NAME[k])).join(", ") + "} has total weight " + sumA(S) + " ≤ " + tj +
+             " and total value <b>" + sumV(S) + "</b> = V[" + ti + ", " + tj + "] &mdash; an optimal packing" +
+             (whole ? "." : " of the subproblem (" + ti + ", " + tj + ")."),
+        ans: "max value = " + T[ti][tj] + "  ·  T = {" + S.map(k => NAME[k]).join(", ") + "}",
+        hl: ["ans"], hlp: ["t_ret"], trace: true, done: true,
+        pic: { np: 0, bp: j, pack: S.slice(), cand: null, state: null, decided: decided, trace: true, wholeItems: true, done: true, cap: tj } });
+}
+
+/* ---- SubsetSum and Partition ---------------------------------------------- */
+
+const yn = x => x ? '<span class="k-in">yes</span>' : '<span class="k-no">no</span>';
+
+function buildSubset() {
+  const part = mode === "partition";
+  const tname = part ? "Σ/2" : "t";
+  if (!feasible()) {
+    mkPhase("Odd sum");
+    add({ filled: 0, txt: "Σ = " + SUM + " is <b>odd</b>, so no two subsets can have the same sum &mdash; the answer is " +
+           yn(false) + " before any table is filled. (The table is drawn for ⌊Σ/2⌋ = " + cap + " but never computed.)",
+          ans: "no partition: Σ is odd", hl: ["odd"], pic: { np: 0, bp: cap, rest: null, cand: null, state: null, intro: true, odd: true } });
+    return;
+  }
+  const ti = traceFrom ? traceFrom[0] : n, tj = traceFrom ? traceFrom[1] : cap;
+  const picGuess = (i, j, kind, fly) => {
+    if (kind === "out") return { np: i, bp: j, rest: optSet(i - 1, j), cand: i, state: "out" };
+    if (kind === "no")  return { np: i, bp: j, rest: optSet(i - 1, j), cand: i, state: "nofit" };
+    return { np: i, bp: j, rest: optSet(i - 1, j - A[i]), cand: i, state: "in", fly: !!fly };
+  };
+  const picDone = (i, j) => ({ np: i, bp: j, rest: optSet(i, j), cand: null, state: null });
+
+  mkPhase("Base");
+  add({ filled: 0, txt: "<b>Subproblem (n′, s)</b>: can the sum s be made <i>exactly</i> from the numbers 1, …, n′? " +
+         (part ? "Σ = " + SUM + " is even, so we ask for Σ/2 = " + cap + ": " : "") + "The original problem is the bottom-right " +
+         "corner (" + n + ", " + cap + "). The <b>guess</b> is whether a<sub>n′</sub> is used; either way, what remains is a " +
+         "smaller subproblem in the row above.",
+        hl: ["head"], pic: { np: n, bp: cap, rest: [], cand: null, state: null, intro: true } });
+  const row0 = []; for (let j = 0; j <= cap; j++) row0.push([0, j]);
+  add({ filled: cap + 1, write: row0, cells: cellsOf(row0, "cur"),
+        txt: "<b>n′ = 0</b>: with no numbers only the sum 0 can be made &mdash; <code>R[0, 0] = yes</code>, every other " +
+             "<code>R[0, s] = no</code>.",
+        hl: ["base"], hlp: ["p_base"], pic: { np: 0, bp: 0, rest: [], cand: null, state: null } });
+
+  for (let i = 1; i <= n; i++) {
+    mkPhase(esc(NAME[i]) + " (" + A[i] + ")");
+    const a = A[i];
+    if (gran === 0) {
+      const row = []; for (let j = 0; j <= cap; j++) row.push([i, j]);
+      const arrows = [];
+      for (let j = a; j <= cap; j++) if (T[i - 1][j - a] && !T[i - 1][j])
+        arrows.push({ from: [i - 1, j - a], to: [i, j], kind: "in", lab: "", cls: "best" });
+      add({ filled: ordOf(i, 0) + cap + 1, write: row, cells: cellsOf(row, "cur"), rowOf: i, arrows: arrows,
+            txt: "<b>Row n′ = " + i + "</b> (a<sub>" + i + "</sub> = " + a + "): the row above stays reachable, <i>and</i> every " +
+                 "reachable sum s of the row above now also gives s + " + a + ". So row " + i + " = row " + (i - 1) + " OR " +
+                 "(row " + (i - 1) + " <b>shifted right by " + a + "</b>) &mdash; the arrows show the shift where it creates " +
+                 "new yes-cells.",
+            hl: ["skip", "or_out", "or_in"], hlp: ["p_loop", "p_if", "p_copy", "p_else", "p_or"], pic: picDone(i, cap) });
+      continue;
+    }
+    for (let j = 0; j <= cap; j++) {
+      const best = T[i][j], pre = ordOf(i, j), g = guesses(i, j);
+      if (a > j) {
+        add({ filled: pre + 1, cell: [i, j], write: [[i, j]],
+              cells: { [(i - 1) + "," + j]: best ? "best" : "pred", [i + "," + j]: "cur" },
+              arrows: [{ from: [i - 1, j], to: [i, j], kind: "out", lab: "", cls: best ? "best" : "cand" }],
+              txt: "<b>R[" + i + ", " + j + "]</b>: a<sub>" + i + "</sub> = " + a + ' <span class="k-no">is larger than s = ' + j +
+                   "</span>, so it cannot be part of this sum. Copy the cell above: <code>R[" + i + ", " + j + "] = R[" + (i - 1) +
+                   ", " + j + "] = </code>" + yn(best) + ".",
+              hl: ["skip"], hlp: ["p_if", "p_copy"], pic: picGuess(i, j, "no") });
+        continue;
+      }
+      const predCells = {}; g.forEach(x => predCells[x.pi + "," + x.pj] = x.val ? "best" : "pred");
+      const arrowsAll = g.map(x => ({ from: [x.pi, x.pj], to: [i, j], kind: x.kind, lab: "", cls: x.val ? "best" : "cand" }));
+      if (gran === 2) g.forEach((x, k) => {
+        const c = {}; c[x.pi + "," + x.pj] = "pred"; c[i + "," + j] = "cur";
+        const isIn = x.kind === "in";
+        add({ filled: pre, cell: [i, j], cells: c,
+              arrows: [{ from: [x.pi, x.pj], to: [i, j], kind: x.kind, lab: "", cls: "cand" }],
+              txt: "<b>R[" + i + ", " + j + "]</b>, guess " + (k + 1) + " of 2: " +
+                   (isIn ? '<span class="k-in">use</span> a<sub>' + i + "</sub> = " + a + ". Then the other numbers must make " +
+                           j + " − " + a + " = " + (j - a) + ": <code>R[" + (i - 1) + ", " + (j - a) + "] = </code>" + yn(x.val) + "."
+                         : '<span class="k-out">skip</span> a<sub>' + i + "</sub>. Then the numbers 1…" + (i - 1) + " must make " + j +
+                           " on their own: <code>R[" + (i - 1) + ", " + j + "] = </code>" + yn(x.val) + "."),
+              hl: [isIn ? "or_in" : "or_out"], hlp: ["p_else", "p_or"], pic: picGuess(i, j, x.kind, isIn) });
+      });
+      const win = g.filter(x => x.val), chosen = win[0] || g[0];
+      const cells = Object.assign({}, predCells); cells[i + "," + j] = "cur";
+      add({ filled: pre + 1, cell: [i, j], write: [[i, j]], cells: cells, arrows: arrowsAll,
+            txt: "<b>R[" + i + ", " + j + "] = </b>" + yn(best) + ": " +
+                 (!best ? "neither R[" + (i - 1) + ", " + j + "] nor R[" + (i - 1) + ", " + (j - a) + "] holds &mdash; " + j +
+                          " cannot be made from the first " + i + " numbers."
+                  : win.length > 1 ? "both ways work: " + j + " is reachable with <i>and</i> without a<sub>" + i + "</sub>."
+                  : chosen.kind === "in" ? '<span class="k-in">only with</span> a<sub>' + i + "</sub> = " + a + ": " + (j - a) +
+                                           " is reachable from the row above, " + j + " is not."
+                  : '<span class="k-out">already without</span> a<sub>' + i + "</sub>: R[" + (i - 1) + ", " + j + "] holds."),
+            hl: ["or_out", "or_in"], hlp: ["p_else", "p_or"],
+            pic: best ? picGuess(i, j, chosen.kind, chosen.kind === "in" && gran !== 2) : picDone(i, j) });
+    }
+  }
+
+  const full = FULL();
+  if (!T[ti][tj]) {
+    mkPhase("Result");
+    add({ filled: full, cell: [ti, tj], cells: cellsOf([[ti, tj]], "cur"),
+          txt: "<code>R[" + ti + ", " + tj + "] = </code>" + yn(false) + ": the sum " + tj + " cannot be made from the numbers 1…" + ti +
+               (part ? ", so there is <b>no partition</b> into two equal halves." : ".") + " There is nothing to backtrace.",
+          ans: (part ? "no partition" : "no subset") + " — R[" + ti + ", " + tj + "] = no",
+          hl: ["ans"], hlp: ["t_none"], trace: true, none: true, pic: picDone(ti, tj) });
+    return;
+  }
+  mkPhase("Backtrace");
+  let i = ti, j = tj, S = [], rej = [], path = [[ti, tj]];
+  const whole = (ti === n && tj === cap);
+  add({ filled: full, cells: cellsOf(path, "path"), path: path.slice(), S: [], rej: [],
+        txt: "<code>R[" + ti + ", " + tj + "] = </code>" + yn(true) + (whole ? "" : " (the cell you clicked)") + " &mdash; but which " +
+             "numbers? Retrace the recurrence: at each row, if the sum was already reachable in the row above, the number is not " +
+             "needed; otherwise it must be part of the sum." +
+             (part ? " Every number goes onto one pan of the balance." : ""),
+        hl: ["head"], hlp: ["t_head", "t_init"], trace: true,
+        pic: { np: ti, bp: tj, rest: [], cand: null, state: null, decided: {}, trace: true, cap: tj } });
+  while (i >= 1) {
+    const out = T[i - 1][j];
+    const tie = out && A[i] <= j && T[i - 1][j - A[i]];
+    const pi = i - 1, pj = out ? j : j - A[i];
+    if (out) rej = rej.concat([i]); else S = [i].concat(S);
+    path = path.concat([[pi, pj]]);
+    const cells = cellsOf(path, "path"); cells[i + "," + j] = "cur";
+    const decided = Object.assign(cellsOfWhole(S, "in"), cellsOfWhole(rej, "out"));
+    add({ filled: full, cell: [i, j], cells: cells, path: path.slice(), S: S.slice(), rej: rej.slice(),
+          arrows: [{ from: [pi, pj], to: [i, j], kind: out ? "out" : "in", lab: "", cls: "taken" }],
+          txt: out
+            ? "<code>R[" + (i - 1) + ", " + j + "] = </code>" + yn(true) + ": " + j + " is reachable without a<sub>" + i + "</sub> = " + A[i] +
+              ', so <span class="k-out">' + (part ? "it goes to the right pan" : "it is left out") + "</span>; s stays " + j + "." +
+              (tie ? " <i>(Using it would also have worked &mdash; the code checks the first case first.)</i>" : "")
+            : "<code>R[" + (i - 1) + ", " + j + "] = </code>" + yn(false) + ", so the yes must come from the other case: " +
+              '<span class="k-in">a<sub>' + i + "</sub> = " + A[i] + (part ? " goes to the left pan" : " is in S") + "</span>. Continue with s = " +
+              j + " − " + A[i] + " = " + pj + ".",
+          hl: [out ? "or_out" : "or_in"], hlp: [out ? "t_out" : "t_in"], trace: true, fresh: out ? null : i,
+          pic: { np: i - 1, bp: pj, rest: S.slice(), cand: i, state: out ? "rej" : "in", fly: true, decided: decided, trace: true,
+                 wholeItems: true, cap: tj, fresh: i } });
+    i = pi; j = pj;
+  }
+  const decided = Object.assign(cellsOfWhole(S, "in"), cellsOfWhole(rej, "out"));
+  const R = []; for (let k = 1; k <= n; k++) if (!decided[k] || decided[k] === "out") R.push(k);
+  add({ filled: full, cells: cellsOf(path, "path"), path: path.slice(), S: S.slice(), rej: rej.slice(),
+        txt: "Row 0 reached with s = 0: " + (part
+             ? "left pan {" + S.map(k => esc(NAME[k])).join(", ") + "} and right pan {" + R.map(k => esc(NAME[k])).join(", ") +
+               "} both weigh <b>" + cap + "</b> &mdash; the balance is level."
+             : "S = {" + S.map(k => esc(NAME[k])).join(", ") + "} adds up to <b>" + sumA(S) + "</b> = " + tj + "."),
+        ans: part ? "partition: {" + S.map(k => NAME[k]).join(", ") + "} | {" + R.map(k => NAME[k]).join(", ") + "}"
+                  : "S = {" + S.map(k => NAME[k]).join(", ") + "}, sum " + tj,
+        hl: ["ans"], hlp: ["t_ret"], trace: true, done: true,
+        pic: { np: 0, bp: 0, rest: S.slice(), cand: null, state: null, decided: decided, trace: true, wholeItems: true, done: true, cap: tj } });
+}
+
+/* ---- SubsetSum over the integers: a non-empty subset with sum 0 ------------------- */
+
+function buildZero() {
+  const z = -LO;                                          /* the column of sum 0 */
+  const ti = traceFrom ? traceFrom[0] : n, tj = traceFrom ? traceFrom[1] : z;
+  const sg = x => (x < 0 ? "−" : "") + Math.abs(x);
+  const pic = (i, j, rest, cand, state, fly) => ({ np: i, bp: j, rest: rest, cand: cand, state: state, fly: !!fly });
+  const picDone = (i, j) => pic(i, j, optSet(i, j), null, null);
+
+  mkPhase("Base");
+  add({ filled: 0, txt: "<b>Subproblem (n′, s)</b>: does a <i>non-empty</i> subset of x<sub>1</sub>, …, x<sub>n′</sub> sum to exactly s? " +
+         "The sums of subsets range from −N = " + LO + " (every negative number) to P = " + sumOf(cap) + " (every positive one), one column " +
+         "each; the answer is the cell (" + n + ", 0). The <b>guess</b> is whether x<sub>n′</sub> is used: not at all, on its own, or together " +
+         "with a non-empty rest summing to s − x<sub>n′</sub>.",
+        hl: ["head"], pic: { np: n, bp: z, rest: [], cand: null, state: null, intro: true } });
+  const row0 = []; for (let j = 0; j <= cap; j++) row0.push([0, j]);
+  add({ filled: cap + 1, write: row0, cells: cellsOf(row0, "cur"),
+        txt: "<b>n′ = 0</b>: there is no non-empty subset of nothing &mdash; <code>R[0, s] = no</code> for every s, including s = 0. " +
+             "(The empty set sums to 0, but it is excluded on purpose.)",
+        hl: ["base"], hlp: ["p_base"], pic: { np: 0, bp: z, rest: [], cand: null, state: null } });
+
+  for (let i = 1; i <= n; i++) {
+    mkPhase(esc(NAME[i]) + " (" + sg(X[i]) + ")");
+    const x = X[i];
+    if (gran === 0) {
+      const row = []; for (let j = 0; j <= cap; j++) row.push([i, j]);
+      const arrows = [];
+      for (let j = 0; j <= cap; j++) {
+        if (T[i - 1][j]) continue;
+        const pj = j - x;
+        if (pj >= 0 && pj <= cap && T[i - 1][pj]) arrows.push({ from: [i - 1, pj], to: [i, j], kind: "in", lab: "", cls: "best" });
+      }
+      add({ filled: ordOf(i, 0) + cap + 1, write: row, cells: cellsOf(row, "cur"), rowOf: i, arrows: arrows,
+            txt: "<b>Row n′ = " + i + "</b> (x<sub>" + i + "</sub> = " + sg(x) + "): the row above stays, the cell s = " + sg(x) +
+                 " becomes yes (x<sub>" + i + "</sub> alone), and every yes of the row above <b>shifts by " + sg(x) + "</b> &mdash; to the " +
+                 (x >= 0 ? "right" : "left") + ".",
+            hl: ["or_out", "or_alone", "or_in"], hlp: ["p_loop", "p_or"], pic: picDone(i, z) });
+      continue;
+    }
+    for (let j = 0; j <= cap; j++) {
+      const s = sumOf(j), best = T[i][j], pre = ordOf(i, j), g = guesses(i, j);
+      const gIn = g.find(q => q.kind === "in"), gAlone = g[1];
+      const predCells = {}; predCells[(i - 1) + "," + j] = T[i - 1][j] ? "best" : "pred";
+      if (gIn) predCells[(i - 1) + "," + gIn.pj] = gIn.val ? "best" : "pred";
+      const arrowsAll = [{ from: [i - 1, j], to: [i, j], kind: "out", lab: "", cls: T[i - 1][j] ? "best" : "cand" }];
+      if (gIn) arrowsAll.push({ from: [i - 1, gIn.pj], to: [i, j], kind: "in", lab: "", cls: gIn.val ? "best" : "cand" });
+      if (gran === 2) g.forEach((q, k) => {
+        const c = {}; c[i + "," + j] = "cur"; if (q.pi >= 0) c[q.pi + "," + q.pj] = "pred";
+        add({ filled: pre, cell: [i, j], cells: c,
+              arrows: q.pi >= 0 ? [{ from: [q.pi, q.pj], to: [i, j], kind: q.kind, lab: "", cls: "cand" }] : [],
+              txt: "<b>R[" + i + ", " + sg(s) + "]</b>, guess " + (k + 1) + " of " + g.length + ": " +
+                   (q.kind === "out" ? '<span class="k-out">skip</span> x<sub>' + i + "</sub>: the numbers 1…" + (i - 1) + " must make " + sg(s) +
+                                       " on their own &mdash; <code>R[" + (i - 1) + ", " + sg(s) + "] = </code>" + yn(q.val) + "."
+                  : q.kind === "alone" ? "x<sub>" + i + "</sub> <span class=\"k-in\">alone</span>: is " + sg(x) + " = " + sg(s) + "? " + yn(q.val) + "."
+                  : '<span class="k-in">use</span> x<sub>' + i + "</sub> = " + sg(x) + " with a non-empty rest that makes " + sg(s) + " − (" + sg(x) +
+                    ") = " + sg(s - x) + ": <code>R[" + (i - 1) + ", " + sg(s - x) + "] = </code>" + yn(q.val) + "."),
+              hl: [q.kind === "out" ? "or_out" : q.kind === "alone" ? "or_alone" : "or_in"], hlp: ["p_or"],
+              pic: q.kind === "out" ? pic(i, j, optSet(i - 1, j), i, "out")
+                 : q.kind === "alone" ? Object.assign(pic(i, j, q.val ? [] : null, i, "in", true), { alone: true })
+                 : pic(i, j, optSet(i - 1, q.pj), i, "in", true) });
+      });
+      const win = g.filter(q => q.val), chosen = win[0];
+      const cells = Object.assign({}, predCells); cells[i + "," + j] = "cur";
+      const noIn = !gIn ? " (s − x<sub>" + i + "</sub> = " + sg(s - x) + " is outside the range, so no rest could make it)" : "";
+      add({ filled: pre + 1, cell: [i, j], write: [[i, j]], cells: cells, arrows: arrowsAll,
+            txt: "<b>R[" + i + ", " + sg(s) + "] = </b>" + yn(best) + ": " +
+                 (!best ? "not without x<sub>" + i + "</sub>, not alone (" + sg(x) + " ≠ " + sg(s) + "), and not with a rest making " + sg(s - x) + noIn + "."
+                  : chosen.kind === "out" ? '<span class="k-out">already without</span> x<sub>' + i + "</sub>: R[" + (i - 1) + ", " + sg(s) + "] holds." +
+                                            (win.length > 1 ? " <i>(It would also work with it.)</i>" : "")
+                  : chosen.kind === "alone" ? "x<sub>" + i + "</sub> = " + sg(x) + ' <span class="k-in">alone</span> makes ' + sg(s) + "."
+                  : '<span class="k-in">only with</span> x<sub>' + i + "</sub>: a non-empty rest makes " + sg(s - x) + ", so adding " + sg(x) + " gives " + sg(s) + "."),
+            hl: ["or_out", "or_alone", "or_in"], hlp: ["p_or"],
+            pic: !best ? picDone(i, j)
+               : chosen.kind === "out" ? pic(i, j, optSet(i - 1, j), i, "out")
+               : chosen.kind === "alone" ? Object.assign(pic(i, j, [], i, "in", gran !== 2), { alone: true })
+               : pic(i, j, optSet(i - 1, chosen.pj), i, "in", gran !== 2) });
+    }
+  }
+
+  const full = FULL();
+  if (!T[ti][tj]) {
+    mkPhase("Result");
+    add({ filled: full, cell: [ti, tj], cells: cellsOf([[ti, tj]], "cur"),
+          txt: "<code>R[" + ti + ", " + sg(sumOf(tj)) + "] = </code>" + yn(false) + ": no non-empty subset of x<sub>1</sub>…x<sub>" + ti + "</sub> sums to " +
+               sg(sumOf(tj)) + ". Nothing to backtrace.",
+          ans: "no subset — R[" + ti + ", " + sg(sumOf(tj)) + "] = no", hl: ["ans"], hlp: ["t_none"], trace: true, none: true, pic: picDone(ti, tj) });
+    return;
+  }
+  mkPhase("Backtrace");
+  let i = ti, j = tj, S = [], rej = [], path = [[ti, tj]], stopped = false;
+  const whole = (ti === n && tj === z);
+  add({ filled: full, cells: cellsOf(path, "path"), path: path.slice(), S: [], rej: [],
+        txt: "<code>R[" + ti + ", " + sg(sumOf(tj)) + "] = </code>" + yn(true) + (whole ? "" : " (the cell you clicked)") + " &mdash; which numbers? " +
+             "Retrace: if the sum was reachable in the row above, the number is not needed; if the number alone is the sum, it is the last one; " +
+             "otherwise it is used together with a rest summing to s − x<sub>n′</sub>.",
+        hl: ["head"], hlp: ["t_head", "t_init"], trace: true,
+        pic: { np: ti, bp: tj, rest: [], cand: null, state: null, decided: {}, trace: true } });
+  while (i >= 1 && !stopped) {
+    const out = T[i - 1][j], alone = !out && sumOf(j) === X[i];
+    const pi = i - 1, pj = out ? j : alone ? -1 : j - X[i];
+    if (out) rej = rej.concat([i]); else S = [i].concat(S);
+    if (!alone) path = path.concat([[pi, pj]]);
+    const cells = cellsOf(path, "path"); cells[i + "," + j] = "cur";
+    const decided = Object.assign(cellsOfWhole(S, "in"), cellsOfWhole(rej, "out"));
+    const restCols = alone ? [] : null;
+    add({ filled: full, cell: [i, j], cells: cells, path: path.slice(), S: S.slice(), rej: rej.slice(),
+          arrows: alone ? [] : [{ from: [pi, pj], to: [i, j], kind: out ? "out" : "in", lab: "", cls: "taken" }],
+          txt: out
+            ? "<code>R[" + (i - 1) + ", " + sg(sumOf(j)) + "] = </code>" + yn(true) + ": " + sg(sumOf(j)) + " is reachable without x<sub>" + i + "</sub>, so " +
+              '<span class="k-out">it is left out</span>; s stays ' + sg(sumOf(j)) + "."
+            : alone
+            ? "<code>R[" + (i - 1) + ", " + sg(sumOf(j)) + "] = </code>" + yn(false) + " but x<sub>" + i + "</sub> = " + sg(X[i]) + " = s: " +
+              '<span class="k-in">x<sub>' + i + "</sub> is the last number of I</span>, the rest is empty &mdash; done."
+            : "<code>R[" + (i - 1) + ", " + sg(sumOf(j)) + "] = </code>" + yn(false) + " and x<sub>" + i + "</sub> ≠ s, so a rest must make s − x<sub>" + i +
+              "</sub>: <span class=\"k-in\">x<sub>" + i + "</sub> = " + sg(X[i]) + " is in I</span>. Continue with s = " + sg(sumOf(j)) + " − (" + sg(X[i]) +
+              ") = " + sg(sumOf(pj)) + ".",
+          hl: [out ? "or_out" : alone ? "or_alone" : "or_in"], hlp: [out ? "t_out" : alone ? "t_alone" : "t_in"], trace: true, fresh: out ? null : i,
+          pic: { np: i - 1, bp: alone ? -1 : pj, rest: S.slice(), cand: i, state: out ? "rej" : "in", fly: true, decided: decided, trace: true, wholeItems: true, fresh: i } });
+    if (alone) { stopped = true; break; }
+    i = pi; j = pj;
+  }
+  const decided = Object.assign(cellsOfWhole(S, "in"), cellsOfWhole(rej, "out"));
+  add({ filled: full, cells: cellsOf(path, "path"), path: path.slice(), S: S.slice(), rej: rej.slice(),
+        txt: "I = {" + S.map(k => esc(NAME[k])).join(", ") + "}: " + S.map(k => sg(X[k])).join(" + ").replace(/\+ −/g, "− ") + " = " + sg(sumOf(tj)) +
+             (whole ? " &mdash; the beam is level." : "."),
+        ans: "I = {" + S.map(k => NAME[k]).join(", ") + "}, sum " + sg(sumOf(tj)),
+        hl: ["ans"], hlp: ["t_ret"], trace: true, done: true,
+        pic: { np: 0, bp: -1, rest: S.slice(), cand: null, state: null, decided: decided, trace: true, wholeItems: true, done: true, target: tj } });
+}
+
+/* ---- MakingChange ----------------------------------------------------------- */
+
+function buildChange() {
+  const tj = traceFrom ? traceFrom[1] : cap;
+  const picG = (s, k, fly) => ({ bp: s, rest: optSet(0, s - A[k]), cand: k, state: "in", fly: !!fly });
+  const picD = s => ({ bp: s, rest: optSet(0, s), cand: null, state: null });
+
+  mkPhase("Base");
+  add({ filled: 0, txt: "<b>Subproblem s</b>: the fewest coins that pay exactly s. The <b>guess</b> is which coin is used " +
+         "<i>last</i>; what remains is the smaller amount s − c, another cell of the same row. So one row C[0..t] suffices, " +
+         "filled left to right, and the original problem is the last cell C[" + cap + "].",
+        hl: ["head"], pic: { bp: cap, rest: [], cand: null, state: null, intro: true } });
+  add({ filled: 1, write: [[0, 0]], cells: cellsOf([[0, 0]], "cur"),
+        txt: "<b>s = 0</b>: nothing to pay, zero coins &mdash; <code>C[0] = 0</code>.",
+        hl: ["base"], hlp: ["p_base"], pic: { bp: 0, rest: [], cand: null, state: null } });
+
+  const grp = cap <= 12 ? 1 : Math.ceil(cap / 8);
+  for (let s = 1; s <= cap; s++) {
+    const hi = Math.min(cap, s + grp - 1);
+    if ((s - 1) % grp === 0) mkPhase(grp === 1 ? "s = " + s : "s = " + s + "–" + hi);
+    if (gran === 0) {
+      if ((s - 1) % grp !== 0) continue;
+      const cells = []; for (let u = s; u <= hi; u++) cells.push([0, u]);
+      add({ filled: hi + 1, write: cells, cells: cellsOf(cells, "cur"), cell: [0, hi],
+            txt: "<b>C[" + s + "]" + (hi > s ? " … C[" + hi + "]" : "") + "</b>: each cell is 1 + the minimum over the coins c ≤ s of C[s − c] " +
+                 "&mdash; the cells to its left, c places back. " + (hi > s ? "Values: " + cells.map(c => fmt(T[0][c[1]])).join(", ") + "." : "C[" + s + "] = " + fmt(T[0][s]) + "."),
+            hl: ["min"], hlp: ["p_loop", "p_init", "p_inner", "p_if", "p_set"], pic: picD(hi) });
+      continue;
+    }
+    const g = guesses(0, s), best = T[0][s];
+    const predCells = {}; g.forEach(x => predCells["0," + x.pj] = x.val === best ? "best" : "pred");
+    const arrowsAll = g.map(x => ({ from: [0, x.pj], to: [0, s], kind: "coin", lab: "+1", cls: x.val === best ? "best" : "cand", coin: x.coin }));
+    if (gran === 2) g.forEach((x, k) => {
+      const c = {}; c["0," + x.pj] = "pred"; c["0," + s] = "cur";
+      add({ filled: s, cell: [0, s], cells: c, arrows: [{ from: [0, x.pj], to: [0, s], kind: "coin", lab: "+1", cls: "cand", coin: x.coin }],
+            txt: "<b>C[" + s + "]</b>, guess " + (k + 1) + " of " + g.length + ": the last coin is <b>" + A[x.coin] + "</b>. " +
+                 "Then " + s + " − " + A[x.coin] + " = " + x.pj + " must be paid with the fewest coins: <code>1 + C[" + x.pj + "] = 1 + " +
+                 fmt(T[0][x.pj]) + " = " + fmt(x.val) + "</code>.",
+            hl: ["min"], hlp: ["p_inner", "p_if", "p_set"], pic: picG(s, x.coin, true) });
+    });
+    const win = g.filter(x => x.val === best);
+    const cells = Object.assign({}, predCells); cells["0," + s] = "cur";
+    add({ filled: s + 1, cell: [0, s], write: [[0, s]], cells: cells, arrows: arrowsAll,
+          txt: "<b>C[" + s + "] = " + fmt(best) + "</b>" +
+               (!g.length ? ": no coin is ≤ " + s + ", so nothing can be tried &mdash; the amount is impossible (∞)."
+                : best === INF ? ": every candidate " + g.map(x => "1 + C[" + x.pj + "]").join(", ") + " is ∞ &mdash; " + s + " cannot be paid."
+                : " = 1 + min{ " + g.map(x => fmt(T[0][x.pj])).join(", ") + " }: " +
+                  (win.length > 1 ? "coins " + win.map(x => A[x.coin]).join(" or ") + " serve equally well as the last coin."
+                                  : "the last coin is <b>" + A[win[0].coin] + "</b> (1 + C[" + win[0].pj + "] = 1 + " + T[0][win[0].pj] + ").")),
+          hl: ["min"], hlp: ["p_init", "p_inner", "p_if", "p_set"],
+          pic: best === INF || !win.length ? picD(s) : picG(s, win[0].coin, gran !== 2) });
+  }
+
+  const full = FULL();
+  if (T[0][tj] === INF) {
+    mkPhase("Result");
+    add({ filled: full, cell: [0, tj], cells: cellsOf([[0, tj]], "cur"),
+          txt: "<code>C[" + tj + "] = ∞</code>: the amount " + tj + " cannot be paid with these coins at all. Nothing to backtrace.",
+          ans: "no way to pay " + tj, hl: ["ans"], hlp: ["t_none"], trace: true, none: true, pic: picD(tj) });
+    return;
+  }
+  mkPhase("Backtrace");
+  let s = tj, L = [], path = [[0, tj]];
+  const whole = tj === cap;
+  add({ filled: full, cells: cellsOf(path, "path"), path: path.slice(), S: [],
+        txt: "<code>C[" + tj + "] = " + T[0][tj] + "</code>" + (whole ? "" : " (the cell you clicked)") + " coins &mdash; but which? " +
+             "Retrace: at amount s, find a coin c with C[s] = 1 + C[s − c], pay it, and continue with s − c.",
+        hl: ["head"], hlp: ["t_head", "t_init"], trace: true, pic: { bp: tj, rest: [], cand: null, state: null, trace: true, cap: tj } });
+  let guard = 0;
+  while (s > 0 && guard++ < 1000) {
+    const g = guesses(0, s), alts = g.filter(x => x.val === T[0][s]), pick = alts[0];
+    L = [pick.coin].concat(L);
+    path = path.concat([[0, pick.pj]]);
+    const cells = cellsOf(path, "path"); cells["0," + s] = "cur";
+    add({ filled: full, cell: [0, s], cells: cells, path: path.slice(), S: L.slice(),
+          arrows: [{ from: [0, pick.pj], to: [0, s], kind: "coin", lab: "+1", cls: "taken", coin: pick.coin }],
+          txt: "<code>C[" + s + "] = " + T[0][s] + " = 1 + C[" + pick.pj + "]</code>: pay a <b>" + A[pick.coin] + "</b> coin and continue " +
+               "with s = " + pick.pj + "." + (alts.length > 1 ? " <i>(" + alts.slice(1).map(x => A[x.coin]).join(", ") +
+               " would do equally well; the code takes the first coin in input order.)</i>" : ""),
+          hl: ["min"], hlp: ["t_pick", "t_pay"], trace: true, fresh: pick.coin,
+          pic: { bp: pick.pj, rest: L.slice(), cand: pick.coin, state: "in", fly: true, trace: true, cap: tj } });
+    s = pick.pj;
+  }
+  add({ filled: full, cells: cellsOf(path, "path"), path: path.slice(), S: L.slice(),
+        txt: "Amount 0 reached: " + L.map(k => A[k]).join(" + ") + " = " + tj + " with <b>" + L.length + "</b> coin" + (L.length === 1 ? "" : "s") +
+             " &mdash; and C[" + tj + "] says no fewer will do.",
+        ans: "fewest coins for " + tj + ": " + L.length + "  (" + L.map(k => A[k]).join(" + ") + ")",
+        hl: ["ans"], hlp: ["t_ret"], trace: true, done: true, pic: { bp: 0, rest: L.slice(), cand: null, state: null, trace: true, done: true, cap: tj } });
+}
+
+/* ---------- geometry of the table ---------------------------------------- */
+
+let CS = 48;
+let X0 = 122;
+const Y0 = 60;
+const cxOf = j => X0 + j * CS + CS / 2;
+const cyOf = i => Y0 + i * CS + CS / 2;
+let animate = true;
+let TOPPAD = 0;
+
+function sizeCells() {
+  X0 = mode === "change" ? 60 : mode === "knap" ? 122 : mode === "zerosum" ? 104 : 100;
+  let digits = 1;
+  if (mode === "knap") digits = String(T.length ? T[n][cap] : 0).length;
+  if (mode === "change") digits = 2;
+  CS = Math.max(30, Math.min(48, Math.round(1100 / (cap + 1))));
+  CS = Math.max(CS, Math.min(60, 10 * digits + 14));
+}
+
+function arrowPath(a) {
+  const x2 = cxOf(a.to[1]), y2 = cyOf(a.to[0]);
+  const x1 = cxOf(a.from[1]), y1 = cyOf(a.from[0]);
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy);
+  const ux = dx / L, uy = dy / L, pad = CS * 0.27, pad2 = CS * 0.30;
+  return { x1: x1 + ux * pad, y1: y1 + uy * pad, x2: x2 - ux * pad2, y2: y2 - uy * pad2,
+           mx: (x1 + x2) / 2, my: (y1 + y2) / 2, len: L - pad - pad2 };
+}
+/* an arc from cell (0,a) to (0,b) in the same row, bulging upwards */
+function arcPath(a) {
+  const x1 = cxOf(a.from[1]), x2 = cxOf(a.to[1]) - CS * 0.16, y = cyOf(0) + TOPPAD - CS * 0.36;
+  const d = Math.abs(x2 - x1), h = Math.min(70, 14 + d * 0.22);
+  return { d: "M" + x1 + "," + y + " C" + x1 + "," + (y - h) + " " + x2 + "," + (y - h) + " " + x2 + "," + y,
+           mx: (x1 + x2) / 2, my: y - h * 0.78 - 8, len: d + 2 * h };
+}
+
+function cellText(i, j) {
+  const v = T[i][j];
+  if (isBool()) return v ? "✓" : "–";
+  return v === INF ? "∞" : String(v);
+}
+function cellCls(i, j) {
+  if (isBool()) return T[i][j] ? " yes" : " no";
+  return T[i][j] === INF ? " inf" : "";
+}
+
+function drawGrid() {
+  const st = steps[cur] || {};
+  const svg = el("gridSvg");
+  sizeCells();
+  const R = rows();
+  const topPad = mode === "change" ? 60 : 0;      /* room for the arcs */
+  TOPPAD = topPad;
+  const Wd = X0 + (cap + 1) * CS + 24, H = Y0 + topPad + R * CS + 24;
+  const y0 = Y0 + topPad;
+  const cy = i => y0 + i * CS + CS / 2;
+  svg.setAttribute("width", Wd); svg.setAttribute("height", H);
+  svg.setAttribute("viewBox", "0 0 " + Wd + " " + H);
+
+  const cells = st.cells || {}, writes = st.write || [];
+  const wroteKey = {}; writes.forEach(c => wroteKey[c[0] + "," + c[1]] = 1);
+  const filled = st.filled === undefined ? FULL() : st.filled;
+  const hotRow = st.cell ? st.cell[0] : (st.rowOf !== undefined ? st.rowOf : -1);
+  const hotCol = st.cell ? st.cell[1] : -1;
+  const out = [];
+  const M = MODES[mode];
+
+  out.push('<defs>');
+  [["cand", "var(--wi-examine)"], ["best", "var(--wi-relax)"], ["taken", "var(--wi-accent)"], ["faint", "var(--wi-inert)"]].forEach(p => {
+    out.push('<marker id="ah-' + p[0] + '" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="5.5" markerHeight="5.5" ' +
+             'orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="' + p[1] + '"/></marker>');
+  });
+  out.push('</defs>');
+
+  out.push('<text class="hdrname" x="6" y="' + (Y0 - 36) + '">' + M.colLab + '</text>');
+  if (M.rowLab) out.push('<text class="hdrname" x="6" y="' + (Y0 - 16) + '">' + M.rowLab + '</text>');
+  if (mode === "partition") out.push('<text class="hdrname" x="' + (X0 + (cap + 1) * CS - 4) + '" y="' + (Y0 - 36) + '" text-anchor="end">t = Σ/2 = ' + cap + (feasible() ? "" : "  (Σ odd)") + '</text>');
+
+  for (let j = 0; j <= cap; j++)
+    out.push('<text class="hdrix' + (j === hotCol ? " hot" : (mode === "zerosum" && sumOf(j) === 0 ? " hot" : "")) + '" x="' + cxOf(j) + '" y="' + (y0 - 14) + '">' + (mode === "zerosum" ? String(sumOf(j)).replace("-", "−") : j) + "</text>");
+
+  for (let i = 0; i < R; i++) {
+    const hot = i === hotRow ? " hot" : "";
+    if (mode === "change") {
+      out.push('<text class="hdrch' + hot + '" x="' + (X0 - 30) + '" y="' + cy(i) + '">C[s]</text>');
+      continue;
+    }
+    out.push('<text class="hdrix' + hot + '" x="' + (X0 - (mode === "knap" ? 104 : 82)) + '" y="' + cy(i) + '">' + i + "</text>");
+    if (i >= 1) {
+      out.push('<text class="hdrch' + hot + '" x="' + (X0 - (mode === "knap" ? 70 : 50)) + '" y="' + cy(i) + '">' + esc(NAME[i]) + "</text>");
+      out.push('<text class="hdrwv' + hot + '" x="' + (X0 - (mode === "knap" ? 32 : 22)) + '" y="' + cy(i) + '">' +
+               (mode === "knap" ? A[i] + "/" + Vv[i] : lab(i).replace("-", "−")) + "</text>");
+    }
+  }
+
+  for (let i = 0; i < R; i++) for (let j = 0; j <= cap; j++) {
+    const key = i + "," + j;
+    const shown = ordOf(i, j) < filled;
+    let cls = "cellbg";
+    if (!shown) cls += " empty";
+    else if ((mode !== "change" && i === 0) || (mode === "change" && j === 0)) cls += " base";
+    if (cells[key]) cls += " " + cells[key];
+    if (selCell && selCell[0] === i && selCell[1] === j) cls += " sel";
+    if (hoverCell && hoverCell[0] === i && hoverCell[1] === j && shown) cls += " hov";
+    const x = X0 + j * CS, y = y0 + i * CS;
+    out.push('<rect class="' + cls + '" x="' + x + '" y="' + y + '" width="' + CS + '" height="' + CS + '" rx="3"/>');
+    if (shown) {
+      const pop = (animate && wroteKey[key]) ? " pop" : "";
+      const big = cells[key] === "cur" || cells[key] === "path" ? " big" : "";
+      out.push('<text class="cellval' + cellCls(i, j) + pop + big + '" x="' + cxOf(j) + '" y="' + cy(i) + '">' + cellText(i, j) + "</text>");
+    }
+    out.push('<rect class="hit" data-i="' + i + '" data-j="' + j + '" x="' + x + '" y="' + y + '" width="' + CS + '" height="' + CS + '"/>');
+  }
+
+  if (mode === "zerosum") {
+    const zx = X0 + (-LO) * CS;
+    out.push('<rect class="rowgone" x="' + zx + '" y="' + y0 + '" width="' + CS + '" height="' + (R * CS) + '" style="fill:var(--wi-accent);opacity:.07"/>');
+  }
+
+  const drawArrow = (a, cls, extra) => {
+    if (a.from[0] === a.to[0]) {                        /* same row: an arc */
+      const p = arcPath(a);
+      out.push('<path class="arr same ' + cls + (extra || "") + '" style="--len:' + p.len.toFixed(1) + '" d="' + p.d +
+               '" marker-end="url(#ah-' + cls + ')"/>');
+      return p;
+    }
+    const p = arrowPath(a);
+    const yy1 = p.y1 + topPad, yy2 = p.y2 + topPad;
+    out.push('<line class="arr ' + cls + (extra || "") + '" style="--len:' + p.len.toFixed(1) + '" x1="' + p.x1 + '" y1="' + yy1 +
+             '" x2="' + p.x2 + '" y2="' + yy2 + '" marker-end="url(#ah-' + cls + ')"/>');
+    return p;
+  };
+
+  if (showAll) {
+    for (let i = (mode === "change" ? 0 : 1); i < R; i++) for (let j = 0; j <= cap; j++) {
+      if (ordOf(i, j) >= filled) continue;
+      if (isBool() && !T[i][j]) continue;
+      if (mode === "change" && T[i][j] === INF) continue;
+      guesses(i, j).forEach(g => { if (attains(g, i, j)) drawArrow({ from: [g.pi, g.pj], to: [i, j] }, "faint"); });
+    }
+  }
+
+  if (st.path && st.path.length > 1 && mode !== "change") {
+    const pts = st.path.map(c => cxOf(c[1]) + "," + cy(c[0])).join(" ");
+    out.push('<polyline class="arr taken" style="opacity:.45" points="' + pts + '"/>');
+  }
+  if (st.path && st.path.length > 1 && mode === "change") {
+    for (let k = 1; k < st.path.length - 1; k++)
+      drawArrow({ from: st.path[k + 1], to: st.path[k] }, "taken", " faintpath");
+  }
+
+  (st.arrows || []).forEach(a => {
+    const p = drawArrow(a, a.cls, animate ? " drawin" : "");
+    if (!a.lab) return;
+    const lp = a.from[0] === a.to[0] ? [p.mx, p.my]
+             : a.kind === "out" ? [p.mx + CS * 0.30, p.my + topPad] : [p.mx, p.my - 11 + topPad];
+    out.push('<text class="arrlab ' + a.cls + '" x="' + lp[0] + '" y="' + lp[1] + '">' + a.lab + "</text>");
+  });
+
+  svg.innerHTML = out.join("");
+}
+
+/* ---------- drawing: the pictures ---------------------------------------- */
+
+const PW = 480, BAGW = 300, PAD = 12;
+let coinUnit = 1;
+
+function coinCount(v) { return v <= 0 ? 0 : Math.max(1, Math.ceil(v / coinUnit)); }
+function setCoinUnit() {
+  let mx = 0; for (let i = 1; i <= n; i++) mx = Math.max(mx, Vv[i]);
+  coinUnit = mx <= 10 ? 1 : Math.ceil(mx / 10);
+}
+function coinPile(out, x, y, c, dim, pop) {
+  const rx = 12, ry = 4.2, step = 5.2;
+  for (let k = 0; k < c; k++) {
+    const cy = y - ry - k * step, top = k === c - 1 ? " top" : "";
+    out.push('<ellipse class="coin' + top + (dim ? " dim" : "") + (pop && k === c - 1 ? " coinpop" : "") +
+             '" cx="' + x + '" cy="' + cy.toFixed(1) + '" rx="' + rx + '" ry="' + ry + '"/>');
+  }
+  return c ? (c - 1) * step + 2 * ry : 0;
+}
+function coinPiles(out, x, y, c, pop) {
+  const cols = Math.min(6, Math.ceil(c / 10)), shownC = Math.min(c, 60);
+  const x0 = x - (cols - 1) * 14;
+  let k = 0;
+  for (let col = 0; col < cols; col++) { const cnt = Math.min(10, shownC - k); coinPile(out, x0 + col * 28, y, cnt, false, pop && col === cols - 1); k += cnt; }
+}
+const hatchDef = '<defs><pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+                 '<line x1="0" y1="0" x2="0" y2="7" stroke="var(--wi-inert)" stroke-width="2"/></pattern>' +
+                 '<pattern id="hatchbad" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">' +
+                 '<line x1="0" y1="0" x2="0" y2="7" stroke="var(--wi-accent-soft)" stroke-width="2"/></pattern></defs>';
+
+/* the scale: how many pixels per unit of weight / number / coin value */
+function unitScale() {
+  let maxW = 1, sumW = 0;
+  for (let i = 1; i <= n; i++) { maxW = Math.max(maxW, A[i]); sumW += A[i]; }
+  const s1 = BAGW / Math.max(1, cap);
+  let sumFit = 0; for (let i = 1; i <= n; i++) sumFit += Math.min(A[i], cap);
+  const s2 = mode === "change" ? s1 : (PW - 2 * PAD - 14 * (n - 1)) / Math.max(1, sumFit);
+  return Math.max(Math.min(s1, s2), s1 * 0.55);
+}
+
+/* the row(s) of item blocks; returns {slots, bottom}.  coins: draw value coin piles (knapsack) */
+function itemSlots(s, coins) {
+  const slots = [];
+  const coinH = i => coins ? coinCount(Vv[i]) * 5.2 + 4 : 0;
+  let x = PAD, rowY = 26, rowCoin = 0, rowItems = [];
+  const flushRow = () => { rowItems.forEach(sl => { sl.y = rowY + rowCoin + (coins ? 16 : 4); }); rowY += rowCoin + (coins ? 16 : 4) + 40 + 40; rowItems = []; rowCoin = 0; x = PAD; };
+  for (let i = 1; i <= n; i++) {
+    const iw = Math.max(38, A[i] > cap ? Math.min(A[i] * s, 150) : A[i] * s);   /* oversized: torn off */
+    if (x + iw > PW - PAD && rowItems.length) flushRow();
+    const sl = { i: i, x: x, w: iw }; slots.push(sl); rowItems.push(sl);
+    rowCoin = Math.max(rowCoin, coinH(i));
+    x += iw + 14;
+  }
+  flushRow();
+  return { slots: slots, bottom: rowY - 40, coinH: coinH, s: s };
+}
+
+function drawItemRow(out, lay, pic, coins) {
+  const s = lay.s;
+  const inPack = {}; (pic.pack || pic.rest || []).forEach(k => inPack[k] = 1);
+  const decided = pic.decided || {};
+  const lastEligible = pic.wholeItems ? (traceFrom ? traceFrom[0] : n) : pic.np;
+  lay.slots.forEach(sl => {
+    const i = sl.i;
+    const gone = !pic.intro && i > lastEligible;
+    const isCand = pic.cand === i;
+    const packed = inPack[i] && !(isCand && pic.state === "rej");
+    const rej = decided[i] === "out" || (isCand && pic.state === "rej");
+    const dim = gone || packed || rej;
+    const cls = "ibox" + (isCand && !rej ? " cand" : gone ? " gone" : packed ? " packed" : rej ? " rej" : "");
+    const cx = sl.x + sl.w / 2;
+    if (coins) {
+      coinPile(out, cx, sl.y - 14, coinCount(Vv[i]), dim, false);
+      out.push('<text class="iv' + (dim ? " dim" : "") + '" x="' + cx + '" y="' + (sl.y - 14 - lay.coinH(i) - 6).toFixed(1) + '">v=' + Vv[i] + "</text>");
+    }
+    out.push('<rect class="' + cls + '" x="' + sl.x + '" y="' + sl.y + '" width="' + sl.w + '" height="40" rx="5"/>');
+    if (A[i] * s > sl.w + 1) out.push('<text class="iw dim" x="' + (sl.x + sl.w - 4) + '" y="' + (sl.y + 12) + '" style="text-anchor:end;font-size:9px">…</text>');
+    if (gone) out.push('<line class="cross" x1="' + (sl.x + 6) + '" y1="' + (sl.y + 6) + '" x2="' + (sl.x + sl.w - 6) + '" y2="' + (sl.y + 34) + '"/>' +
+                       '<line class="cross" x1="' + (sl.x + sl.w - 6) + '" y1="' + (sl.y + 6) + '" x2="' + (sl.x + 6) + '" y2="' + (sl.y + 34) + '"/>');
+    out.push('<text class="iname' + (isCand && !rej ? " cand" : dim ? " dim" : "") + '" x="' + cx + '" y="' + (sl.y + (coins ? 20 : 15)) + '">' + esc(NAME[i]) + "</text>");
+    if (!coins) out.push('<text class="iw' + (dim ? " dim" : "") + '" x="' + cx + '" y="' + (sl.y + 30) + '">' + lab(i).replace("-", "−") + "</text>");
+    else out.push('<text class="iw' + (dim ? " dim" : "") + '" x="' + cx + '" y="' + (sl.y + 52) + '">w=' + A[i] + "</text>");
+    if (rej) out.push('<text class="iw dim" x="' + cx + '" y="' + (sl.y + 52) + '" style="font-size:9px">' + (mode === "partition" ? "right pan" : "out") + "</text>");
+    if (!rej && pic.state === "out" && isCand && mode === "zerosum") out.push('<text class="baglab" x="' + cx + '" y="' + (sl.y + 52) + '">skipped</text>');
+    out.push('<rect class="ihit" data-i="' + i + '" x="' + sl.x + '" y="' + (sl.y - 14 - lay.coinH(i) - 12) + '" width="' + sl.w +
+             '" height="' + (lay.coinH(i) + 12 + 14 + 60) + '"/>');
+  });
+}
+
+function drawPic(pic, previewLabel) {
+  const svg = el("picSvg");
+  if (!pic) { svg.innerHTML = ""; return; }
+  const out = [hatchDef];
+  let H;
+  if (mode === "knap") H = drawPicKnap(out, pic);
+  else if (mode === "change") H = drawPicChange(out, pic);
+  else if (mode === "partition" && pic.trace) H = drawPicBalance(out, pic);
+  else if (mode === "zerosum") H = drawPicZero(out, pic);
+  else H = drawPicSubset(out, pic);
+  svg.setAttribute("viewBox", "0 0 " + PW + " " + H);
+  svg.setAttribute("width", PW); svg.setAttribute("height", H);
+  svg.innerHTML = out.join("");
+
+  const meta = el("picMeta");
+  meta.className = "rhs" + (previewLabel ? " preview" : "");
+  meta.textContent = previewLabel || (pic.intro ? "" : pic.trace ? "backtrace"
+                     : mode === "change" ? "s = " + pic.bp : "(n′, " + (mode === "knap" ? "b′" : "s") + ") = (" + pic.np + ", " + (mode === "zerosum" ? String(sumOf(pic.bp)).replace("-", "−") : pic.bp) + ")");
+  const sw = (bg, bc, extra) => '<span class="sw" style="background:' + bg + ';border-color:' + bc + (extra || "") + '"></span>';
+  el("picLegend").innerHTML = mode === "knap"
+    ? '<span class="item">' + sw("var(--wi-coin)", "var(--wi-coin-edge)", ";border-radius:50%") + " one coin " +
+      (coinUnit === 1 ? "= 1 unit of value" : "≈ " + coinUnit + " units of value (rounded up)") + "</span>" +
+      '<span class="item">' + sw("#dce9d3", "var(--wi-relax)") + " packed</span>" +
+      '<span class="item">' + sw("#e9e3d6", "var(--wi-inert)") + " not in this subproblem</span>" +
+      '<span class="item">' + sw("repeating-linear-gradient(45deg,#b6b1a1 0 2px,transparent 2px 5px)", "var(--wi-border)") + " capacity not usable</span>"
+    : mode === "change"
+    ? '<span class="item">' + sw("#f1dd9a", "var(--wi-coin-edge)") + " a coin, width = its value</span>" +
+      '<span class="item">' + sw("repeating-linear-gradient(-45deg,#c28577 0 2px,transparent 2px 5px)", "var(--wi-active)") + " amount that cannot be paid</span>"
+    : mode === "zerosum"
+    ? '<span class="item">' + sw("#dbe4ee", "#4a6a8c") + " positive number chosen (left pan)</span>" +
+      '<span class="item">' + sw("#efe1d3", "var(--wi-examine)") + " negative number chosen (right pan)</span>" +
+      '<span class="item">' + sw("#e9e3d6", "var(--wi-inert)") + " not in this subproblem</span>"
+    : '<span class="item">' + sw("#dbe4ee", "#4a6a8c") + " number used, width = its value</span>" +
+      '<span class="item">' + sw("#e9e3d6", "var(--wi-inert)") + " not in this subproblem</span>" +
+      '<span class="item">' + sw("repeating-linear-gradient(-45deg,#c28577 0 2px,transparent 2px 5px)", "var(--wi-active)") + " sum that cannot be made</span>";
+}
+
+/* ---- Knapsack picture --------------------------------------------------------- */
+
+function drawPicKnap(out, pic) {
+  const s = unitScale();
+  const lay = itemSlots(s, true);
+  out.push('<text class="pcap" x="' + PAD + '" y="14">' +
+           (pic.intro ? "the items: width = weight, coins = value" : pic.trace ? "the items — decided from the last one backwards"
+            : "items 1 … " + pic.np + (pic.np < n ? " (the rest is crossed out: not available in this subproblem)" : "")) + "</text>");
+  drawItemRow(out, lay, pic, true);
+
+  const capT = pic.cap !== undefined ? pic.cap : (pic.trace ? (traceFrom ? traceFrom[1] : cap) : cap);
+  const bp = pic.intro ? cap : pic.bp;
+  const gapTop = pic.state === "nofit" ? 46 : 0;
+  const by = lay.bottom + 54 + gapTop, bx = PAD, inner = cap * s, bh = 72;
+  const ix = bx + 10, iy = by + 16, ih = 44;
+  out.push('<text class="pcap' + (pic.intro ? "" : " hot") + '" x="' + bx + '" y="' + (by - 12) + '">' +
+           (pic.intro ? "the knapsack, capacity b = " + cap
+            : pic.trace ? (pic.done ? "T packed: weight " + sumA(pic.pack) + " ≤ " + capT + ", value " + sumV(pic.pack)
+                                    : "capacity left for items 1 … " + pic.np + ":  b′ = " + bp)
+            : "subproblem (" + pic.np + ", " + bp + ")") + "</text>");
+  out.push('<rect class="bag" x="' + bx + '" y="' + by + '" width="' + (inner + 20) + '" height="' + bh + '" rx="9"/>');
+  out.push('<rect class="bagflap" x="' + (bx - 3) + '" y="' + (by - 2) + '" width="' + (inner + 26) + '" height="12" rx="4"/>');
+  out.push('<rect class="baginner" x="' + ix + '" y="' + iy + '" width="' + inner + '" height="' + ih + '" rx="3"/>');
+  const availEnd = pic.trace ? capT : bp;
+  if (availEnd < cap) {
+    out.push('<rect class="bagcut" x="' + (ix + availEnd * s) + '" y="' + iy + '" width="' + ((cap - availEnd) * s) + '" height="' + ih + '"/>');
+    out.push('<line class="bagline" x1="' + (ix + availEnd * s) + '" y1="' + (iy - 4) + '" x2="' + (ix + availEnd * s) + '" y2="' + (iy + ih + 4) + '"/>');
+  }
+  if (!pic.intro && (!pic.trace || !pic.done)) {
+    out.push('<line class="bagline" x1="' + (ix + bp * s) + '" y1="' + (iy - 4) + '" x2="' + (ix + bp * s) + '" y2="' + (iy + ih + 4) + '"/>');
+    out.push('<text class="baglab" x="' + (ix + bp * s) + '" y="' + (by + bh + 12) + '">b′ = ' + bp + "</text>");
+  }
+  if (!pic.trace && !pic.intro && bp < cap && (cap - bp) * s > 40)
+    out.push('<text class="baglab faint" x="' + (ix + (bp + (cap - bp) / 2) * s) + '" y="' + (iy + ih / 2) + '">not usable</text>');
+
+  const pack = pic.pack || [], blocks = [];
+  if (pic.trace) {
+    let xx = ix + capT * s;
+    pack.slice().sort((p, q) => q - p).forEach(k => { xx -= A[k] * s; blocks.push({ i: k, x: xx }); });
+  } else {
+    let xx = ix;
+    pack.forEach(k => { if (pic.state === "in" && k === pic.cand) return; blocks.push({ i: k, x: xx }); xx += A[k] * s; });
+    if (pic.state === "in") blocks.push({ i: pic.cand, x: ix + (bp - A[pic.cand]) * s, cand: true });
+  }
+  blocks.forEach(bl => {
+    const bw = A[bl.i] * s, isCand = bl.cand || (pic.trace && pic.cand === bl.i && pic.state === "in");
+    const sl = lay.slots.find(q => q.i === bl.i);
+    let g = "";
+    if (isCand && pic.fly && animate && sl) {
+      const dx = (sl.x + sl.w / 2) - (bl.x + bw / 2), dy = sl.y - (iy + 2);
+      g = ' class="fly" style="--dx:' + dx.toFixed(1) + 'px;--dy:' + dy.toFixed(1) + 'px"';
+    }
+    out.push("<g" + g + '><rect class="pblock' + (isCand ? " cand" : "") + '" x="' + bl.x.toFixed(1) + '" y="' + (iy + 2) + '" width="' + bw.toFixed(1) + '" height="' + (ih - 4) + '" rx="4"/>');
+    if (bw >= 22) out.push('<text class="iname" x="' + (bl.x + bw / 2).toFixed(1) + '" y="' + (iy + ih / 2) + '">' + esc(NAME[bl.i]) + "</text>");
+    out.push("</g>");
+  });
+  if (pic.state === "nofit") {
+    const k = pic.cand, bw = A[k] * s, ny = by - 26 - (ih - 4);
+    out.push('<g class="' + (animate ? "shake" : "") + '"><rect class="pblock nofit" x="' + ix + '" y="' + ny + '" width="' + bw + '" height="' + (ih - 4) + '" rx="4" opacity=".92"/>' +
+             '<text class="iname cand" x="' + (ix + bw / 2) + '" y="' + (ny + (ih - 4) / 2) + '">' + esc(NAME[k]) + ": w = " + A[k] + " &gt; " + bp + "</text></g>");
+  }
+  if (pic.state === "out" || pic.state === "rej") {
+    const sl = lay.slots.find(q => q.i === pic.cand);
+    if (sl) out.push('<text class="baglab' + (pic.state === "rej" ? " faint" : "") + '" x="' + (sl.x + sl.w / 2) + '" y="' + (sl.y + 66) + '">' +
+                     (pic.state === "rej" ? "not in T" : "left out") + "</text>");
+  }
+  const total = sumV(pack);
+  const wide = bx + inner + 20 + 100 > PW;
+  const vxx = wide ? PW - 60 : Math.min(PW - 54, bx + inner + 20 + 62), vyBase = wide ? by + bh + 84 : by + bh - 8;
+  const nc = coinCount(total);
+  if (nc) coinPiles(out, vxx, vyBase, nc, animate && (pic.fly || !!(steps[cur] || {}).write));
+  out.push('<text class="vtot' + (pic.intro ? " plain" : "") + '" x="' + vxx + '" y="' + (vyBase + 14) + '">' +
+           (pic.intro ? "value" : (pic.trace ? "value " : "V = ") + total) + "</text>");
+  return wide ? vyBase + 26 : by + bh + 26;
+}
+
+/* ---- SubsetSum picture: blocks on a ruler that must end exactly at s ------------ */
+
+function drawPicSubset(out, pic) {
+  const s = unitScale();
+  const lay = itemSlots(s, false);
+  const part = mode === "partition";
+  out.push('<text class="pcap" x="' + PAD + '" y="14">' +
+           (pic.intro ? "the numbers: width = value" + (part ? ";  Σ = " + SUM + ", target Σ/2 = " + cap : "")
+            : pic.trace ? "the numbers — decided from the last one backwards"
+            : "numbers 1 … " + pic.np + (pic.np < n ? " (crossed out: not available in this subproblem)" : "")) + "</text>");
+  drawItemRow(out, lay, pic, false);
+
+  const capT = pic.cap !== undefined ? pic.cap : cap;
+  const bp = pic.intro ? cap : pic.bp;
+  const gapTop = pic.state === "nofit" ? 40 : 0;
+  const ry = lay.bottom + 62 + gapTop, rx = PAD + 8, inner = cap * s, rh = 44;
+  const rest = pic.rest;                                   /* null = unreachable */
+  const candW = pic.state === "in" ? A[pic.cand] : 0;
+  const reach = pic.trace ? true : (rest !== null);
+  out.push('<text class="pcap' + (pic.intro || pic.odd ? "" : " hot") + '" x="' + PAD + '" y="' + (ry - 30) + '">' +
+           (pic.odd ? "Σ = " + SUM + " is odd: nothing to fill"
+            : pic.intro ? "the ruler: sums from 0 to " + (part ? "Σ/2 = " : "t = ") + cap
+            : pic.trace ? (pic.done ? "S fills the target exactly: " + sumA(rest) + " = " + capT : "still to make with numbers 1 … " + pic.np + ":  s = " + bp)
+            : "subproblem (" + pic.np + ", " + bp + "): make exactly " + bp) + "</text>");
+  /* the ruler */
+  out.push('<rect class="baginner" x="' + rx + '" y="' + ry + '" width="' + inner + '" height="' + rh + '" rx="3"/>');
+  const step = inner / Math.max(1, cap) >= 14 ? 1 : inner / Math.max(1, cap) >= 5 ? 5 : 10;
+  for (let u = 0; u <= cap; u += step) {
+    const xx = rx + u * s;
+    out.push('<line class="tick" x1="' + xx + '" y1="' + (ry + rh) + '" x2="' + xx + '" y2="' + (ry + rh + (u % 5 === 0 ? 8 : 4)) + '"/>');
+    if (u % 5 === 0 || step === 1 && cap <= 15) out.push('<text class="ticklab" x="' + xx + '" y="' + (ry + rh + 16) + '">' + u + "</text>");
+  }
+  out.push('<line class="ruler" x1="' + rx + '" y1="' + (ry + rh) + '" x2="' + (rx + inner) + '" y2="' + (ry + rh) + '"/>');
+  const availEnd = pic.trace ? capT : bp;
+  if (availEnd < cap) out.push('<rect class="bagcut" x="' + (rx + availEnd * s) + '" y="' + ry + '" width="' + ((cap - availEnd) * s) + '" height="' + rh + '"/>');
+  /* the target mark */
+  if (!pic.intro && !pic.odd) {
+    const tx = rx + (pic.trace ? capT : bp) * s;
+    out.push('<line class="target" x1="' + tx + '" y1="' + (ry - 6) + '" x2="' + tx + '" y2="' + (ry + rh + 6) + '"/>');
+    out.push('<text class="baglab" x="' + tx + '" y="' + (ry + rh + 30) + '">' + (pic.trace ? (part ? "Σ/2 = " : "t = ") + capT : "s = " + bp) + "</text>");
+    if (pic.trace && !pic.done) {
+      out.push('<line class="bagline" x1="' + (rx + bp * s) + '" y1="' + (ry - 4) + '" x2="' + (rx + bp * s) + '" y2="' + (ry + rh + 4) + '"/>');
+      out.push('<text class="baglab" x="' + (rx + bp * s) + '" y="' + (ry - 4 - 8) + '">s = ' + bp + "</text>");
+    }
+  }
+  /* blocks */
+  const blocks = [];
+  if (pic.trace) {
+    let xx = rx + capT * s;
+    (rest || []).slice().sort((p, q) => q - p).forEach(k => { xx -= A[k] * s; blocks.push({ i: k, x: xx }); });
+  } else if (!pic.intro && !pic.odd) {
+    if (rest) { let xx = rx; rest.forEach(k => { blocks.push({ i: k, x: xx }); xx += A[k] * s; }); }
+    else {
+      const badW = (bp - candW) * s;
+      if (badW > 0) {
+        out.push('<rect class="bad" x="' + rx + '" y="' + (ry + 2) + '" width="' + badW + '" height="' + (rh - 4) + '" rx="3" fill="url(#hatchbad)"/>');
+        const cx = rx + badW / 2, cy = ry + rh / 2;
+        out.push('<line class="badx" x1="' + (cx - 7) + '" y1="' + (cy - 7) + '" x2="' + (cx + 7) + '" y2="' + (cy + 7) + '"/><line class="badx" x1="' + (cx + 7) + '" y1="' + (cy - 7) + '" x2="' + (cx - 7) + '" y2="' + (cy + 7) + '"/>');
+        if (badW > 90) out.push('<text class="baglab" x="' + (cx + 30) + '" y="' + cy + '" style="fill:var(--wi-active)">' + (bp - candW) + " not reachable</text>");
+      } else if (bp === 0 && pic.state !== "in") { /* 0 is always reachable; nothing to draw */ }
+    }
+    if (pic.state === "in") blocks.push({ i: pic.cand, x: rx + (bp - candW) * s, cand: true });
+  }
+  blocks.forEach(bl => {
+    const bw = A[bl.i] * s, isCand = bl.cand || (pic.trace && pic.cand === bl.i && pic.state === "in");
+    const sl = lay.slots.find(q => q.i === bl.i);
+    let g = "";
+    if (isCand && pic.fly && animate && sl) {
+      const dx = (sl.x + sl.w / 2) - (bl.x + bw / 2), dy = sl.y - (ry + 2);
+      g = ' class="fly" style="--dx:' + dx.toFixed(1) + 'px;--dy:' + dy.toFixed(1) + 'px"';
+    }
+    out.push("<g" + g + '><rect class="ablock' + (isCand ? " cand" : "") + '" x="' + bl.x.toFixed(1) + '" y="' + (ry + 2) + '" width="' + bw.toFixed(1) + '" height="' + (rh - 4) + '" rx="4"/>');
+    if (bw >= 22) out.push('<text class="iname" x="' + (bl.x + bw / 2).toFixed(1) + '" y="' + (ry + rh / 2) + '">' + esc(NAME[bl.i]) + "</text>");
+    out.push("</g>");
+  });
+  if (pic.state === "nofit") {
+    const k = pic.cand, bw = A[k] * s, ny = ry - 44 - (rh - 4);
+    out.push('<g class="' + (animate ? "shake" : "") + '"><rect class="pblock nofit" x="' + rx + '" y="' + ny + '" width="' + Math.min(bw, PW - rx - 12) + '" height="' + (rh - 4) + '" rx="4" opacity=".92"/>' +
+             '<text class="iname cand" x="' + (rx + Math.min(bw, PW - rx - 12) / 2) + '" y="' + (ny + (rh - 4) / 2) + '">' + esc(NAME[k]) + ": " + A[k] + " &gt; " + bp + "</text></g>");
+  }
+  if (pic.state === "out") {
+    const sl = lay.slots.find(q => q.i === pic.cand);
+    if (sl) out.push('<text class="baglab" x="' + (sl.x + sl.w / 2) + '" y="' + (sl.y + 52) + '">skipped</text>');
+  }
+  /* the verdict */
+  if (!pic.intro && !pic.odd && !pic.trace) {
+    const vx = Math.min(PW - 40, rx + inner + 34), vy = ry + rh / 2;
+    if (reach) out.push('<path class="ok" d="M' + (vx - 10) + ',' + vy + ' l7,8 l14,-16"/>');
+    else out.push('<line class="badx" x1="' + (vx - 8) + '" y1="' + (vy - 8) + '" x2="' + (vx + 8) + '" y2="' + (vy + 8) + '"/><line class="badx" x1="' + (vx + 8) + '" y1="' + (vy - 8) + '" x2="' + (vx - 8) + '" y2="' + (vy + 8) + '"/>');
+  }
+  return ry + rh + 44;
+}
+
+/* ---- Partition backtrace: a balance ---------------------------------------------- */
+
+function drawPicBalance(out, pic) {
+  const s0 = unitScale();
+  const lay = itemSlots(s0, false);
+  out.push('<text class="pcap" x="' + PAD + '" y="14">the numbers — each one goes onto a pan, from the last one backwards</text>');
+  drawItemRow(out, lay, pic, false);
+
+  const L = pic.rest || [], decided = pic.decided || {};
+  const Rr = []; for (let k = 1; k <= n; k++) if (decided[k] === "out") Rr.push(k);
+  const wl = sumA(L), wr = sumA(Rr);
+  const undecided = n - L.length - Rr.length;
+  return drawBalance(out, lay, s0, L, Rr, pic.fresh,
+    pic.done ? "level: both pans weigh " + wl + " = " + wr + " = Σ/2"
+    : undecided ? "left " + wl + "  ·  right " + wr + "  ·  " + undecided + " still to place (s = " + pic.bp + " left for the left pan)"
+    : "left " + wl + "  ·  right " + wr, null);
+}
+
+/* a balance with the blocks L on the left pan and Rr on the right; verdict: null, true (✓) or false (✗) */
+function drawBalance(out, lay, s0, L, Rr, freshK, caption, verdict) {
+  const wl = sumA(L), wr = sumA(Rr);
+  const top = lay.bottom + 34;
+  const cx = PW / 2, beamY = top + 56, half = 160, panW = 150, panH = 40;
+  const s = Math.min(s0, (panW - 8) / Math.max(1, cap));
+  const diff = wl - wr, ang = Math.max(-11, Math.min(11, -diff / Math.max(1, mode === "zerosum" ? cap : SUM) * 40));
+  out.push('<text class="pcap hot" x="' + PAD + '" y="' + (top + 4) + '">' + caption + "</text>");
+  if (verdict !== null && verdict !== undefined) {
+    const vx = cx, vy = beamY + 120;
+    if (verdict) out.push('<path class="ok" d="M' + (vx - 10) + ',' + vy + ' l7,8 l14,-16"/>');
+    else out.push('<line class="badx" x1="' + (vx - 8) + '" y1="' + (vy - 8) + '" x2="' + (vx + 8) + '" y2="' + (vy + 8) + '"/><line class="badx" x1="' + (vx + 8) + '" y1="' + (vy - 8) + '" x2="' + (vx - 8) + '" y2="' + (vy + 8) + '"/>');
+  }
+  /* stand */
+  out.push('<line class="pan" x1="' + cx + '" y1="' + (beamY) + '" x2="' + cx + '" y2="' + (beamY + 110) + '"/>');
+  out.push('<line class="pan" x1="' + (cx - 40) + '" y1="' + (beamY + 110) + '" x2="' + (cx + 40) + '" y2="' + (beamY + 110) + '"/>');
+  /* beam + pans, tilted as a group */
+  out.push('<g class="g-tilt" style="transform:rotate(' + ang.toFixed(2) + 'deg);transform-origin:' + cx + 'px ' + beamY + 'px">');
+  out.push('<line class="beam" x1="' + (cx - half) + '" y1="' + beamY + '" x2="' + (cx + half) + '" y2="' + beamY + '"/>');
+  out.push('<circle class="pivot" cx="' + cx + '" cy="' + beamY + '" r="6"/>');
+  [[-1, L, "left"], [1, Rr, "right"]].forEach(side => {
+    const sgn = side[0], items = side[1];
+    const px = cx + sgn * half, panY = beamY + 62;
+    /* strings and pan, counter-rotated so the pan hangs level */
+    out.push('<g style="transform:rotate(' + (-ang).toFixed(2) + 'deg);transform-origin:' + px + 'px ' + beamY + 'px">');
+    out.push('<line class="panstr" x1="' + px + '" y1="' + beamY + '" x2="' + (px - panW / 2) + '" y2="' + panY + '"/>');
+    out.push('<line class="panstr" x1="' + px + '" y1="' + beamY + '" x2="' + (px + panW / 2) + '" y2="' + panY + '"/>');
+    out.push('<path class="pan" d="M' + (px - panW / 2) + ',' + panY + ' Q' + px + ',' + (panY + 26) + ' ' + (px + panW / 2) + ',' + panY + '"/>');
+    /* blocks stacked on the pan, one row, right after another */
+    let xx = px - sumA(items) * s / 2;
+    items.slice().sort((p, q) => p - q).forEach(k => {
+      const bw = A[k] * s, fresh = freshK === k;
+      const sl = lay.slots.find(q => q.i === k);
+      let g = fresh && animate && sl ? ' class="drop"' : "";
+      out.push("<g" + g + '><rect class="ablock' + (sgn > 0 ? " right" : "") + (fresh ? " cand" : "") + '" x="' + xx.toFixed(1) + '" y="' + (panY - panH) + '" width="' + bw.toFixed(1) + '" height="' + panH + '" rx="3"/>');
+      if (bw >= 18) out.push('<text class="iname" x="' + (xx + bw / 2).toFixed(1) + '" y="' + (panY - panH / 2) + '">' + esc(NAME[k]) + "</text>");
+      out.push("</g>");
+      xx += bw;
+    });
+    out.push('<text class="baglab' + (sgn > 0 ? " faint" : "") + '" x="' + px + '" y="' + (panY + 40) + '">' + side[2] + ": " + (mode === "zerosum" && sgn > 0 && sumA(items) ? "−" : "") + sumA(items) + "</text>");
+    out.push("</g>");
+  });
+  out.push("</g>");
+  return beamY + 150;
+}
+
+/* ---- zero-sum picture: chosen positives left, chosen negatives right; the beam reads s ------ */
+
+function drawPicZero(out, pic) {
+  const s0 = unitScale();
+  const lay = itemSlots(s0, false);
+  const sg = x => String(x).replace("-", "−");
+  out.push('<text class="pcap" x="' + PAD + '" y="14">' +
+           (pic.intro ? "the integers: width = absolute value;  sums range from " + sg(LO) + " to " + sumOf(cap)
+            : pic.trace ? "the numbers — decided from the last one backwards"
+            : "numbers 1 … " + pic.np + (pic.np < n ? " (crossed out: not available in this subproblem)" : "")) + "</text>");
+  drawItemRow(out, lay, pic, false);
+  const chosen = (pic.rest || []).concat(pic.state === "in" && pic.cand && !(pic.rest || []).includes(pic.cand) ? [pic.cand] : []);
+  const L = chosen.filter(k => X[k] >= 0), Rr = chosen.filter(k => X[k] < 0);
+  const total = sumX(chosen);
+  const s = pic.bp >= 0 ? sumOf(pic.bp) : null;
+  let caption, verdict = null;
+  if (pic.intro) caption = "chosen positives go left, chosen negatives right; the beam reads their sum";
+  else if (pic.trace) {
+    if (pic.done) caption = "I chosen: " + (L.length ? "+" + sumX(L) : "0") + " on the left, " + sumX(Rr) + " on the right, sum " + sg(total);
+    else caption = "chosen so far sum to " + sg(total) + (s !== null ? ";  a rest summing to s = " + sg(s) + " is still needed from numbers 1 … " + pic.np : "");
+  } else {
+    const target = sumOf(pic.bp);
+    if (pic.rest === null && pic.state === "in")
+      { caption = pic.alone ? "x_" + pic.cand + " alone: " + sg(X[pic.cand]) + " ≠ " + sg(target)
+                            : "x_" + pic.cand + " = " + sg(X[pic.cand]) + ", but no non-empty rest makes " + sg(target - X[pic.cand]); verdict = false; }
+    else if (pic.rest === null && pic.state === "out")
+      { caption = "without x_" + pic.cand + ": no non-empty subset of 1 … " + (pic.cand - 1) + " makes " + sg(target); verdict = false; }
+    else if (pic.rest === null) { caption = "subproblem (" + pic.np + ", " + sg(target) + "): no non-empty subset sums to " + sg(target); verdict = false; }
+    else { caption = "subproblem (" + pic.np + ", " + sg(target) + "): " + (chosen.length ? chosen.map(k => sg(X[k])).join(" + ").replace(/\+ −/g, "− ") + " = " + sg(total) : "the empty rest") +
+           (pic.state === "out" ? "  (x_" + pic.cand + " skipped)" : ""); verdict = chosen.length ? true : null; }
+  }
+  return drawBalance(out, lay, s0, L, Rr, pic.state === "in" ? pic.cand : (pic.fresh || null), caption, verdict);
+}
+
+/* ---- MakingChange picture: coins into a purse of length t ----------------------------- */
+
+function drawPicChange(out, pic) {
+  const s = unitScale();
+  let maxC = 1; for (let k = 1; k <= n; k++) maxC = Math.max(maxC, A[k]);
+  /* the coin types as circles */
+  out.push('<text class="pcap" x="' + PAD + '" y="14">the coin types (unlimited supply)</text>');
+  const slots = [];
+  let x = PAD + 6;
+  for (let k = 1; k <= n; k++) {
+    const r = 14 + 10 * Math.sqrt(A[k] / maxC);
+    x += r;
+    slots.push({ i: k, x: x, y: 26 + 26, r: r });
+    x += r + 16;
+  }
+  const rowBottom = 26 + 52 + 22;
+  slots.forEach(sl => {
+    const isCand = pic.cand === sl.i;
+    out.push('<circle class="cointype' + (isCand ? " cand" : "") + '" cx="' + sl.x.toFixed(1) + '" cy="' + sl.y + '" r="' + sl.r.toFixed(1) + '"/>');
+    out.push('<text class="coinlab' + (isCand ? " cand" : "") + '" x="' + sl.x.toFixed(1) + '" y="' + sl.y + '">' + A[sl.i] + "</text>");
+    out.push('<rect class="ihit" data-i="' + sl.i + '" x="' + (sl.x - sl.r) + '" y="' + (sl.y - sl.r) + '" width="' + (2 * sl.r) + '" height="' + (2 * sl.r) + '"/>');
+  });
+
+  const capT = pic.cap !== undefined ? pic.cap : cap;
+  const bp = pic.intro ? cap : pic.bp;
+  const ry = rowBottom + 56, rx = PAD + 8, inner = cap * s, rh = 44;
+  const rest = pic.rest;
+  const candW = pic.state === "in" ? A[pic.cand] : 0;
+  out.push('<text class="pcap' + (pic.intro ? "" : " hot") + '" x="' + PAD + '" y="' + (ry - 34) + '">' +
+           (pic.intro ? "the amount to pay: t = " + cap
+            : pic.trace ? (pic.done ? "paid: " + (rest || []).map(k => A[k]).join(" + ") + " = " + capT + " with " + (rest || []).length + " coins"
+                                    : "still to pay:  s = " + bp)
+            : "subproblem s = " + bp + ": pay exactly " + bp + " with the fewest coins") + "</text>");
+  out.push('<rect class="bag" x="' + (rx - 10) + '" y="' + (ry - 10) + '" width="' + (inner + 20) + '" height="' + (rh + 20) + '" rx="9"/>');
+  out.push('<rect class="baginner" x="' + rx + '" y="' + ry + '" width="' + inner + '" height="' + rh + '" rx="3"/>');
+  const step = inner / Math.max(1, cap) >= 14 ? 1 : 5;
+  for (let u = 0; u <= cap; u += step) {
+    const xx = rx + u * s;
+    if (u % 5 === 0) { out.push('<line class="tick" x1="' + xx + '" y1="' + (ry + rh + 10) + '" x2="' + xx + '" y2="' + (ry + rh + 16) + '"/>');
+                       out.push('<text class="ticklab" x="' + xx + '" y="' + (ry + rh + 24) + '">' + u + "</text>"); }
+  }
+  const availEnd = pic.trace ? capT : bp;
+  if (availEnd < cap) out.push('<rect class="bagcut" x="' + (rx + availEnd * s) + '" y="' + ry + '" width="' + ((cap - availEnd) * s) + '" height="' + rh + '"/>');
+  if (!pic.intro) {
+    const tx = rx + (pic.trace ? capT : bp) * s;
+    out.push('<line class="target" x1="' + tx + '" y1="' + (ry - 6) + '" x2="' + tx + '" y2="' + (ry + rh + 6) + '"/>');
+    out.push('<text class="baglab" x="' + tx + '" y="' + (ry - 16) + '" style="text-anchor:end">' + (pic.trace ? "t = " : "s = ") + (pic.trace ? capT : bp) + "</text>");
+    if (pic.trace && !pic.done) {
+      out.push('<line class="bagline" x1="' + (rx + bp * s) + '" y1="' + (ry - 4) + '" x2="' + (rx + bp * s) + '" y2="' + (ry + rh + 4) + '"/>');
+      out.push('<text class="baglab" x="' + (rx + bp * s) + '" y="' + (ry - 16) + '">s = ' + bp + "</text>");
+    }
+  }
+  const blocks = [];
+  if (pic.trace) {
+    let xx = rx + capT * s;
+    (rest || []).forEach((k, idx) => { xx -= A[k] * s; blocks.unshift({ i: k, x: xx, idx: idx }); });
+    /* the newest coin (first in L) is leftmost -> it is the candidate */
+    if (rest && rest.length) blocks[0].cand = pic.state === "in";
+  } else if (!pic.intro) {
+    if (rest) { let xx = rx; rest.forEach((k, idx) => { blocks.push({ i: k, x: xx, idx: idx }); xx += A[k] * s; }); }
+    else {
+      const badW = (bp - candW) * s;
+      if (badW > 0) {
+        out.push('<rect class="bad" x="' + rx + '" y="' + (ry + 2) + '" width="' + badW + '" height="' + (rh - 4) + '" rx="3" fill="url(#hatchbad)"/>');
+        const cx = rx + badW / 2, cy = ry + rh / 2;
+        out.push('<line class="badx" x1="' + (cx - 7) + '" y1="' + (cy - 7) + '" x2="' + (cx + 7) + '" y2="' + (cy + 7) + '"/><line class="badx" x1="' + (cx + 7) + '" y1="' + (cy - 7) + '" x2="' + (cx - 7) + '" y2="' + (cy + 7) + '"/>');
+        if (badW > 110) out.push('<text class="baglab" x="' + (cx + 34) + '" y="' + cy + '" style="fill:var(--wi-active)">' + (bp - candW) + " cannot be paid</text>");
+      }
+    }
+    if (pic.state === "in") blocks.push({ i: pic.cand, x: rx + (bp - candW) * s, cand: true });
+  }
+  blocks.forEach(bl => {
+    const bw = A[bl.i] * s, isCand = bl.cand;
+    const sl = slots.find(q => q.i === bl.i);
+    let g = "";
+    if (isCand && pic.fly && animate && sl) {
+      const dx = sl.x - (bl.x + bw / 2), dy = sl.y - (ry + rh / 2);
+      g = ' class="fly" style="--dx:' + dx.toFixed(1) + 'px;--dy:' + dy.toFixed(1) + 'px"';
+    }
+    out.push("<g" + g + '><rect class="cblock' + (isCand ? " cand" : "") + '" x="' + bl.x.toFixed(1) + '" y="' + (ry + 2) + '" width="' + bw.toFixed(1) + '" height="' + (rh - 4) + '" rx="' + Math.min(10, bw / 2) + '"/>');
+    if (bw >= 16) out.push('<text class="iname" x="' + (bl.x + bw / 2).toFixed(1) + '" y="' + (ry + rh / 2) + '">' + A[bl.i] + "</text>");
+    out.push("</g>");
+  });
+  /* the count */
+  if (!pic.intro) {
+    const cnt = rest ? rest.length + (pic.state === "in" && !pic.trace ? 1 : 0) : null;
+    out.push('<text class="vtot" x="' + (PW - 50) + '" y="' + (ry + rh + 44) + '">' +
+             (cnt === null ? "∞" : (pic.trace ? "" : "C = ") + cnt + " coin" + (cnt === 1 ? "" : "s")) + "</text>");
+  }
+  return ry + rh + 60;
+}
+
+/* ---------- size meter ---------------------------------------------------- */
+
+const bitlen = x => x <= 0 ? 1 : Math.floor(Math.log2(x)) + 1;
+function renderMeter() {
+  let bits = 0, mx = 0;
+  const nums = [];
+  if (mode !== "partition" && mode !== "zerosum") nums.push(cap);
+  for (let i = 1; i <= n; i++) { nums.push(A[i]); if (mode === "knap") nums.push(Vv[i]); }
+  nums.forEach(x => { bits += bitlen(x); mx = Math.max(mx, x); });
+  const cells = FULL();
+  const work = mode === "change" ? cells * n : cells;
+  const boundTxt = mode === "knap" ? "|I| · MaxInt · log MaxInt ≈ " + Math.round(bits * mx * Math.max(1, Math.log2(mx))).toLocaleString("en")
+                 : mode === "change" ? "(t+1) · k = " + cells + " · " + n + " = " + work + " coin tests"
+                 : "(n+1)(t+1) ≤ |I| · MaxInt = " + (bits * mx).toLocaleString("en");
+  el("meterBox").innerHTML =
+    '<span class="k">input size |I|</span><span class="v"><b>' + bits + '</b> bits  (' + nums.length + ' numbers in binary)</span>' +
+    '<span class="k">MaxInt(I)</span><span class="v"><b>' + mx + '</b></span>' +
+    '<span class="k">table</span><span class="v">' + (mode === "change" ? "t+1 = " + cells : "(n+1)(" + (mode === "knap" ? "b" : "t") + "+1) = " + rows() + " · " + (cap + 1) + " = <b>" + cells + "</b>") +
+    (mode === "change" ? "" : "") + " cells</span>" +
+    '<span class="k">bound</span><span class="v">' + boundTxt + '</span>';
+  el("meterMeta").textContent = (mode === "change" ? "k = " : "n = ") + n + ", " + (mode === "zerosum" ? "sums " + String(LO).replace("-", "−") + " … " + sumOf(cap) : (mode === "knap" ? "b" : "t") + " = " + cap);
+  el("meterNote").innerHTML = mode === "knap"
+    ? "The table is polynomial in |I| <i>and</i> MaxInt(I), but not in |I| alone: append a 0 to <i>b</i> in binary and |I| grows by " +
+      "<b>one bit</b> while the table doubles in width. Only <i>b</i> (and the weights) matter for the number of cells &mdash; the values " +
+      "<i>v<sub>i</sub></i> may be as large as they like, they merely widen the numbers inside the cells (the log MaxInt factor for the additions)."
+    : mode === "partition"
+    ? "Here the target is not even an input: <i>t</i> = Σ/2 is determined by the numbers themselves, so the table's width is half their sum. " +
+      "Doubling every number leaves |I| almost unchanged (one more bit each) and doubles the table &mdash; polynomial in MaxInt, " +
+      "exponential in |I|."
+    : mode === "zerosum"
+    ? "The columns run over every sum a subset could have, from −N to P: their number is the sum of all |x<sub>i</sub>| — polynomial in MaxInt, exponential in the number of bits. " +
+      "Non-emptiness costs nothing extra: the base row is all-no and the singleton case [s = x<sub>n′</sub>] does the rest."
+    : mode === "change"
+    ? "One row, but its length is the amount <i>t</i> itself: <i>t</i>+1 cells for the log <i>t</i> bits that encode <i>t</i>. Pseudopolynomial &mdash; " +
+      "and for the coins found in practice that is perfectly fast, which is the whole point of the definition."
+    : "(n+1)(t+1) cells for an input of a few dozen bits: the target <i>t</i> is written in binary, so the table is exponential in the " +
+      "<i>length</i> of <i>t</i> but polynomial in its <i>value</i>. Small numbers → fast; huge numbers (see the preset) → the table " +
+      "explodes while |I| barely grows.";
+}
+
+/* ---------- solution panel ------------------------------------------------ */
+
+function renderSol() {
+  const st = steps[cur] || {};
+  const box = el("solBox");
+  el("solTitle").textContent = MODES[mode].sol;
+  if (!st.trace || st.none) {
+    box.innerHTML = '<div class="placeholder">' + (st.none ? "No solution &mdash; see above."
+      : "The table computes the " + (isBool() ? "<i>yes/no</i>" : mode === "change" ? "<i>count</i>" : "<i>value</i>") +
+        " only. Once it is filled, the backtrace walks back through the table and the " +
+        (mode === "change" ? "coins" : mode === "partition" ? "two halves" : "chosen " + (mode === "knap" ? "items" : "numbers")) + " appear here.</div>");
+    el("solMeta").textContent = "";
+    return;
+  }
+  const S = st.S || [];
+  if (mode === "partition") {
+    const rej = st.rej || [];
+    const li = (k, cls) => '<li class="' + cls + '"><span class="nm">' + esc(NAME[k]) + '</span><span class="wv">' + A[k] + '</span></li>';
+    box.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:.85rem">' +
+      '<div><div class="sublabel" style="border:0;padding:0 0 4px">left pan · ' + sumA(S) + '</div><ul class="sol">' + (S.length ? S.map(k => li(k, st.fresh === k ? "fresh" : "")).join("") : '<li class="placeholder">—</li>') + '</ul></div>' +
+      '<div><div class="sublabel" style="border:0;padding:0 0 4px">right pan · ' + sumA(rej) + '</div><ul class="sol">' + (rej.length ? rej.map(k => li(k, "")).join("") : '<li class="placeholder">—</li>') + '</ul></div></div>';
+    el("solMeta").textContent = (n - S.length - rej.length) + " undecided";
+    return;
+  }
+  if (!S.length) {
+    box.innerHTML = '<div class="placeholder">' + (st.done ? "Empty: nothing is used." : "Nothing chosen yet.") + "</div>";
+    el("solMeta").textContent = "";
+    return;
+  }
+  const capT = traceFrom ? traceFrom[1] : cap;
+  if (mode === "change") {
+    box.innerHTML = '<ul class="sol">' + S.map((k, idx) =>
+      '<li class="' + (st.fresh === k && idx === 0 ? "fresh" : "") + '"><span class="no">' + (idx + 1) + '.</span><span class="nm">' + A[k] + '</span><span>coin</span></li>').join("") + "</ul>";
+    el("solMeta").textContent = S.length + " coin" + (S.length === 1 ? "" : "s") + " · " + sumA(S) + " / " + capT;
+    return;
+  }
+  box.innerHTML = '<ul class="sol">' + S.map((k, idx) =>
+    '<li class="' + (st.fresh === k ? "fresh" : "") + '"><span class="no">' + (idx + 1) + '.</span><span class="nm">' + esc(NAME[k]) + '</span><span>' +
+    (mode === "knap" ? "item " : mode === "zerosum" ? "x" : "a") + k + '</span><span class="wv">' + (mode === "knap" ? "w=" + A[k] + "  v=" + Vv[k] : lab(k).replace("-", "−")) + '</span></li>').join("") + "</ul>";
+  el("solMeta").textContent = mode === "knap" ? "weight " + sumA(S) + " / " + capT + " · value " + sumV(S)
+                            : mode === "zerosum" ? "sum " + String(sumX(S)).replace("-", "−") : "sum " + sumA(S) + " / " + capT;
+}
+
+/* ---------- pseudocode ---------------------------------------------------- */
+
+const K = s => '<span class="kw">' + s + "</span>";
+const C = s => '<span class="cm">' + s + "</span>";
+
+const CODE = {
+  knap: {
+    rec: [
+      { k: "head",    t: "V[n′, b′] =" },
+      { k: "base",    t: "    0                                             if n′ = 0" },
+      { k: "skip",    t: "    V[n′−1, b′]                                   if n′ ≥ 1 ∧ w_n′ > b′" },
+      { k: "max_out", t: "    max { V[n′−1, b′],                            if n′ ≥ 1 ∧ w_n′ ≤ b′" },
+      { k: "max_in",  t: "          v_n′ + V[n′−1, b′ − w_n′] }" },
+      { k: "ans",     t: "answer:  V[n, b]" }],
+    proc: [
+      { k: "p_head", t: K("procedure") + " DPKP(w[1..n], v[1..n], b):" },
+      { k: "p_base", t: "    " + K("for") + " b′ := 0, …, b:  V[0][b′] := 0" },
+      { k: "p_loop", t: "    " + K("for") + " n′ := 1, …, n" },
+      { k: "p_loop", t: "        " + K("for") + " b′ := 0, …, b" },
+      { k: "p_if",   t: "            " + K("if") + " w[n′] > b′        " + C("// item n′ does not fit") },
+      { k: "p_copy", t: "                V[n′][b′] := V[n′−1][b′]" },
+      { k: "p_else", t: "            " + K("else") },
+      { k: "p_max",  t: "                V[n′][b′] := max{ V[n′−1][b′],  v[n′] + V[n′−1][b′ − w[n′]] }" },
+      { k: "p_ret",  t: "    " + K("return") + " V[n][b]" }],
+    trace: [
+      { k: "t_head", t: K("procedure") + " traceback(V, w[1..n], v[1..n], b):" },
+      { k: "t_init", t: "    T := ∅;  b′ := b" },
+      { k: "t_init", t: "    " + K("for") + " n′ := n, …, 1" },
+      { k: "t_out",  t: "        " + K("if") + " V[n′][b′] == V[n′−1][b′]      " + C("// value reached without item n′") },
+      { k: "t_out",  t: "            " + C("// leave n′ out; b′ unchanged") },
+      { k: "t_in",   t: "        " + K("else") + "                            " + C("// only v[n′] + V[n′−1][b′−w[n′]] remains") },
+      { k: "t_in",   t: "            T := T ∪ {n′};  b′ := b′ − w[n′]" },
+      { k: "t_ret",  t: "    " + K("return") + " T" }],
+    note: "<b>n · b</b> cells, each a max and one addition on numbers of O(log MaxInt) bits: <b>O(|I| · MaxInt(I) · log MaxInt(I))</b> " +
+          "&mdash; pseudopolynomial. Only row n′−1 is read, so two rows would suffice for the value; the whole table is kept for the backtrace.",
+    tnote: "The test <code>V[n′][b′] == V[n′−1][b′]</code> comes first, so on a <b>tie</b> the item is left out. Testing the other case first " +
+           "would give a different, equally optimal T."
+  },
+  subset: {
+    rec: [
+      { k: "head",   t: "R[n′, s] =" },
+      { k: "base",   t: "    [ s = 0 ]                                      if n′ = 0" },
+      { k: "skip",   t: "    R[n′−1, s]                                     if n′ ≥ 1 ∧ a_n′ > s" },
+      { k: "or_out", t: "    R[n′−1, s]  ∨                                  if n′ ≥ 1 ∧ a_n′ ≤ s" },
+      { k: "or_in",  t: "    R[n′−1, s − a_n′]" },
+      { k: "ans",    t: "answer:  R[n, t]" }],
+    proc: [
+      { k: "p_head", t: K("procedure") + " DPSS(a[1..n], t):" },
+      { k: "p_base", t: "    R[0][0] := true;  " + K("for") + " s := 1, …, t:  R[0][s] := false" },
+      { k: "p_loop", t: "    " + K("for") + " n′ := 1, …, n" },
+      { k: "p_loop", t: "        " + K("for") + " s := 0, …, t" },
+      { k: "p_if",   t: "            " + K("if") + " a[n′] > s          " + C("// a_n′ cannot be part of s") },
+      { k: "p_copy", t: "                R[n′][s] := R[n′−1][s]" },
+      { k: "p_else", t: "            " + K("else") },
+      { k: "p_or",   t: "                R[n′][s] := R[n′−1][s] " + K("or") + " R[n′−1][s − a[n′]]" },
+      { k: "p_ret",  t: "    " + K("return") + " R[n][t]" }],
+    trace: [
+      { k: "t_head", t: K("procedure") + " traceback(R, a[1..n], t):" },
+      { k: "t_none", t: "    " + K("if") + " " + K("not") + " R[n][t]:  " + K("return") + " “no subset”" },
+      { k: "t_init", t: "    S := ∅;  s := t" },
+      { k: "t_init", t: "    " + K("for") + " n′ := n, …, 1" },
+      { k: "t_out",  t: "        " + K("if") + " R[n′−1][s]                    " + C("// s reachable without a_n′") },
+      { k: "t_out",  t: "            " + C("// leave n′ out; s unchanged") },
+      { k: "t_in",   t: "        " + K("else") + "                            " + C("// then R[n′−1][s − a_n′] must hold") },
+      { k: "t_in",   t: "            S := S ∪ {n′};  s := s − a[n′]" },
+      { k: "t_ret",  t: "    " + K("return") + " S" }],
+    note: "<b>n · t</b> cells, each one OR of two bits: <b>O(n · t)</b> &mdash; pseudopolynomial in <i>t</i>. Row n′ is the row above OR-ed " +
+          "with a copy of itself shifted right by a<sub>n′</sub> (a single word-parallel shift-and-or on bitsets).",
+    tnote: "<code>R[n′−1][s]</code> is tested first, so when both ways work the number is left out; the other order gives another valid S."
+  },
+  change: {
+    rec: [
+      { k: "head", t: "C[s] =" },
+      { k: "base", t: "    0                                         if s = 0" },
+      { k: "min",  t: "    1 + min { C[s − c_k] : 1 ≤ k ≤ K, c_k ≤ s }     if s ≥ 1        " + C("// min ∅ = ∞") },
+      { k: "ans",  t: "answer:  C[t]" }],
+    proc: [
+      { k: "p_head",  t: K("procedure") + " DPMC(c[1..K], t):" },
+      { k: "p_base",  t: "    C[0] := 0" },
+      { k: "p_loop",  t: "    " + K("for") + " s := 1, …, t" },
+      { k: "p_init",  t: "        C[s] := ∞" },
+      { k: "p_inner", t: "        " + K("for") + " k := 1, …, K" },
+      { k: "p_if",    t: "            " + K("if") + " c[k] ≤ s  ∧  1 + C[s − c[k]] < C[s]" },
+      { k: "p_set",   t: "                C[s] := 1 + C[s − c[k]]" },
+      { k: "p_ret",   t: "    " + K("return") + " C[t]" }],
+    trace: [
+      { k: "t_head", t: K("procedure") + " traceback(C, c[1..K], t):" },
+      { k: "t_none", t: "    " + K("if") + " C[t] = ∞:  " + K("return") + " “cannot be paid”" },
+      { k: "t_init", t: "    L := ();  s := t" },
+      { k: "t_init", t: "    " + K("while") + " s > 0" },
+      { k: "t_pick", t: "        k := first index with  c[k] ≤ s  ∧  C[s] = 1 + C[s − c[k]]" },
+      { k: "t_pay",  t: "        L := L · (c[k]);  s := s − c[k]" },
+      { k: "t_ret",  t: "    " + K("return") + " L" }],
+    note: "<b>t + 1</b> cells, each a minimum over the <b>K</b> coins: <b>O(K · t)</b>, pseudopolynomial in the amount <i>t</i>. The " +
+          "subproblem has no item index: any coin may be used again, so the recurrence looks back into the <i>same</i> row.",
+    tnote: "Several coins can attain the minimum; the code takes the first in input order, another order gives another optimal payment."
+  }
+};
+CODE.zerosum = {
+  rec: [
+    { k: "head",     t: "R[n′, s] =         " + C("// a NON-EMPTY subset of x_1..x_n′ sums to s;  out-of-range s: false") },
+    { k: "base",     t: "    false                                              if n′ = 0" },
+    { k: "or_out",   t: "    R[n′−1, s]                                         if n′ ≥ 1" },
+    { k: "or_alone", t: "      ∨  [ s = x_n′ ]                                     " + C("// x_n′ alone") },
+    { k: "or_in",    t: "      ∨  R[n′−1, s − x_n′]                               " + C("// x_n′ plus a non-empty rest") },
+    { k: "ans",      t: "answer:  R[n, 0]" }],
+  proc: [
+    { k: "p_head", t: K("procedure") + " DPZS(x[1..n]):" },
+    { k: "p_base", t: "    N := Σ_{x_i<0} |x_i|;  P := Σ_{x_i>0} x_i;   " + K("for") + " s := −N, …, P:  R[0][s] := false" },
+    { k: "p_loop", t: "    " + K("for") + " n′ := 1, …, n" },
+    { k: "p_loop", t: "        " + K("for") + " s := −N, …, P" },
+    { k: "p_or",   t: "            R[n′][s] := R[n′−1][s]  " + K("or") + "  (s = x[n′])  " + K("or") + "  R[n′−1][s − x[n′]]     " + C("// out of range ⇒ false") },
+    { k: "p_ret",  t: "    " + K("return") + " R[n][0]" }],
+  trace: [
+    { k: "t_head",  t: K("procedure") + " traceback(R, x[1..n]):" },
+    { k: "t_none",  t: "    " + K("if") + " " + K("not") + " R[n][0]:  " + K("return") + " “no subset”" },
+    { k: "t_init",  t: "    I := ∅;  s := 0" },
+    { k: "t_init",  t: "    " + K("for") + " n′ := n, …, 1" },
+    { k: "t_out",   t: "        " + K("if") + " R[n′−1][s]                    " + C("// s reachable without x_n′") },
+    { k: "t_out",   t: "            " + C("// leave n′ out; s unchanged") },
+    { k: "t_alone", t: "        " + K("else if") + " s = x[n′]               " + C("// x_n′ alone makes s: last element") },
+    { k: "t_alone", t: "            I := I ∪ {n′};  " + K("return") + " I" },
+    { k: "t_in",    t: "        " + K("else") + "                            " + C("// then R[n′−1][s − x_n′] holds") },
+    { k: "t_in",    t: "            I := I ∪ {n′};  s := s − x[n′]" },
+    { k: "t_ret",   t: "    " + K("return") + " I" }],
+  note: "<b>n · (N + P + 1)</b> cells, three bits OR-ed per cell: <b>O(n · Σ|x<sub>i</sub>|)</b> &mdash; pseudopolynomial in MaxInt. The " +
+        "singleton term is what makes “non-empty” free: without it R[0][0] would have to be true and the empty set would count.",
+  tnote: "The cases are tried in the order of the recurrence: skip if possible, else alone, else with a rest. Other orders give other zero-sum subsets."
+};
+CODE.partition = Object.assign({}, CODE.subset, {
+  rec: [{ k: "odd", t: "Partition(a_1, …, a_n)  =  SubsetSum(a_1, …, a_n;  t = Σ/2),   and “no” if Σ is odd" }].concat(CODE.subset.rec),
+  note: CODE.subset.note + " The other side of the balance is simply the complement of S."
+});
+
+function renderCode() {
+  const st = steps[cur] || {}, c = CODE[mode];
+  const hl = new Set(st.hl || []), hlp = new Set(st.hlp || []);
+  const block = (label, lines, numbered, act) => {
+    const out = ['<div class="sublabel">' + label + "</div>"];
+    lines.forEach((l, k) => {
+      out.push('<div class="cline' + (act.has(l.k) ? " on" : "") + '">' + (numbered ? '<span class="ln">' + (k + 1) + "</span>" : "") + "<span>" + l.t + "</span></div>");
+    });
+    return out.join("");
+  };
+  el("codeBody").innerHTML = block("Recurrence (step 3)", c.rec, false, hl) +
+    (st.trace ? block("Step 6 · backtracing", c.trace, true, hlp) : block("Step 5 · bottom-up table filling", c.proc, true, hlp));
+  el("codeNote").innerHTML = st.trace ? c.tnote : c.note;
+}
+
+/* ---------- transport / render pass -------------------------------------- */
+
+function renderPhases() {
+  const bar = el("phaseBar");
+  bar.innerHTML = "";
+  phases.forEach(p => {
+    const span = p.to - p.from + 1;
+    const pct = cur > p.to ? 100 : cur < p.from ? 0 : ((cur - p.from + 1) / span) * 100;
+    const bt = document.createElement("button");
+    bt.className = "phasebtn" + (cur >= p.from && cur <= p.to ? " on" : (cur > p.to ? " past" : ""));
+    bt.style.flexGrow = String(Math.max(1, span));
+    bt.innerHTML = '<span class="fill' + (pct === 0 ? " empty" : "") + '" style="width:' + pct.toFixed(2) + '%"></span><span class="lab">' + p.name + "</span>";
+    bt.title = p.name.replace(/<[^>]+>/g, "") + " — steps " + (p.from + 1) + "–" + (p.to + 1);
+    bt.addEventListener("click", () => { stopPlay(); cur = p.from; render(); });
+    bar.appendChild(bt);
+  });
+}
+
+function previewPic(i, j) {
+  if (mode === "knap") return picCell(i, j);
+  if (mode === "change") return { bp: j, rest: optSet(0, j), cand: null, state: null };
+  return { np: i, bp: j, rest: optSet(i, j), cand: null, state: null };
+}
+
+function render() {
+  const st = steps[cur] || {};
+  drawGrid(); renderSol(); renderPhases(); renderMeter();
+  const filled = st.filled === undefined ? FULL() : st.filled;
+  if (hoverCell && ordOf(hoverCell[0], hoverCell[1]) < filled && feasible()) {
+    const i = hoverCell[0], j = hoverCell[1];
+    drawPic(previewPic(i, j), "preview: " + (mode === "change" ? "C[" + j + "]" : (mode === "knap" ? "V" : "R") + "[" + i + ", " + (mode === "zerosum" ? String(sumOf(j)).replace("-", "−") : j) + "]") + " = " + fmt(T[i][j]));
+  } else drawPic(st.pic);
+  if (window.innerWidth > 760) renderCode();
+  el("statusBox").innerHTML = (st.txt || "") + (st.ans ? '<b class="ans">' + st.ans + "</b>" : "");
+  el("phaseName").innerHTML = phases[st.ph] ? phases[st.ph].name : "";
+  const M = MODES[mode];
+  el("tabTitle").textContent = M.tab;
+  el("tabMeta").textContent = (mode === "change" ? "K = " : "n = ") + n + " · " + (mode === "zerosum" ? "sums " + String(LO).replace("-", "−") + " … " + sumOf(cap) : (mode === "knap" ? "b" : "t") + " = " + cap) + " · " + FULL() + " cells · " +
+    (mode === "change" ? "C[t] = " + fmt(T[0][cap]) : mode === "zerosum" ? "R[n, 0] = " + fmt(T[n][ansCol()]) : (mode === "knap" ? "V" : "R") + "[n, t] = " + (feasible() ? fmt(T[n][cap]) : "no"));
+  el("tabLegend").innerHTML =
+    '<span class="item"><span class="sw" style="background:#f6e6df;border-color:var(--wi-active)"></span> current cell</span>' +
+    '<span class="item"><span class="sw" style="background:#f7edd9;border-color:var(--wi-examine)"></span> candidate</span>' +
+    '<span class="item"><span class="sw" style="background:#e8f0e2;border-color:var(--wi-relax)"></span> ' +
+      (isBool() ? "a yes that carries over" : mode === "change" ? "attains the minimum" : "attains the maximum") + "</span>" +
+    '<span class="item"><span class="sw" style="background:#f0d7cd;border-color:var(--wi-accent)"></span> backtrace path</span>' +
+    '<span class="item"><span class="sw" style="background:var(--wi-controls)"></span> base case</span>';
+  el("scrubber").max = String(Math.max(0, steps.length - 1));
+  el("scrubber").value = String(cur);
+  el("stepNo").textContent = steps.length ? (cur + 1) + " / " + steps.length : "— / —";
+  el("backBtn").disabled = cur <= 0;
+  el("stepBtn").disabled = cur >= steps.length - 1;
+  const whole = !traceFrom || (traceFrom[0] === rows() - 1 && traceFrom[1] === ansCol());
+  el("wholeBtn").style.display = whole ? "none" : "";
+  const cellName = (i, j) => mode === "change" ? "C[" + j + "]" : (mode === "knap" ? "V" : "R") + "[" + i + ", " + (mode === "zerosum" ? String(sumOf(j)).replace("-", "−") : j) + "]";
+  el("traceNote").innerHTML = whole
+    ? "Backtracing from <b>" + cellName(rows() - 1, ansCol()) + "</b> — the whole problem."
+    : "Backtracing from <b>" + cellName(traceFrom[0], traceFrom[1]) + "</b>: " +
+      (mode === "change" ? "amount " + traceFrom[1] : "items 1 … " + traceFrom[0] + ", " + (mode === "knap" ? "capacity " : "sum ") + (mode === "zerosum" ? String(sumOf(traceFrom[1])).replace("-", "−") : traceFrom[1])) + ".";
+}
+
+const PLAY = "\u25B6\uFE0E", PAUSE = "\u23F8\uFE0E";
+function stepFwd() { if (cur < steps.length - 1) { cur++; render(); } else stopPlay(); }
+function stepBack() { if (cur > 0) { cur--; render(); } }
+function stopPlay() {
+  if (timer) { clearInterval(timer); timer = null; el("playBtn").textContent = PLAY; el("playBtn").setAttribute("aria-label", "Play"); }
+}
+function togglePlay() {
+  if (timer) { stopPlay(); return; }
+  el("playBtn").textContent = PAUSE; el("playBtn").setAttribute("aria-label", "Pause");
+  timer = setInterval(stepFwd, Number(el("speed").value));
+}
+
+/* ---------- tooltips ------------------------------------------------------ */
+
+function tipFor(i, j) {
+  const st = steps[cur] || {};
+  const shown = ordOf(i, j) < (st.filled === undefined ? FULL() : st.filled) && feasible();
+  const sj = mode === "zerosum" ? String(sumOf(j)).replace("-", "−") : String(j);
+  const head = mode === "change" ? "C[" + j + "]" : (mode === "knap" ? "V" : "R") + "[" + i + ", " + sj + "]";
+  let h = '<span class="tt-h">' + head + (shown ? " = " + fmt(T[i][j]) : "") + "</span><br>" +
+          '<span class="tt-s">' + (mode === "change" ? "pay exactly " + j : (mode === "knap" ? "items" : "numbers") + " 1 … " + i + ", " + (mode === "knap" ? "capacity " : "sum ") + sj) + "</span>";
+  if (!shown) return h + "<br>not computed yet";
+  const S = optSet(i, j);
+  if (mode === "change") {
+    h += "<br>" + (S === null ? "impossible with these coins" : S.length ? "coins " + S.map(k => A[k]).join(" + ") : "no coins needed");
+  } else if (i === 0) h += "<br>" + (mode === "knap" ? "no items: value 0" : mode === "zerosum" ? "no non-empty subset of nothing" : j === 0 ? "the empty sum" : "no numbers: unreachable");
+  else if (S === null) h += "<br>not reachable";
+  else {
+    h += "<br>" + (mode === "knap" ? "packs " : "uses ") + (S.length ? "{" + S.map(k => esc(NAME[k])).join(", ") + "}" + (mode === "knap" ? ", weight " + sumA(S) : "") : "nothing");
+    const g = guesses(i, j).filter(x => attains(x, i, j));
+    if (mode === "zerosum") h += "<br>via " + g.map(x => x.kind === "in" ? "using" : x.kind === "alone" ? "alone:" : "skipping").join(" / ") + " " + esc(NAME[i]);
+    else if (A[i] > j) h += "<br>" + esc(NAME[i]) + " too " + (mode === "knap" ? "heavy" : "large") + " (" + A[i] + " &gt; " + j + ")";
+    else h += "<br>via " + g.map(x => x.kind === "in" ? (mode === "knap" ? "taking" : "using") : (mode === "knap" ? "leaving out" : "skipping")).join(" and ") + " " + esc(NAME[i]);
+  }
+  return h + '<br><span class="tt-s">click: backtrace from here</span>';
+}
+function moveTip(ev) {
+  const t = el("tooltip");
+  t.style.left = Math.min(ev.clientX + 14, window.innerWidth - t.offsetWidth - 10) + "px";
+  t.style.top = Math.min(ev.clientY + 16, window.innerHeight - t.offsetHeight - 10) + "px";
+}
+function hideTip() { el("tooltip").style.display = "none"; }
+
+/* ---------- input --------------------------------------------------------- */
+
+function fillPresets() {
+  const s = el("presetSel");
+  s.innerHTML = "";
+  Object.keys(MODES[mode].presets).forEach(k => {
+    const o = document.createElement("option"); o.value = k; o.textContent = MODES[mode].presets[k].name; s.appendChild(o);
+  });
+}
+function toText() {
+  const lines = [];
+  if (mode === "knap") { lines.push("# capacity", String(cap), "# weight value name"); for (let i = 1; i <= n; i++) lines.push(A[i] + " " + Vv[i] + " " + NAME[i]); }
+  else if (mode === "subset") { lines.push("# target", String(cap), "# number name"); for (let i = 1; i <= n; i++) lines.push(A[i] + " " + NAME[i]); }
+  else if (mode === "partition") { lines.push("# number name  (target Σ/2 is computed)"); for (let i = 1; i <= n; i++) lines.push(A[i] + " " + NAME[i]); }
+  else if (mode === "zerosum") { lines.push("# integer name  (sum 0 wanted; columns −N … P are computed)"); for (let i = 1; i <= n; i++) lines.push(X[i] + " " + NAME[i]); }
+  else { lines.push("# amount", String(cap), "# coin denominations"); lines.push(A.slice(1).join(" ")); }
+  return lines.join("\n");
+}
+function setInstance(capIn, items, keepPos) {
+  const err = el("parseErr");
+  const maxItems = mode === "change" ? 8 : 12;
+  if (!items.length) { err.textContent = "Need at least one " + (mode === "change" ? "coin" : mode === "knap" ? "item" : "number") + "."; return false; }
+  if (items.length > maxItems) { err.textContent = "At most " + maxItems + (mode === "change" ? " denominations." : " items."); return false; }
+  let c = capIn;
+  if (mode === "partition") { const sm = items.reduce((s, it) => s + it[0], 0); c = Math.floor(sm / 2); }
+  if (mode === "zerosum") { c = items.reduce((s, it) => s + Math.abs(it[0]), 0); }
+  if (c > 60) { err.textContent = (mode === "partition" ? "Σ/2" : mode === "zerosum" ? "The range N + P of sums" : mode === "knap" ? "Capacity" : mode === "change" ? "Amount" : "Target") + " at most 60."; return false; }
+  const R = mode === "change" ? 1 : items.length + 1;
+  if (R * (c + 1) > 800) { err.textContent = "At most 800 table cells: reduce the target or the number of items."; return false; }
+  err.textContent = "";
+  n = items.length; cap = c;
+  A = [0]; Vv = [0]; NAME = [""]; X = [0];
+  items.forEach((it, k) => { A.push(Math.abs(it[0])); X.push(it[0]); Vv.push(it[1] || 0);
+    NAME.push(mode === "change" ? String(it[0]) : (it[2] !== undefined && it[2] !== "" ? String(it[2]) : String(k + 1))); });
+  SUM = A.reduce((s, x) => s + x, 0);
+  LO = mode === "zerosum" ? X.filter(x => x < 0).reduce((s, x) => s + x, 0) : 0;
+  traceFrom = null; selCell = null; hoverCell = null;
+  setCoinUnit();
+  const keep = keepPos ? cur : 0;
+  build();
+  cur = Math.min(keep, steps.length - 1);
+  el("inputText").value = toText();
+  render();
+  return true;
+}
+function loadFromText() {
+  const lines = el("inputText").value.split(/\r?\n/).map(l => l.trim()).filter(l => l && !/^#/.test(l));
+  const err = el("parseErr");
+  if (!lines.length) { err.textContent = "Empty input."; return; }
+  const posInt = x => Number.isInteger(x) && x >= 1;
+  let capIn = 0, first = 0;
+  if (mode !== "partition" && mode !== "zerosum") {
+    capIn = Number(lines[0]); first = 1;
+    if (!posInt(capIn)) { err.textContent = "First line must be the " + (mode === "knap" ? "capacity" : mode === "change" ? "amount" : "target") + ", a positive integer."; return; }
+  }
+  const items = [];
+  for (let k = first; k < lines.length; k++) {
+    const p = lines[k].split(/\s+/);
+    if (mode === "change") {
+      for (const tok of p) { const c = Number(tok); if (!posInt(c)) { err.textContent = "Line " + (k + 1) + ": coin denominations must be positive integers."; return; } items.push([c, 0, String(c)]); }
+      continue;
+    }
+    const a = Number(p[0]);
+    if (mode === "zerosum") { if (!Number.isInteger(a)) { err.textContent = "Line " + (k + 1) + ": expected an integer first."; return; } items.push([a, 0, p.slice(1).join(" ").slice(0, 6)]); continue; }
+    if (!posInt(a)) { err.textContent = "Line " + (k + 1) + ": expected a positive integer first."; return; }
+    if (mode === "knap") {
+      const v = Number(p[1]);
+      if (!posInt(v)) { err.textContent = "Line " + (k + 1) + ": expected  weight value [name]."; return; }
+      if (v > 999999) { err.textContent = "Values up to 999999 only."; return; }
+      items.push([a, v, p.slice(2).join(" ").slice(0, 6)]);
+    } else items.push([a, 0, p.slice(1).join(" ").slice(0, 6)]);
+  }
+  if (mode === "change") { const seen = new Set(); for (const it of items) { if (seen.has(it[0])) { err.textContent = "Duplicate coin " + it[0] + "."; return; } seen.add(it[0]); } }
+  setInstance(capIn, items, false);
+}
+function randomInstance() {
+  const R = m => 1 + Math.floor(Math.random() * m);
+  const letters = i => String.fromCharCode(65 + i);
+  if (mode === "change") {
+    const set = new Set([1 + Math.floor(Math.random() * 2)]); while (set.size < 3) set.add(R(9));
+    const coins = [...set].sort((a, b) => a - b);
+    setInstance(8 + R(14), coins.map(c => [c, 0, String(c)]), false); return;
+  }
+  const k = 4 + Math.floor(Math.random() * 3), items = [];
+  let tot = 0;
+  for (let i = 0; i < k; i++) { const a = R(mode === "knap" ? 7 : 9); items.push([a, mode === "knap" ? R(30) : 0, letters(i)]); tot += a; }
+  if (mode === "partition") { if (tot % 2) { items[0][0] += 1; } setInstance(0, items, false); return; }
+  if (mode === "zerosum") { items.forEach((it, i) => { if (Math.random() < 0.45 || i === k - 1) it[0] = -it[0]; }); setInstance(0, items, false); return; }
+  setInstance(Math.max(3, Math.round(tot / 2)), items, false);
+}
+
+/* ---------- tabs & init ------------------------------------------------------ */
+
+function setMode(mo) {
+  stopPlay();
+  mode = mo;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.mode === mo));
+  const M = MODES[mo];
+  el("pageTitle").innerHTML = M.title;
+  el("subtitle").innerHTML = M.sub;
+  el("inputHint").innerHTML = M.hint;
+  document.title = M.title.replace(/&nbsp;|<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  fillPresets();
+  const first = Object.keys(M.presets)[0], p = M.presets[first];
+  el("presetSel").value = first;
+  setInstance(p.cap || 0, p.items, false);
+}
+
+function init() {
+  document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => setMode(t.dataset.mode)));
+  el("presetSel").addEventListener("change", e => { const p = MODES[mode].presets[e.target.value]; if (p) setInstance(p.cap || 0, p.items, false); });
+  el("randBtn").addEventListener("click", randomInstance);
+  el("loadBtn").addEventListener("click", loadFromText);
+  el("granRow").addEventListener("click", () => setGran(0));
+  el("granCell").addEventListener("click", () => setGran(1));
+  el("granGuess").addEventListener("click", () => setGran(2));
+  el("allOptChk").addEventListener("change", e => { showAll = e.target.checked; animate = false; render(); animate = true; });
+  el("stepBtn").addEventListener("click", () => { stopPlay(); stepFwd(); });
+  el("backBtn").addEventListener("click", () => { stopPlay(); stepBack(); });
+  el("playBtn").addEventListener("click", togglePlay);
+  el("resetBtn").addEventListener("click", () => { stopPlay(); cur = 0; render(); });
+  el("scrubber").addEventListener("input", e => { stopPlay(); cur = Number(e.target.value); render(); });
+  el("speed").addEventListener("input", e => { el("speedVal").textContent = e.target.value + "ms"; if (timer) { stopPlay(); togglePlay(); } });
+  el("wholeBtn").addEventListener("click", () => { traceFrom = null; selCell = null; build(); cur = phases[phases.length - 1].from; render(); });
+
+  const svg = el("gridSvg");
+  svg.addEventListener("mousemove", ev => {
+    const t = ev.target;
+    if (t && t.classList.contains("hit")) {
+      const i = Number(t.dataset.i), j = Number(t.dataset.j);
+      const tip = el("tooltip"); tip.innerHTML = tipFor(i, j); tip.style.display = "block"; moveTip(ev);
+      if (!hoverCell || hoverCell[0] !== i || hoverCell[1] !== j) { hoverCell = [i, j]; animate = false; render(); animate = true; }
+    } else if (hoverCell) { hideTip(); hoverCell = null; animate = false; render(); animate = true; }
+    else hideTip();
+  });
+  svg.addEventListener("mouseleave", () => { hideTip(); if (hoverCell) { hoverCell = null; animate = false; render(); animate = true; } });
+  svg.addEventListener("click", ev => {
+    const t = ev.target;
+    if (!t || !t.classList.contains("hit")) return;
+    if (!feasible()) return;
+    const i = Number(t.dataset.i), j = Number(t.dataset.j);
+    stopPlay();
+    selCell = [i, j]; hoverCell = null; hideTip();
+    traceFrom = (i === rows() - 1 && j === ansCol()) ? null : [i, j];
+    build();
+    cur = phases[phases.length - 1].from;
+    render();
+  });
+
+  const pic = el("picSvg");
+  pic.addEventListener("mousemove", ev => {
+    const t = ev.target;
+    if (t && t.classList.contains("ihit")) {
+      const i = Number(t.dataset.i), tip = el("tooltip");
+      tip.innerHTML = mode === "change"
+        ? '<span class="tt-h">coin ' + A[i] + '</span><br>denomination ' + i + " of " + n
+        : '<span class="tt-h">' + (mode === "knap" ? "item" : "number") + " " + i + ": " + esc(NAME[i]) + "</span><br>" +
+          (mode === "knap" ? "weight w<sub>" + i + "</sub> = " + A[i] + ", value v<sub>" + i + "</sub> = " + Vv[i] : "a<sub>" + i + "</sub> = " + A[i]) +
+          '<br><span class="tt-s">click: jump to its row of the table</span>';
+      tip.style.display = "block"; moveTip(ev);
+    } else hideTip();
+  });
+  pic.addEventListener("mouseleave", hideTip);
+  pic.addEventListener("click", ev => {
+    const t = ev.target;
+    if (!t || !t.classList.contains("ihit") || mode === "change") return;
+    const i = Number(t.dataset.i);
+    stopPlay();
+    if (phases[i] && feasible()) { cur = phases[i].from; render(); }
+  });
+
+  /* the divider between the two columns */
+  const stage = document.querySelector(".stage"), gut = el("gutter");
+  let dragging = false, leftPx = null;
+  const applySplit = () => {
+    if (leftPx === null) { stage.style.setProperty("--left", "1.2fr"); return; }
+    const total = stage.getBoundingClientRect().width;
+    stage.style.setProperty("--left", Math.max(280, Math.min(total - 320 - 34, leftPx)) + "px");
+  };
+  gut.addEventListener("pointerdown", ev => { dragging = true; gut.setPointerCapture(ev.pointerId); gut.classList.add("dragging"); document.body.classList.add("dragging"); ev.preventDefault(); });
+  gut.addEventListener("pointermove", ev => { if (!dragging) return; leftPx = ev.clientX - stage.getBoundingClientRect().left - 12; applySplit(); });
+  const endDrag = () => { if (!dragging) return; dragging = false; gut.classList.remove("dragging"); document.body.classList.remove("dragging"); };
+  gut.addEventListener("pointerup", endDrag);
+  gut.addEventListener("pointercancel", endDrag);
+  gut.addEventListener("dblclick", () => { leftPx = null; applySplit(); });
+  gut.addEventListener("keydown", ev => {
+    const c0 = leftPx === null ? stage.children[0].getBoundingClientRect().width : leftPx;
+    if (ev.key === "ArrowLeft")  { leftPx = c0 - 24; applySplit(); ev.preventDefault(); }
+    if (ev.key === "ArrowRight") { leftPx = c0 + 24; applySplit(); ev.preventDefault(); }
+    if (ev.key === "Home")       { leftPx = null; applySplit(); ev.preventDefault(); }
+  });
+  gut.tabIndex = 0;
+
+  window.addEventListener("resize", () => { applySplit(); animate = false; render(); animate = true; });
+  document.addEventListener("keydown", ev => {
+    if (ev.target.tagName === "TEXTAREA" || ev.target.tagName === "INPUT") return;
+    if (ev.key === "ArrowRight") { stopPlay(); stepFwd(); ev.preventDefault(); }
+    if (ev.key === "ArrowLeft")  { stopPlay(); stepBack(); ev.preventDefault(); }
+  });
+
+  /* this page shows only some of the four problems */
+  document.querySelectorAll(".tab").forEach(t => { if (!PAGE_MODES.includes(t.dataset.mode)) t.remove(); });
+  if (PAGE_MODES.length < 2) el("tabs").style.display = "none";
+  setMode(PAGE_MODES[0]);
+}
+
+function setGran(g) {
+  gran = g;
+  el("granRow").classList.toggle("on", g === 0);
+  el("granCell").classList.toggle("on", g === 1);
+  el("granGuess").classList.toggle("on", g === 2);
+  const keepPhase = (steps[cur] || {}).ph || 0;
+  build();
+  cur = phases[Math.min(keepPhase, phases.length - 1)].from;
+  render();
+}
+
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>

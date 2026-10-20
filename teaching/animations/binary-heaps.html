@@ -138,7 +138,7 @@
   .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--mono);
                     font-size:.9em; color:var(--wi-ink-soft); display:flex; align-items:center; gap:8px; }
   .sim-title .rhs input[type=range] { width:90px; }
-  .svgscroll { overflow:auto; max-height:var(--canvas-h, none); background:var(--wi-bg);
+  .svgscroll { touch-action:pan-x pan-y; overflow:auto; max-height:var(--canvas-h, none); background:var(--wi-bg);
                border-radius:var(--wi-radius); }
   .svgwrap { position:relative; margin:0 auto; }
   .svgwrap svg { display:block; max-width:none; touch-action:manipulation; }
@@ -195,6 +195,23 @@
   .formula { font-size:.92rem; overflow-x:auto; margin:4px 0 6px; }
   .chain { font-size:.84rem; margin-top:6px; font-variant-numeric:tabular-nums; }
   .chain .v { color:var(--wi-accent); font-weight:bold; }
+  #proofBox svg { display:block; max-width:100%; }
+  .pf-lab { font-family:var(--wi-font-body); font-size:13px; fill:var(--wi-ink-soft); }
+  .pf-lab.cur { fill:var(--wi-accent); font-weight:bold; }
+  .pf-val { font-family:var(--wi-font-body); font-size:12.5px; fill:var(--wi-ink-faint); }
+  .pf-out { fill:#f3e4dd; stroke:var(--wi-accent-soft); stroke-width:1.2; }
+  .pf-out.cur { stroke:var(--wi-accent); stroke-width:2; }
+  .pf-act { fill:var(--wi-accent-soft); }
+  .pf-half { fill:#9fb7d8; stroke:#2f5f9e; stroke-width:1; }
+  .pf-half.extra { fill:none; stroke-dasharray:3 2; }
+  .pf-rem { fill:#cfe0c3; stroke:var(--wi-relax); stroke-width:1.2; }
+  .pf-box { fill:none; stroke:var(--wi-ink); stroke-width:1.6; }
+  .pf-note { font-family:var(--wi-font-body); font-size:12.5px; fill:var(--wi-ink-strong); }
+  .pf-axis { stroke:var(--wi-border); stroke-width:1; }
+  .pf-legend { margin-top:6px; }
+  .pf-legend .item { transition:opacity .3s; }
+  .pf-legend .item.later { opacity:.18; }
+  .pf-legend .swb { width:1.7em; height:.8em; border-radius:2px; }
   details.sub > summary { cursor:pointer; font-family:var(--wi-font-head); font-size:.72rem;
                           letter-spacing:.08em; text-transform:uppercase; color:var(--wi-ink-faint); margin-top:10px; }
   details.sub[open] > summary { color:var(--wi-accent); }
@@ -385,7 +402,7 @@ body { font-family: var(--wi-font-body); }
   </span>
   <span class="ctl">
     <span class="lbl">n</span>
-    <input type="number" id="randN" min="1" max="63" value="15">
+    <input type="number" id="randN" min="1" max="255" value="15">
     <button id="randBtn">Random</button>
     <button id="worstBtn" title="Keys sorted against the heap order: every sink goes all the way down">Worst case</button>
   </span>
@@ -420,7 +437,8 @@ body { font-family: var(--wi-font-body); }
       <div class="sim-title"><span id="drawTitle">The heap</span>
         <span class="rhs">
           <label class="chk"><input type="checkbox" id="nixChk" checked> indices at nodes</label>
-          <span>zoom</span><input type="range" id="zoom" min="40" max="160" value="100" aria-label="zoom">
+          <label class="chk" title="Fit the drawing into the box (width and height)"><input type="checkbox" id="fitChk" checked> fit</label>
+          <span>zoom</span><input type="range" id="zoom" min="-260" max="100" value="0" aria-label="zoom (log scale)">
           <span id="zoomVal">100%</span>
         </span>
       </div>
@@ -449,6 +467,8 @@ body { font-family: var(--wi-font-body); }
         steps. Summed over the levels:</div>
       <div class="formula" id="formula"></div>
       <table class="lv" id="lvTable"></table>
+      <div class="sim-title" style="margin-top:12px"><span>The sum, to scale</span><span class="rhs" id="proofMeta"></span></div>
+      <div id="proofBox"></div>
       <div class="chain" id="chain"></div>
       <div class="anote" id="cmpNote"></div>
       <details class="sub" id="scaleDetails">
@@ -498,10 +518,10 @@ body { font-family: var(--wi-font-body); }
    ===================================================================== */
 const el = id => document.getElementById(id);
 const SVGNS = "http://www.w3.org/2000/svg";
-const MAXN = 63, MAXKEYLEN = 3;
+const MAXN = 63, MAXN_BUILD = 255, MAXKEYLEN = 3;
 const CW = 40, R = 15, DY = 58, PADL = 70, PADR = 26, PADT = 24, ARR_GAP = 46, CELLH = 34;
 
-const S = { tab: "ops", orient: "max", layout: "tree", gran: "line", zoom: 1, delay: 650, showNix: true };
+const S = { tab: "ops", orient: "max", layout: "tree", gran: "line", zoom: 1, fit: true, delay: 650, showNix: true };
 
 let opsInput = { init: null, ops: [] };   // ops: {t:'ins',key} | {t:'del'} | {t:'ck',k,key}
 let buildKeys = [];
@@ -741,7 +761,30 @@ class Tracer {
     this.phase("done", "done");
     this.snap({ line: "c.end", vars: { n: n }, major: true, done: true,
       txt: "The whole array is a heap now. Bottom-up construction used " + this.exch + " exchanges and " + this.cmp +
-        " comparisons for " + vi("n") + " = " + n + " keys." });
+        " comparisons for " + vi("n") + " = " + n + " keys. Next: why the sum in the analysis is at most 2." });
+    /* a graphical proof of  S = sum_{i>=0} i/2^i <= 2, drawn in the analysis panel */
+    if (h >= 1) {
+      this.phase("proof", "proof");
+      let num = 0; for (let i = 0; i <= h; i++) num += i * (1 << (h - i));      // S = num / 2^h
+      const den = 1 << h, S = num / den;
+      const T = [
+        "The bound for level ℓ, divided by 2<sup>" + vi("h") + "</sup>, is " + vi("i") + "/2<sup>" + vi("i") + "</sup> with " + vi("i") + " = " + vi("h") + "−ℓ. " +
+          "Each bar has exactly this length; the filled part is what the construction actually used. The bars add up to " +
+          vi("S") + " = " + num + "/" + den + " ≈ " + S.toFixed(3) + ". Why is " + vi("S") + " always below 2?",
+        "Halve every bar: " + vi("S") + "/2 = Σ " + vi("i") + "/2<sup>" + vi("i") + "+1</sup>. Each half bar moves down one row, " +
+          "to the row whose denominator is the same, 2<sup>" + vi("i") + "+1</sup>.",
+        "Subtract " + vi("S") + "/2 from " + vi("S") + ": in row " + vi("i") + "+1, the half bar " + vi("i") + "/2<sup>" + vi("i") + "+1</sup> " +
+          "cancels the first part of the bar (" + vi("i") + "+1)/2<sup>" + vi("i") + "+1</sup>. The last half bar has no row to cancel; " +
+          "it is subtracted from nothing, which only makes the difference smaller.",
+        "What is left in every row " + vi("i") + " ≥ 1 is exactly 1/2<sup>" + vi("i") + "</sup>: one 1/2, one 1/4, one 1/8, …",
+        "Slide the leftover pieces into one box of length 1: 1/2 + 1/4 + … + 1/2<sup>" + vi("h") + "</sup> fills it, with 1/2<sup>" + vi("h") +
+          "</sup> to spare. So " + vi("S") + " − " + vi("S") + "/2 ≤ 1, that is, " + vi("S") + " ≤ 2.",
+        "Hence bottom-up construction makes at most 2<sup>" + vi("h") + "</sup>·" + vi("S") + " ≤ 2·2<sup>" + vi("h") + "</sup> = " + (2 * den) +
+          " ≤ 2" + vi("n") + " = " + (2 * n) + " exchanges (here: " + this.exch + "). Since each exchange costs at most 2 comparisons, " +
+          "counting comparisons gives 4" + vi("n") + " (plus at most 2 for the final check at each node)."
+      ];
+      T.forEach((t, k) => this.snap({ line: "c.end", vars: { n: n }, major: true, done: true, proof: k + 1, txt: t }));
+    }
   }
 }
 
@@ -838,7 +881,7 @@ function opsToText(inp) {
 function parseBuild(text) {
   const ks = stripComments(text).join(" ").trim().split(/[\s,]+/).filter(Boolean);
   if (!ks.length) throw new Error("Give at least one key.");
-  if (ks.length > MAXN) throw new Error("At most " + MAXN + " keys (got " + ks.length + ").");
+  if (ks.length > MAXN_BUILD) throw new Error("At most " + MAXN_BUILD + " keys (got " + ks.length + ").");
   for (const k of ks) { const e = validKey(k); if (e) throw new Error(e); }
   if (!detectNumeric(ks) && ks.some(isNum))
     throw new Error("Use either only numbers or only words as keys (mixing them makes the order confusing).");
@@ -864,7 +907,7 @@ function mulberry(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79
   t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function randomKeys(n, rnd) {
   rnd = rnd || Math.random;
-  const pool = []; for (let i = 1; i <= 99; i++) pool.push(i);
+  const pool = []; for (let i = 1; i <= (n > 60 ? 999 : 99); i++) pool.push(i);
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
   return pool.slice(0, n).map(String);
 }
@@ -884,6 +927,9 @@ const BUILD_PRESETS = [
   { name: "S O R T E X A M P L E", text: "S O R T E X A M P L E" },
   { name: "Worst case, n = 15", worst: 15 },
   { name: "Worst case, n = 31", worst: 31 },
+  { name: "Worst case, n = 63", worst: 63 },
+  { name: "Worst case, n = 127", worst: 127 },
+  { name: "Worst case, n = 255", worst: 255 },
   { name: "Already a heap, n = 15", best: 15 },
   { name: "Random, n = 20", rnd: 20 }
 ];
@@ -989,14 +1035,23 @@ function buildOverlay() {
 }
 /* Centre the tree over the array -- but never further right than the visible part
    of the canvas, so that a wide array (n = 63) does not push the tree off-screen. */
+/* zoom: by default the drawing fits the width of its box (but never grows beyond 125%);
+   moving the slider (log scale), pinching or ctrl+wheel switch to a manual zoom */
+function zEff() {
+  if (!S.fit || !G.W) return S.zoom;
+  const sc = el("svgScroll"), cw = sc.clientWidth || 800;
+  const v = sc.style.getPropertyValue("--canvas-h"), ch = v ? parseFloat(v) : Math.max(220, window.innerHeight * 0.78);
+  return Math.max(0.05, Math.min(1.25, (cw - 2) / G.W, (ch - 2) / G.H));
+}
 function placeTree() {
   const treeW = (1 << hCap) * CW, full = (cap * CW - treeW) / 2;
-  const sc = el("svgScroll"), visW = sc && sc.clientWidth ? sc.clientWidth / S.zoom : Infinity;
+  const sc = el("svgScroll"), visW = sc && sc.clientWidth ? sc.clientWidth / zEff() : Infinity;
   const fit = (visW - PADL - PADR - treeW) / 2;
   G.xT0 = PADL + Math.max(0, Math.min(full, fit));
 }
 function applyZoom() {
-  const z = S.zoom, svg = el("svg");
+  const z = zEff(), svg = el("svg");
+  if (S.fit) { el("zoom").value = Math.round(60 * Math.log2(z)); el("zoomVal").textContent = Math.round(100 * z) + "%"; }
   placeTree(); kick();
   svg.setAttribute("width", G.W * z); svg.setAttribute("height", G.H * z);
   el("svgWrap").style.width = G.W * z + "px"; el("svgWrap").style.height = G.H * z + "px";
@@ -1120,7 +1175,9 @@ function render(animate, prevStep) {
   const near = prevStep && Math.abs(steps.indexOf(prevStep) - vis[cur]) <= 1;
   tw = { t0: performance.now(), dur: (!animate || reduce) ? 0 : near ? Math.max(140, Math.min(650, S.delay * 0.78)) : 180 };
   kick();
+  pfAnimate = !!animate;
   renderSide(B);
+  pfAnimate = false;
 }
 
 function kick() { if (!rafOn) { rafOn = true; requestAnimationFrame(frame); } }
@@ -1332,25 +1389,27 @@ function buildAnalysisSkeleton() {
   anaH = h;
   el("hmlText").innerHTML = "\\(h-\\ell\\)";
   el("formula").innerHTML = "\\[\\begin{aligned}\\text{cost} &\\;\\le\\; 1\\cdot h + 2\\cdot(h-1) + 4\\cdot(h-2) + \\cdots + 2^{h}\\cdot 0" +
-    "\\\\ &\\;=\\; \\sum_{\\ell=0}^{h} 2^{\\ell}\\,(h-\\ell) \\;=\\; 2^{h}\\sum_{i=0}^{h}\\frac{i}{2^{i}} \\;\\le\\; 2\\cdot 2^{h} \\;\\le\\; 4n\\end{aligned}\\]";
-  let t = "<tr><th>\\(\\ell\\)</th><th>nodes</th><th>\\(h-\\ell\\)</th><th>\\(2^\\ell(h-\\ell)\\)</th><th>exchanges</th><th></th><th>comparisons</th></tr>";
+    "\\\\ &\\;=\\; \\sum_{\\ell=0}^{h} 2^{\\ell}\\,(h-\\ell) \\;=\\; 2^{h}\\sum_{i=0}^{h}\\frac{i}{2^{i}} \\;\\le\\; 2\\cdot 2^{h} \\;\\le\\; 2n\\end{aligned}\\]";
+  let t = "<tr><th>\\(\\ell\\)</th><th>nodes</th><th>\\(h-\\ell\\)</th><th>\\(2^\\ell(h-\\ell)\\)</th><th>exchanges</th><th>comparisons</th></tr>";
   for (let l = 0; l <= h; l++) {
     const cnt = Math.min(1 << l, n - (1 << l) + 1);
     t += '<tr id="lvr' + l + '"><td>' + l + "</td><td>" + cnt + "</td><td>" + (h - l) + "</td><td>" + ((1 << l) * (h - l)) +
-      '</td><td id="lvx' + l + '"></td><td class="bar"><div class="barbox"><div class="b" id="lvb' + l + '"></div></div></td><td id="lvc' + l + '"></td></tr>';
+      '</td><td id="lvx' + l + '"></td><td id="lvc' + l + '"></td></tr>';
   }
   let sum = 0; for (let l = 0; l <= h; l++) sum += (1 << l) * (h - l);
-  t += '<tr class="tot"><td colspan="3" style="text-align:left">total</td><td>' + sum + '</td><td id="lvxT"></td><td></td><td id="lvcT"></td></tr>';
+  t += '<tr class="tot"><td colspan="3" style="text-align:left">total</td><td>' + sum + '</td><td id="lvxT"></td><td id="lvcT"></td></tr>';
   el("lvTable").innerHTML = t;
   el("chain").innerHTML = '<table class="lv"><tr><th>exchanges so far</th><th>\\(\\sum_\\ell 2^\\ell(h-\\ell)\\)</th>' +
-    "<th>\\(2\\cdot 2^h\\)</th><th>\\(4n\\)</th></tr>" +
-    '<tr><td id="chX" class="v"></td><td>' + sum + "</td><td>" + (2 << h) + "</td><td>" + 4 * n + "</td></tr></table>";
+    "<th>\\(2\\cdot 2^h\\)</th><th>\\(2n\\)</th></tr>" +
+    '<tr><td id="chX" class="v"></td><td>' + sum + "</td><td>" + (2 << h) + "</td><td>" + 2 * n + "</td></tr></table>";
   // repeated insertion on the same keys, for comparison
   const ins = fastInserts(steps[0].keys.slice(1, n + 1), (a, b) => codeLess(a, b));
-  el("cmpNote").innerHTML = "Each exchange in <code>sink</code> costs at most 2 comparisons, plus at most 2 for the final check at each node. " +
+  el("cmpNote").innerHTML = "Counting comparisons instead: each exchange in <code>sink</code> costs at most 2 comparisons, " +
+    "which gives the bound 4<i>n</i> (plus at most 2 for the final check at each node); so far <b id=\"cmpSoFar\"></b>. " +
     "For comparison: inserting the same keys one by one (<i>n</i> times <code>insert</code>) would take <b>" + ins.c +
     "</b> comparisons and <b>" + ins.x + "</b> exchanges.";
   el("anaMeta").textContent = "n = " + n + ", h = " + h;
+  buildProof(h);
   typeset(el("buildPanel"));
   if (el("scaleDetails").open) drawChart(n);
 }
@@ -1363,11 +1422,99 @@ function renderAnalysis(B) {
     const x = B.lvlEx[l] || 0, c = B.lvlCmp[l] || 0, bd = (1 << l) * (h - l);
     tx += x; tc += c;
     el("lvx" + l).textContent = x; el("lvc" + l).textContent = c;
-    el("lvb" + l).style.width = (bd ? Math.min(100, 100 * x / bd) : 0) + "%";
     el("lvr" + l).classList.toggle("cur", l === curL);
   }
   el("lvxT").textContent = tx; el("lvcT").textContent = tc;
   el("chX").textContent = tx;
+  el("cmpSoFar").textContent = tc + " comparisons";
+  drawProof(B, h, curL);
+}
+
+/* ---------------------------------------------------------------------
+   The sum, to scale: row i has a bar of length i/2^i (the bound for level
+   l = h - i, divided by 2^h); the fill is the actual number of exchanges
+   on that level, on the same scale. At the end, a graphical proof that
+   S = sum i/2^i <= 2:  S - S/2 = 1/2 + 1/4 + ... <= 1.
+   --------------------------------------------------------------------- */
+const PF = { U: 240, X0: 74, RH: 27, BH: 14, top: 8 };
+let pf = null;
+function buildProof(h) {
+  const { U, X0, RH, BH, top } = PF;
+  const rowY = i => top + i * RH, boxY = top + (h + 2) * RH + 4;
+  const W = X0 + U + 30, H = boxY + BH + 30;
+  let s = '<svg id="pfSvg" viewBox="0 0 ' + W + " " + H + '" width="' + W + '">';
+  s += '<line class="pf-axis" x1="' + X0 + '" x2="' + X0 + '" y1="' + (top - 4) + '" y2="' + (rowY(h + 1) + BH + 4) + '"/>';
+  for (let i = 0; i <= h; i++) {
+    const y = rowY(i), len = U * i / (1 << i);
+    s += '<text class="pf-lab" id="pfl' + i + '" x="4" y="' + (y + BH - 2) + '"><tspan font-style="italic">i</tspan> = ' + i +
+      '<tspan dx="6" font-size="10.5" fill="#8b8779">ℓ = ' + (h - i) + "</tspan></text>";
+    s += '<rect class="pf-out" id="pfo' + i + '" x="' + X0 + '" y="' + y + '" width="' + len + '" height="' + BH + '"/>';
+    s += '<rect class="pf-act" id="pfa' + i + '" x="' + X0 + '" y="' + (y + 3) + '" width="0" height="' + (BH - 6) + '"/>';
+    s += '<text class="pf-val" id="pfv' + i + '" x="' + (X0 + len + 6) + '" y="' + (y + BH - 2) + '">' + i + "/" + (1 << i) + "</text>";
+  }
+  for (let i = 1; i <= h; i++) s += '<rect class="pf-half' + (i === h ? " extra" : "") + '" id="pfh' + i + '" x="' + X0 + '" y="' + rowY(i) + '" width="0" height="' + BH + '" opacity="0"/>';
+  for (let j = 1; j <= h; j++) s += '<rect class="pf-rem" id="pfr' + j + '" x="' + X0 + '" y="' + rowY(j) + '" width="0" height="' + BH + '" opacity="0"/>';
+  s += '<rect class="pf-box" id="pfbox" x="' + X0 + '" y="' + boxY + '" width="' + U + '" height="' + BH + '" opacity="0"/>';
+  s += '<text class="pf-note" id="pfboxL" x="' + (X0 + U + 6) + '" y="' + (boxY + BH - 2) + '" opacity="0">1</text>';
+  s += '<text class="pf-note" id="pfextra" x="' + (X0 + U * h / (2 << h) + 8) + '" y="' + (rowY(h + 1) + BH - 2) + '" opacity="0" font-size="11.5">' + h + "/" + (2 << h) + " — nothing to cancel</text>";
+  s += '<text class="pf-note" id="pfsum" x="' + X0 + '" y="' + (boxY + BH + 18) + '" opacity="0">S − S/2 = 1/2 + 1/4 + … ≤ 1, so S ≤ 2</text>';
+  s += "</svg>";
+  const sw = (st) => '<span class="swb" style="' + st + '"></span>';
+  s += '<div class="legend pf-legend">' +
+    '<span class="item" data-from="0">' + sw("background:#f3e4dd;border:1.2px solid var(--wi-accent-soft)") + "bound of a level ÷ 2<sup><i>h</i></sup> = <i>i</i>/2<sup><i>i</i></sup>, a summand of <i>S</i></span>" +
+    '<span class="item" data-from="0">' + sw("background:var(--wi-accent-soft);height:.45em") + "exchanges actually made on that level ÷ 2<sup><i>h</i></sup></span>" +
+    '<span class="item" data-from="2">' + sw("background:#9fb7d8;border:1px solid #2f5f9e") + "<i>S</i>/2: every bar at half length, one row down</span>" +
+    '<span class="item" data-from="3">' + sw("border:1px dashed #2f5f9e") + "last half bar: nothing to cancel</span>" +
+    '<span class="item" data-from="4">' + sw("background:#cfe0c3;border:1.2px solid var(--wi-relax)") + "left over after cancelling: 1/2<sup><i>i</i></sup></span>" +
+    '<span class="item" data-from="4">' + sw("border:1.6px solid var(--wi-ink)") + "a box of length 1</span>" +
+    "</div>";
+  el("proofBox").innerHTML = s;
+  pf = { h: h, rowY: rowY, boxY: boxY, cur: {} };
+  el("proofMeta").textContent = "unit = 2^" + h + " = " + (1 << h) + " exchanges";
+}
+function pfSet(id, attrs, dur) {
+  const e = el(id); if (!e) return;
+  const from = {}, to = {};
+  for (const a in attrs) { from[a] = parseFloat(e.getAttribute(a)) || 0; to[a] = attrs[a]; }
+  const tok = e._tok = (e._tok || 0) + 1;
+  if (!dur) { for (const a in to) e.setAttribute(a, to[a]); return; }
+  const t0 = performance.now();
+  const stepF = now => {
+    if (e._tok !== tok) return;                    // superseded by a newer update
+    const u = Math.min(1, (now - t0) / dur), k = ease(u);
+    for (const a in to) e.setAttribute(a, from[a] + (to[a] - from[a]) * k);
+    if (u < 1) requestAnimationFrame(stepF);
+  };
+  requestAnimationFrame(stepF);
+}
+let pfAnimate = false;
+function drawProof(B, h, curL) {
+  if (!pf || pf.h !== h) return;
+  const { U, X0, BH } = PF, st = B.proof || 0, dur = pfAnimate ? Math.max(250, Math.min(900, S.delay * 1.1)) : 0;
+  const y = pf.rowY;
+  for (let i = 0; i <= h; i++) {
+    const l = h - i, x = B.lvlEx[l] || 0;
+    pfSet("pfa" + i, { width: U * x / (1 << h), opacity: st >= 2 ? 0.25 : 1 }, dur);
+    el("pfo" + i).classList.toggle("cur", l === curL);
+    el("pfl" + i).classList.toggle("cur", l === curL);
+  }
+  for (let i = 1; i <= h; i++) {                 // the S/2 copy of bar i
+    const full = U * i / (1 << i);
+    if (st < 2) pfSet("pfh" + i, { x: X0, y: y(i), width: full, height: BH, opacity: 0 }, dur);
+    else if (st === 2) pfSet("pfh" + i, { x: X0, y: y(i + 1) + BH + 2, width: full / 2, height: 7, opacity: 1 }, dur);
+    else pfSet("pfh" + i, { x: X0, y: i === h ? y(i + 1) : y(i + 1), width: full / 2, height: BH, opacity: i === h ? 0.9 : 0.85 }, dur);
+  }
+  for (let j = 1; j <= h; j++) {                 // what remains in row j: exactly 1/2^j
+    const w = U / (1 << j);
+    if (st < 4) pfSet("pfr" + j, { x: X0 + U * (j - 1) / (1 << j), y: y(j), width: w, opacity: 0 }, dur);
+    else if (st === 4) pfSet("pfr" + j, { x: X0 + U * (j - 1) / (1 << j), y: y(j), width: w, opacity: 1 }, dur);
+    else pfSet("pfr" + j, { x: X0 + U * (1 - 2 / (1 << j)), y: pf.boxY, width: w, opacity: 1 }, dur);
+  }
+  pfSet("pfbox", { opacity: st >= 4 ? 1 : 0 }, dur);
+  pfSet("pfboxL", { opacity: st >= 4 ? 1 : 0 }, dur);
+  pfSet("pfextra", { opacity: st >= 3 ? 1 : 0 }, dur);
+  pfSet("pfsum", { opacity: st >= 5 ? 1 : 0 }, dur);
+  el("proofBox").querySelectorAll(".pf-legend .item").forEach(it => it.classList.toggle("later", st < +it.dataset.from));
 }
 
 /* fast, non-recording versions for the comparison and the chart */
@@ -1468,6 +1615,7 @@ function phaseTitle(ph) {
   if (ph.kind === "lvl") return "sink every node on " + ph.name;
   if (ph.kind === "copy") return "copy the keys into the array";
   if (ph.kind === "done") return "finished heap";
+  if (ph.kind === "proof") return "why the sum is at most 2";
   return "starting state";
 }
 function updatePhaseBar() {
@@ -1665,7 +1813,7 @@ function renderHint() {
       "Keys are words of up to " + MAXKEYLEN + " characters or numbers (not mixed); <code>#</code> starts a comment. " +
       "Buttons and clicks on nodes add operations to this script."
     : "The keys to build a heap from, separated by spaces, in array order (index 1 first), as in Sedgewick &amp; Wayne’s " +
-      "<code>tiny.txt</code>. Up to " + MAXN + " keys; words of up to " + MAXKEYLEN + " characters or numbers (not mixed). " +
+      "<code>tiny.txt</code>. Up to " + MAXN_BUILD + " keys; words of up to " + MAXKEYLEN + " characters or numbers (not mixed). " +
       "<code>#</code> starts a comment.";
 }
 
@@ -1751,7 +1899,7 @@ function initSplitters() {
   const vr = el("vresize"), sc = el("svgScroll");
   let vd = false, y0 = 0, h0 = 0;
   vr.addEventListener("pointerdown", e => { vd = true; vr.classList.add("drag"); vr.setPointerCapture(e.pointerId); y0 = e.clientY; h0 = sc.getBoundingClientRect().height; });
-  vr.addEventListener("pointermove", e => { if (vd) sc.style.setProperty("--canvas-h", Math.max(140, h0 + e.clientY - y0) + "px"); });
+  vr.addEventListener("pointermove", e => { if (vd) { sc.style.setProperty("--canvas-h", Math.max(140, h0 + e.clientY - y0) + "px"); if (scene) applyZoom(); } });
   vr.addEventListener("pointerup", () => { vd = false; vr.classList.remove("drag"); });
   vr.addEventListener("dblclick", () => sc.style.removeProperty("--canvas-h"));
 }
@@ -1786,7 +1934,7 @@ function init() {
   el("playBtn").addEventListener("click", () => togglePlay());
   el("scrubber").addEventListener("input", e => { stopPlay(); go(+e.target.value); });
   el("speed").addEventListener("input", e => { S.delay = +e.target.value; el("speedVal").textContent = S.delay + "ms"; });
-  el("zoom").addEventListener("input", e => { S.zoom = e.target.value / 100; el("zoomVal").textContent = e.target.value + "%"; applyZoom(); });
+  initZoom();
   el("nixChk").addEventListener("change", e => { S.showNix = e.target.checked; render(false); });
 
   el("insBtn").addEventListener("click", () => {
@@ -1816,15 +1964,16 @@ function init() {
   el("buildBtn").addEventListener("click", () => loadText(el("buildKeys").value, "buildErr"));
   el("buildKeys").addEventListener("keydown", e => { if (e.key === "Enter") el("buildBtn").click(); });
   el("randBtn").addEventListener("click", () => {
-    const n = Math.max(1, Math.min(MAXN, +el("randN").value || 15)); el("randN").value = n;
+    const n = Math.max(1, Math.min(MAXN_BUILD, +el("randN").value || 15)); el("randN").value = n;
     loadText(randomKeys(n).join(" "), "buildErr");
   });
   el("worstBtn").addEventListener("click", () => {
-    const n = Math.max(1, Math.min(MAXN, +el("randN").value || 15)); el("randN").value = n;
+    const n = Math.max(1, Math.min(MAXN_BUILD, +el("randN").value || 15)); el("randN").value = n;
     loadText(worstKeys(n).join(" "), "buildErr");
   });
   el("toInsertsBtn").addEventListener("click", () => {
     const keys = buildKeys.slice();
+    if (keys.length > MAXN) { el("buildErr").textContent = "The insert view holds at most " + MAXN + " keys."; return; }
     S.tab = "ops"; opsInput = { init: null, ops: keys.map(k => ({ t: "ins", key: k })) };
     setTabKeep();
   });
@@ -1865,6 +2014,27 @@ function init() {
   let rzT = null;
   window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(() => { if (scene) applyZoom(); }, 80); });
   setTab(hp.tab === "build" ? "build" : "ops");
+}
+function setManualZoom(z) {
+  S.zoom = Math.max(0.05, Math.min(4, z)); S.fit = false; el("fitChk").checked = false;
+  el("zoom").value = Math.round(60 * Math.log2(S.zoom)); el("zoomVal").textContent = Math.round(100 * S.zoom) + "%";
+  if (scene) applyZoom();
+}
+function initZoom() {
+  el("zoom").addEventListener("input", e => setManualZoom(Math.pow(2, +e.target.value / 60)));
+  el("fitChk").addEventListener("change", e => { if (e.target.checked) { S.fit = true; if (scene) applyZoom(); } else setManualZoom(zEff()); });
+  const sc = el("svgScroll");
+  sc.addEventListener("wheel", e => { if (!e.ctrlKey) return; e.preventDefault(); setManualZoom(zEff() * Math.exp(-e.deltaY * 0.01)); }, { passive: false });
+  const pts = new Map(); let pinch = null;
+  const pdist = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  sc.addEventListener("pointerdown", e => { if (e.pointerType !== "touch") return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pts.size === 2) pinch = { d: pdist(), z: zEff() }; });
+  sc.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && pts.size === 2) { const d = pdist(); if (d > 0) setManualZoom(pinch.z * d / pinch.d); }
+  });
+  const end = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
+  ["pointerup", "pointercancel", "pointerleave"].forEach(t => sc.addEventListener(t, end));
 }
 function setTabKeep() {
   // switch to the ops view without replacing opsInput

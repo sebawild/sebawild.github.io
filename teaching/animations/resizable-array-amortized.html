@@ -134,7 +134,7 @@
   .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--mono);
                     font-size:.9em; color:var(--wi-ink-soft); display:flex; align-items:center; gap:8px; }
   .sim-title .rhs input[type=range] { width:90px; }
-  .svgscroll { overflow:auto; max-height:var(--canvas-h, none); background:var(--wi-bg);
+  .svgscroll { touch-action:pan-x pan-y; overflow:auto; max-height:var(--canvas-h, none); background:var(--wi-bg);
                border-radius:var(--wi-radius); }
   .svgwrap { position:relative; margin:0 auto; }
   .svgwrap svg { display:block; max-width:none; touch-action:manipulation; }
@@ -338,6 +338,11 @@ body { font-family: var(--wi-font-body); }
     <label for="presetSel">Example</label>
     <select id="presetSel"></select>
   </div>
+  <div class="ctl" title="Push n keys, then pop them all again, with a few random operations mixed in">
+    <span class="lbl">Push n, pop n</span>
+    <input type="number" id="genN" min="4" value="24" aria-label="n">
+    <button id="genBtn">Generate</button>
+  </div>
 </div>
 
 <div class="opbar">
@@ -380,7 +385,7 @@ body { font-family: var(--wi-font-body); }
   <div class="col-main">
     <div class="sim-box">
       <div class="sim-title"><span id="drawTitle">The array</span>
-        <span class="rhs"><span>zoom</span><input type="range" id="zoom" min="40" max="160" value="100" aria-label="zoom"><span id="zoomVal">100%</span></span>
+        <span class="rhs"><label class="chk" title="Fit the drawing into the box (width and height)"><input type="checkbox" id="fitChk" checked> fit</label><span>zoom</span><input type="range" id="zoom" min="-140" max="120" value="0" aria-label="zoom (log scale)"><span id="zoomVal">100%</span></span>
       </div>
       <div class="svgscroll" id="svgScroll">
         <div class="svgwrap" id="svgWrap"><svg id="svg"></svg></div>
@@ -431,9 +436,9 @@ body { font-family: var(--wi-font-body); }
     </div>
     <div class="hint">
       A sequence of stack operations in the format of Sedgewick &amp; Wayne’s <code>tobe.txt</code>:
-      every word is pushed, a <code>-</code> pops. Keys are up to 4 characters; <code>#</code> starts a comment.
+      every word is pushed, a <code>-</code> pops. An optional first line <code>init: a b c</code> gives elements that are on the stack at the start (at most 8, the initial capacity). Keys are up to 4 characters; <code>#</code> starts a comment.
       The stack holds at most 32 elements here (capacity 64), so that the array stays readable.
-      The array starts empty with capacity 8.
+      The array has capacity 8 at the start.
     </div>
   </div>
 </details>
@@ -580,9 +585,9 @@ function initSplitters(onResize) {
   const vr = el("vresize"), sc = el("svgScroll");
   let vd = false, y0 = 0, h0 = 0;
   vr.addEventListener("pointerdown", e => { vd = true; vr.classList.add("drag"); vr.setPointerCapture(e.pointerId); y0 = e.clientY; h0 = sc.getBoundingClientRect().height; });
-  vr.addEventListener("pointermove", e => { if (vd) sc.style.setProperty("--canvas-h", Math.max(120, h0 + e.clientY - y0) + "px"); });
+  vr.addEventListener("pointermove", e => { if (vd) { sc.style.setProperty("--canvas-h", Math.max(120, h0 + e.clientY - y0) + "px"); if (zoomRedraw) zoomRedraw(); } });
   vr.addEventListener("pointerup", () => { vd = false; vr.classList.remove("drag"); });
-  vr.addEventListener("dblclick", () => sc.style.removeProperty("--canvas-h"));
+  vr.addEventListener("dblclick", () => { sc.style.removeProperty("--canvas-h"); if (zoomRedraw) zoomRedraw(); });
 }
 function initTransport() {
   el("resetBtn").addEventListener("click", () => { stopPlay(); go(0, false); });
@@ -610,33 +615,116 @@ function setGran(g) {
   cur = best; go(cur, false);
 }
 
-/* ---- stack-operation scripts (tobe.txt format) ---- */
-const MAXKEY = 4;
+/* ---- stack-operation scripts (tobe.txt format, plus an optional init: line) ---- */
+const MAXKEY = 4, MAXINIT = 8;
 function parseStackOps(text, maxN) {
-  const ops = []; let n = 0;
-  const toks = text.split(/\r?\n/).map(l => l.replace(/#.*$/, "")).join(" ").split(/[\s,]+/).filter(Boolean);
+  const script = { init: [], ops: [] };
+  const lines = text.split(/\r?\n/).map(l => l.replace(/#.*$/, ""));
+  const body = [];
+  for (const l of lines) {
+    const m = /^\s*init\s*:(.*)$/i.exec(l);
+    if (m) script.init = m[1].trim().split(/[\s,]+/).filter(Boolean);
+    else body.push(l);
+  }
+  for (const k of script.init) if (k.length > MAXKEY || k === "-") throw new Error("Initial key '" + k + "' is not allowed (at most " + MAXKEY + " characters).");
+  if (script.init.length > MAXINIT) throw new Error("The initial array has capacity " + MAXINIT + ": at most " + MAXINIT + " initial elements.");
+  let n = script.init.length;
+  const toks = body.join(" ").split(/[\s,]+/).filter(Boolean);
   toks.forEach((t, i) => {
     if (t === "-") {
       if (n === 0) throw new Error("Token " + (i + 1) + ": pop on an empty stack.");
-      ops.push({ t: "pop" }); n--;
+      script.ops.push({ t: "pop" }); n--;
     } else {
       if (t.length > MAXKEY) throw new Error("Key '" + t + "' is longer than " + MAXKEY + " characters.");
       if (n >= maxN) throw new Error("Token " + (i + 1) + ": the stack is limited to " + maxN + " elements here.");
-      ops.push({ t: "push", key: t }); n++;
+      script.ops.push({ t: "push", key: t }); n++;
     }
   });
-  if (ops.length > 400) throw new Error("At most 400 operations.");
-  return ops;
+  if (script.ops.length > 400) throw new Error("At most 400 operations.");
+  return script;
 }
-function stackOpsToText(ops) {
-  const toks = ops.map(o => o.t === "push" ? o.key : "-"), lines = [];
+function stackOpsToText(script) {
+  const toks = script.ops.map(o => o.t === "push" ? o.key : "-"), lines = [];
+  if (script.init.length) lines.push("init: " + script.init.join(" "));
   for (let i = 0; i < toks.length; i += 20) lines.push(toks.slice(i, i + 20).join(" "));
   return lines.join("\n");
 }
+function sizeAfter(script, k) { let n = script.init.length; for (let i = 0; i < k; i++) n += script.ops[i].t === "push" ? 1 : -1; return n; }
+/* push n keys, then pop them all again, with a few random operations mixed in */
+function genPushPop(n, init) {
+  const toks = [], noise = Math.max(1, Math.round(n / 8));
+  const pick = (lo, hi, k) => { const s = new Set(); while (s.size < Math.min(k, hi - lo + 1)) s.add(lo + Math.floor(Math.random() * (hi - lo + 1))); return s; };
+  const popAt = pick(2, n - 1, noise), pushAt = pick(2, n - 1, noise);
+  let s = 0, next = 1;
+  for (let i = 1; i <= n; i++) { toks.push(String(next++)); s++; if (popAt.has(i)) { toks.push("-"); s--; } }
+  let j = 0;
+  while (s > 0) { toks.push("-"); s--; j++; if (pushAt.has(j) && s > 0) { toks.push(String(next++)); s++; } }
+  const lines = ["init: " + init.join(" ")];
+  for (let i = 0; i < toks.length; i += 20) lines.push(toks.slice(i, i + 20).join(" "));
+  return lines.join("\n");
+}
+const INIT3 = ["a", "b", "c"];
+
+/* ---- zoom: fit to width by default; log-scale slider; pinch and ctrl+wheel ---- */
+const Z = { fit: true, zoom: 1, maxFit: 1.5, min: 0.2, max: 4 };
+let zoomRedraw = null;
+const zoomFromSlider = v => Math.pow(2, v / 60);
+const sliderFromZoom = z => Math.round(60 * Math.log2(z));
+/* available height for the drawing: the height the user dragged it to, else most of the window */
+function availH() {
+  const v = el("svgScroll").style.getPropertyValue("--canvas-h");
+  return v ? parseFloat(v) : Math.max(220, window.innerHeight * 0.78);
+}
+function viewScale(contentW, H) {
+  if (!Z.fit) return Z.zoom;
+  const cw = el("svgScroll").clientWidth || 800;
+  return Math.max(Z.min, Math.min(Z.maxFit, (cw - 2) / contentW, H ? (availH() - 2) / H : Infinity));
+}
+function applyView(contentW, H) {
+  const s = viewScale(contentW, H), svg = el("svg");
+  svg.setAttribute("viewBox", "0 0 " + contentW.toFixed(1) + " " + H);
+  svg.setAttribute("width", (contentW * s).toFixed(1)); svg.setAttribute("height", (H * s).toFixed(1));
+  const w = el("svgWrap"); w.style.width = (contentW * s).toFixed(1) + "px"; w.style.height = (H * s).toFixed(1) + "px";
+  if (Z.fit) { el("zoom").value = sliderFromZoom(s); el("zoomVal").textContent = Math.round(100 * s) + "%"; }
+}
+function setManualZoom(z) {
+  Z.zoom = Math.max(Z.min, Math.min(Z.max, z)); Z.fit = false;
+  el("fitChk").checked = false;
+  el("zoom").value = sliderFromZoom(Z.zoom); el("zoomVal").textContent = Math.round(100 * Z.zoom) + "%";
+  if (zoomRedraw) zoomRedraw();
+}
+function initZoom(redraw) {
+  zoomRedraw = redraw;
+  el("zoom").addEventListener("input", e => setManualZoom(zoomFromSlider(+e.target.value)));
+  el("fitChk").addEventListener("change", e => {
+    if (e.target.checked) { Z.fit = true; redraw(); }
+    else setManualZoom(+el("zoomVal").textContent.replace("%", "") / 100);
+  });
+  let rz = null;
+  window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(redraw, 60); });
+  const sc = el("svgScroll");
+  sc.addEventListener("wheel", e => {               // trackpad pinch arrives as ctrl+wheel
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    const cur = Z.fit ? +el("zoomVal").textContent.replace("%", "") / 100 : Z.zoom;
+    setManualZoom(cur * Math.exp(-e.deltaY * 0.01));
+  }, { passive: false });
+  const pts = new Map(); let pinch = null;
+  sc.addEventListener("pointerdown", e => { if (e.pointerType === "touch") pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pts.size === 2) startPinch(); });
+  sc.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && pts.size === 2) { const d = pdist(); if (d > 0) setManualZoom(pinch.z * d / pinch.d); }
+  });
+  const end = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
+  sc.addEventListener("pointerup", end); sc.addEventListener("pointercancel", end); sc.addEventListener("pointerleave", end);
+  function pdist() { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y); }
+  function startPinch() { pinch = { d: pdist(), z: Z.fit ? +el("zoomVal").textContent.replace("%", "") / 100 : Z.zoom }; }
+}
+
 const WORDS = ("to be or not that is the q all we see seem a dream in it my so far it was oak elm ash yew fir " +
   "cat dog owl fox elk bee ant emu yak").split(" ");
 function randomWord() { return WORDS[Math.floor(Math.random() * WORDS.length)]; }
-function sizeAfter(ops, k) { let n = 0; for (let i = 0; i < k; i++) n += ops[i].t === "push" ? 1 : -1; return n; }
 
 
 /* =====================================================================
@@ -648,14 +736,15 @@ function sizeAfter(ops, k) { let n = 0; for (let i = 0; i < k; i++) n += ops[i].
    ===================================================================== */
 const MAXN = 32, INITCAP = 8;
 const CW = 36, CH = 34, PADL = 128, PADR = 34, Y0 = 84, ROWGAP = 104;
-let ops = [];
+let script = { init: [], ops: [] };
 let ledgerAll = [];        // one record per operation of the whole trace
 
 class Tracer {
-  constructor() {
+  constructor(init) {
     this.arrays = {}; this.aid = 0; this.eid = 0; this.key = {};
     this.elements = this.newArr(INITCAP); this.newElements = null; this.garbage = null;
-    this.size = 0; this.steps = []; this.phases = []; this.out = []; this.ledger = [];
+    this.size = 0;
+    (init || []).forEach((k, i) => { const id = "e" + (++this.eid); this.key[id] = k; this.arrays[this.elements][i] = id; this.size++; }); this.steps = []; this.phases = []; this.out = []; this.ledger = [];
     this.opAcc = 0; this.totAcc = 0; this.op = -1; this.stack = [];
   }
   newArr(cap) { const id = "a" + (++this.aid); this.arrays[id] = new Array(cap).fill(null); return id; }
@@ -752,11 +841,12 @@ class Tracer {
 }
 function fmt(v) { return Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/0$/, ""); }
 
-function trace(opsList) {
-  const T = new Tracer();
+function trace(sc) {
+  const T = new Tracer(sc.init);
   T.phase("start", "start");
-  T.snap({ major: true, txt: "An empty stack on an array of capacity " + INITCAP + ". Every word is pushed, every <code>-</code> pops." });
-  for (const o of opsList) { if (o.t === "push") T.push(o.key); else T.pop(); }
+  T.snap({ major: true, txt: (T.size ? "A stack with " + T.size + " element" + (T.size === 1 ? "" : "s") : "An empty stack") +
+    " on an array of capacity " + INITCAP + ", so Φ = " + fmt(T.phi()) + " at the start." });
+  for (const o of sc.ops) { if (o.t === "push") T.push(o.key); else T.pop(); }
   return T;
 }
 
@@ -775,7 +865,6 @@ function buildScene(T) {
   G.W = PADL + maxCap * CW + PADR; G.H = Y0 + ROWGAP + CH + 34;
   const svg = el("svg");
   svg.innerHTML = "";
-  svg.setAttribute("viewBox", "0 0 " + G.W + " " + G.H);
   G.gArr = mk("g", {}, svg); G.gMark = mk("g", {}, svg); G.gTok = mk("g", {}, svg);
   arrG = {}; tokG = {};
   keyOf = T.key;
@@ -789,13 +878,10 @@ function buildScene(T) {
   G.phiL = mk("text", { class: "philab", y: Y0 - 33 }, G.gMark);
   G.nl = mk("line", { class: "mkline", y1: Y0 - 30, y2: Y0 + CH + 22 }, G.gMark);
   G.nL = mk("text", { class: "mklab", y: Y0 + CH + 34 }, G.gMark);
-  applyZoom();
 }
-function applyZoom() {
-  const z = UI.zoom, svg = el("svg");
-  svg.setAttribute("width", G.W * z); svg.setAttribute("height", G.H * z);
-  el("svgWrap").style.width = G.W * z + "px"; el("svgWrap").style.height = G.H * z + "px";
-}
+/* width of what is on screen in a step: the widest array present */
+function stepWidth(st) { return PADL + Math.max(...st.arrs.filter(a => a.role !== "garbage").map(a => a.cells.length)) * CW + PADR; }
+function redraw() { if (plan) draw(1); }
 function arrayGroup(a) {
   if (arrG[a.id]) return arrG[a.id];
   const g = mk("g", { "data-arr": a.id }, G.gArr), cap = a.cells.length;
@@ -869,7 +955,7 @@ function renderStep(prev, animate) {
     tokPlan.push({ te: te, from: from, to: to, delay: delay });
   }
   for (const k in tokG) if (!toks[k]) tokG[k].g.style.display = "none";
-  plan = { arr: arrPlan, tok: tokPlan, nA: A.size, nB: B.size, CA: A.C, CB: B.C, phiB: B.phi };
+  plan = { arr: arrPlan, tok: tokPlan, nA: A.size, nB: B.size, CA: A.C, CB: B.C, phiB: B.phi, wA: stepWidth(A), wB: stepWidth(B) };
   tw = { t0: performance.now(), dur: tweenDur(animate) };
   kick();
   renderSide(B);
@@ -883,6 +969,7 @@ function frame(now) {
 function draw(u) {
   if (!plan) return;
   const e = ease(u);
+  applyView(plan.wA + (plan.wB - plan.wA) * e, G.H);
   for (const p of plan.arr) {
     const y = p.ya + (p.yb - p.ya) * e, o = p.oa + (p.ob - p.oa) * e;
     p.ag.g.setAttribute("transform", "translate(0," + y.toFixed(1) + ")");
@@ -947,9 +1034,10 @@ function renderChart(B) {
   const L = ledgerAll, m = L.length;
   if (!m) { el("chartBox").innerHTML = '<span class="placeholder">No operations yet.</span>'; el("chartMeta").textContent = ""; return; }
   const Wc = 560, Hc = 190, ml = 44, mr = 12, mt = 10, mb = 26;
-  let ca = [0], cm = [0];
-  L.forEach(r => { ca.push(ca[ca.length - 1] + r.actual); cm.push(cm[cm.length - 1] + r.amort); });
-  const ymax = Math.max(5 * m, ...ca, ...cm) * 1.05, ymin = Math.min(0, ...cm);
+  let ca = [0], cm = [0], cp = [0];
+  const phi0 = steps[0].phi;
+  L.forEach(r => { ca.push(ca[ca.length - 1] + r.actual); cm.push(cm[cm.length - 1] + r.amort); cp.push(-4 * (r.phi1 - phi0)); });
+  const ymax = Math.max(5 * m, ...ca, ...cm) * 1.05, ymin = Math.min(0, ...cm, ...cp) * 1.05;
   const xs = i => ml + i / m * (Wc - ml - mr), ys = v => mt + (1 - (v - ymin) / (ymax - ymin)) * (Hc - mt - mb);
   const step = arr => arr.map((v, i) => (i ? "L" + xs(i).toFixed(1) + " " + ys(arr[i - 1]).toFixed(1) + " " : "M" + xs(0) + " " + ys(0) + " ") +
     "L" + xs(i).toFixed(1) + " " + ys(v).toFixed(1)).join(" ");
@@ -964,6 +1052,8 @@ function renderChart(B) {
   s += '<rect x="' + xs(k) + '" y="' + mt + '" width="' + Math.max(0, xs(m) - xs(k)) + '" height="' + (Hc - mt - mb) + '" fill="#f5ebd9" opacity=".65"/>';
   s += '<line x1="' + xs(0) + '" y1="' + ys(0) + '" x2="' + xs(m) + '" y2="' + ys(5 * m) + '" stroke="#8b8779" stroke-dasharray="5 4"/>';
   s += '<path d="' + step(cm) + '" fill="none" stroke="#4a7c3f" stroke-width="2"/>';
+  s += '<line x1="' + ml + '" x2="' + (Wc - mr) + '" y1="' + ys(0) + '" y2="' + ys(0) + '" stroke="#b9a793"/>';
+  s += '<path d="' + step(cp) + '" fill="none" stroke="#2f5f9e" stroke-width="2"/>';
   s += '<path d="' + step(ca) + '" fill="none" stroke="#902015" stroke-width="2.2"/>';
   s += '<line x1="' + xs(k) + '" x2="' + xs(k) + '" y1="' + mt + '" y2="' + (Hc - mb) + '" stroke="#cc2f22" stroke-dasharray="2 3"/>';
   s += '<text x="' + ((ml + Wc - mr) / 2) + '" y="' + (Hc - 6) + '" text-anchor="middle" font-size="10.5" fill="#8b8779">operations</text>';
@@ -971,6 +1061,7 @@ function renderChart(B) {
   el("chartBox").innerHTML = s + '<div class="legend">' +
     '<span class="item"><span class="swb" style="background:#902015;height:3px"></span>actual cost (array accesses), summed</span>' +
     '<span class="item"><span class="swb" style="background:#4a7c3f;height:3px"></span>amortized cost, summed</span>' +
+    '<span class="item"><span class="swb" style="background:#2f5f9e;height:3px"></span>−4·(Φ − Φ<sub>start</sub>): green = red + blue</span>' +
     '<span class="item"><span class="swb" style="border-top:2px dashed #8b8779;height:0"></span>5 per operation</span></div>';
   el("chartMeta").textContent = k + " of " + m + " operations done";
 }
@@ -1010,31 +1101,32 @@ const CODE = [
 function phaseTitle(ph) { return ph.kind === "push" ? "push(" + ph.name + ")" : ph.kind === "pop" ? "pop()" : "start"; }
 const nums = (a, b) => { const r = []; for (let i = a; i <= b; i++) r.push(String(i)); return r; };
 const PRESETS = [
-  { name: "tobe.txt — to be or not to - be - - that - - - is", text: "to be or not to - be - - that - - - is" },
-  { name: "Push 17 keys: two doublings", text: nums(1, 17).join(" ") },
-  { name: "Push 17, then pop all: halvings", text: nums(1, 17).join(" ") + "\n" + "- ".repeat(17) },
-  { name: "No thrashing at a boundary", text: nums(1, 16).join(" ") + "\n17 - 17 - 17 - 17\n- - - - - - - - -\n9 10" },
+  { name: "Push n, pop n (with a few random operations)", gen: true },
+  { name: "tobe.txt — to be or not to - be - - that - - - is", text: "init: a b c\nto be or not to - be - - that - - - is" },
+  { name: "No thrashing at a boundary", text: "init: a b c\n" + nums(4, 16).join(" ") + "\n17 - 17 - 17 - 17\n- - - - - - - - -\n9 10" },
   { name: "Random walk, 60 operations", rnd: 60 }
 ];
+const DEFAULT_N = 24;
 function presetText(p) {
+  if (p.gen) return genPushPop(Math.max(4, Math.min(MAXN - INIT3.length, +el("genN").value || DEFAULT_N)), INIT3);
   if (!p.rnd) return p.text;
-  const toks = []; let n = 0;
+  const toks = ["init: " + INIT3.join(" ")]; let n = INIT3.length;
   for (let i = 0; i < p.rnd; i++) {
-    if (n > 0 && (Math.random() < 0.45 || n >= MAXN)) { toks.push("-"); n--; } else { toks.push(String(1 + Math.floor(Math.random() * 99))); n++; }
+    if (n > 2 && (Math.random() < 0.45 || n >= MAXN)) { toks.push("-"); n--; } else { toks.push(String(1 + Math.floor(Math.random() * 99))); n++; }
   }
-  return toks.join(" ");
+  return toks[0] + "\n" + toks.slice(1).join(" ");
 }
 function rebuild(keepCur) {
-  const T = trace(ops);
+  const T = trace(script);
   steps = T.steps; phases = T.phases; ledgerAll = T.ledger;
   computeVis(); buildScene(T); renderPhases();
   if (!keepCur) cur = 0;
   cur = Math.min(cur, vis.length - 1);
   go(cur, false);
-  el("inputText").value = stackOpsToText(ops);
+  el("inputText").value = stackOpsToText(script);
 }
 function loadText(txt, errBox) {
-  try { ops = parseStackOps(txt, MAXN); el(errBox).textContent = ""; }
+  try { script = parseStackOps(txt, MAXN); el(errBox).textContent = ""; }
   catch (e) { el(errBox).textContent = e.message; return; }
   stopPlay(); rebuild(false);
 }
@@ -1042,10 +1134,10 @@ function opPos() { const B = curStep(); return B.op + 1; }
 function addOps(list, animate) {
   stopPlay();
   const pos = opPos();
-  const trial = ops.slice(0, pos).concat(list, ops.slice(pos));
+  const trial = { init: script.init, ops: script.ops.slice(0, pos).concat(list, script.ops.slice(pos)) };
   try { parseStackOps(stackOpsToText(trial), MAXN); } catch (e) { el("opErr").textContent = e.message; return; }
   el("opErr").textContent = "";
-  ops = trial; rebuild(false);
+  script = trial; rebuild(false);
   if (animate) { const ph = phases[pos + 1]; go(ph.vFrom, false); togglePlay(ph.vTo); }
   else go(phases[pos + list.length].vTo, false);
 }
@@ -1066,7 +1158,11 @@ function init() {
   el("presetSel").addEventListener("change", e => { const p = PRESETS[+e.target.value]; e.target.value = ""; if (p) loadText(presetText(p), "parseErr"); });
   for (const b of el("granSeg").children) b.addEventListener("click", () => setGran(b.dataset.v));
   segOn("granSeg", UI.gran);
-  el("zoom").addEventListener("input", e => { UI.zoom = e.target.value / 100; el("zoomVal").textContent = e.target.value + "%"; applyZoom(); });
+  initZoom(redraw);
+  el("genN").max = MAXN - INIT3.length; el("genN").value = DEFAULT_N;
+  const gen = () => loadText(presetText(PRESETS[0]), "parseErr");
+  el("genBtn").addEventListener("click", gen);
+  el("genN").addEventListener("change", gen);
   el("loadBtn").addEventListener("click", () => loadText(el("inputText").value, "parseErr"));
   el("pushBtn").addEventListener("click", () => {
     const k = el("pushKey").value.trim() || randomWord();
@@ -1076,17 +1172,17 @@ function init() {
   });
   el("pushKey").addEventListener("keydown", e => { if (e.key === "Enter") el("pushBtn").click(); });
   el("popBtn").addEventListener("click", () => {
-    if (sizeAfter(ops, opPos()) === 0) { el("opErr").textContent = "The stack is empty."; return; }
+    if (sizeAfter(script, opPos()) === 0) { el("opErr").textContent = "The stack is empty."; return; }
     addOps([{ t: "pop" }], true);
   });
   el("bulkPush").addEventListener("click", () => {
-    const n = sizeAfter(ops, opPos()), k = Math.min(MAXN - n, Math.max(1, +el("bulkN").value || 8));
+    const n = sizeAfter(script, opPos()), k = Math.min(MAXN - n, Math.max(1, +el("bulkN").value || 8));
     if (k <= 0) { el("opErr").textContent = "The stack is limited to " + MAXN + " elements here."; return; }
     const list = []; for (let i = 0; i < k; i++) list.push({ t: "push", key: randomWord() });
     addOps(list, false);
   });
   el("bulkPop").addEventListener("click", () => {
-    const n = sizeAfter(ops, opPos()), k = Math.min(n, Math.max(1, +el("bulkN").value || 8));
+    const n = sizeAfter(script, opPos()), k = Math.min(n, Math.max(1, +el("bulkN").value || 8));
     if (k <= 0) { el("opErr").textContent = "The stack is empty."; return; }
     const list = []; for (let i = 0; i < k; i++) list.push({ t: "pop" });
     addOps(list, false);
@@ -1104,8 +1200,8 @@ function init() {
     tip.style.left = Math.min(window.innerWidth - tip.offsetWidth - 8, ev.clientX + 14) + "px"; tip.style.top = (ev.clientY + 16) + "px";
   });
   svg.addEventListener("pointerleave", () => tip.style.display = "none");
-  initTransport(); initSplitters();
-  ops = parseStackOps(PRESETS[0].text, MAXN);
+  initTransport(); initSplitters(redraw);
+  script = parseStackOps(presetText(PRESETS[0]), MAXN);
   rebuild(false);
 }
 document.addEventListener("DOMContentLoaded", init);

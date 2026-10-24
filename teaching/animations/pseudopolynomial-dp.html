@@ -237,6 +237,7 @@
   .cellbg.path { fill:#f0d7cd; stroke:var(--wi-accent); stroke-width:1.8; }
   .cellbg.sel  { stroke:var(--wi-accent-dark); stroke-width:2.6; }
   .cellbg.hov  { stroke:var(--wi-examine); stroke-width:2; }
+  .cellbg.over { fill:#f3ece0; stroke:var(--wi-active); stroke-width:1.5; stroke-dasharray:4 3; }
   .cellval { font-family:var(--wi-font-mono); font-size:15px; fill:var(--wi-ink-strong);
              text-anchor:middle; dominant-baseline:central; pointer-events:none; }
   .cellval.big { font-weight:bold; fill:var(--wi-accent-dark); }
@@ -337,6 +338,10 @@
   .coinlab.cand { fill:var(--wi-accent-dark); font-weight:bold; }
   .cblock { fill:#f1dd9a; stroke:var(--wi-coin-edge); stroke-width:1.4; }
   .cblock.cand { fill:#e9cf7a; stroke-width:2.2; }
+  .vbar { fill:#dce9d3; stroke:var(--wi-relax); stroke-width:1; }
+  .vbar.over { fill:#f6e6df; stroke:var(--wi-active); stroke-dasharray:3 2; }
+  .vbar.pick { fill:#c9dfbc; stroke:var(--wi-accent); stroke-width:2.4; }
+  .axis { stroke:var(--wi-border-strong); stroke-width:1.2; }
   .g-tilt { transition:transform .6s cubic-bezier(.3,.9,.4,1); transform-box:view-box; }
   @keyframes drop { from { transform:translateY(-70px); opacity:.3; } to { transform:none; opacity:1; } }
   .drop { animation:drop .5s cubic-bezier(.3,.9,.4,1) both; }
@@ -380,7 +385,8 @@ body { font-family: var(--wi-font-body); }
 </div>
 
 <div class="tabs" id="tabs" role="tablist">
-  <button class="tab on" data-mode="knap" role="tab">Knapsack</button>
+  <button class="tab on" data-mode="knap" role="tab">Knapsack · DP over capacities</button>
+  <button class="tab" data-mode="knapv" role="tab">Knapsack · DP over values</button>
   <button class="tab" data-mode="subset" role="tab">SubsetSum</button>
   <button class="tab" data-mode="zerosum" role="tab">SubsetSum over ℤ</button>
   <button class="tab" data-mode="partition" role="tab">Partition</button>
@@ -508,6 +514,11 @@ const PAGE_MODES = ["subset", "zerosum", "partition", "change"];
      V[n', b'] = 0                                       if n' = 0
                  V[n'-1, b']                             if n' >= 1 and w_{n'} >  b'
                  max { V[n'-1, b'], v_{n'} + V[n'-1, b'-w_{n'}] }   otherwise
+   Knapsack over values (DPKnapsack), V = max v_i, columns v' = 0..nV:
+     W[n', v'] = 0 if n' = 0, v' = 0;  inf if n' = 0, v' > 0
+                 W[n'-1, v']                             if n' >= 1 and v_{n'} > v'
+                 min { W[n'-1, v'], w_{n'} + W[n'-1, v'-v_{n'}] }   otherwise
+     answer max { v' : W[n, v'] <= b }
    SubsetSum  R[n', s] = [s = 0] / R[n'-1, s] / R[n'-1, s] or R[n'-1, s-a_{n'}]
    Partition  = SubsetSum with target t = (sum a_i)/2  (odd sum: no)
    MakingChange  C[s] = 0 if s = 0, else 1 + min { C[s - c_k] : c_k <= s }
@@ -548,6 +559,30 @@ const MODES = {
       heavy:    { name: "an item that never fits", cap: 7, items: [[3, 20, "A"], [9, 99, "B"], [4, 25, "C"], [2, 12, "D"]] },
       bigv:     { name: "huge values, small b", cap: 8, items: [[3, 3100, "A"], [5, 4900, "B"], [2, 2300, "C"], [4, 4200, "D"]] },
       wide:     { name: "b = 30: a wide table", cap: 30, items: [[7, 13, "A"], [11, 19, "B"], [5, 8, "C"], [14, 26, "D"], [9, 15, "E"], [3, 4, "F"]] }
+    }
+  },
+  knapv: {
+    title: "Knapsack, a second DP &nbsp;·&nbsp; the table indexed by value",
+    tab: "The table W[n′, v′]", sol: "Solution T", colLab: "v′ → value", rowLab: "n′ ↓ items",
+    sub: "The same problem &mdash; <i>n</i> items with weights <i>w<sub>i</sub></i> and values <i>v<sub>i</sub></i>, capacity <i>b</i> &mdash; \
+but the table is indexed by <b>value</b> instead of capacity. Subproblem (<i>n′</i>, <i>v′</i>): only items 1, …, <i>n′</i>, total value \
+<b>exactly</b> <i>v′</i>; the guess is again whether item <i>n′</i> is included. The table <i>W</i>[<i>n′</i>, <i>v′</i>] holds the \
+<b>minimum total weight</b> of such a subset (∞ if there is none), one column per value 0, …, <i>nV</i> with <i>V</i> = max <i>v<sub>i</sub></i>. \
+The capacity is used only at the very end: the answer is the largest <i>v′</i> with <i>W</i>[<i>n</i>, <i>v′</i>] ≤ <i>b</i>. So the table \
+size depends on <i>n</i> and <i>V</i>, but <b>not on <i>b</i> or the weights</b>. Hover a cell to see its subproblem packed; \
+<b>click a cell to backtrace from there</b>.",
+    hint: "Same format as for the capacity DP. First non-comment line: the capacity <i>b</i>. Then one item per line, \
+<code>weight value</code>, optionally followed by a short name; items are numbered 1, 2, … in the order given. Lines starting with <code>#</code> are ignored.\
+<pre># capacity\n10\n# weight value name\n5 1 A\n4 4 B\n6 3 C\n3 5 D</pre>\
+Positive integers only; at most 12 items, <i>n</i> · max <i>v<sub>i</sub></i> at most 60, at most 800 cells. Capacity and weights may be large.",
+    presets: {
+      textbook: { name: "four items, b = 10 (values ÷ 10)", cap: 10, items: [[5, 1, "A"], [4, 4, "B"], [6, 3, "C"], [3, 5, "D"]] },
+      small:    { name: "tiny: three items, b = 5", cap: 5, items: [[2, 3, "A"], [3, 4, "B"], [4, 5, "C"]] },
+      heavy:    { name: "the most valuable item does not fit", cap: 7, items: [[3, 2, "A"], [9, 6, "B"], [4, 3, "C"], [2, 1, "D"]] },
+      even:     { name: "even values: odd columns stay ∞", cap: 9, items: [[3, 2, "A"], [5, 4, "B"], [4, 6, "C"], [2, 2, "D"]] },
+      ties:     { name: "value = weight: many ties", cap: 8, items: [[2, 2, "A"], [2, 2, "B"], [4, 4, "C"], [3, 3, "D"], [1, 1, "E"]] },
+      bigw:     { name: "huge weights and b, small values", cap: 8000, items: [[3100, 3, "A"], [4900, 5, "B"], [2300, 2, "C"], [4200, 4, "D"]] },
+      greedy:   { name: "greedy by value/weight fails", cap: 6, items: [[1, 3, "A"], [4, 8, "B"], [3, 6, "C"], [3, 6, "D"]] }
     }
   },
   subset: {
@@ -639,6 +674,7 @@ let n = 0, cap = 0;                      /* items / coin types; capacity, target
 let A = [0], Vv = [0], NAME = [""];      /* 1-based; A = weights / numbers / coin values, Vv = knapsack values */
 let SUM = 0;                             /* sum of the numbers (partition) */
 let X = [0], LO = 0;                     /* zero-sum: signed numbers, and the sum of column 0 */
+let B = 0, VMAX = 0, ANSV = 0;           /* knapsack over values: capacity b, V = max v_i, the answer v* (cap = nV) */
 let T = [];                              /* the table; T[i][j]  (change: T[0][j]) */
 let steps = [], phases = [], cur = 0;
 let gran = 1;                            /* 0 row, 1 cell, 2 guess */
@@ -648,7 +684,9 @@ let showAll = false;
 let timer = null;
 
 const isBool  = () => mode === "subset" || mode === "partition" || mode === "zerosum";
-const ansCol  = () => mode === "zerosum" ? -LO : cap;   /* the column holding the answer */
+const ansCol  = () => mode === "zerosum" ? -LO : mode === "knapv" ? ANSV : cap;   /* the column holding the answer */
+const knapLike = () => mode === "knap" || mode === "knapv";
+const tname   = () => mode === "knap" ? "V" : mode === "knapv" ? "W" : mode === "change" ? "C" : "R";
 const sumOf   = j => j + LO;                                 /* the sum a column stands for */
 const lab     = i => mode === "zerosum" ? String(X[i]) : String(A[i]);
 const rows    = () => mode === "change" ? 1 : n + 1;
@@ -664,6 +702,12 @@ function computeTable() {
     for (let i = 0; i <= n; i++) T.push(new Array(cap + 1).fill(0));
     for (let i = 1; i <= n; i++) for (let j = 0; j <= cap; j++)
       T[i][j] = A[i] > j ? T[i - 1][j] : Math.max(T[i - 1][j], Vv[i] + T[i - 1][j - A[i]]);
+  } else if (mode === "knapv") {
+    for (let i = 0; i <= n; i++) T.push(new Array(cap + 1).fill(INF));
+    T[0][0] = 0;
+    for (let i = 1; i <= n; i++) for (let j = 0; j <= cap; j++)
+      T[i][j] = Vv[i] > j ? T[i - 1][j] : Math.min(T[i - 1][j], A[i] + T[i - 1][j - Vv[i]]);
+    ANSV = 0; for (let j = 0; j <= cap; j++) if (T[n][j] <= B) ANSV = j;
   } else if (mode === "zerosum") {
     for (let i = 0; i <= n; i++) T.push(new Array(cap + 1).fill(false));
     for (let i = 1; i <= n; i++) for (let j = 0; j <= cap; j++) {
@@ -692,6 +736,10 @@ function guesses(i, j) {
     return g;
   }
   const g = [{ kind: "out", pi: i - 1, pj: j, add: 0, val: T[i - 1][j] }];
+  if (mode === "knapv") {
+    if (Vv[i] <= j) g.push({ kind: "in", pi: i - 1, pj: j - Vv[i], add: A[i], val: A[i] + T[i - 1][j - Vv[i]] });
+    return g;
+  }
   if (mode === "zerosum") {
     g.push({ kind: "alone", pi: -1, pj: -1, add: 0, val: sumOf(j) === X[i] });
     const pj = j - X[i];
@@ -715,6 +763,12 @@ function optSet(i, j) {
       L.push(g.coin); s -= A[g.coin];
     }
     return L;
+  }
+  if (mode === "knapv") {
+    if (T[i][j] === INF) return null;
+    const S = [];
+    while (i >= 1) { if (T[i][j] !== T[i - 1][j]) { S.push(i); j -= Vv[i]; } i--; }
+    return S.reverse();
   }
   if (isBool() && !T[i][j]) return null;
   const S = [];
@@ -754,6 +808,7 @@ function build() {
   computeTable();
   steps = []; phases = []; cur = 0;
   if (mode === "knap") buildKnap();
+  else if (mode === "knapv") buildKnapV();
   else if (mode === "zerosum") buildZero();
   else if (isBool()) buildSubset();
   else buildChange();
@@ -874,6 +929,166 @@ function buildKnap() {
         ans: "max value = " + T[ti][tj] + "  ·  T = {" + S.map(k => NAME[k]).join(", ") + "}",
         hl: ["ans"], hlp: ["t_ret"], trace: true, done: true,
         pic: { np: 0, bp: j, pack: S.slice(), cand: null, state: null, decided: decided, trace: true, wholeItems: true, done: true, cap: tj } });
+}
+
+/* ---- Knapsack, second DP: the table indexed by value ----------------------------- */
+
+function buildKnapV() {
+  const ti = traceFrom ? traceFrom[0] : n, tj = traceFrom ? traceFrom[1] : ANSV;
+  const fw = x => x === INF ? "∞" : String(x);
+  const pk = (i, j, pack, cand, state, fly) => ({ np: i, bp: j, pack: pack, cand: cand, state: state, fly: !!fly });
+  const picGuess = (i, j, kind, fly) => kind === "in" ? pk(i, j, optSet(i - 1, j - Vv[i]), i, "in", fly)
+                                                      : pk(i, j, optSet(i - 1, j), i, kind === "no" ? "nofit" : "out");
+  const picDone = (i, j) => pk(i, j, optSet(i, j), null, null);
+  const fitCol = i => { let b = 0; for (let j = 0; j <= cap; j++) if (T[i][j] <= B) b = j; return b; };
+
+  mkPhase("Base");
+  add({ filled: 0, txt: "<b>Subproblem (n′, v′)</b>: only items 1, …, n′ may be used, and their total value must be <i>exactly</i> v′; \
+<code>W[n′, v′]</code> is the <b>least total weight</b> that achieves this (∞ if no subset has value v′). With V = max v<sub>i</sub> = " + VMAX +
+         " no subset is worth more than nV = " + n + " · " + VMAX + " = " + cap + ", so the columns are v′ = 0, …, " + cap +
+         ". The <b>guess</b> is whether item n′ is included. The capacity b = " + B + " plays no role while the table is filled &mdash; \
+it is only used to read off the answer at the end.",
+        hl: ["head"], hlp: ["p_V"], pic: { np: n, bp: cap, pack: [], cand: null, state: null, intro: true } });
+  const row0 = []; for (let j = 0; j <= cap; j++) row0.push([0, j]);
+  add({ filled: cap + 1, write: row0, cells: cellsOf(row0, "cur"),
+        txt: "<b>n′ = 0</b>: without items the only value that can be made is 0, with weight 0 &mdash; <code>W[0, 0] = 0</code>. \
+Every other value is impossible: <code>W[0, v′] = ∞</code> for v′ &gt; 0.",
+        hl: ["base0", "baseinf"], hlp: ["p_base"], pic: pk(0, cap, null, null, null) });
+
+  for (let i = 1; i <= n; i++) {
+    mkPhase(esc(NAME[i]) + " (" + A[i] + "/" + Vv[i] + ")");
+    const w = A[i], v = Vv[i];
+    if (gran === 0) {
+      const row = []; for (let j = 0; j <= cap; j++) row.push([i, j]);
+      const arrows = [];
+      for (let j = v; j <= cap; j++) if (T[i][j] !== T[i - 1][j]) arrows.push({ from: [i - 1, j - v], to: [i, j], kind: "in", lab: "", cls: "best" });
+      add({ filled: ordOf(i, 0) + cap + 1, write: row, cells: cellsOf(row, "cur"), rowOf: i, arrows: arrows,
+            txt: "<b>Row n′ = " + i + "</b> (item " + nm(i) + ", w = " + w + ", v = " + v + "): for v′ &lt; " + v + " the item is worth \
+too much and the row above is copied; from v′ = " + v + " on, each cell is the lighter of <i>leave it out</i> (<code>W[" + (i - 1) +
+                 ", v′]</code>) and <i>take it</i> (<code>" + w + " + W[" + (i - 1) + ", v′ − " + v + "]</code>) &mdash; the row above \
+<b>shifted right by " + v + "</b>, plus " + w + ". The arrows mark the cells where taking it is strictly lighter.",
+            hl: ["skip", "min_out", "min_in"], hlp: ["p_loop", "p_if", "p_copy", "p_else", "p_min"], pic: picDone(i, fitCol(i)) });
+      continue;
+    }
+    for (let j = 0; j <= cap; j++) {
+      const best = T[i][j], pre = ordOf(i, j), g = guesses(i, j);
+      if (v > j) {
+        add({ filled: pre + 1, cell: [i, j], write: [[i, j]],
+              cells: { [(i - 1) + "," + j]: best === INF ? "pred" : "best", [i + "," + j]: "cur" },
+              arrows: [{ from: [i - 1, j], to: [i, j], kind: "out", lab: "+0", cls: best === INF ? "cand" : "best" }],
+              txt: "<b>W[" + i + ", " + j + "]</b>: item " + nm(i) + ' is <span class="k-no">worth too much</span>, v<sub>' + i +
+                   "</sub> = " + v + " &gt; " + j + " = v′, so it cannot be part of a set of value exactly " + j + ". The only option is \
+to leave it out: <code>W[" + i + ", " + j + "] = W[" + (i - 1) + ", " + j + "] = " + fw(best) + "</code>.",
+              hl: ["skip"], hlp: ["p_if", "p_copy"], pic: picGuess(i, j, "no") });
+        continue;
+      }
+      const ok = x => x.val === best && best !== INF;
+      const predCells = {}; g.forEach(x => predCells[x.pi + "," + x.pj] = ok(x) ? "best" : "pred");
+      const arrowsAll = g.map(x => ({ from: [x.pi, x.pj], to: [i, j], kind: x.kind, lab: "+" + x.add, cls: ok(x) ? "best" : "cand" }));
+      const gin = g[1], gout = g[0], r = j - v;
+      if (gran === 2) g.forEach((x, k) => {
+        const c = {}; c[x.pi + "," + x.pj] = "pred"; c[i + "," + j] = "cur";
+        const isIn = x.kind === "in";
+        add({ filled: pre, cell: [i, j], cells: c,
+              arrows: [{ from: [x.pi, x.pj], to: [i, j], kind: x.kind, lab: "+" + x.add, cls: "cand" }],
+              txt: "<b>W[" + i + ", " + j + "]</b>, guess " + (k + 1) + " of 2: " +
+                   (isIn ? '<span class="k-in">take</span> item ' + nm(i) + " (v = " + v + " ≤ " + j + "). It brings value " + v +
+                           " and weight " + w + "; the remaining value " + j + " − " + v + " = " + r + " must come from items 1…" + (i - 1) +
+                           ", as light as possible: <code>" + w + " + W[" + (i - 1) + ", " + r + "] = " + w + " + " + fw(T[i - 1][r]) +
+                           " = " + fw(x.val) + "</code>" +
+                           (x.val === INF ? " &mdash; value " + r + " cannot be made from items 1…" + (i - 1) + ", so this way is impossible." : ".")
+                         : '<span class="k-out">leave out</span> item ' + nm(i) + ". Then items 1…" + (i - 1) + " must make value exactly " + j +
+                           " on their own: <code>W[" + (i - 1) + ", " + j + "] = " + fw(x.val) + "</code>" +
+                           (x.val === INF ? " &mdash; impossible." : ".")),
+              hl: [isIn ? "min_in" : "min_out"], hlp: ["p_else", "p_min"], pic: picGuess(i, j, x.kind, isIn) });
+      });
+      const win = g.filter(x => x.val === best), chosen = win[0];
+      const cells = Object.assign({}, predCells); cells[i + "," + j] = "cur";
+      add({ filled: pre + 1, cell: [i, j], write: [[i, j]], cells: cells, arrows: arrowsAll,
+            txt: "<b>W[" + i + ", " + j + "] = " + fw(best) + "</b> = min{ " + g.map(x => fw(x.val)).join(", ") + " }: " +
+                 (best === INF ? "neither way reaches value exactly " + j + " &mdash; it cannot be made from items 1…" + i + "."
+                  : win.length > 1 ? "taking item " + nm(i) + " or leaving it out is <i>equally light</i> here."
+                  : chosen.kind === "in" ? '<span class="k-in">take</span> item ' + nm(i) + " (" + w + " + W[" + (i - 1) + ", " + r + "] = " +
+                                           w + " + " + fw(T[i - 1][r]) + " is lighter" + (gout.val === INF ? " &mdash; without it, value " + j + " is impossible" : " than " + fw(gout.val)) + ")."
+                  : '<span class="k-out">leave out</span> item ' + nm(i) + " (W[" + (i - 1) + ", " + j + "] = " + best + " is lighter than " +
+                    w + " + " + fw(T[i - 1][r]) + (gin.val === INF ? " = ∞" : "") + ")."),
+            hl: ["min_out", "min_in"], hlp: ["p_else", "p_min"],
+            pic: best === INF ? picDone(i, j) : picGuess(i, j, chosen.kind, chosen.kind === "in" && gran !== 2) });
+    }
+  }
+
+  const full = FULL();
+  mkPhase("Answer"); phases[phases.length - 1].minw = true;
+  const fit = {}; let nFit = 0, nOver = 0, nextOver = -1;
+  for (let j = 0; j <= cap; j++) {
+    if (T[n][j] <= B) { fit[n + "," + j] = "best"; nFit++; }
+    else if (T[n][j] !== INF) { fit[n + "," + j] = "over"; nOver++; if (j > ANSV && nextOver < 0) nextOver = j; }
+  }
+  add({ filled: full, rowOf: n, cells: fit,
+        txt: "The table is complete. Row n = " + n + " lists, for every value v′, the least weight <code>W[" + n + ", v′]</code> of a subset \
+with value exactly v′. Only now does the capacity come in: compare each entry with <b>b = " + B + "</b>. " + nFit + " value" +
+             (nFit === 1 ? " fits" : "s fit") + " (green); " + nOver + (nOver === 1 ? " is" : " are") + " reachable, but only above the \
+capacity (dashed); the ∞ entries cannot be reached at all.",
+        hl: ["ans"], hlp: ["p_ret"], pic: { answer: 1 } });
+  const fit2 = Object.assign({}, fit); fit2[n + "," + ANSV] = "cur";
+  add({ filled: full, cell: [n, ANSV], cells: fit2,
+        txt: "The answer is the <b>largest</b> value that still fits: <code>max{ v′ : W[" + n + ", v′] ≤ " + B + " } = " + ANSV +
+             "</code>, reached with weight W[" + n + ", " + ANSV + "] = " + T[n][ANSV] + " ≤ " + B + "." +
+             (nextOver >= 0 ? " Larger values are reachable &mdash; e.g. v′ = " + nextOver + " &mdash; but only with weight " +
+                              T[n][nextOver] + " &gt; b." : ""),
+        ans: "max value = " + ANSV, hl: ["ans"], hlp: ["p_ret"], pic: { answer: 2 } });
+
+  if (T[ti][tj] === INF) {
+    mkPhase("Result");
+    add({ filled: full, cell: [ti, tj], cells: cellsOf([[ti, tj]], "cur"),
+          txt: "<code>W[" + ti + ", " + tj + "] = ∞</code>: no subset of items 1…" + ti + " has value exactly " + tj +
+               ". There is nothing to backtrace.",
+          ans: "no subset of value exactly " + tj, hlp: ["t_none"], trace: true, none: true, pic: picDone(ti, tj) });
+    return;
+  }
+  mkPhase("Backtrace");
+  let i = ti, j = tj, S = [], rej = [], path = [[ti, tj]];
+  const whole = (ti === n && tj === ANSV);
+  add({ filled: full, cells: cellsOf(path, "path"), path: path.slice(), S: [], rej: [],
+        txt: "The table holds <i>weights</i> only. To get the set T, retrace the recurrence from <b>W[" + ti + ", " + tj + "] = " +
+             T[ti][tj] + "</b>" + (whole ? " &mdash; the optimal value v′ = " + tj : " &mdash; the cell you clicked") + ": at each row ask \
+whether the weight came from the cell straight above (item left out) or from the cell v<sub>n′</sub> columns to the left (item taken), \
+and follow that arrow back.",
+        hl: ["head"], hlp: ["t_head", "t_init"], trace: true,
+        pic: { np: ti, bp: tj, pack: [], cand: null, state: null, decided: {}, trace: true } });
+  while (i >= 1) {
+    const out = T[i][j] === T[i - 1][j], fits = Vv[i] <= j;
+    const tie = out && fits && A[i] + T[i - 1][j - Vv[i]] === T[i][j];
+    const pi = i - 1, pj = out ? j : j - Vv[i];
+    if (out) rej = rej.concat([i]); else S = [i].concat(S);
+    path = path.concat([[pi, pj]]);
+    const cells = cellsOf(path, "path"); cells[i + "," + j] = "cur";
+    const decided = Object.assign(cellsOfWhole(S, "in"), cellsOfWhole(rej, "out"));
+    add({ filled: full, cell: [i, j], cells: cells, path: path.slice(), S: S.slice(), rej: rej.slice(),
+          arrows: [{ from: [pi, pj], to: [i, j], kind: out ? "out" : "in", lab: "+" + (out ? 0 : A[i]), cls: "taken" }],
+          txt: out
+            ? "<code>W[" + i + ", " + j + "] = " + T[i][j] + " = W[" + (i - 1) + ", " + j + "]</code>: the weight was reached without \
+item " + nm(i) + ', so <span class="k-out">it stays out</span>; the value stays v′ = ' + j + "." +
+              (tie ? " <i>(Taking it would have been equally light &mdash; the traceback tests the first case of the recurrence first, \
+so on a tie the item is left out.)</i>" : "")
+            : "<code>W[" + i + ", " + j + "] = " + T[i][j] + " ≠ W[" + (i - 1) + ", " + j + "] = " + fw(T[i - 1][j]) + "</code>, so the weight \
+must come from the other case: <span class=\"k-in\">item " + nm(i) + " is in T</span>. It contributes v<sub>" + i + "</sub> = " + Vv[i] +
+              " of the value; continue with v′ = " + j + " − " + Vv[i] + " = " + pj + ".",
+          hl: [out ? "min_out" : "min_in"], hlp: [out ? "t_out" : "t_in"], trace: true, fresh: out ? null : i,
+          pic: { np: i - 1, bp: pj, pack: S.slice(), cand: i, state: out ? "rej" : "in", fly: !out, decided: decided, trace: true, wholeItems: true } });
+    i = pi; j = pj;
+  }
+  const decided = Object.assign(cellsOfWhole(S, "in"), cellsOfWhole(rej, "out"));
+  const wS = sumA(S), Sn = S.map(k => esc(NAME[k])).join(", ");
+  add({ filled: full, cells: cellsOf(path, "path"), path: path.slice(), S: S.slice(), rej: rej.slice(),
+        txt: "Row 0 reached with v′ = 0. T = {" + Sn + "} has total value exactly " + sumV(S) + " and total weight <b>" + wS + "</b> = W[" +
+             ti + ", " + tj + "]" +
+             (whole ? " ≤ b = " + B + " &mdash; an optimal packing."
+              : wS <= B ? " ≤ b = " + B + ": the lightest way to reach value " + tj + " with items 1…" + ti + ", and it fits."
+              : " &gt; b = " + B + ": the lightest way to reach value " + tj + " with items 1…" + ti + " &mdash; but it does not fit the knapsack."),
+        ans: (whole ? "max value = " + tj : "value " + tj + ", weight " + wS) + "  ·  T = {" + S.map(k => NAME[k]).join(", ") + "}",
+        hl: ["ans"], hlp: ["t_ret"], trace: true, done: true,
+        pic: { np: 0, bp: 0, pack: S.slice(), cand: null, state: null, decided: decided, trace: true, wholeItems: true, done: true, cap: tj } });
 }
 
 /* ---- SubsetSum and Partition ---------------------------------------------- */
@@ -1253,9 +1468,10 @@ let animate = true;
 let TOPPAD = 0;
 
 function sizeCells() {
-  X0 = mode === "change" ? 60 : mode === "knap" ? 122 : mode === "zerosum" ? 104 : 100;
+  X0 = mode === "change" ? 60 : knapLike() ? 122 : mode === "zerosum" ? 104 : 100;
   let digits = 1;
   if (mode === "knap") digits = String(T.length ? T[n][cap] : 0).length;
+  if (mode === "knapv") T.forEach(r => r.forEach(x => { if (x !== INF) digits = Math.max(digits, String(x).length); }));
   if (mode === "change") digits = 2;
   CS = Math.max(30, Math.min(48, Math.round(1100 / (cap + 1))));
   CS = Math.max(CS, Math.min(60, 10 * digits + 14));
@@ -1318,6 +1534,7 @@ function drawGrid() {
   out.push('<text class="hdrname" x="6" y="' + (Y0 - 36) + '">' + M.colLab + '</text>');
   if (M.rowLab) out.push('<text class="hdrname" x="6" y="' + (Y0 - 16) + '">' + M.rowLab + '</text>');
   if (mode === "partition") out.push('<text class="hdrname" x="' + (X0 + (cap + 1) * CS - 4) + '" y="' + (Y0 - 36) + '" text-anchor="end">t = Σ/2 = ' + cap + (feasible() ? "" : "  (Σ odd)") + '</text>');
+  if (mode === "knapv") out.push('<text class="hdrname" x="' + (X0 + 8) + '" y="' + (Y0 - 36) + '">columns up to nV = ' + n + " · " + VMAX + " = " + cap + ";  capacity b = " + B + '</text>');
 
   for (let j = 0; j <= cap; j++)
     out.push('<text class="hdrix' + (j === hotCol ? " hot" : (mode === "zerosum" && sumOf(j) === 0 ? " hot" : "")) + '" x="' + cxOf(j) + '" y="' + (y0 - 14) + '">' + (mode === "zerosum" ? String(sumOf(j)).replace("-", "−") : j) + "</text>");
@@ -1328,11 +1545,11 @@ function drawGrid() {
       out.push('<text class="hdrch' + hot + '" x="' + (X0 - 30) + '" y="' + cy(i) + '">C[s]</text>');
       continue;
     }
-    out.push('<text class="hdrix' + hot + '" x="' + (X0 - (mode === "knap" ? 104 : 82)) + '" y="' + cy(i) + '">' + i + "</text>");
+    out.push('<text class="hdrix' + hot + '" x="' + (X0 - (knapLike() ? 104 : 82)) + '" y="' + cy(i) + '">' + i + "</text>");
     if (i >= 1) {
-      out.push('<text class="hdrch' + hot + '" x="' + (X0 - (mode === "knap" ? 70 : 50)) + '" y="' + cy(i) + '">' + esc(NAME[i]) + "</text>");
-      out.push('<text class="hdrwv' + hot + '" x="' + (X0 - (mode === "knap" ? 32 : 22)) + '" y="' + cy(i) + '">' +
-               (mode === "knap" ? A[i] + "/" + Vv[i] : lab(i).replace("-", "−")) + "</text>");
+      out.push('<text class="hdrch' + hot + '" x="' + (X0 - (knapLike() ? 70 : 50)) + '" y="' + cy(i) + '">' + esc(NAME[i]) + "</text>");
+      out.push('<text class="hdrwv' + hot + '" x="' + (X0 - (knapLike() ? 32 : 22)) + '" y="' + cy(i) + '">' +
+               (knapLike() ? A[i] + "/" + Vv[i] : lab(i).replace("-", "−")) + "</text>");
     }
   }
 
@@ -1378,7 +1595,7 @@ function drawGrid() {
     for (let i = (mode === "change" ? 0 : 1); i < R; i++) for (let j = 0; j <= cap; j++) {
       if (ordOf(i, j) >= filled) continue;
       if (isBool() && !T[i][j]) continue;
-      if (mode === "change" && T[i][j] === INF) continue;
+      if (T[i][j] === INF) continue;
       guesses(i, j).forEach(g => { if (attains(g, i, j)) drawArrow({ from: [g.pi, g.pj], to: [i, j] }, "faint"); });
     }
   }
@@ -1435,6 +1652,11 @@ const hatchDef = '<defs><pattern id="hatch" width="7" height="7" patternUnits="u
 
 /* the scale: how many pixels per unit of weight / number / coin value */
 function unitScale() {
+  if (mode === "knapv") {                      /* weights: the bag (b) and everything beyond it must fit */
+    const s1 = (PW - 2 * PAD - 24) / Math.max(1, B, SUM);
+    const s2 = (PW - 2 * PAD - 14 * (n - 1)) / Math.max(1, SUM);
+    return Math.max(Math.min(s1, s2), s1 * 0.55);
+  }
   let maxW = 1, sumW = 0;
   for (let i = 1; i <= n; i++) { maxW = Math.max(maxW, A[i]); sumW += A[i]; }
   const s1 = BAGW / Math.max(1, cap);
@@ -1450,7 +1672,7 @@ function itemSlots(s, coins) {
   let x = PAD, rowY = 26, rowCoin = 0, rowItems = [];
   const flushRow = () => { rowItems.forEach(sl => { sl.y = rowY + rowCoin + (coins ? 16 : 4); }); rowY += rowCoin + (coins ? 16 : 4) + 40 + 40; rowItems = []; rowCoin = 0; x = PAD; };
   for (let i = 1; i <= n; i++) {
-    const iw = Math.max(38, A[i] > cap ? Math.min(A[i] * s, 150) : A[i] * s);   /* oversized: torn off */
+    const iw = Math.max(38, A[i] > cap && mode !== "knapv" ? Math.min(A[i] * s, 150) : A[i] * s);   /* oversized: torn off */
     if (x + iw > PW - PAD && rowItems.length) flushRow();
     const sl = { i: i, x: x, w: iw }; slots.push(sl); rowItems.push(sl);
     rowCoin = Math.max(rowCoin, coinH(i));
@@ -1485,7 +1707,7 @@ function drawItemRow(out, lay, pic, coins) {
     out.push('<text class="iname' + (isCand && !rej ? " cand" : dim ? " dim" : "") + '" x="' + cx + '" y="' + (sl.y + (coins ? 20 : 15)) + '">' + esc(NAME[i]) + "</text>");
     if (!coins) out.push('<text class="iw' + (dim ? " dim" : "") + '" x="' + cx + '" y="' + (sl.y + 30) + '">' + lab(i).replace("-", "−") + "</text>");
     else out.push('<text class="iw' + (dim ? " dim" : "") + '" x="' + cx + '" y="' + (sl.y + 52) + '">w=' + A[i] + "</text>");
-    if (rej) out.push('<text class="iw dim" x="' + cx + '" y="' + (sl.y + 52) + '" style="font-size:9px">' + (mode === "partition" ? "right pan" : "out") + "</text>");
+    if (rej && !coins) out.push('<text class="iw dim" x="' + cx + '" y="' + (sl.y + 52) + '" style="font-size:9px">' + (mode === "partition" ? "right pan" : "out") + "</text>");
     if (!rej && pic.state === "out" && isCand && mode === "zerosum") out.push('<text class="baglab" x="' + cx + '" y="' + (sl.y + 52) + '">skipped</text>');
     out.push('<rect class="ihit" data-i="' + i + '" x="' + sl.x + '" y="' + (sl.y - 14 - lay.coinH(i) - 12) + '" width="' + sl.w +
              '" height="' + (lay.coinH(i) + 12 + 14 + 60) + '"/>');
@@ -1498,6 +1720,7 @@ function drawPic(pic, previewLabel) {
   const out = [hatchDef];
   let H;
   if (mode === "knap") H = drawPicKnap(out, pic);
+  else if (mode === "knapv") H = pic.answer ? drawPicKnapVChart(out, pic) : drawPicKnapV(out, pic);
   else if (mode === "change") H = drawPicChange(out, pic);
   else if (mode === "partition" && pic.trace) H = drawPicBalance(out, pic);
   else if (mode === "zerosum") H = drawPicZero(out, pic);
@@ -1508,10 +1731,21 @@ function drawPic(pic, previewLabel) {
 
   const meta = el("picMeta");
   meta.className = "rhs" + (previewLabel ? " preview" : "");
-  meta.textContent = previewLabel || (pic.intro ? "" : pic.trace ? "backtrace"
-                     : mode === "change" ? "s = " + pic.bp : "(n′, " + (mode === "knap" ? "b′" : "s") + ") = (" + pic.np + ", " + (mode === "zerosum" ? String(sumOf(pic.bp)).replace("-", "−") : pic.bp) + ")");
+  meta.textContent = previewLabel || (pic.intro ? "" : pic.trace ? "backtrace" : pic.answer ? "answer: row n"
+                     : mode === "change" ? "s = " + pic.bp : "(n′, " + (mode === "knap" ? "b′" : mode === "knapv" ? "v′" : "s") + ") = (" + pic.np + ", " + (mode === "zerosum" ? String(sumOf(pic.bp)).replace("-", "−") : pic.bp) + ")");
   const sw = (bg, bc, extra) => '<span class="sw" style="background:' + bg + ';border-color:' + bc + (extra || "") + '"></span>';
-  el("picLegend").innerHTML = mode === "knap"
+  el("picLegend").innerHTML = mode === "knapv"
+    ? (pic.answer
+       ? '<span class="item">' + sw("#dce9d3", "var(--wi-relax)") + " W[n, v′] ≤ b: fits</span>" +
+         '<span class="item">' + sw("#f6e6df", "var(--wi-active)", ";border-style:dashed") + " W[n, v′] &gt; b: too heavy</span>" +
+         '<span class="item">∞ value not reachable</span>'
+       : '<span class="item">' + sw("var(--wi-coin)", "var(--wi-coin-edge)", ";border-radius:50%") + " one coin " +
+         (coinUnit === 1 ? "= 1 unit of value" : "≈ " + coinUnit + " units of value (rounded up)") + "</span>" +
+         '<span class="item">' + sw("#f1dd9a", "var(--wi-coin-edge)") + " value of a chosen item</span>" +
+         '<span class="item">' + sw("#dce9d3", "var(--wi-relax)") + " its weight</span>" +
+         '<span class="item">' + sw("repeating-linear-gradient(-45deg,#c28577 0 2px,transparent 2px 5px)", "var(--wi-active)") + " beyond b / not reachable</span>" +
+         '<span class="item">' + sw("#e9e3d6", "var(--wi-inert)") + " not in this subproblem</span>")
+    : mode === "knap"
     ? '<span class="item">' + sw("var(--wi-coin)", "var(--wi-coin-edge)", ";border-radius:50%") + " one coin " +
       (coinUnit === 1 ? "= 1 unit of value" : "≈ " + coinUnit + " units of value (rounded up)") + "</span>" +
       '<span class="item">' + sw("#dce9d3", "var(--wi-relax)") + " packed</span>" +
@@ -1603,6 +1837,181 @@ function drawPicKnap(out, pic) {
   out.push('<text class="vtot' + (pic.intro ? " plain" : "") + '" x="' + vxx + '" y="' + (vyBase + 14) + '">' +
            (pic.intro ? "value" : (pic.trace ? "value " : "V = ") + total) + "</text>");
   return wide ? vyBase + 26 : by + bh + 26;
+}
+
+/* ---- Knapsack over values: a value ruler (must be hit exactly) above the knapsack (weight, minimized) ---- */
+
+function drawPicKnapV(out, pic) {
+  const s = unitScale();                                   /* px per unit of weight */
+  const sv = (PW - 2 * PAD - 16) / Math.max(1, cap);       /* px per unit of value  */
+  const lay = itemSlots(s, true);
+  const ti = traceFrom ? traceFrom[0] : n;
+  const capT = pic.cap !== undefined ? pic.cap : (traceFrom ? traceFrom[1] : ANSV);
+  out.push('<text class="pcap" x="' + PAD + '" y="14">' +
+           (pic.intro ? "the items: width = weight, coins = value" : pic.trace ? "the items — decided from the last one backwards"
+            : "items 1 … " + pic.np + (pic.np < n ? " (the rest is crossed out: not available in this subproblem)" : "")) + "</text>");
+  drawItemRow(out, lay, pic, true);
+
+  const bp = pic.intro ? cap : pic.bp;
+  const rest = pic.pack;                                   /* null = no subset reaches this value */
+  const candIn = !pic.trace && pic.state === "in";
+  const fly = (sl, bx, bw, by) => {
+    if (!(pic.fly && animate && sl)) return "";
+    const dx = (sl.x + sl.w / 2) - (bx + bw / 2), dy = sl.y - by;
+    return ' class="fly" style="--dx:' + dx.toFixed(1) + 'px;--dy:' + dy.toFixed(1) + 'px"';
+  };
+
+  /* --- the value ruler --- */
+  const gapTop = pic.state === "nofit" ? 56 : 0;
+  const ry = lay.bottom + 74 + gapTop, rx = PAD + 8, rin = cap * sv, rh = 34;
+  out.push('<text class="pcap' + (pic.intro ? "" : " hot") + '" x="' + PAD + '" y="' + (ry - 26) + '">' +
+           (pic.intro ? "value: from 0 to nV = " + cap + " — a subproblem asks for one value exactly"
+            : pic.trace ? (pic.done ? "value exactly " + capT + " reached" : "value still to make with items 1 … " + pic.np + ":  v′ = " + bp)
+            : "subproblem (" + pic.np + ", " + bp + "): value exactly " + bp + ", as light as possible") + "</text>");
+  out.push('<rect class="baginner" x="' + rx + '" y="' + ry + '" width="' + rin + '" height="' + rh + '" rx="3"/>');
+  const step = sv >= 14 ? 1 : sv >= 5 ? 5 : 10;
+  for (let u = 0; u <= cap; u += step) {
+    const xx = rx + u * sv;
+    out.push('<line class="tick" x1="' + xx + '" y1="' + (ry + rh) + '" x2="' + xx + '" y2="' + (ry + rh + (u % 5 === 0 ? 7 : 4)) + '"/>');
+    if (u % 5 === 0 || (step === 1 && cap <= 15)) out.push('<text class="ticklab" x="' + xx + '" y="' + (ry + rh + 15) + '">' + u + "</text>");
+  }
+  out.push('<line class="ruler" x1="' + rx + '" y1="' + (ry + rh) + '" x2="' + (rx + rin) + '" y2="' + (ry + rh) + '"/>');
+  const availEnd = pic.trace ? capT : bp;
+  if (availEnd < cap) out.push('<rect class="bagcut" x="' + (rx + availEnd * sv) + '" y="' + ry + '" width="' + ((cap - availEnd) * sv) + '" height="' + rh + '"/>');
+  if (!pic.intro) {
+    const tx = rx + (pic.trace ? capT : bp) * sv;
+    out.push('<line class="target" x1="' + tx + '" y1="' + (ry - 6) + '" x2="' + tx + '" y2="' + (ry + rh + 6) + '"/>');
+    out.push('<text class="baglab" x="' + tx + '" y="' + (ry + rh + 28) + '">v′ = ' + (pic.trace ? capT : bp) + "</text>");
+    if (pic.trace && !pic.done) {
+      out.push('<line class="bagline" x1="' + (rx + bp * sv) + '" y1="' + (ry - 4) + '" x2="' + (rx + bp * sv) + '" y2="' + (ry + rh + 4) + '"/>');
+      out.push('<text class="baglab" x="' + (rx + bp * sv) + '" y="' + (ry - 11) + '">v′ = ' + bp + "</text>");
+    }
+  }
+  const vb = [];
+  if (pic.trace) {
+    let xx = rx + capT * sv;
+    (rest || []).slice().sort((p, q) => q - p).forEach(k => { xx -= Vv[k] * sv; vb.push({ i: k, x: xx }); });
+  } else if (!pic.intro) {
+    if (rest) { let xx = rx; rest.forEach(k => { vb.push({ i: k, x: xx }); xx += Vv[k] * sv; }); }
+    else {
+      const left = bp - (candIn ? Vv[pic.cand] : 0), badW = left * sv;
+      if (badW > 0) {
+        out.push('<rect class="bad" x="' + rx + '" y="' + (ry + 2) + '" width="' + badW + '" height="' + (rh - 4) + '" rx="3"/>');
+        const cx = rx + badW / 2, cy = ry + rh / 2;
+        out.push('<line class="badx" x1="' + (cx - 6) + '" y1="' + (cy - 6) + '" x2="' + (cx + 6) + '" y2="' + (cy + 6) + '"/><line class="badx" x1="' + (cx + 6) + '" y1="' + (cy - 6) + '" x2="' + (cx - 6) + '" y2="' + (cy + 6) + '"/>');
+        const lt = left + " not reachable" + (pic.np > 0 || candIn ? " with items 1 … " + (candIn ? pic.cand - 1 : pic.np) : "");
+        if (badW / 2 > 24 + 6.2 * lt.length) out.push('<text class="baglab" x="' + (cx + 14) + '" y="' + cy + '" style="fill:var(--wi-active);text-anchor:start">' + lt + "</text>");
+        else if (badW / 2 > 24 + 6.2 * (left + " not reachable").length) out.push('<text class="baglab" x="' + (cx + 14) + '" y="' + cy + '" style="fill:var(--wi-active);text-anchor:start">' + left + " not reachable</text>");
+      }
+    }
+    if (candIn) vb.push({ i: pic.cand, x: rx + (bp - Vv[pic.cand]) * sv, cand: true });
+  }
+  vb.forEach(bl => {
+    const bw = Vv[bl.i] * sv, isCand = bl.cand || (pic.trace && pic.cand === bl.i && pic.state === "in");
+    const sl = lay.slots.find(q => q.i === bl.i);
+    out.push("<g" + (isCand ? fly(sl, bl.x, bw, ry + 2) : "") + '><rect class="cblock' + (isCand ? " cand" : "") + '" x="' + bl.x.toFixed(1) + '" y="' + (ry + 2) +
+             '" width="' + bw.toFixed(1) + '" height="' + (rh - 4) + '" rx="4"/>');
+    if (bw >= 20) out.push('<text class="iname" x="' + (bl.x + bw / 2).toFixed(1) + '" y="' + (ry + rh / 2) + '">' + esc(NAME[bl.i]) + "</text>");
+    out.push("</g>");
+  });
+  if (pic.state === "nofit") {
+    const k = pic.cand, bw = Math.min(Vv[k] * sv, PW - rx - 12), ny = ry - 52 - (rh - 4);
+    out.push('<g class="' + (animate ? "shake" : "") + '"><rect class="pblock nofit" x="' + rx + '" y="' + ny + '" width="' + bw.toFixed(1) + '" height="' + (rh - 4) +
+             '" rx="4" opacity=".92"/>' + (bw >= 22 ? '<text class="iname cand" x="' + (rx + bw / 2).toFixed(1) + '" y="' + (ny + (rh - 4) / 2) + '">' + esc(NAME[k]) + "</text>" : "") +
+             '<text class="iname cand" x="' + (rx + bw + 8).toFixed(1) + '" y="' + (ny + (rh - 4) / 2) + '" style="text-anchor:start">' +
+             (bw >= 22 ? "" : esc(NAME[k]) + ": ") + "v = " + Vv[k] + " &gt; v′ = " + bp + " — overshoots</text></g>");
+  }
+  if (pic.state === "out" || pic.state === "rej") {
+    const sl = lay.slots.find(q => q.i === pic.cand);
+    if (sl) out.push('<text class="baglab' + (pic.state === "rej" ? " faint" : "") + '" x="' + (sl.x + sl.w / 2) + '" y="' + (sl.y + 66) + '">' +
+                     (pic.state === "rej" ? "not in T" : "left out") + "</text>");
+  }
+
+  /* --- the knapsack: the weight of the chosen items --- */
+  const totW = pic.intro ? 0 : pic.trace ? T[ti][capT] : (rest === null ? INF : sumA(rest) + (candIn ? A[pic.cand] : 0));
+  const by = ry + rh + 74, bx = PAD, ix = bx + 10, iy = by + 16, ih = 40, bh = 70;
+  const inner = B * s, span = Math.max(B, SUM) * s;
+  out.push('<text class="pcap' + (pic.intro ? "" : " hot") + '" x="' + bx + '" y="' + (by - 12) + '">' +
+           (pic.intro ? "the knapsack, capacity b = " + B + " — used only at the very end"
+            : pic.trace ? (pic.done ? "T packed: weight " + totW + (totW <= B ? " ≤ b = " + B : " &gt; b = " + B + ": does not fit")
+                                    : "weight still to come from items 1 … " + pic.np + ":  W[" + pic.np + ", " + bp + "] = " + T[pic.np][bp])
+            : totW === INF ? "weight: ∞ — no such subset"
+            : "weight " + totW + (totW > B ? "  (above b: allowed while filling, it only matters for the answer)" : "  (minimized)")) + "</text>");
+  out.push('<rect class="bag" x="' + bx + '" y="' + by + '" width="' + (inner + 20) + '" height="' + bh + '" rx="9"/>');
+  out.push('<rect class="bagflap" x="' + (bx - 3) + '" y="' + (by - 2) + '" width="' + (inner + 26) + '" height="12" rx="4"/>');
+  out.push('<rect class="baginner" x="' + ix + '" y="' + iy + '" width="' + inner + '" height="' + ih + '" rx="3"/>');
+  if (span > inner + 1) out.push('<line class="tick" x1="' + (ix + inner + 10) + '" y1="' + (iy + ih) + '" x2="' + (ix + span) + '" y2="' + (iy + ih) + '" style="stroke-dasharray:2 3"/>');
+  out.push('<text class="baglab faint" x="' + (ix + inner) + '" y="' + (by + bh + 12) + '">b = ' + B + "</text>");
+  const wb = [];
+  if (pic.trace) {
+    let xx = ix + totW * s;
+    (rest || []).slice().sort((p, q) => q - p).forEach(k => { xx -= A[k] * s; wb.push({ i: k, x: xx }); });
+    if (!pic.done) {
+      const gx = ix + T[pic.np][bp] * s;
+      out.push('<line class="bagline" x1="' + gx + '" y1="' + (iy - 4) + '" x2="' + gx + '" y2="' + (iy + ih + 4) + '"/>');
+    }
+  } else if (!pic.intro && rest) {
+    let xx = ix;
+    rest.forEach(k => { wb.push({ i: k, x: xx }); xx += A[k] * s; });
+    if (candIn) wb.push({ i: pic.cand, x: xx, cand: true });
+  }
+  wb.forEach(bl => {
+    const bw = A[bl.i] * s, isCand = bl.cand || (pic.trace && pic.cand === bl.i && pic.state === "in");
+    const sl = lay.slots.find(q => q.i === bl.i);
+    out.push("<g" + (isCand ? fly(sl, bl.x, bw, iy + 2) : "") + '><rect class="pblock' + (isCand ? " cand" : "") + '" x="' + bl.x.toFixed(1) + '" y="' + (iy + 2) +
+             '" width="' + bw.toFixed(1) + '" height="' + (ih - 4) + '" rx="4"/>');
+    if (bw >= 22) out.push('<text class="iname" x="' + (bl.x + bw / 2).toFixed(1) + '" y="' + (iy + ih / 2) + '">' + esc(NAME[bl.i]) + "</text>");
+    out.push("</g>");
+  });
+  if (totW !== INF && totW > B)
+    out.push('<rect class="bad" x="' + (ix + inner) + '" y="' + (iy + 1) + '" width="' + ((totW - B) * s) + '" height="' + (ih - 2) + '" style="fill:url(#hatchbad);opacity:.6"/>');
+  out.push('<line class="bagline" x1="' + (ix + inner) + '" y1="' + (iy - 4) + '" x2="' + (ix + inner) + '" y2="' + (iy + ih + 4) + '"/>');
+  if (!pic.intro) {
+    if (totW === INF) out.push('<text class="vtot plain" x="' + (ix + Math.max(inner, 60) / 2) + '" y="' + (iy + ih / 2) + '" style="fill:var(--wi-inert)">∞</text>');
+    out.push('<text class="vtot' + (totW === INF ? " plain" : "") + '" x="' + (PW - 60) + '" y="' + (by + bh + 30) + '">' +
+             "W = " + (totW === INF ? "∞" : totW) + "</text>");
+  }
+  return by + bh + 44;
+}
+
+/* the answer: row n as a bar chart of weights over values, with the capacity line */
+function drawPicKnapVChart(out, pic) {
+  const top = 52, H0 = 190, x0 = PAD + 34, wd = PW - x0 - PAD;
+  const bw = wd / (cap + 1);
+  let mx = B; for (let j = 0; j <= cap; j++) if (T[n][j] !== INF) mx = Math.max(mx, T[n][j]);
+  const sy = H0 / (mx * 1.08), base = top + H0;
+  out.push('<text class="pcap hot" x="' + PAD + '" y="14">' +
+           (pic.answer === 2 ? "the largest value whose least weight is ≤ b: v′ = " + ANSV
+                             : "row n = " + n + ": the least weight W[" + n + ", v′] for each value v′") + "</text>");
+  out.push('<line class="axis" x1="' + x0 + '" y1="' + base + '" x2="' + (x0 + wd) + '" y2="' + base + '"/>');
+  out.push('<line class="axis" x1="' + x0 + '" y1="' + base + '" x2="' + x0 + '" y2="' + (top - 6) + '"/>');
+  out.push('<text class="ticklab" x="' + (x0 + 6) + '" y="' + (top - 4) + '" style="text-anchor:start">weight W[' + n + ', v′]</text>');
+  for (let j = 0; j <= cap; j++) {
+    const v = T[n][j], x = x0 + j * bw;
+    if (v === INF) {
+      if (bw >= 7) out.push('<text class="ticklab" x="' + (x + bw / 2).toFixed(1) + '" y="' + (base - 7) + '" style="fill:var(--wi-inert)">∞</text>');
+    } else {
+      const h = Math.max(1.5, v * sy), pick = pic.answer === 2 && j === ANSV;
+      out.push('<rect class="vbar' + (pick ? " pick" : v > B ? " over" : "") + '" x="' + (x + 0.8).toFixed(1) + '" y="' + (base - h).toFixed(1) +
+               '" width="' + Math.max(1, bw - 1.6).toFixed(1) + '" height="' + h.toFixed(1) + '" rx="1.5"/>');
+    }
+    if (j % (cap <= 15 ? 1 : 5) === 0) out.push('<text class="ticklab" x="' + (x + bw / 2).toFixed(1) + '" y="' + (base + 12) + '">' + j + "</text>");
+  }
+  const yb = base - B * sy;
+  out.push('<line class="bagline" x1="' + x0 + '" y1="' + yb.toFixed(1) + '" x2="' + (x0 + wd) + '" y2="' + yb.toFixed(1) + '"/>');
+  out.push('<text class="baglab" x="' + (x0 - 5) + '" y="' + yb.toFixed(1) + '" style="text-anchor:end">b = ' + B + "</text>");
+  out.push('<text class="ticklab" x="' + (x0 + wd) + '" y="' + (base + 26) + '" style="text-anchor:end">value v′ →</text>');
+  if (pic.answer === 2) {
+    const xc = x0 + ANSV * bw + bw / 2, yt = base - Math.max(1.5, T[n][ANSV] * sy);
+    let hi = Math.min(yt, yb);                                /* clear the capacity line and the neighbours */
+    for (let j = Math.max(0, ANSV - 2); j <= Math.min(cap, ANSV + 2); j++) if (T[n][j] !== INF) hi = Math.min(hi, base - T[n][j] * sy);
+    const yl = Math.max(top + 6, hi - 26);
+    out.push('<line class="arr taken" x1="' + xc.toFixed(1) + '" y1="' + (yl + 8).toFixed(1) + '" x2="' + xc.toFixed(1) + '" y2="' + (yt - 5).toFixed(1) + '" marker-end="url(#ahv)"/>');
+    const anc = xc > PW - 70 ? "end" : xc < x0 + 50 ? "start" : "middle";
+    out.push('<text class="arrlab taken" x="' + xc.toFixed(1) + '" y="' + yl.toFixed(1) + '" style="text-anchor:' + anc + '">v′ = ' + ANSV + ", W = " + T[n][ANSV] + "</text>");
+  }
+  out.push('<defs><marker id="ahv" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto"><path d="M0,1 L9,5 L0,9 z" fill="var(--wi-accent)"/></marker></defs>');
+  return base + 36;
 }
 
 /* ---- SubsetSum picture: blocks on a ruler that must end exactly at s ------------ */
@@ -1894,22 +2303,32 @@ const bitlen = x => x <= 0 ? 1 : Math.floor(Math.log2(x)) + 1;
 function renderMeter() {
   let bits = 0, mx = 0;
   const nums = [];
-  if (mode !== "partition" && mode !== "zerosum") nums.push(cap);
-  for (let i = 1; i <= n; i++) { nums.push(A[i]); if (mode === "knap") nums.push(Vv[i]); }
+  if (mode !== "partition" && mode !== "zerosum") nums.push(mode === "knapv" ? B : cap);
+  for (let i = 1; i <= n; i++) { nums.push(A[i]); if (knapLike()) nums.push(Vv[i]); }
+  let maxW = 1, maxV = 1; for (let i = 1; i <= n; i++) { maxW = Math.max(maxW, A[i]); maxV = Math.max(maxV, Vv[i]); }
+  const bcap = mode === "knapv" ? B : cap;
   nums.forEach(x => { bits += bitlen(x); mx = Math.max(mx, x); });
   const cells = FULL();
   const work = mode === "change" ? cells * n : cells;
   const boundTxt = mode === "knap" ? "|I| · MaxInt · log MaxInt ≈ " + Math.round(bits * mx * Math.max(1, Math.log2(mx))).toLocaleString("en")
+                 : mode === "knapv" ? "n² · V · log MaxInt(w) ≈ " + Math.round(n * n * VMAX * Math.max(1, Math.log2(maxW))).toLocaleString("en")
                  : mode === "change" ? "(t+1) · k = " + cells + " · " + n + " = " + work + " coin tests"
                  : "(n+1)(t+1) ≤ |I| · MaxInt = " + (bits * mx).toLocaleString("en");
   el("meterBox").innerHTML =
     '<span class="k">input size |I|</span><span class="v"><b>' + bits + '</b> bits  (' + nums.length + ' numbers in binary)</span>' +
     '<span class="k">MaxInt(I)</span><span class="v"><b>' + mx + '</b></span>' +
-    '<span class="k">table</span><span class="v">' + (mode === "change" ? "t+1 = " + cells : "(n+1)(" + (mode === "knap" ? "b" : "t") + "+1) = " + rows() + " · " + (cap + 1) + " = <b>" + cells + "</b>") +
+    '<span class="k">table</span><span class="v">' + (mode === "change" ? "t+1 = " + cells : "(n+1)(" + (mode === "knap" ? "b" : mode === "knapv" ? "nV" : "t") + "+1) = " + rows() + " · " + (cap + 1) + " = <b>" + cells + "</b>") +
     (mode === "change" ? "" : "") + " cells</span>" +
-    '<span class="k">bound</span><span class="v">' + boundTxt + '</span>';
-  el("meterMeta").textContent = (mode === "change" ? "k = " : "n = ") + n + ", " + (mode === "zerosum" ? "sums " + String(LO).replace("-", "−") + " … " + sumOf(cap) : (mode === "knap" ? "b" : "t") + " = " + cap);
-  el("meterNote").innerHTML = mode === "knap"
+    '<span class="k">bound</span><span class="v">' + boundTxt + '</span>' +
+    (mode === "knap" ? '<span class="k">over values</span><span class="v">(n+1)(nV+1) = ' + (n + 1) + " · " + (n * maxV + 1) + " = " + ((n + 1) * (n * maxV + 1)).toLocaleString("en") + " cells instead</span>"
+     : mode === "knapv" ? '<span class="k">over capacity</span><span class="v">(n+1)(b+1) = ' + (n + 1) + " · " + (bcap + 1).toLocaleString("en") + " = " + ((n + 1) * (bcap + 1)).toLocaleString("en") + " cells instead</span>" : "");
+  el("meterMeta").textContent = mode === "knapv" ? "n = " + n + ", V = " + VMAX + ", b = " + B : (mode === "change" ? "k = " : "n = ") + n + ", " + (mode === "zerosum" ? "sums " + String(LO).replace("-", "−") + " … " + sumOf(cap) : (mode === "knap" ? "b" : "t") + " = " + cap);
+  el("meterNote").innerHTML = mode === "knapv"
+    ? "The columns now run over the <i>values</i> 0 … nV, not over capacities: the table size (n+1)(nV+1) does not depend on <i>b</i> or the weights " +
+      "at all. Multiply <i>b</i> and every weight by 1000 and |I| grows by about ten bits per number, while the table stays exactly the same " +
+      "(only the numbers in the cells get longer: the log MaxInt(w) factor). The price: the table is pseudopolynomial in V = max v<sub>i</sub> instead. " +
+      "Rounding the values to fewer significant bits shrinks it &mdash; the idea behind approximation schemes for Knapsack."
+    : mode === "knap"
     ? "The table is polynomial in |I| <i>and</i> MaxInt(I), but not in |I| alone: append a 0 to <i>b</i> in binary and |I| grows by " +
       "<b>one bit</b> while the table doubles in width. Only <i>b</i> (and the weights) matter for the number of cells &mdash; the values " +
       "<i>v<sub>i</sub></i> may be as large as they like, they merely widen the numbers inside the cells (the log MaxInt factor for the additions)."
@@ -1936,9 +2355,9 @@ function renderSol() {
   el("solTitle").textContent = MODES[mode].sol;
   if (!st.trace || st.none) {
     box.innerHTML = '<div class="placeholder">' + (st.none ? "No solution &mdash; see above."
-      : "The table computes the " + (isBool() ? "<i>yes/no</i>" : mode === "change" ? "<i>count</i>" : "<i>value</i>") +
+      : "The table computes the " + (isBool() ? "<i>yes/no</i>" : mode === "change" ? "<i>count</i>" : mode === "knapv" ? "<i>least weights</i>" : "<i>value</i>") +
         " only. Once it is filled, the backtrace walks back through the table and the " +
-        (mode === "change" ? "coins" : mode === "partition" ? "two halves" : "chosen " + (mode === "knap" ? "items" : "numbers")) + " appear here.</div>");
+        (mode === "change" ? "coins" : mode === "partition" ? "two halves" : "chosen " + (knapLike() ? "items" : "numbers")) + " appear here.</div>");
     el("solMeta").textContent = "";
     return;
   }
@@ -1966,8 +2385,9 @@ function renderSol() {
   }
   box.innerHTML = '<ul class="sol">' + S.map((k, idx) =>
     '<li class="' + (st.fresh === k ? "fresh" : "") + '"><span class="no">' + (idx + 1) + '.</span><span class="nm">' + esc(NAME[k]) + '</span><span>' +
-    (mode === "knap" ? "item " : mode === "zerosum" ? "x" : "a") + k + '</span><span class="wv">' + (mode === "knap" ? "w=" + A[k] + "  v=" + Vv[k] : lab(k).replace("-", "−")) + '</span></li>').join("") + "</ul>";
+    (knapLike() ? "item " : mode === "zerosum" ? "x" : "a") + k + '</span><span class="wv">' + (knapLike() ? "w=" + A[k] + "  v=" + Vv[k] : lab(k).replace("-", "−")) + '</span></li>').join("") + "</ul>";
   el("solMeta").textContent = mode === "knap" ? "weight " + sumA(S) + " / " + capT + " · value " + sumV(S)
+                            : mode === "knapv" ? "value " + sumV(S) + " / " + (traceFrom ? traceFrom[1] : ANSV) + " · weight " + sumA(S) + " (b = " + B + ")"
                             : mode === "zerosum" ? "sum " + String(sumX(S)).replace("-", "−") : "sum " + sumA(S) + " / " + capT;
 }
 
@@ -2100,6 +2520,41 @@ CODE.zerosum = {
         "singleton term is what makes “non-empty” free: without it R[0][0] would have to be true and the empty set would count.",
   tnote: "The cases are tried in the order of the recurrence: skip if possible, else alone, else with a rest. Other orders give other zero-sum subsets."
 };
+CODE.knapv = {
+  rec: [
+    { k: "head",    t: "W[n′, v′] =         " + C("// least weight of a subset of items 1..n′ with value exactly v′") },
+    { k: "base0",   t: "    0                                             if n′ = 0 ∧ v′ = 0" },
+    { k: "baseinf", t: "    ∞                                             if n′ = 0 ∧ v′ > 0" },
+    { k: "skip",    t: "    W[n′−1, v′]                                   if n′ ≥ 1 ∧ v_n′ > v′" },
+    { k: "min_out", t: "    min { W[n′−1, v′],                            otherwise" },
+    { k: "min_in",  t: "          w_n′ + W[n′−1, v′ − v_n′] }" },
+    { k: "ans",     t: "answer:  max { v′ : W[n, v′] ≤ b }" }],
+  proc: [
+    { k: "p_head", t: K("procedure") + " DPKnapsack(w[1..n], v[1..n], b):" },
+    { k: "p_V",    t: "    V := max { v[1], …, v[n] }" },
+    { k: "p_base", t: "    W[0][0] := 0;  " + K("for") + " v′ := 1, …, nV:  W[0][v′] := ∞" },
+    { k: "p_loop", t: "    " + K("for") + " n′ := 1, …, n" },
+    { k: "p_loop", t: "        " + K("for") + " v′ := 0, …, nV" },
+    { k: "p_if",   t: "            " + K("if") + " v[n′] > v′        " + C("// item n′ is worth too much") },
+    { k: "p_copy", t: "                W[n′][v′] := W[n′−1][v′]" },
+    { k: "p_else", t: "            " + K("else") },
+    { k: "p_min",  t: "                W[n′][v′] := min{ W[n′−1][v′],  w[n′] + W[n′−1][v′ − v[n′]] }" },
+    { k: "p_ret",  t: "    " + K("return") + " max { v′ : W[n][v′] ≤ b }" }],
+  trace: [
+    { k: "t_head", t: K("procedure") + " traceback(W, w[1..n], v[1..n], v*):      " + C("// v* = the answer above") },
+    { k: "t_none", t: "    " + K("if") + " W[n][v*] = ∞:  " + K("return") + " “no subset of value v*”     " + C("// only for a clicked cell") },
+    { k: "t_init", t: "    T := ∅;  v′ := v*" },
+    { k: "t_init", t: "    " + K("for") + " n′ := n, …, 1" },
+    { k: "t_out",  t: "        " + K("if") + " W[n′][v′] == W[n′−1][v′]      " + C("// weight reached without item n′") },
+    { k: "t_out",  t: "            " + C("// leave n′ out; v′ unchanged") },
+    { k: "t_in",   t: "        " + K("else") + "                            " + C("// only w[n′] + W[n′−1][v′−v[n′]] remains") },
+    { k: "t_in",   t: "            T := T ∪ {n′};  v′ := v′ − v[n′]" },
+    { k: "t_ret",  t: "    " + K("return") + " T" }],
+  note: "<b>(n+1)(nV+1)</b> entries, each a min of two sums of weights ≤ n · MaxInt(w), i.e. arithmetic on O(log(n · MaxInt(w)))-bit numbers: " +
+        "<b>O(n² · V · log MaxInt(w))</b> with V = max v<sub>i</sub> &mdash; polynomial in n and V, <b>independent of b and the weights</b>.",
+  tnote: "The test <code>W[n′][v′] == W[n′−1][v′]</code> comes first, so on a <b>tie</b> the item is left out. Testing the other case first " +
+         "would give a different, equally light T."
+};
 CODE.partition = Object.assign({}, CODE.subset, {
   rec: [{ k: "odd", t: "Partition(a_1, …, a_n)  =  SubsetSum(a_1, …, a_n;  t = Σ/2),   and “no” if Σ is odd" }].concat(CODE.subset.rec),
   note: CODE.subset.note + " The other side of the balance is simply the complement of S."
@@ -2131,6 +2586,7 @@ function renderPhases() {
     const bt = document.createElement("button");
     bt.className = "phasebtn" + (cur >= p.from && cur <= p.to ? " on" : (cur > p.to ? " past" : ""));
     bt.style.flexGrow = String(Math.max(1, span));
+    if (p.minw) bt.style.minWidth = "5.2em";
     bt.innerHTML = '<span class="fill' + (pct === 0 ? " empty" : "") + '" style="width:' + pct.toFixed(2) + '%"></span><span class="lab">' + p.name + "</span>";
     bt.title = p.name.replace(/<[^>]+>/g, "") + " — steps " + (p.from + 1) + "–" + (p.to + 1);
     bt.addEventListener("click", () => { stopPlay(); cur = p.from; render(); });
@@ -2140,6 +2596,7 @@ function renderPhases() {
 
 function previewPic(i, j) {
   if (mode === "knap") return picCell(i, j);
+  if (mode === "knapv") return { np: i, bp: j, pack: optSet(i, j), cand: null, state: null };
   if (mode === "change") return { bp: j, rest: optSet(0, j), cand: null, state: null };
   return { np: i, bp: j, rest: optSet(i, j), cand: null, state: null };
 }
@@ -2150,20 +2607,22 @@ function render() {
   const filled = st.filled === undefined ? FULL() : st.filled;
   if (hoverCell && ordOf(hoverCell[0], hoverCell[1]) < filled && feasible()) {
     const i = hoverCell[0], j = hoverCell[1];
-    drawPic(previewPic(i, j), "preview: " + (mode === "change" ? "C[" + j + "]" : (mode === "knap" ? "V" : "R") + "[" + i + ", " + (mode === "zerosum" ? String(sumOf(j)).replace("-", "−") : j) + "]") + " = " + fmt(T[i][j]));
+    drawPic(previewPic(i, j), "preview: " + (mode === "change" ? "C[" + j + "]" : tname() + "[" + i + ", " + (mode === "zerosum" ? String(sumOf(j)).replace("-", "−") : j) + "]") + " = " + fmt(T[i][j]));
   } else drawPic(st.pic);
   if (window.innerWidth > 760) renderCode();
   el("statusBox").innerHTML = (st.txt || "") + (st.ans ? '<b class="ans">' + st.ans + "</b>" : "");
   el("phaseName").innerHTML = phases[st.ph] ? phases[st.ph].name : "";
   const M = MODES[mode];
   el("tabTitle").textContent = M.tab;
-  el("tabMeta").textContent = (mode === "change" ? "K = " : "n = ") + n + " · " + (mode === "zerosum" ? "sums " + String(LO).replace("-", "−") + " … " + sumOf(cap) : (mode === "knap" ? "b" : "t") + " = " + cap) + " · " + FULL() + " cells · " +
+  el("tabMeta").textContent = mode === "knapv" ? "n = " + n + " · V = " + VMAX + " · nV = " + cap + " · " + FULL() + " cells · answer v′ = " + ANSV :
+    (mode === "change" ? "K = " : "n = ") + n + " · " + (mode === "zerosum" ? "sums " + String(LO).replace("-", "−") + " … " + sumOf(cap) : (mode === "knap" ? "b" : "t") + " = " + cap) + " · " + FULL() + " cells · " +
     (mode === "change" ? "C[t] = " + fmt(T[0][cap]) : mode === "zerosum" ? "R[n, 0] = " + fmt(T[n][ansCol()]) : (mode === "knap" ? "V" : "R") + "[n, t] = " + (feasible() ? fmt(T[n][cap]) : "no"));
   el("tabLegend").innerHTML =
     '<span class="item"><span class="sw" style="background:#f6e6df;border-color:var(--wi-active)"></span> current cell</span>' +
     '<span class="item"><span class="sw" style="background:#f7edd9;border-color:var(--wi-examine)"></span> candidate</span>' +
     '<span class="item"><span class="sw" style="background:#e8f0e2;border-color:var(--wi-relax)"></span> ' +
-      (isBool() ? "a yes that carries over" : mode === "change" ? "attains the minimum" : "attains the maximum") + "</span>" +
+      (isBool() ? "a yes that carries over" : mode === "change" || mode === "knapv" ? "attains the minimum" : "attains the maximum") + "</span>" +
+    (mode === "knapv" ? '<span class="item"><span class="sw" style="background:#f3ece0;border-color:var(--wi-active);border-style:dashed"></span> heavier than b</span>' : "") +
     '<span class="item"><span class="sw" style="background:#f0d7cd;border-color:var(--wi-accent)"></span> backtrace path</span>' +
     '<span class="item"><span class="sw" style="background:var(--wi-controls)"></span> base case</span>';
   el("scrubber").max = String(Math.max(0, steps.length - 1));
@@ -2173,11 +2632,11 @@ function render() {
   el("stepBtn").disabled = cur >= steps.length - 1;
   const whole = !traceFrom || (traceFrom[0] === rows() - 1 && traceFrom[1] === ansCol());
   el("wholeBtn").style.display = whole ? "none" : "";
-  const cellName = (i, j) => mode === "change" ? "C[" + j + "]" : (mode === "knap" ? "V" : "R") + "[" + i + ", " + (mode === "zerosum" ? String(sumOf(j)).replace("-", "−") : j) + "]";
+  const cellName = (i, j) => mode === "change" ? "C[" + j + "]" : tname() + "[" + i + ", " + (mode === "zerosum" ? String(sumOf(j)).replace("-", "−") : j) + "]";
   el("traceNote").innerHTML = whole
-    ? "Backtracing from <b>" + cellName(rows() - 1, ansCol()) + "</b> — the whole problem."
+    ? "Backtracing from <b>" + cellName(rows() - 1, ansCol()) + "</b> — the whole problem" + (mode === "knapv" ? " (the largest value with weight ≤ b)." : ".")
     : "Backtracing from <b>" + cellName(traceFrom[0], traceFrom[1]) + "</b>: " +
-      (mode === "change" ? "amount " + traceFrom[1] : "items 1 … " + traceFrom[0] + ", " + (mode === "knap" ? "capacity " : "sum ") + (mode === "zerosum" ? String(sumOf(traceFrom[1])).replace("-", "−") : traceFrom[1])) + ".";
+      (mode === "change" ? "amount " + traceFrom[1] : "items 1 … " + traceFrom[0] + ", " + (mode === "knap" ? "capacity " : mode === "knapv" ? "value exactly " : "sum ") + (mode === "zerosum" ? String(sumOf(traceFrom[1])).replace("-", "−") : traceFrom[1])) + ".";
 }
 
 const PLAY = "\u25B6\uFE0E", PAUSE = "\u23F8\uFE0E";
@@ -2198,7 +2657,22 @@ function tipFor(i, j) {
   const st = steps[cur] || {};
   const shown = ordOf(i, j) < (st.filled === undefined ? FULL() : st.filled) && feasible();
   const sj = mode === "zerosum" ? String(sumOf(j)).replace("-", "−") : String(j);
-  const head = mode === "change" ? "C[" + j + "]" : (mode === "knap" ? "V" : "R") + "[" + i + ", " + sj + "]";
+  const head = mode === "change" ? "C[" + j + "]" : tname() + "[" + i + ", " + sj + "]";
+  if (mode === "knapv") {
+    let h = '<span class="tt-h">' + head + (shown ? " = " + fmt(T[i][j]) : "") + "</span><br>" +
+            '<span class="tt-s">items 1 … ' + i + ", value exactly " + j + "</span>";
+    if (!shown) return h + "<br>not computed yet";
+    const S = optSet(i, j);
+    if (i === 0) h += "<br>" + (j === 0 ? "no items: value 0, weight 0" : "no items: value " + j + " impossible");
+    else if (S === null) h += "<br>no subset has value exactly " + j;
+    else {
+      h += "<br>packs " + (S.length ? "{" + S.map(k => esc(NAME[k])).join(", ") + "}" : "nothing") + ", weight " + sumA(S) +
+           (sumA(S) <= B ? " ≤ b" : " &gt; b = " + B);
+      if (Vv[i] > j) h += "<br>" + esc(NAME[i]) + " worth too much (" + Vv[i] + " &gt; " + j + ")";
+      else h += "<br>via " + guesses(i, j).filter(x => attains(x, i, j)).map(x => x.kind === "in" ? "taking" : "leaving out").join(" and ") + " " + esc(NAME[i]);
+    }
+    return h + '<br><span class="tt-s">click: backtrace from here</span>';
+  }
   let h = '<span class="tt-h">' + head + (shown ? " = " + fmt(T[i][j]) : "") + "</span><br>" +
           '<span class="tt-s">' + (mode === "change" ? "pay exactly " + j : (mode === "knap" ? "items" : "numbers") + " 1 … " + i + ", " + (mode === "knap" ? "capacity " : "sum ") + sj) + "</span>";
   if (!shown) return h + "<br>not computed yet";
@@ -2234,7 +2708,7 @@ function fillPresets() {
 }
 function toText() {
   const lines = [];
-  if (mode === "knap") { lines.push("# capacity", String(cap), "# weight value name"); for (let i = 1; i <= n; i++) lines.push(A[i] + " " + Vv[i] + " " + NAME[i]); }
+  if (knapLike()) { lines.push("# capacity", String(mode === "knapv" ? B : cap), "# weight value name"); for (let i = 1; i <= n; i++) lines.push(A[i] + " " + Vv[i] + " " + NAME[i]); }
   else if (mode === "subset") { lines.push("# target", String(cap), "# number name"); for (let i = 1; i <= n; i++) lines.push(A[i] + " " + NAME[i]); }
   else if (mode === "partition") { lines.push("# number name  (target Σ/2 is computed)"); for (let i = 1; i <= n; i++) lines.push(A[i] + " " + NAME[i]); }
   else if (mode === "zerosum") { lines.push("# integer name  (sum 0 wanted; columns −N … P are computed)"); for (let i = 1; i <= n; i++) lines.push(X[i] + " " + NAME[i]); }
@@ -2244,11 +2718,15 @@ function toText() {
 function setInstance(capIn, items, keepPos) {
   const err = el("parseErr");
   const maxItems = mode === "change" ? 8 : 12;
-  if (!items.length) { err.textContent = "Need at least one " + (mode === "change" ? "coin" : mode === "knap" ? "item" : "number") + "."; return false; }
+  if (!items.length) { err.textContent = "Need at least one " + (mode === "change" ? "coin" : knapLike() ? "item" : "number") + "."; return false; }
   if (items.length > maxItems) { err.textContent = "At most " + maxItems + (mode === "change" ? " denominations." : " items."); return false; }
   let c = capIn;
   if (mode === "partition") { const sm = items.reduce((s, it) => s + it[0], 0); c = Math.floor(sm / 2); }
   if (mode === "zerosum") { c = items.reduce((s, it) => s + Math.abs(it[0]), 0); }
+  if (mode === "knapv") {
+    c = items.length * Math.max(...items.map(it => it[1]));
+    if (c > 60) { err.textContent = "n · max v_i at most 60 (it is the number of value columns): use fewer items or smaller values."; return false; }
+  }
   if (c > 60) { err.textContent = (mode === "partition" ? "Σ/2" : mode === "zerosum" ? "The range N + P of sums" : mode === "knap" ? "Capacity" : mode === "change" ? "Amount" : "Target") + " at most 60."; return false; }
   const R = mode === "change" ? 1 : items.length + 1;
   if (R * (c + 1) > 800) { err.textContent = "At most 800 table cells: reduce the target or the number of items."; return false; }
@@ -2258,6 +2736,8 @@ function setInstance(capIn, items, keepPos) {
   items.forEach((it, k) => { A.push(Math.abs(it[0])); X.push(it[0]); Vv.push(it[1] || 0);
     NAME.push(mode === "change" ? String(it[0]) : (it[2] !== undefined && it[2] !== "" ? String(it[2]) : String(k + 1))); });
   SUM = A.reduce((s, x) => s + x, 0);
+  B = mode === "knapv" ? capIn : 0;
+  VMAX = mode === "knapv" ? Math.max(...Vv.slice(1)) : 0;
   LO = mode === "zerosum" ? X.filter(x => x < 0).reduce((s, x) => s + x, 0) : 0;
   traceFrom = null; selCell = null; hoverCell = null;
   setCoinUnit();
@@ -2276,7 +2756,8 @@ function loadFromText() {
   let capIn = 0, first = 0;
   if (mode !== "partition" && mode !== "zerosum") {
     capIn = Number(lines[0]); first = 1;
-    if (!posInt(capIn)) { err.textContent = "First line must be the " + (mode === "knap" ? "capacity" : mode === "change" ? "amount" : "target") + ", a positive integer."; return; }
+    if (!posInt(capIn)) { err.textContent = "First line must be the " + (knapLike() ? "capacity" : mode === "change" ? "amount" : "target") + ", a positive integer."; return; }
+    if (capIn > 999999) { err.textContent = "Numbers up to 999999 only."; return; }
   }
   const items = [];
   for (let k = first; k < lines.length; k++) {
@@ -2288,10 +2769,10 @@ function loadFromText() {
     const a = Number(p[0]);
     if (mode === "zerosum") { if (!Number.isInteger(a)) { err.textContent = "Line " + (k + 1) + ": expected an integer first."; return; } items.push([a, 0, p.slice(1).join(" ").slice(0, 6)]); continue; }
     if (!posInt(a)) { err.textContent = "Line " + (k + 1) + ": expected a positive integer first."; return; }
-    if (mode === "knap") {
+    if (knapLike()) {
       const v = Number(p[1]);
       if (!posInt(v)) { err.textContent = "Line " + (k + 1) + ": expected  weight value [name]."; return; }
-      if (v > 999999) { err.textContent = "Values up to 999999 only."; return; }
+      if (v > 999999 || a > 999999) { err.textContent = "Weights and values up to 999999 only."; return; }
       items.push([a, v, p.slice(2).join(" ").slice(0, 6)]);
     } else items.push([a, 0, p.slice(1).join(" ").slice(0, 6)]);
   }
@@ -2305,6 +2786,11 @@ function randomInstance() {
     const set = new Set([1 + Math.floor(Math.random() * 2)]); while (set.size < 3) set.add(R(9));
     const coins = [...set].sort((a, b) => a - b);
     setInstance(8 + R(14), coins.map(c => [c, 0, String(c)]), false); return;
+  }
+  if (mode === "knapv") {
+    const k = 3 + Math.floor(Math.random() * 3), items = []; let tw = 0;
+    for (let i = 0; i < k; i++) { const w = R(9); items.push([w, R(k <= 3 ? 8 : 6), letters(i)]); tw += w; }
+    setInstance(Math.max(3, Math.round(tw / 2)), items, false); return;
   }
   const k = 4 + Math.floor(Math.random() * 3), items = [];
   let tot = 0;
@@ -2379,8 +2865,8 @@ function init() {
       const i = Number(t.dataset.i), tip = el("tooltip");
       tip.innerHTML = mode === "change"
         ? '<span class="tt-h">coin ' + A[i] + '</span><br>denomination ' + i + " of " + n
-        : '<span class="tt-h">' + (mode === "knap" ? "item" : "number") + " " + i + ": " + esc(NAME[i]) + "</span><br>" +
-          (mode === "knap" ? "weight w<sub>" + i + "</sub> = " + A[i] + ", value v<sub>" + i + "</sub> = " + Vv[i] : "a<sub>" + i + "</sub> = " + A[i]) +
+        : '<span class="tt-h">' + (knapLike() ? "item" : "number") + " " + i + ": " + esc(NAME[i]) + "</span><br>" +
+          (knapLike() ? "weight w<sub>" + i + "</sub> = " + A[i] + ", value v<sub>" + i + "</sub> = " + Vv[i] : "a<sub>" + i + "</sub> = " + A[i]) +
           '<br><span class="tt-s">click: jump to its row of the table</span>';
       tip.style.display = "block"; moveTip(ev);
     } else hideTip();

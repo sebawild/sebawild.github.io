@@ -1,0 +1,2710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NP-complete problems · Yes and No instances</title>
+<script>
+window.MathJax = {
+  loader: { load: ['[mathjax-euler-extension]/svg'],
+            paths: { 'mathjax-euler-extension': 'https://cdn.jsdelivr.net/npm/@mathjax/mathjax-euler-font-extension@4.1.3' } },
+  tex: {
+    inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']],
+    macros: {
+      N: '\\mathbb{N}', Z: '\\mathbb{Z}',
+      rel:  ['\\mathrel{\\:#1\\:}', 1],   wrel: ['\\mathrel{\\;#1\\;}', 1],  wwrel: ['\\mathrel{\\;\\;#1\\;\\;}', 1],
+      bin:  ['\\mathbin{\\:#1\\:}', 1],   wbin: ['\\mathbin{\\;#1\\;}', 1],  wwbin: ['\\mathbin{\\;\\;#1\\;\\;}', 1]
+    }
+  },
+  svg: { fontCache: 'none' },
+  output: { linebreaks: { inline: false } },
+  options: { menuOptions: { settings: { enrich: false, speech: false, braille: false, assistiveMml: false } } },
+  startup: { typeset: false }
+};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@4.1.3/tex-svg.js"></script>
+<style>
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#8d897c;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    --navw: 232px; --sidew: 410px;
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; margin:0 0 6px; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 16px; max-width:100ch; line-height:1.55; }
+  code { font-family:var(--mono); background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.82em; }
+
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:5px 12px; font-size:.82rem; cursor:pointer; transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); color:var(--wi-panel-2); }
+  .seg { display:inline-flex; flex-wrap:wrap; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  .seg button .yn { font-size:.68rem; letter-spacing:.06em; text-transform:uppercase; margin-left:5px; opacity:.85; }
+  label.chk { display:inline-flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; user-select:none; }
+  input[type=checkbox] { accent-color:var(--wi-accent); }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+
+  /* --- three-pane layout with draggable gutters --- */
+  .layout { display:grid; grid-template-columns: var(--navw) 10px minmax(0,1fr) 10px var(--sidew); align-items:start; }
+  .gutter { align-self:stretch; cursor:col-resize; position:relative; min-height:200px; touch-action:none; }
+  .gutter::after { content:""; position:absolute; left:4px; top:0; bottom:0; width:2px; border-radius:1px;
+                   background:var(--wi-border-soft); transition:background .15s; }
+  .gutter:hover::after, .gutter.drag::after { background:var(--wi-accent-soft); }
+  .hgutter { height:12px; cursor:row-resize; position:relative; touch-action:none; margin:2px 0 -4px; }
+  .hgutter::after { content:""; position:absolute; left:40%; right:40%; top:4px; height:4px; border-radius:2px;
+                    background:var(--wi-border-soft); }
+  .hgutter:hover::after, .hgutter.drag::after { background:var(--wi-accent-soft); }
+  @media (max-width:1100px) {
+    .layout { grid-template-columns: 1fr; row-gap:14px; }
+    .gutter { display:none; }
+    nav.plist { position:static; max-height:none; }
+    nav.plist ol { columns: 2 240px; }
+  }
+
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); padding:12px 15px; }
+  .col { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--wi-ink-faint);
+               margin:0 0 8px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--wi-font-body); font-size:1.05em; color:var(--wi-ink-soft); }
+
+  /* --- problem list --- */
+  nav.plist { position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto; padding:10px 8px; }
+  nav.plist ol { list-style:none; margin:0; padding:0; counter-reset:p; }
+  nav.plist li { counter-increment:p; }
+  nav.plist button { display:flex; gap:8px; width:100%; text-align:left; border:0; background:transparent;
+                     font-family:var(--wi-font-body); font-size:.86rem; letter-spacing:0; padding:4px 7px; line-height:1.3;
+                     color:var(--wi-ink); border-radius:var(--wi-radius); }
+  nav.plist button::before { content:counter(p); font-family:var(--wi-font-head); font-size:.7rem; color:var(--wi-ink-faint);
+                             min-width:1.4em; text-align:right; padding-top:.15em; }
+  nav.plist button:hover { background:var(--wi-panel-2); }
+  nav.plist button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  nav.plist button.on::before { color:var(--wi-panel-2); }
+  nav.plist .navopts { border-top:1px solid var(--wi-border-soft); margin-top:10px; padding:10px 6px 2px; display:flex; flex-direction:column; gap:6px; }
+  nav.plist .navhint { font-size:.7rem; color:var(--wi-ink-faint); line-height:1.4; }
+
+  /* --- definition --- */
+  .defbox .dname { font-family:var(--wi-font-head); color:var(--wi-accent); letter-spacing:.05em; font-size:1.05rem; }
+  .defbox .dname small { font-family:var(--wi-font-body); color:var(--wi-ink-soft); letter-spacing:0; font-size:.8rem; margin-left:8px; }
+  .defbox .drow { display:grid; grid-template-columns:5.6em minmax(0,1fr); gap:4px 6px; font-size:.95rem; margin-top:4px; }
+  .defbox .drow .dl { font-style:italic; color:var(--wi-ink-soft); }
+  .defbox .dnote { font-size:.78rem; color:var(--wi-ink-faint); margin-top:6px; line-height:1.45; }
+
+  /* --- instance bar --- */
+  .opbar { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; padding:9px 14px;
+           background:var(--wi-controls); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  .opbar .lbl { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--wi-ink-strong); }
+  .opbar .grow { flex:1 1 auto; }
+
+  /* --- canvas --- */
+  .canvasbox { padding-bottom:6px; }
+  .badge { font-family:var(--wi-font-head); font-size:.72rem; letter-spacing:.1em; padding:2px 9px; border-radius:10px;
+           text-transform:uppercase; border:1px solid; white-space:nowrap; }
+  .badge.yes { color:var(--wi-relax); border-color:#9bb88f; background:#eef3e6; }
+  .badge.no  { color:var(--wi-accent); border-color:var(--wi-accent-soft); background:#f6e6df; }
+  .badge.hid { color:var(--wi-ink-faint); border-color:var(--wi-border-soft); background:var(--wi-panel-2); }
+  .toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:0 0 8px; }
+  .toolbar .hint { font-size:.76rem; color:var(--wi-ink-faint); line-height:1.4; flex:1 1 220px; }
+  .svgwrap { overflow-x:auto; overflow-y:hidden; background:var(--wi-bg); border-radius:var(--wi-radius); }
+  svg#cv { display:block; touch-action:manipulation; user-select:none; -webkit-user-select:none; }
+  svg#cv text { font-family:var(--wi-font-body); }
+  svg#cv .clk { cursor:pointer; }
+
+  /* --- side panels --- */
+  .formal { font-size:.92rem; line-height:1.75; overflow-x:auto; }
+  .formal .frow { margin:2px 0; }
+  .formal .fhead { font-family:var(--wi-font-head); font-size:.7rem; letter-spacing:.08em; text-transform:uppercase; color:var(--wi-ink-faint); }
+  .ver { font-size:.9rem; }
+  .ver .vrow { display:flex; gap:9px; align-items:baseline; padding:4px 0; border-bottom:1px dashed var(--wi-border-soft); }
+  .ver .vrow:last-child { border-bottom:0; }
+  .ver .mark { font-weight:bold; min-width:1.1em; text-align:center; }
+  .ver .ok .mark { color:var(--wi-relax); }
+  .ver .bad .mark { color:var(--wi-active); }
+  .ver .sum { margin-top:8px; padding:8px 11px; border-radius:var(--wi-radius); font-size:.9rem; }
+  .ver .sum.ok { background:#eef3e6; color:#3b6332; border:1px solid #c2d3b7; }
+  .ver .sum.bad { background:var(--wi-controls); color:var(--wi-ink-strong); border:1px solid var(--wi-border-soft); }
+  .expl { font-size:.88rem; line-height:1.55; }
+  .expl p { margin:0 0 8px; }
+  .expl .facts { margin-top:8px; padding-top:8px; border-top:1px solid var(--wi-border-soft); color:var(--wi-ink-soft); font-size:.84rem; }
+  .expl .btns { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .expl table.tours { border-collapse:collapse; font-size:.8rem; margin:6px 0; }
+  .expl table.tours td { padding:1px 8px; border-bottom:1px solid var(--wi-border-soft); font-variant-numeric:tabular-nums; }
+  .expl table.tours td.L { text-align:right; }
+  .expl table.tours tr.best td { color:var(--wi-accent); font-weight:bold; }
+  .placeholder { color:var(--wi-ink-faint); font-style:italic; font-size:.84rem; }
+  ul.dtree { list-style:none; margin:2px 0 0; padding-left:14px; border-left:1px dotted var(--wi-border); }
+  .facts > ul.dtree { padding-left:4px; border-left:0; margin-top:6px; }
+  ul.dtree li { margin:1px 0; font-size:.82rem; }
+  ul.dtree .x { color:var(--wi-active); }
+
+  details.editor { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:10px 15px; font-family:var(--wi-font-head); font-size:.72rem;
+                             letter-spacing:.1em; text-transform:uppercase; color:var(--wi-ink-faint); }
+  details.editor[open] > summary { border-bottom:1px solid var(--wi-border-soft); color:var(--wi-accent); }
+  .editor-body { padding:10px 15px 14px; }
+  textarea { width:100%; height:220px; font-family:var(--mono); font-size:.76rem; background:var(--wi-panel-2); color:var(--wi-ink);
+             border:1px solid var(--wi-border); border-radius:var(--wi-radius); padding:8px; resize:vertical; line-height:1.4; }
+  .ehint { font-size:.76rem; color:var(--wi-ink-soft); line-height:1.5; margin-top:8px; }
+  .ehint code { font-size:.9em; }
+  .err { color:var(--wi-active); font-size:.8rem; min-height:1.2em; margin-top:6px; }
+  .erow { display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; }
+
+  mjx-container { line-height:0; }
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+  }
+</style>
+</head>
+<body>
+<div class="titlebar">
+  <h1>NP-complete problems · Yes and No instances</h1>
+</div>
+<p class="subtitle">
+  A gallery of classic <b>NP</b>-complete decision problems. Each comes with a small and a medium example,
+  as a <i>Yes</i> instance and as a <i>No</i> instance. Click into the drawing to build a candidate
+  <b>certificate</b>; the <b>verifier</b> on the right checks it against the definition, in polynomial time.
+  For Yes instances, a certificate can be revealed; for No instances, a short argument (and an exhaustive search) explains
+  why no certificate can exist. All inputs can be edited in a plain text format.
+</p>
+
+<div class="layout" id="layout">
+  <nav class="plist sim-box" id="plist" aria-label="Problems">
+    <ol id="plistOl"></ol>
+    <div class="navopts">
+      <label class="chk" title="Hide which instances are Yes / No (for in-class quizzes)"><input type="checkbox" id="quiz"> quiz mode: hide answers</label>
+      <div class="navhint">Keys: <code>←</code>/<code>→</code> instance, <code>↑</code>/<code>↓</code> problem, <code>c</code> certificate, <code>x</code> clear.</div>
+    </div>
+  </nav>
+  <div class="gutter" id="gutL" title="drag to resize"></div>
+
+  <div class="col" id="colMain">
+    <div class="sim-box defbox" id="defbox"></div>
+    <div class="opbar">
+      <span class="lbl">Instance</span>
+      <div class="seg" id="presetSeg"></div>
+      <span class="grow"></span>
+      <span class="badge hid" id="badge">?</span>
+    </div>
+    <div class="sim-box canvasbox">
+      <div class="toolbar">
+        <button class="pri" id="btnCert">Show certificate</button>
+        <button id="btnNext" title="cycle through further certificates">Another</button>
+        <button id="btnClear">Clear</button>
+        <span class="hint" id="clickHint"></span>
+      </div>
+      <div class="svgwrap" id="svgwrap"><svg id="cv" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      <div class="hgutter" id="gutH" title="drag to resize the drawing"></div>
+    </div>
+  </div>
+  <div class="gutter" id="gutR" title="drag to resize"></div>
+
+  <div class="col" id="colSide">
+    <div class="sim-box"><div class="sim-title"><span>Formal input</span><span class="rhs" id="formalRhs"></span></div>
+      <div class="formal" id="formal"></div></div>
+    <div class="sim-box"><div class="sim-title"><span>Verifier · candidate certificate</span></div>
+      <div class="ver" id="ver"></div></div>
+    <div class="sim-box"><div class="sim-title"><span id="explTitle">Why?</span></div>
+      <div class="expl" id="expl"></div></div>
+    <details class="editor" id="editor">
+      <summary>Input text · edit or paste an instance</summary>
+      <div class="editor-body">
+        <textarea id="ta" spellcheck="false"></textarea>
+        <div class="erow"><button class="pri" id="btnLoad">Load</button><button id="btnReset">Reset to preset</button>
+          <span class="err" id="err"></span></div>
+        <div class="ehint" id="fmtHint"></div>
+      </div>
+    </details>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ===== exhaustive solvers (shared by page + node tests) ===== */
+const CAP = 240;   // max certificates enumerated for "another certificate"
+function adjSets(g) {
+  const A = Array.from({ length: g.n }, () => new Set());
+  for (const [u, v] of g.edges) { A[u].add(v); if (!g.directed) A[v].add(u); }
+  return A;
+}
+function popcount(x) { let c = 0; while (x) { x &= x - 1; c++; } return c; }
+function bitsOf(x) { const r = []; for (let i = 0; x; i++, x >>>= 1) if (x & 1) r.push(i); return r; }
+function* combos(n, s) {             // all s-subsets of [0..n-1], lexicographic
+  const c = Array.from({ length: s }, (_, i) => i);
+  if (s > n) return;
+  while (true) {
+    yield c.slice();
+    let i = s - 1;
+    while (i >= 0 && c[i] === n - s + i) i--;
+    if (i < 0) return;
+    c[i]++;
+    for (let j = i + 1; j < s; j++) c[j] = c[j - 1] + 1;
+  }
+}
+/* ---- clique / independent set ---- */
+function cliquesAtLeast(n, A, k) {      // enumerate cliques of size exactly max(k,..)? -> all cliques of size k (cap), plus omega
+  let best = [];
+  const certs = []; let count = 0;
+  function bb(R, P) {
+    if (R.length > best.length) best = R.slice();
+    if (R.length === k) { count++; if (certs.length < CAP) certs.push(R.slice()); return; }
+    if (R.length + P.length < k) return;
+    for (let i = 0; i < P.length; i++) {
+      const v = P[i];
+      const P2 = P.slice(i + 1).filter(u => A[v].has(u));
+      bb([...R, v], P2);
+    }
+  }
+  bb([], Array.from({ length: n }, (_, i) => i));
+  // omega: continue searching beyond k if needed
+  let omega = best.length;
+  function bbMax(R, P) {
+    if (R.length > omega) { omega = R.length; best = R.slice(); }
+    if (R.length + P.length <= omega) return;
+    for (let i = 0; i < P.length; i++) { const v = P[i]; bbMax([...R, v], P.slice(i + 1).filter(u => A[v].has(u))); }
+  }
+  bbMax([], Array.from({ length: n }, (_, i) => i));
+  return { certs, count, opt: omega, optCert: best };
+}
+function complementAdj(n, A) {
+  return Array.from({ length: n }, (_, v) => { const s = new Set(); for (let u = 0; u < n; u++) if (u !== v && !A[v].has(u)) s.add(u); return s; });
+}
+/* ---- dominating set ---- */
+function domSets(n, A, k) {
+  const N = Array.from({ length: n }, (_, v) => { let m = 1 << v; for (const u of A[v]) m |= 1 << u; return m; });
+  const full = n === 32 ? -1 : (1 << n) - 1;
+  let opt = null, optCert = null; const certs = []; let count = 0;
+  for (let s = 0; s <= n; s++) {
+    for (const c of combos(n, s)) {
+      let m = 0; for (const v of c) m |= N[v];
+      if (m === full) {
+        if (opt === null) { opt = s; optCert = c; }
+        if (s <= k) { count++; if (certs.length < CAP) certs.push(c); }
+      }
+    }
+    if (opt !== null && s >= k) break;
+  }
+  return { certs, count, opt, optCert };
+}
+/* ---- Hamiltonian cycles (as vertex sequences starting at 0) ---- */
+function hamCycles(n, A, directed, wantLongest) {
+  const certs = []; let count = 0;
+  const seq = [0], used = new Array(n).fill(false); used[0] = true;
+  let longest = null;
+  function dfs(v) {
+    if (seq.length === n) {
+      if (A[v].has(0) && (directed || seq[1] < seq[n - 1])) { count++; if (certs.length < CAP) certs.push(seq.slice()); }
+      return;
+    }
+    for (const u of A[v]) if (!used[u]) { used[u] = true; seq.push(u); dfs(u); seq.pop(); used[u] = false; }
+  }
+  if (n === 1) { if (A[0].has(0)) { count = 1; certs.push([0]); } } else if (n > 0) dfs(0);
+  if (count === 0 && wantLongest) {          // longest cycle anywhere (for "best attempt")
+    let best = [];
+    for (let s = 0; s < n; s++) {
+      const st = [s], us = new Array(n).fill(false); us[s] = true;
+      (function go(v) {
+        if (st.length > best.length && st.length >= (directed ? 2 : 3) && A[v].has(s)) best = st.slice();
+        for (const u of A[v]) if (!us[u] && u > s) { us[u] = true; st.push(u); go(u); st.pop(); us[u] = false; }
+      })(s);
+    }
+    longest = best;
+  }
+  return { certs, count, longest };
+}
+/* ---- coloring ---- */
+function colorings(n, A, k) {       // canonical colorings (no colour-permutation duplicates), colours 1..k
+  const c = new Array(n).fill(0); const certs = []; let count = 0;
+  const order = Array.from({ length: n }, (_, i) => i);
+  function go(i, maxc) {
+    if (count >= 100000) return;
+    if (i === n) { count++; if (certs.length < CAP) certs.push(c.slice()); return; }
+    const v = order[i];
+    for (let col = 1; col <= Math.min(k, maxc + 1); col++) {
+      let ok = true; for (const u of A[v]) if (c[u] === col) { ok = false; break; }
+      if (ok) { c[v] = col; go(i + 1, Math.max(maxc, col)); c[v] = 0; }
+    }
+  }
+  go(0, 0);
+  return { certs, count };
+}
+function chromatic(n, A) {
+  for (let k = 1; k <= n; k++) { const r = colorings1(n, A, k); if (r) return { opt: k, optCert: r }; }
+  return { opt: n, optCert: Array.from({ length: n }, (_, i) => i + 1) };
+}
+function colorings1(n, A, k) {
+  const c = new Array(n).fill(0);
+  function go(v, maxc) {
+    if (v === n) return true;
+    for (let col = 1; col <= Math.min(k, maxc + 1); col++) {
+      let ok = true; for (const u of A[v]) if (c[u] === col) { ok = false; break; }
+      if (ok) { c[v] = col; if (go(v + 1, Math.max(maxc, col))) return true; c[v] = 0; }
+    }
+    return false;
+  }
+  return go(0, 0) ? c.slice() : null;
+}
+/* ---- max cut ---- */
+function maxCuts(n, edges, k) {
+  let opt = -1, optCert = null; const certs = []; let count = 0;
+  for (let m = 0; m < (1 << (n - 1)); m++) {        // vertex n-1 never in C: halves symmetry
+    let cut = 0; for (const [u, v] of edges) if (((m >> u) & 1) !== ((m >> v) & 1)) cut++;
+    if (cut > opt) { opt = cut; optCert = m; }
+    if (cut >= k) { count++; if (certs.length < CAP) certs.push(m); }
+  }
+  return { certs: certs.map(bitsOf), count, opt, optCert: bitsOf(optCert) };
+}
+/* ---- TSP ---- */
+function tspTours(D, k) {
+  const n = D.length; const certs = []; let count = 0, opt = Infinity, optCert = null, total = 0;
+  const all = [];
+  const seq = [0], used = new Array(n).fill(false); used[0] = true;
+  function go(len) {
+    if (seq.length === n) {
+      const L = len + D[seq[n - 1]][0]; total++;
+      if (L < opt) { opt = L; optCert = seq.slice(); }
+      if (L <= k) { count++; if (certs.length < CAP) certs.push(seq.slice()); }
+      if (all.length < 400) all.push({ t: seq.slice(), L });
+      return;
+    }
+    for (let u = 1; u < n; u++) if (!used[u]) { used[u] = true; seq.push(u); go(len + D[seq[seq.length - 2]][u]); seq.pop(); used[u] = false; }
+  }
+  if (n === 1) { opt = D[0][0]; optCert = [0]; total = 1; if (opt <= k) { count = 1; certs.push([0]); } }
+  else go(0);
+  return { certs, count, opt, optCert, total, all };
+}
+/* ---- set cover family (sets as arrays of 1-based elements) ---- */
+function setCoverAll(n, sets, costs, k, exact) {
+  const m = sets.length, full = (2 ** n) - 1;
+  const masks = sets.map(S => S.reduce((a, e) => a + 2 ** (e - 1), 0));
+  let opt = Infinity, optCert = null; const certs = []; let count = 0;
+  let bestPack = -1, bestPackCert = null;   // exact cover: max #elements covered by disjoint sets
+  for (let I = 0; I < (1 << m); I++) {
+    let cov = 0, cost = 0, sz = 0, disjoint = true;
+    for (let i = 0; i < m; i++) if ((I >> i) & 1) {
+      if (exact && (cov & masks[i])) disjoint = false;   // (fine for n<=30 via bitwise on <2^31)
+      cov |= masks[i]; cost += costs ? costs[i] : 1; sz += sets[i].length;
+    }
+    if (exact) {
+      if (disjoint && popcount(cov) > bestPack) { bestPack = popcount(cov); bestPackCert = I; }
+      if (disjoint && cov === full) { count++; if (certs.length < CAP) certs.push(bitsOf(I)); }
+    } else if (cov === full) {
+      if (cost < opt || (cost === opt && popcount(I) < popcount(optCert))) { opt = cost; optCert = I; }
+      if (cost <= k) { count++; if (certs.length < CAP) certs.push(bitsOf(I)); }
+    }
+  }
+  if (exact) return { certs, count, opt: bestPack, optCert: bestPackCert === null ? [] : bitsOf(bestPackCert) };
+  certs.sort((a, b) => a.length - b.length);
+  return { certs, count, opt: opt === Infinity ? null : opt, optCert: optCert === null ? null : bitsOf(optCert) };
+}
+/* ---- closest string ---- */
+function closestStrings(strs, sigma, k) {
+  const n = strs.length, m = strs[0].length; const certs = []; let count = 0;
+  function search(K, collect) {
+    const d = new Array(n).fill(0), s = [];
+    let found = null;
+    (function go(j) {
+      if (found && !collect) return;
+      if (j === m) { const w = s.join(''); if (!found) found = w; if (collect) { count++; if (certs.length < CAP) certs.push(w); } return; }
+      for (const ch of sigma) {
+        let ok = true;
+        for (let i = 0; i < n; i++) if (strs[i][j] !== ch && d[i] + 1 > K) { ok = false; break; }
+        if (!ok) continue;
+        for (let i = 0; i < n; i++) if (strs[i][j] !== ch) d[i]++;
+        s.push(ch); go(j + 1); s.pop();
+        for (let i = 0; i < n; i++) if (strs[i][j] !== ch) d[i]--;
+        if (found && !collect) return;
+      }
+    })(0);
+    return found;
+  }
+  search(k, true);
+  let opt = null, optCert = null;
+  for (let K = 0; K <= m; K++) { const f = search(K, false); if (f) { opt = K; optCert = f; break; } }
+  return { certs, count, opt, optCert };
+}
+/* ---- subset sum ---- */
+function subsetSums(x, t) {
+  const n = x.length; const certs = []; let count = 0;
+  const tot = x.reduce((a, b) => a + b, 0);
+  const reach = new Uint8Array(tot + 1); reach[0] = 1;
+  for (const v of x) for (let s = tot; s >= v; s--) if (reach[s - v]) reach[s] = 1;
+  for (let I = 0; I < (1 << n); I++) {
+    let s = 0; for (let i = 0; i < n; i++) if ((I >> i) & 1) s += x[i];
+    if (s === t) { count++; if (certs.length < CAP) certs.push(bitsOf(I)); }
+  }
+  certs.sort((a, b) => a.length - b.length);
+  let below = null, above = null;
+  for (let s = Math.min(t, tot); s >= 0; s--) if (reach[s] && s !== t) { below = s; break; }
+  for (let s = t + 1; s <= tot; s++) if (reach[s]) { above = s; break; }
+  return { certs, count, reach, below, above, tot };
+}
+/* ---- knapsack ---- */
+function knapsackAll(w, v, b, k) {
+  const n = w.length; const certs = []; let count = 0, opt = -1, optCert = null;
+  const pts = [];
+  for (let I = 0; I < (1 << n); I++) {
+    let W = 0, V = 0; for (let i = 0; i < n; i++) if ((I >> i) & 1) { W += w[i]; V += v[i]; }
+    pts.push([W, V, I]);
+    if (W <= b) {
+      if (V > opt || (V === opt && popcount(I) < popcount(optCert))) { opt = V; optCert = I; }
+      if (V >= k) { count++; if (certs.length < CAP) certs.push(bitsOf(I)); }
+    }
+  }
+  return { certs, count, opt, optCert: bitsOf(optCert), pts };
+}
+/* ---- bin packing: assignment arrays a[i] in 1..k ---- */
+function binPackings(w, b, k) {
+  const n = w.length; const certs = []; let count = 0;
+  const order = Array.from({ length: n }, (_, i) => i).sort((p, q) => w[q] - w[p]);
+  function run(K, collect) {
+    const load = new Array(K + 1).fill(0), a = new Array(n).fill(0); let found = null;
+    (function go(i, used) {
+      if (found && !collect) return;
+      if (i === n) { if (!found) found = a.slice(); if (collect) { count++; if (certs.length < CAP) certs.push(a.slice()); } return; }
+      const it = order[i];
+      for (let j = 1; j <= Math.min(K, used + 1); j++) {
+        if (load[j] + w[it] > b) continue;
+        load[j] += w[it]; a[it] = j; go(i + 1, Math.max(used, j)); load[j] -= w[it]; a[it] = 0;
+        if (found && !collect) return;
+      }
+    })(0, 0);
+    return found;
+  }
+  if (w.some(x => x > b)) return { certs, count: 0, opt: null, optCert: null };
+  run(k, true);
+  let opt = null, optCert = null;
+  for (let K = 1; K <= n; K++) { const f = run(K, false); if (f) { opt = K; optCert = f; break; } }
+  if (n === 0) opt = 0;
+  return { certs, count, opt, optCert };
+}
+/* ---- 0/1 ILP ---- */
+function ilpAll(A, b, c, k) {
+  const n = c.length; const certs = []; let count = 0, opt = null, optCert = null; const pts = [];
+  for (let I = 0; I < (1 << n); I++) {
+    const x = Array.from({ length: n }, (_, j) => (I >> j) & 1);
+    const feas = A.every((row, i) => row.reduce((s, a, j) => s + a * x[j], 0) <= b[i]);
+    const val = c.reduce((s, cj, j) => s + cj * x[j], 0);
+    pts.push({ x, feas, val });
+    if (feas) {
+      if (opt === null || val > opt) { opt = val; optCert = x; }
+      if (val >= k) { count++; if (certs.length < CAP) certs.push(x); }
+    }
+  }
+  return { certs, count, opt, optCert, pts };
+}
+if (false) module.exports = { adjSets, combos, cliquesAtLeast, complementAdj, domSets, hamCycles, colorings, chromatic, maxCuts, tspTours, setCoverAll, closestStrings, subsetSums, knapsackAll, binPackings, ilpAll, bitsOf, popcount };
+
+const PRESET_TEXT = {
+ "dominating-set": [
+  "k = 2\n8\n12\n0 1\n0 2\n0 4\n1 3\n1 5\n2 3\n2 6\n3 7\n4 5\n4 6\n5 7\n6 7\n0 0\n3 0\n0 3\n3 3\n1 1\n2 1\n1 2\n2 2",
+  "k = 2\n7\n7\n0 1\n1 2\n2 3\n3 4\n4 5\n5 6\n6 0\n0 -1\n0.782 -0.623\n0.975 0.223\n0.434 0.901\n-0.434 0.901\n-0.975 0.223\n-0.782 -0.623",
+  "k = 4\n16\n24\n0 1\n0 4\n1 2\n1 5\n2 3\n2 6\n3 7\n4 5\n4 8\n5 6\n5 9\n6 7\n6 10\n7 11\n8 9\n8 12\n9 10\n9 13\n10 11\n10 14\n11 15\n12 13\n13 14\n14 15\n0 0\n1 0\n2 0\n3 0\n0 1\n1 1\n2 1\n3 1\n0 2\n1 2\n2 2\n3 2\n0 3\n1 3\n2 3\n3 3",
+  "k = 3\n16\n24\n0 1\n0 4\n1 2\n1 5\n2 3\n2 6\n3 7\n4 5\n4 8\n5 6\n5 9\n6 7\n6 10\n7 11\n8 9\n8 12\n9 10\n9 13\n10 11\n10 14\n11 15\n12 13\n13 14\n14 15\n0 0\n1 0\n2 0\n3 0\n0 1\n1 1\n2 1\n3 1\n0 2\n1 2\n2 2\n3 2\n0 3\n1 3\n2 3\n3 3"
+ ],
+ "ham-cycle": [
+  "7\n11\n0 1\n1 2\n2 3\n3 4\n4 5\n0 6\n5 6\n2 6\n3 6\n1 5\n2 4\n0 -1\n0.866 -0.5\n0.866 0.5\n0 1\n-0.866 0.5\n-0.866 -0.5\n0 0",
+  "7\n12\n0 1\n0 2\n1 2\n1 6\n2 6\n0 3\n3 6\n0 4\n0 5\n4 5\n4 6\n5 6\n0 -1.25\n-1.25 -0.25\n-0.9 0.45\n0 0\n1.25 -0.25\n0.9 0.45\n0 1.25",
+  "20\n30\n0 1\n0 5\n15 16\n6 15\n1 2\n1 7\n16 17\n8 16\n2 3\n2 9\n17 18\n10 17\n3 4\n3 11\n18 19\n12 18\n0 4\n4 13\n15 19\n14 19\n5 6\n6 7\n7 8\n8 9\n9 10\n10 11\n11 12\n12 13\n13 14\n5 14\n0 -1\n0.951 -0.309\n0.588 0.809\n-0.588 0.809\n-0.951 -0.309\n0 -0.72\n0.323 -0.445\n0.685 -0.222\n0.523 0.17\n0.423 0.582\n0 0.55\n-0.423 0.582\n-0.523 0.17\n-0.685 -0.222\n-0.323 -0.445\n0.176 -0.243\n0.285 0.093\n0 0.3\n-0.285 0.093\n-0.176 -0.243",
+  "11\n18\n0 5\n0 6\n0 7\n1 8\n1 9\n1 10\n2 5\n3 5\n2 8\n3 8\n3 6\n4 6\n3 9\n4 9\n4 7\n2 7\n4 10\n2 10\n0 -0.429\n0 0.429\n-1 0\n1 0\n0 0\n0 -1\n0.333 -0.143\n-0.333 -0.143\n0 1\n0.333 0.143\n-0.333 0.143",
+  "10\n15\n0 1\n1 2\n2 3\n3 4\n0 4\n0 5\n1 6\n2 7\n3 8\n4 9\n5 7\n6 8\n7 9\n5 8\n6 9\n0 -1\n0.951 -0.309\n0.588 0.809\n-0.588 0.809\n-0.951 -0.309\n0 -0.5\n0.476 -0.155\n0.294 0.405\n-0.294 0.405\n-0.476 -0.155"
+ ],
+ "ham-cycle-directed": [
+  "6\n12\n1 0\n0 3\n0 4\n1 2\n1 4\n5 1\n3 2\n2 4\n4 2\n2 5\n5 2\n3 4\n-0.461 -0.76\n0.476 -0.34\n0.114 0.573\n-0.856 0.238\n-0.272 -0.108\n1 0.396",
+  "6\n10\n1 0\n2 0\n0 3\n0 5\n2 1\n1 4\n3 2\n4 2\n5 2\n3 4\n0.679 0.255\n-0.106 0.712\n-0.005 -0.393\n-0.544 0.41\n-1 -0.227\n0.976 -0.758",
+  "10\n22\n1 0\n0 3\n0 4\n7 0\n0 9\n2 1\n1 3\n3 1\n2 3\n2 6\n7 2\n4 3\n6 3\n4 5\n5 4\n5 8\n8 5\n6 8\n9 6\n8 7\n7 9\n9 7\n0.138 0.166\n0.499 0.778\n0.558 0.189\n-0.057 0.557\n-0.606 0.329\n-1 -0.244\n0.015 -0.199\n0.222 -0.534\n-0.447 -0.671\n0.676 -0.371",
+  "10\n20\n2 0\n6 0\n0 8\n0 9\n1 2\n2 1\n1 8\n9 1\n2 3\n2 7\n2 9\n3 4\n3 5\n4 7\n4 9\n5 6\n9 5\n9 6\n7 8\n8 7\n0.029 -0.623\n0.383 -0.438\n0.189 0.176\n-0.505 0.691\n0.138 0.731\n-1 0.104\n-0.724 -0.585\n0.869 0.424\n0.922 -0.414\n-0.3 -0.066"
+ ],
+ "clique": [
+  "k = 4\n7\n13\n0 2\n0 3\n0 5\n2 3\n2 5\n3 5\n0 1\n1 2\n3 4\n4 5\n5 6\n6 0\n4 6\n0 -1\n0.782 -0.623\n0.975 0.223\n0.434 0.901\n-0.434 0.901\n-0.975 0.223\n-0.782 -0.623",
+  "k = 4\n6\n12\n0 1\n0 2\n0 4\n0 5\n1 2\n1 3\n1 5\n2 3\n2 4\n3 4\n3 5\n4 5\n0 -1\n0.866 0.5\n-0.866 0.5\n0 0.42\n-0.364 -0.21\n0.364 -0.21",
+  "k = 5\n12\n33\n0 1\n0 4\n0 7\n1 3\n1 4\n1 6\n1 7\n1 9\n1 10\n1 11\n2 3\n2 9\n2 10\n3 4\n3 6\n3 7\n3 8\n3 9\n3 10\n4 5\n4 6\n4 7\n5 6\n5 11\n6 7\n6 8\n6 9\n6 10\n7 8\n7 10\n8 11\n9 10\n9 11\n-0.274 0.971\n0.026 0.186\n1 -0.426\n0.339 -0.037\n-0.469 0.397\n-0.909 -0.285\n-0.099 -0.211\n0.145 0.571\n-0.498 -0.032\n0.383 -0.574\n0.703 0.123\n-0.349 -0.682",
+  "k = 4\n12\n30\n0 3\n0 5\n0 6\n0 9\n0 10\n0 11\n1 3\n1 5\n1 8\n1 10\n2 3\n2 8\n3 4\n3 5\n3 7\n3 9\n3 10\n4 6\n4 9\n4 10\n4 11\n5 6\n5 8\n6 10\n7 8\n7 9\n7 10\n7 11\n8 10\n9 11\n-0.303 -0.363\n-0.259 0.897\n0.888 0.671\n0.188 0.149\n-0.276 -0.624\n-0.568 0.407\n-0.923 -0.222\n0.623 -0.136\n0.258 0.649\n0.424 -0.582\n-0.258 0.153\n0.206 -1"
+ ],
+ "independent-set": [
+  "k = 4\n8\n12\n0 1\n0 2\n0 6\n0 7\n1 3\n1 6\n2 3\n3 6\n4 5\n5 6\n5 7\n6 7\n0.583 -0.004\n0.229 0.415\n0.698 0.722\n-0.078 0.755\n-1 -0.876\n-0.475 -0.516\n-0.129 0.022\n0.173 -0.519",
+  "k = 5\n8\n12\n0 1\n0 2\n0 6\n0 7\n1 3\n1 6\n2 3\n3 6\n4 5\n5 6\n5 7\n6 7\n0.583 -0.004\n0.229 0.415\n0.698 0.722\n-0.078 0.755\n-1 -0.876\n-0.475 -0.516\n-0.129 0.022\n0.173 -0.519",
+  "k = 4\n10\n15\n0 1\n1 2\n2 3\n3 4\n0 4\n0 5\n1 6\n2 7\n3 8\n4 9\n5 7\n6 8\n7 9\n5 8\n6 9\n0 -1\n0.951 -0.309\n0.588 0.809\n-0.588 0.809\n-0.951 -0.309\n0 -0.5\n0.476 -0.155\n0.294 0.405\n-0.294 0.405\n-0.476 -0.155",
+  "k = 5\n10\n15\n0 1\n1 2\n2 3\n3 4\n0 4\n0 5\n1 6\n2 7\n3 8\n4 9\n5 7\n6 8\n7 9\n5 8\n6 9\n0 -1\n0.951 -0.309\n0.588 0.809\n-0.588 0.809\n-0.951 -0.309\n0 -0.5\n0.476 -0.155\n0.294 0.405\n-0.294 0.405\n-0.476 -0.155"
+ ],
+ "coloring": [
+  "k = 3\n7\n12\n0 1\n1 2\n2 3\n3 4\n4 5\n5 0\n0 6\n1 6\n2 6\n3 6\n4 6\n5 6\n0 -1\n0.866 -0.5\n0.866 0.5\n0 1\n-0.866 0.5\n-0.866 -0.5\n0 0",
+  "k = 3\n6\n10\n0 1\n1 2\n2 3\n3 4\n0 4\n0 5\n1 5\n2 5\n3 5\n4 5\n0 -1\n0.951 -0.309\n0.588 0.809\n-0.588 0.809\n-0.951 -0.309\n0 0",
+  "k = 3\n15\n30\n0 1\n0 2\n1 2\n1 3\n1 4\n2 4\n2 5\n3 4\n3 6\n3 7\n4 5\n4 7\n4 8\n5 8\n5 9\n6 7\n6 10\n6 11\n7 8\n7 11\n7 12\n8 9\n8 12\n8 13\n9 13\n9 14\n10 11\n11 12\n12 13\n13 14\n0 0\n-0.5 0.866\n0.5 0.866\n-1 1.732\n0 1.732\n1 1.732\n-1.5 2.598\n-0.5 2.598\n0.5 2.598\n1.5 2.598\n-2 3.464\n-1 3.464\n0 3.464\n1 3.464\n2 3.464",
+  "k = 3\n11\n20\n0 1\n1 2\n2 3\n3 4\n0 4\n1 5\n4 5\n5 10\n2 6\n0 6\n6 10\n3 7\n1 7\n7 10\n4 8\n2 8\n8 10\n0 9\n3 9\n9 10\n0 -1\n0.951 -0.309\n0.588 0.809\n-0.588 0.809\n-0.951 -0.309\n0 -0.5\n0.476 -0.155\n0.294 0.405\n-0.294 0.405\n-0.476 -0.155\n0 0"
+ ],
+ "max-cut": [
+  "k = 7\n6\n9\n0 1\n1 2\n0 2\n3 4\n4 5\n3 5\n0 3\n1 4\n2 5\n0 -1\n0.866 0.5\n-0.866 0.5\n0 -0.4\n0.346 0.2\n-0.346 0.2",
+  "k = 8\n6\n9\n0 1\n1 2\n0 2\n3 4\n4 5\n3 5\n0 3\n1 4\n2 5\n0 -1\n0.866 0.5\n-0.866 0.5\n0 -0.4\n0.346 0.2\n-0.346 0.2",
+  "k = 24\n20\n30\n0 1\n0 5\n15 16\n6 15\n1 2\n1 7\n16 17\n8 16\n2 3\n2 9\n17 18\n10 17\n3 4\n3 11\n18 19\n12 18\n0 4\n4 13\n15 19\n14 19\n5 6\n6 7\n7 8\n8 9\n9 10\n10 11\n11 12\n12 13\n13 14\n5 14\n0 -1\n0.951 -0.309\n0.588 0.809\n-0.588 0.809\n-0.951 -0.309\n0 -0.72\n0.323 -0.445\n0.685 -0.222\n0.523 0.17\n0.423 0.582\n0 0.55\n-0.423 0.582\n-0.523 0.17\n-0.685 -0.222\n-0.323 -0.445\n0.176 -0.243\n0.285 0.093\n0 0.3\n-0.285 0.093\n-0.176 -0.243",
+  "k = 25\n20\n30\n0 1\n0 5\n15 16\n6 15\n1 2\n1 7\n16 17\n8 16\n2 3\n2 9\n17 18\n10 17\n3 4\n3 11\n18 19\n12 18\n0 4\n4 13\n15 19\n14 19\n5 6\n6 7\n7 8\n8 9\n9 10\n10 11\n11 12\n12 13\n13 14\n5 14\n0 -1\n0.951 -0.309\n0.588 0.809\n-0.588 0.809\n-0.951 -0.309\n0 -0.72\n0.323 -0.445\n0.685 -0.222\n0.523 0.17\n0.423 0.582\n0 0.55\n-0.423 0.582\n-0.523 0.17\n-0.685 -0.222\n-0.323 -0.445\n0.176 -0.243\n0.285 0.093\n0 0.3\n-0.285 0.093\n-0.176 -0.243"
+ ],
+ "tsp": [
+  "k = 21\n5\n0 9 4 5 6\n9 0 4 4 5\n4 4 0 3 3\n5 4 3 0 6\n6 5 3 6 0\n0 0\n7 5\n3 3\n5 1\n2 6",
+  "k = 20\n5\n0 9 4 5 6\n9 0 4 4 5\n4 4 0 3 3\n5 4 3 0 6\n6 5 3 6 0\n0 0\n7 5\n3 3\n5 1\n2 6",
+  "k = 24\n7\n0 7 4 7 4 3 9\n7 0 3 5 3 6 4\n4 3 0 4 3 3 4\n7 5 4 0 6 4 3\n4 3 3 6 0 5 6\n3 6 3 4 5 0 6\n9 4 4 3 6 6 0\n0 1\n5 6\n4 3\n7 1\n2 5\n3 0\n8 4",
+  "k = 23\n7\n0 7 4 7 4 3 9\n7 0 3 5 3 6 4\n4 3 0 4 3 3 4\n7 5 4 0 6 4 3\n4 3 3 6 0 5 6\n3 6 3 4 5 0 6\n9 4 4 3 6 6 0\n0 1\n5 6\n4 3\n7 1\n2 5\n3 0\n8 4"
+ ],
+ "set-cover": [
+  "k = 2\n7 5\n1 2 3 4\n4 5 6\n1 5 7\n2 5 6 7\n3 7",
+  "k = 2\n7 5\n1 2 3 4\n4 5 6\n1 5 7\n2 6 7\n3 7",
+  "k = 3\n12 8\n1 5 9 10\n7 8 11 12\n6 7 8\n1 2 3 6 10\n1 2 5 9\n2 3 4 6 8\n5 9 10 11\n3 4 8 11 12\n0 0\n1 0\n2 0\n3 0\n0 1\n1 1\n2 1\n3 1\n0 2\n1 2\n2 2\n3 2",
+  "k = 3\n12 8\n1 5 6 7 10\n1 5 9 10\n9 10 11 12\n3 7 11 12\n3 6 7 8 12\n1 2 3 4 6\n2 3 6 7\n4 6 7 8 10\n0 0\n1 0\n2 0\n3 0\n0 1\n1 1\n2 1\n3 1\n0 2\n1 2\n2 2\n3 2"
+ ],
+ "weighted-set-cover": [
+  "c = 8 3 2 5 1\nk = 11\n7 5\n1 2 3 4\n4 5 6\n1 5 7\n2 5 6 7\n3 7",
+  "c = 8 3 2 5 1\nk = 10\n7 5\n1 2 3 4\n4 5 6\n1 5 7\n2 5 6 7\n3 7",
+  "c = 4 7 2 6 3 7 6 7\nk = 16\n12 8\n1 5 9 10\n7 8 11 12\n6 7 8\n1 2 3 6 10\n1 2 5 9\n2 3 4 6 8\n5 9 10 11\n3 4 8 11 12\n0 0\n1 0\n2 0\n3 0\n0 1\n1 1\n2 1\n3 1\n0 2\n1 2\n2 2\n3 2",
+  "c = 4 7 2 6 3 7 6 7\nk = 15\n12 8\n1 5 9 10\n7 8 11 12\n6 7 8\n1 2 3 6 10\n1 2 5 9\n2 3 4 6 8\n5 9 10 11\n3 4 8 11 12\n0 0\n1 0\n2 0\n3 0\n0 1\n1 1\n2 1\n3 1\n0 2\n1 2\n2 2\n3 2"
+ ],
+ "exact-cover": [
+  "7 6\n3 5 6\n1 4 7\n2 3 6\n1 4\n2 7\n4 5 7",
+  "6 6\n1 3 6\n1 2 6\n3 4\n4 5\n2 5\n2 6",
+  "14 18\n1 2\n1 5\n2 3\n3 6\n4 5\n4 7\n5 8\n6 10\n7 8\n7 11\n8 9\n8 12\n9 10\n9 13\n10 14\n11 12\n12 13\n13 14\n1 0\n2 0\n3 0\n0 1\n1 1\n3 1\n0 2\n1 2\n2 2\n3 2\n0 3\n1 3\n2 3\n3 3",
+  "14 20\n1 2\n1 5\n2 3\n2 6\n3 7\n4 5\n4 8\n5 6\n5 9\n6 7\n6 10\n7 11\n8 9\n8 12\n9 10\n9 13\n10 11\n10 14\n12 13\n13 14\n1 0\n2 0\n3 0\n0 1\n1 1\n2 1\n3 1\n0 2\n1 2\n2 2\n3 2\n0 3\n1 3\n2 3"
+ ],
+ "closest-string": [
+  "k = 2\nTTGTTT\nTAAGCT\nCGAGTT",
+  "k = 1\nTTGTTT\nTAAGCT\nCGAGTT",
+  "k = 3\nCTTTCACAC\nATAGCACGC\nAAATCACAG\nATTCCACAG\nATACCACAT",
+  "k = 2\nCTTTCACAC\nATAGCACGC\nAAATCACAG\nATTCCACAG\nATACCACAT"
+ ],
+ "subset-sum": [
+  "t = 9\n3 34 4 12 5 2",
+  "t = 30\n3 34 4 12 5 2",
+  "t = 186\n66 12 42 26 64 34 36 41 58",
+  "t = 127\n66 12 42 26 64 34 36 41 58"
+ ],
+ "knapsack": [
+  "b = 10\nk = 90\n5 10\n4 40\n6 30\n3 50",
+  "b = 10\nk = 100\n5 10\n4 40\n6 30\n3 50",
+  "b = 25\nk = 62\n8 18\n8 14\n2 21\n6 9\n10 19\n9 7\n8 12\n6 7",
+  "b = 25\nk = 63\n8 18\n8 14\n2 21\n6 9\n10 19\n9 7\n8 12\n6 7"
+ ],
+ "bin-packing": [
+  "b = 10\nk = 2\n4 3 3 4 3 3",
+  "b = 10\nk = 2\n6 1 6 1 6",
+  "b = 20\nk = 4\n7 12 5 9 11 4 8 6 10 7",
+  "b = 20\nk = 4\n7 11 6 7 11 7 6 7 11 7"
+ ],
+ "ilp": [
+  "c = 2 3\nk = 2\n 2  3  <= 4\n-1  2  <= 1",
+  "c = 2 3\nk = 3\n 2  3  <= 4\n-1  2  <= 1",
+  "c = 1 4 1 4\nk = 5\n-1  2  4  4  <= 6\n 4 -2  0 -2  <= 4\n 1  4  1  1  <= 2",
+  "c = 1 4 1 4\nk = 6\n-1  2  4  4  <= 6\n 4 -2  0 -2  <= 4\n 1  4  1  1  <= 2"
+ ]
+};
+
+/* =====================================================================
+   core helpers
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const SVGNS = 'http://www.w3.org/2000/svg';
+const COL = {
+  bg: '#f5ebd9', panel: '#faf6ed', panel2: '#fcf9f3', controls: '#ecddc5',
+  border: '#b9a793', borderSoft: '#d4c5b4', borderStrong: '#8d897c',
+  ink: '#46433a', inkStrong: '#38362e', inkSoft: '#6b675c', inkFaint: '#8b8779',
+  accent: '#902015', accentDark: '#6d180f', accentSoft: '#c28577', tint: '#eedcd3',
+  active: '#cc2f22', examine: '#b07d18', queue: '#2a6a63', relax: '#4a7c3f', inert: '#b6b1a1',
+  edge: '#a8988a', okBg: '#e3ecd8'
+};
+/* colours for "colour classes" (graph colouring, argument overlays, set blobs) */
+const PALETTE = ['#d98c5f', '#6f9fb0', '#e0bd52', '#8fae6b', '#a585b5', '#c97a9a', '#7d8fc9', '#b0a07a'];
+const palette = i => PALETTE[i % PALETTE.length];
+
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(SVGNS, tag);
+  if (attrs) for (const k in attrs) if (attrs[k] !== undefined && attrs[k] !== null) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function txt(parent, x, y, s, attrs) {
+  const t = el('text', Object.assign({ x, y, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 15, fill: COL.ink }, attrs || {}), parent);
+  t.textContent = s;
+  return t;
+}
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+const fmtNum = x => (Math.round(x * 1000) / 1000).toString();
+
+/* ---------- MathJax: typesetting HTML and TeX labels inside SVG drawings ---------- */
+let mjReady = false;
+let mjQueue = Promise.resolve();
+function typeset(node) {
+  if (!mjReady) return;
+  mjQueue = mjQueue.then(() => { MathJax.typesetClear([node]); return MathJax.typesetPromise([node]); }).catch(e => console.warn(e));
+}
+function setMath(node, html) {
+  if (node._last === html && node._typeset === mjReady) return;
+  if (mjReady) { try { MathJax.typesetClear([node]); } catch (e) { } }
+  node.innerHTML = html; node._last = html; node._typeset = mjReady;
+  typeset(node);
+}
+const texCache = new Map();
+/* a TeX label as an <svg> nested into the drawing; sized in px so that 1em = fs */
+function texLabel(parent, tex, x, y, opt) {
+  opt = opt || {};
+  const fs = opt.fs || 16, anchor = opt.anchor || 'middle', color = opt.color || COL.ink;
+  if (!mjReady) {
+    const plain = tex.replace(/\\[a-zA-Z]+/g, s => ({ '\\le': '≤', '\\ge': '≥', '\\sum': 'Σ', '\\cdot': '·', '\\ldots': '…' }[s] || ''))
+                     .replace(/[{}_^]/g, '').replace(/\\,|\\;|\\:/g, ' ');
+    const t = txt(parent, x, y, plain, { 'font-size': fs, fill: color, 'font-style': 'italic',
+      'text-anchor': anchor === 'start' ? 'start' : anchor === 'end' ? 'end' : 'middle' });
+    if (opt.cls) t.setAttribute('class', opt.cls);
+    return { w: plain.length * fs * 0.5, h: fs };
+  }
+  let base = texCache.get(tex);
+  if (!base) {
+    const c = MathJax.tex2svg(tex, { display: false });
+    base = [...c.querySelectorAll('svg')].filter(x => x.getAttribute('viewBox'));   // MathJax 4 may split inline math into chunks
+    texCache.set(tex, base);
+  }
+  const parts = base.map(s => { const vb = s.getAttribute('viewBox').split(/[\s,]+/).map(Number); return { s, vb, w: vb[2] / 1000 * fs, h: vb[3] / 1000 * fs, top: vb[1] / 1000 * fs }; });
+  const w = parts.reduce((t, p) => t + p.w, 0), h = Math.max(...parts.map(p => p.h));
+  let X = x;
+  if (anchor === 'middle') X = x - w / 2; else if (anchor === 'end') X = x - w;
+  const grp = el('g', { color, class: opt.cls || null }, parent);
+  for (const p of parts) {
+    const s = p.s.cloneNode(true);
+    // baseline at y + 0.32 fs, which centres lowercase-height math on y
+    const yy = opt.baseline ? y + p.top : y + p.top + 0.32 * fs;
+    s.setAttribute('x', X); s.setAttribute('y', yy);
+    s.setAttribute('width', p.w); s.setAttribute('height', p.h);
+    s.removeAttribute('style'); s.style.overflow = 'visible';
+    grp.appendChild(s);
+    X += p.w;
+  }
+  return { w, h };
+}
+
+/* =====================================================================
+   input parsing: "name = value" parameter lines + the body,
+   '#' starts a comment line
+   ===================================================================== */
+function splitInput(text) {
+  const params = {}, lines = [];
+  text.split('\n').forEach((raw, lineNo) => {
+    const line = raw.replace(/\r/g, '').trim();
+    if (!line || line.startsWith('#') || line.startsWith('%') || line.startsWith('//')) return;
+    const m = line.match(/^([A-Za-z][\w]*)\s*[=:]\s*(.*)$/);
+    if (m && !/^\d/.test(line)) { params[m[1]] = m[2].trim(); return; }
+    lines.push({ toks: line.split(/[\s,;]+/).filter(s => s.length), raw: line, lineNo: lineNo + 1 });
+  });
+  return { params, lines };
+}
+function intParam(params, name, opts) {
+  opts = opts || {};
+  if (!(name in params)) {
+    if ('def' in opts) return opts.def;
+    throw new Error(`Missing parameter line "${name} = …".`);
+  }
+  const v = Number(params[name]);
+  if (!Number.isInteger(v)) throw new Error(`Parameter ${name} must be an integer, got "${params[name]}".`);
+  if (opts.min !== undefined && v < opts.min) throw new Error(`Parameter ${name} must be at least ${opts.min}.`);
+  return v;
+}
+function intList(s, what) {
+  const toks = s.split(/[\s,;]+/).filter(t => t.length);
+  return toks.map(t => { const v = Number(t); if (!Number.isInteger(v)) throw new Error(`${what}: "${t}" is not an integer.`); return v; });
+}
+function toInt(tok, what) {
+  const v = Number(tok);
+  if (!Number.isInteger(v)) throw new Error(`${what}: "${tok}" is not an integer.`);
+  return v;
+}
+
+/* algs4 Graph / Digraph format: V, E, E edge lines; optionally V lines "x y" (y pointing down) */
+function parseGraph(text, opts) {
+  const { params, lines } = splitInput(text);
+  if (lines.length === 0) throw new Error('Empty input.');
+  let li = 0, n, m;
+  if (lines[0].toks.length >= 2) { n = toInt(lines[0].toks[0], 'V'); m = toInt(lines[0].toks[1], 'E'); li = 1; }
+  else { n = toInt(lines[0].toks[0], 'V'); if (lines.length < 2) throw new Error('Expected E on the second line.'); m = toInt(lines[1].toks[0], 'E'); li = 2; }
+  if (n < 1) throw new Error('V must be at least 1.');
+  if (n > 30) throw new Error('This page is for small examples: at most 30 vertices.');
+  if (m < 0) throw new Error('E must be non-negative.');
+  const edges = [], seen = new Set();
+  for (let i = 0; i < m; i++) {
+    const L = lines[li++];
+    if (!L) throw new Error(`Expected ${m} edge lines, found only ${i}.`);
+    if (L.toks.length < 2) throw new Error(`Line ${L.lineNo}: an edge needs two vertices.`);
+    const u = toInt(L.toks[0], `Line ${L.lineNo}`), v = toInt(L.toks[1], `Line ${L.lineNo}`);
+    if (u < 0 || u >= n || v < 0 || v >= n) throw new Error(`Line ${L.lineNo}: vertex out of range 0…${n - 1}.`);
+    if (u === v) throw new Error(`Line ${L.lineNo}: self-loops are not allowed here.`);
+    const key = opts.directed ? u + '>' + v : Math.min(u, v) + '-' + Math.max(u, v);
+    if (seen.has(key)) continue;                     // parallel edges carry no information here
+    seen.add(key); edges.push([u, v]);
+  }
+  const rest = lines.length - li;
+  let pos = null;
+  if (rest > 0) {
+    if (rest !== n) throw new Error(`After the edges, expected nothing or exactly ${n} coordinate lines "x y", found ${rest}.`);
+    pos = [];
+    for (let i = 0; i < n; i++) {
+      const L = lines[li++], x = Number(L.toks[0]), y = Number(L.toks[1]);
+      if (L.toks.length < 2 || !Number.isFinite(x) || !Number.isFinite(y)) throw new Error(`Line ${L.lineNo}: expected coordinates "x y" of vertex ${i}.`);
+      pos.push([x, y]);
+    }
+  } else pos = circlePos(n);
+  const g = { n, edges, pos, directed: !!opts.directed, given: !!rest };
+  if (opts.needK) g.k = intParam(params, 'k', { min: 0 });
+  g.A = adjSets(g);
+  g.has = opts.directed ? (u, v) => g.A[u].has(v) : (u, v) => g.A[u].has(v);
+  return g;
+}
+function circlePos(n) {
+  return Array.from({ length: n }, (_, i) => [Math.cos(-Math.PI / 2 + 2 * Math.PI * i / n), Math.sin(-Math.PI / 2 + 2 * Math.PI * i / n)]);
+}
+
+/* fit raw coordinates into a box (keeping the aspect ratio) */
+function fitPos(pos, x0, y0, W, H, maxScale) {
+  let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+  for (const [x, y] of pos) { minx = Math.min(minx, x); maxx = Math.max(maxx, x); miny = Math.min(miny, y); maxy = Math.max(maxy, y); }
+  const w = maxx - minx, h = maxy - miny;
+  let s = Math.min(w > 1e-9 ? W / w : Infinity, h > 1e-9 ? H / h : Infinity);
+  if (!Number.isFinite(s)) s = 1;
+  if (maxScale) s = Math.min(s, maxScale);
+  const ox = x0 + (W - w * s) / 2, oy = y0 + (H - h * s) / 2;
+  return pos.map(([x, y]) => [ox + (x - minx) * s, oy + (y - miny) * s]);
+}
+
+/* =====================================================================
+   generic graph drawing
+   ===================================================================== */
+const R = 15;     // vertex radius in px (= CSS px, the SVG is not scaled)
+
+function edgeGeom(P, u, v, curve) {
+  const [x1, y1] = P[u], [x2, y2] = P[v];
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1;
+  const nx = -dy / L, ny = dx / L;
+  const cx = (x1 + x2) / 2 + nx * curve, cy = (y1 + y2) / 2 + ny * curve;
+  const a1 = Math.atan2(cy - y1, cx - x1), a2 = Math.atan2(cy - y2, cx - x2);
+  const sx = x1 + R * Math.cos(a1), sy = y1 + R * Math.sin(a1);
+  const ex = x2 + R * Math.cos(a2), ey = y2 + R * Math.sin(a2);
+  const d = curve ? `M${sx},${sy} Q${cx},${cy} ${ex},${ey}` : `M${sx},${sy} L${ex},${ey}`;
+  const mx = curve ? 0.25 * sx + 0.5 * cx + 0.25 * ex : (sx + ex) / 2, my = curve ? 0.25 * sy + 0.5 * cy + 0.25 * ey : (sy + ey) / 2;
+  return { d, ex, ey, ang: Math.atan2(ey - cy, ex - cx), mx, my, full: curve ? `M${x1},${y1} Q${cx},${cy} ${x2},${y2}` : `M${x1},${y1} L${x2},${y2}` };
+}
+function arrowHead(parent, x, y, ang, color, size) {
+  size = size || 10;
+  const a = 0.42;
+  const p = [[x, y], [x - size * Math.cos(ang - a), y - size * Math.sin(ang - a)], [x - size * Math.cos(ang + a), y - size * Math.sin(ang + a)]];
+  el('path', { d: `M${p[0]} L${p[1]} L${p[2]} Z`, fill: color }, parent);
+}
+/* draws edges (with style callback) and vertices (with style callback); returns geometry helpers */
+function drawGraph(svg, g, P, o) {
+  o = o || {};
+  const gE = el('g', null, svg), gO = el('g', null, svg), gV = el('g', null, svg);
+  const pairSet = new Set(g.edges.map(([u, v]) => u + '>' + v));
+  const curveOf = (u, v) => (g.directed && pairSet.has(v + '>' + u)) ? 16 : 0;
+  // argument overlay underneath everything
+  if (o.overlay) drawOverlay(svg, g, P, o.overlay, gE, curveOf);
+  for (const [u, v] of g.edges) {
+    const st = (o.edgeStyle && o.edgeStyle(u, v)) || {};
+    const geo = edgeGeom(P, u, v, curveOf(u, v));
+    if (st.under) el('path', { d: g.directed ? geo.d : geo.full, stroke: st.under, 'stroke-width': st.underW || 9, fill: 'none', 'stroke-linecap': 'round', opacity: st.underO || 1 }, gE);
+    const color = st.stroke || COL.edge;
+    el('path', { d: g.directed ? geo.d : geo.full, stroke: color, 'stroke-width': st.width || 1.8, fill: 'none',
+                 'stroke-dasharray': st.dash || null, opacity: st.opacity || 1, 'stroke-linecap': 'round' }, gE);
+    if (g.directed) arrowHead(gE, geo.ex, geo.ey, geo.ang, color, st.width > 2.5 ? 12 : 10);
+    if (st.label !== undefined) edgeLabel(gE, geo.mx, geo.my, st.label, st.labelColor);
+  }
+  if (o.extra) for (const x of o.extra) {
+    const geo = edgeGeom(P, x.u, x.v, x.curve !== undefined ? x.curve : curveOf(x.u, x.v));
+    el('path', { d: x.arrow ? geo.d : geo.full, stroke: x.stroke, 'stroke-width': x.width || 2.5, fill: 'none', 'stroke-dasharray': x.dash || null,
+                 'stroke-linecap': 'round', opacity: x.opacity || 1 }, gO);
+    if (x.arrow) arrowHead(gO, geo.ex, geo.ey, geo.ang, x.stroke, 12);
+    if (x.label !== undefined) edgeLabel(gO, geo.mx, geo.my, x.label, x.labelColor);
+  }
+  for (let v = 0; v < g.n; v++) {
+    const st = (o.vertexStyle && o.vertexStyle(v)) || {};
+    const [x, y] = P[v];
+    const grp = el('g', { class: o.onVertex ? 'clk' : null }, gV);
+    if (st.ring) el('circle', { cx: x, cy: y, r: R + 5, fill: 'none', stroke: st.ring, 'stroke-width': 2.5, 'stroke-dasharray': st.ringDash || null }, grp);
+    el('circle', { cx: x, cy: y, r: R, fill: st.fill || COL.panel2, stroke: st.stroke || COL.inkSoft, 'stroke-width': st.sw || 1.6 }, grp);
+    txt(grp, x, y + 0.5, st.label !== undefined ? st.label : String(v), { 'font-size': 14.5, 'font-weight': 'bold', fill: st.text || COL.inkStrong });
+    if (st.badge !== undefined) {
+      const bx = x + R * 0.85, by = y - R * 0.85;
+      el('circle', { cx: bx, cy: by, r: 8.5, fill: st.badgeFill || COL.accentDark, stroke: COL.panel2, 'stroke-width': 1.2 }, grp);
+      txt(grp, bx, by + 0.5, st.badge, { 'font-size': 10.5, fill: COL.panel2, 'font-weight': 'bold' });
+    }
+    if (o.onVertex) {
+      grp.addEventListener('click', ev => { ev.stopPropagation(); o.onVertex(v, ev); });
+      grp.addEventListener('contextmenu', ev => { ev.preventDefault(); ev.stopPropagation(); o.onVertex(v, ev, true); });
+    }
+  }
+  return { curveOf };
+}
+function edgeLabel(parent, x, y, s, color) {
+  txt(parent, x, y, s, { 'font-size': 13, fill: color || COL.inkSoft, stroke: COL.bg, 'stroke-width': 4, 'paint-order': 'stroke', 'font-weight': 'bold' });
+}
+/* argument overlay: coloured halos for vertex groups, emphasised edges / pairs */
+function drawOverlay(svg, g, P, ov, gE, curveOf) {
+  const gH = el('g', null, gE);
+  if (ov.edges) for (const e of ov.edges) {
+    const geo = edgeGeom(P, e.u, e.v, g.directed ? curveOf(e.u, e.v) : 0);
+    el('path', { d: geo.full, stroke: e.color || COL.accentSoft, 'stroke-width': e.width || 10, fill: 'none', 'stroke-linecap': 'round',
+                 opacity: e.opacity || 0.55, 'stroke-dasharray': e.dash || null }, gH);
+  }
+  if (ov.groups) ov.groups.forEach((grp, gi) => {
+    for (const v of grp.vs) el('circle', { cx: P[v][0], cy: P[v][1], r: R + 8, fill: grp.color || palette(gi), opacity: 0.55 }, gH);
+  });
+}
+
+/* ---------- small formatting helpers for TeX ---------- */
+const texSet = (arr, f) => '\\{' + arr.map(f || (x => x)).join(', ') + '\\}';
+const texVec = arr => '(' + arr.join(', ') + ')';
+function texMatrix(M, opts) {
+  opts = opts || {};
+  return '\\begin{pmatrix}' + M.map(r => r.join(' & ')).join(' \\\\ ') + '\\end{pmatrix}';
+}
+const ok = b => b ? '✓' : '✗';
+
+/* =====================================================================
+   graph problems
+   ===================================================================== */
+const GRAPH_FMT = `<b>Format</b> (algs4 <code>Graph</code>): number of vertices <code>V</code>, number of edges <code>E</code>,
+  then one edge <code>u v</code> per line (vertices <code>0 … V−1</code>). Optionally, <code>V</code> more lines <code>x y</code>
+  give the drawing coordinates (y pointing down; e.g. exported from the graph editor). Lines <code>k = 3</code> set parameters,
+  <code>labels = v1 v2 -x3 …</code> renames vertices (<code>-x3</code> is shown as \\(\\neg x_3\\)); <code>#</code> starts a comment.`;
+
+/* "x13" -> x_{13}, "-x3"/"!x3" -> \neg x_3, "v1" -> v_1 */
+function labelTex(s) {
+  let neg = false;
+  if (/^[-!~¬]/.test(s)) { neg = true; s = s.slice(1); }
+  let m = s.match(/^([A-Za-z]+)_?\{?(\d+)\}?$/);
+  let t = m ? `${m[1].length > 1 ? '\\mathit{' + m[1] + '}' : m[1]}_{${m[2]}}` : (/^\d+$/.test(s) ? s : `\\mathit{${s.replace(/_/g, '\\_')}}`);
+  return (neg ? '\\neg ' : '') + t;
+}
+function parseGraphP(text, directed, needK) {
+  const g = parseGraph(text, { directed, needK });
+  const { params } = splitInput(text);
+  if (params.labels) {
+    const L = params.labels.split(/[\s,;]+/).filter(s => s);
+    if (L.length !== g.n) throw new Error(`labels: expected ${g.n} labels, got ${L.length}.`);
+    g.labels = L.map(labelTex);
+  }
+  return g;
+}
+const vtex = (g, v) => g.labels ? g.labels[v] : String(v);
+function graphFormal(g, extra) {
+  const n = g.n;
+  let h = '';
+  if (g.labels) h += `<div class="frow">\\(V = ${texSet(g.labels)}\\)</div>`;
+  else h += `<div class="frow">\\(V = \\{0, 1, \\ldots, ${n - 1}\\}\\)\\(\\quad (|V| = ${n})\\)</div>`;
+  const es = g.edges.map(([u, v]) => g.directed ? `\\((${vtex(g, u)}, ${vtex(g, v)})\\)` : `\\(\\{${vtex(g, u)}, ${vtex(g, v)}\\}\\)`);
+  h += `<div class="frow">\\(E = \\{\\)${es.join(', ')}\\(\\}\\)\\(\\quad (|E| = ${g.edges.length})\\)</div>`;
+  if (g.k !== undefined) h += `<div class="frow">\\(k = ${g.k}\\)</div>`;
+  return h + (extra || '');
+}
+function graphPos(g, W, H, top) {
+  const pad = R + 26;
+  return fitPos(g.pos, pad, pad + (top || 0), Math.max(10, W - 2 * pad), Math.max(10, H - 2 * pad - (top || 0)));
+}
+/* draw the vertex label as TeX if the graph carries labels */
+function vlabelStyle(g, v, st) {
+  if (g.labels) { st.label = ''; st.tex = g.labels[v]; }
+  return st;
+}
+function drawGraphL(svg, g, P, o) {
+  const r = drawGraph(svg, g, P, Object.assign({}, o, {
+    vertexStyle: v => vlabelStyle(g, v, (o.vertexStyle && o.vertexStyle(v)) || {})
+  }));
+  if (g.labels) {
+    const gl = el('g', { 'pointer-events': 'none' }, svg);
+    for (let v = 0; v < g.n; v++) {
+      const st = (o.vertexStyle && o.vertexStyle(v)) || {};
+      texLabel(gl, g.labels[v], P[v][0], P[v][1], { fs: g.labels[v].length > 6 ? 12.5 : 14, color: st.text || COL.inkStrong });
+    }
+  }
+  return r;
+}
+function setToggle(S, v) { const T = new Set(S); if (T.has(v)) T.delete(v); else T.add(v); return T; }
+const SEL = { fill: COL.accent, stroke: COL.accentDark, text: COL.panel2, sw: 2 };
+const sortedArr = S => [...S].sort((a, b) => a - b);
+const tooBig = (what) => ({ unknown: true, why: what });
+
+/* ---------------- Vertex Cover ---------------- */
+const P_VC = {
+  id: 'vertex-cover', name: 'Vertex Cover',
+  def: { given: 'A (simple, undirected) graph \\(G = (V,E)\\), \\(E \\subseteq \\binom{V}{2}\\), threshold \\(k\\).',
+         goal: '\\(\\exists S \\subseteq V\\) with \\(|S| \\le k\\), such that \\(\\forall e\\in E : S\\cap e \\neq \\emptyset\\)?',
+         gl: 'Goal', note: 'Intuitively: a small subset \\(S\\) of vertices such that every edge is <i>covered</i> by \\(S\\).' },
+  hint: 'Click vertices to put them into \\(S\\) (click again to remove).',
+  fmt: GRAPH_FMT,
+  parse: t => parseGraphP(t, false, true),
+  formal: g => graphFormal(g),
+  solve(g) {
+    if (g.n > 30) return tooBig('graph');
+    const comp = complementAdj(g.n, g.A);
+    const kk = Math.max(0, g.n - g.k);
+    const r = cliquesAtLeast(g.n, comp, kk);          // vertex covers of size <= k  <->  independent sets of size >= n-k
+    const toVC = I => { const s = new Set(I); return [...Array(g.n).keys()].filter(v => !s.has(v)); };
+    return { yes: r.count > 0, certs: r.certs.map(toVC), count: r.count, opt: g.n - r.opt, optCert: toVC(r.optCert) };
+  },
+  empty: () => new Set(), fromCert: (g, c) => new Set(c), best: (g, s) => new Set(s.optCert),
+  draw(svg, c) {
+    const g = c.inst, S = c.cand, P = graphPos(g, c.W, c.H);
+    drawGraphL(svg, g, P, {
+      overlay: c.overlay,
+      edgeStyle: (u, v) => (S.has(u) || S.has(v)) ? { stroke: COL.accentSoft, width: 2.6 } : { stroke: COL.active, width: 2.6, dash: '6 4' },
+      vertexStyle: v => S.has(v) ? SEL : {},
+      onVertex: v => c.update(setToggle(S, v))
+    });
+  },
+  verify(g, S) {
+    const unc = g.edges.filter(([u, v]) => !S.has(u) && !S.has(v));
+    return { rows: [
+      [S.size <= g.k, `\\(|S| = ${S.size} \\wrel\\le k = ${g.k}\\)`],
+      [unc.length === 0, unc.length === 0 ? 'every edge has an endpoint in \\(S\\)' :
+        `${unc.length} edge${unc.length > 1 ? 's' : ''} not covered (dashed), e.g. \\(\\{${vtex(g, unc[0][0])}, ${vtex(g, unc[0][1])}\\}\\)`]
+    ] };
+  },
+  facts: (g, s) => `A smallest vertex cover has \\(${s.opt}\\) vertices; with \\(k = ${g.k}\\) the answer is <b>${s.opt <= g.k ? 'yes' : 'no'}</b>.` +
+    (s.yes ? ` Exhaustive search finds ${s.count}${s.count >= CAP ? '+' : ''} vertex cover${s.count > 1 ? 's' : ''} of size exactly \\(${Math.max(0, Math.min(g.k, g.n))}\\).` : ''),
+  certName: 'vertex cover'
+};
+
+/* ---------------- Dominating Set ---------------- */
+const P_DS = {
+  id: 'dominating-set', name: 'Dominating Set',
+  def: { given: 'graph \\(G=(V,E)\\) and \\(k\\in \\N\\)',
+         goal: '\\(\\exists V\' \\subseteq V \\wwrel: |V\'| \\le k \\wbin\\wedge \\forall v\\in V : \\bigl( v \\in V\' \\bin \\vee \\exists u\\in N(v) : u \\in V\' \\bigr)\\)',
+         note: '\\(N(v)\\) is the set of neighbours of \\(v\\).' },
+  hint: 'Click vertices to put them into \\(V\'\\). Shaded vertices are dominated; red rings mark vertices not yet dominated.',
+  fmt: GRAPH_FMT,
+  parse: t => parseGraphP(t, false, true),
+  formal: g => graphFormal(g),
+  solve(g) {
+    if (g.n > 24) return tooBig('graph');
+    const r = domSets(g.n, g.A, g.k);
+    return { yes: r.count > 0, certs: r.certs, count: r.count, opt: r.opt, optCert: r.optCert };
+  },
+  empty: () => new Set(), fromCert: (g, c) => new Set(c), best: (g, s) => new Set(s.optCert),
+  dominated(g, S) { const D = new Set(S); for (const v of S) for (const u of g.A[v]) D.add(u); return D; },
+  draw(svg, c) {
+    const g = c.inst, S = c.cand, P = graphPos(g, c.W, c.H), D = this.dominated(g, S);
+    drawGraphL(svg, g, P, {
+      overlay: c.overlay,
+      edgeStyle: (u, v) => (S.has(u) || S.has(v)) ? { stroke: COL.accentSoft, width: 2.8 } : {},
+      vertexStyle: v => S.has(v) ? SEL : D.has(v) ? { fill: COL.tint, stroke: COL.accentSoft } : { ring: S.size ? COL.active : null, ringDash: '4 3' },
+      onVertex: v => c.update(setToggle(S, v))
+    });
+  },
+  verify(g, S) {
+    const D = this.dominated(g, S), und = [...Array(g.n).keys()].filter(v => !D.has(v));
+    return { rows: [
+      [S.size <= g.k, `\\(|V'| = ${S.size} \\wrel\\le k = ${g.k}\\)`],
+      [und.length === 0, und.length === 0 ? 'every vertex is in \\(V\'\\) or has a neighbour in \\(V\'\\)' :
+        `not dominated: \\(${texSet(und.slice(0, 8).map(v => vtex(g, v)))}\\)${und.length > 8 ? ' …' : ''}`]
+    ] };
+  },
+  facts: (g, s) => `A smallest dominating set has \\(\\gamma(G) = ${s.opt}\\) vertices (exhaustive search); with \\(k = ${g.k}\\) the answer is <b>${s.opt <= g.k ? 'yes' : 'no'}</b>.` +
+    (s.yes ? ` There are ${s.count}${s.count >= CAP ? '+' : ''} dominating sets with at most \\(k\\) vertices.` : '')
+};
+
+/* ---------------- Hamiltonian Cycle (both versions) ---------------- */
+function hcProblem(directed) {
+  return {
+    id: directed ? 'ham-cycle-directed' : 'ham-cycle', name: 'Hamiltonian Cycle', sub: directed ? 'directed' : 'undirected',
+    def: { given: 'graph \\(G=(V,E)\\) \\qquad (directed and undirected version)'.replace('\\qquad', '\\(\\qquad\\)'),
+           goal: 'Is there a vertex-simple cycle in \\(G\\) of length \\(|V|\\)?',
+           note: directed ? 'This page shows the <b>directed</b> version: the cycle must follow the arcs in their direction.'
+                          : 'This page shows the <b>undirected</b> version.' },
+    hint: 'Click vertices in the order of your cycle (numbers show the order). Click the last vertex again to undo, or an earlier one to cut back to it.',
+    fmt: GRAPH_FMT.replace('algs4 <code>Graph</code>', directed ? 'algs4 <code>Digraph</code>: edge <code>u v</code> is the arc u → v' : 'algs4 <code>Graph</code>'),
+    parse: t => parseGraphP(t, directed, false),
+    formal: g => graphFormal(g),
+    solve(g) {
+      if (g.n > 22) return tooBig('graph');
+      const r = hamCycles(g.n, g.A, directed, g.n <= 13);
+      return { yes: r.count > 0, certs: r.certs, count: r.count, longest: r.longest };
+    },
+    empty: () => [], fromCert: (g, c) => c.slice(), best: (g, s) => s.longest ? s.longest.slice() : null,
+    bestName: 'a longest cycle',
+    draw(svg, c) {
+      const g = c.inst, seq = c.cand, P = graphPos(g, c.W, c.H);
+      const pos = new Map(seq.map((v, i) => [v, i]));
+      const extra = [];
+      const used = new Set();
+      const step = (a, b) => {
+        if (g.A[a].has(b)) { used.add(a + '>' + b); if (!directed) used.add(b + '>' + a); }
+        else extra.push({ u: a, v: b, stroke: COL.active, width: 2.5, dash: '6 5', arrow: directed, curve: 0 });
+      };
+      for (let i = 0; i + 1 < seq.length; i++) step(seq[i], seq[i + 1]);
+      if (seq.length === g.n && g.n > 1) step(seq[g.n - 1], seq[0]);
+      drawGraphL(svg, g, P, {
+        overlay: c.overlay, extra,
+        edgeStyle: (u, v) => used.has(u + '>' + v) ? { stroke: COL.accent, width: 4 } : {},
+        vertexStyle: v => pos.has(v) ? Object.assign({}, pos.get(v) === seq.length - 1 && seq.length < g.n ? { fill: COL.accentSoft, stroke: COL.accentDark, text: COL.panel2, sw: 2 } : SEL, { badge: pos.get(v) + 1 }) : {},
+        onVertex: v => {
+          if (!pos.has(v)) c.update([...seq, v]);
+          else if (pos.get(v) === seq.length - 1) c.update(seq.slice(0, -1));
+          else c.update(seq.slice(0, pos.get(v) + 1));
+        }
+      });
+    },
+    verify(g, seq) {
+      const n = g.n, br = [];
+      for (let i = 0; i + 1 < seq.length; i++) if (!g.A[seq[i]].has(seq[i + 1])) br.push([seq[i], seq[i + 1]]);
+      const closed = seq.length === n && g.A[seq[n - 1]].has(seq[0]);
+      const pr = (a, b) => directed ? `(${vtex(g, a)}, ${vtex(g, b)})` : `\\{${vtex(g, a)}, ${vtex(g, b)}\\}`;
+      return { rows: [
+        [seq.length === n, `the cycle visits \\(${seq.length}\\) distinct vertices; needed: \\(|V| = ${n}\\)`],
+        [br.length === 0 && seq.length > 0, br.length === 0 ? (seq.length ? `consecutive vertices are joined by ${directed ? 'arcs' : 'edges'}` : 'no vertices chosen yet')
+          : `missing ${directed ? 'arc' : 'edge'} \\(${pr(br[0][0], br[0][1])}\\notin E\\)${br.length > 1 ? ` (and ${br.length - 1} more)` : ''}`],
+        [closed, seq.length < n ? 'closing ' + (directed ? 'arc' : 'edge') + ' back to the start: not yet' :
+          `closing ${directed ? 'arc' : 'edge'} \\(${pr(seq[n - 1], seq[0])}\\) ${closed ? '\\(\\in E\\)' : '\\(\\notin E\\)'}`]
+      ] };
+    },
+    facts: (g, s) => s.yes ? `Exhaustive search: \\(G\\) has ${s.count}${s.count >= CAP ? '+' : ''} Hamiltonian cycle${s.count > 1 ? 's' : ''}${directed ? '' : ' (each counted once, regardless of direction)'}.`
+      : `Exhaustive search: no Hamiltonian cycle.` + (s.longest ? ` A longest cycle has \\(${s.longest.length}\\) of the \\(${g.n}\\) vertices.` : '')
+  };
+}
+const P_HC = hcProblem(false), P_DHC = hcProblem(true);
+
+/* ---------------- Clique & Independent Set ---------------- */
+const P_CLIQUE = {
+  id: 'clique', name: 'Clique',
+  def: { given: 'graph \\(G=(V,E)\\) and \\(k\\in \\N\\)',
+         goal: '\\(\\exists V\' \\subseteq V \\wwrel: |V\'| \\ge k \\wbin\\wedge \\forall u,v\\in V\' : \\{u,v\\} \\in E\\)',
+         note: '(for \\(u \\ne v\\))' },
+  hint: 'Click vertices to put them into \\(V\'\\). Dashed red lines are missing edges between chosen vertices.',
+  fmt: GRAPH_FMT,
+  parse: t => parseGraphP(t, false, true),
+  formal: g => graphFormal(g),
+  solve(g) { const r = cliquesAtLeast(g.n, g.A, g.k); return { yes: r.count > 0, certs: r.certs, count: r.count, opt: r.opt, optCert: r.optCert }; },
+  empty: () => new Set(), fromCert: (g, c) => new Set(c), best: (g, s) => new Set(s.optCert),
+  draw(svg, c) {
+    const g = c.inst, S = c.cand, P = graphPos(g, c.W, c.H), arr = sortedArr(S), extra = [];
+    for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++)
+      if (!g.A[arr[i]].has(arr[j])) extra.push({ u: arr[i], v: arr[j], stroke: COL.active, width: 2.4, dash: '6 5' });
+    drawGraphL(svg, g, P, {
+      overlay: c.overlay, extra,
+      edgeStyle: (u, v) => (S.has(u) && S.has(v)) ? { stroke: COL.accent, width: 4 } : {},
+      vertexStyle: v => S.has(v) ? SEL : {},
+      onVertex: v => c.update(setToggle(S, v))
+    });
+  },
+  verify(g, S) {
+    const arr = sortedArr(S); let miss = 0, pairs = 0, ex = null;
+    for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++) { pairs++; if (!g.A[arr[i]].has(arr[j])) { miss++; ex = ex || [arr[i], arr[j]]; } }
+    return { rows: [
+      [S.size >= g.k, `\\(|V'| = ${S.size} \\wrel\\ge k = ${g.k}\\)`],
+      [miss === 0, miss === 0 ? `all \\(${pairs}\\) pairs in \\(V'\\) are adjacent` : `${miss} of \\(${pairs}\\) pairs not adjacent, e.g. \\(\\{${vtex(g, ex[0])}, ${vtex(g, ex[1])}\\} \\notin E\\)`]
+    ] };
+  },
+  facts: (g, s) => `A largest clique has \\(\\omega(G) = ${s.opt}\\) vertices (exhaustive search); with \\(k = ${g.k}\\) the answer is <b>${s.opt >= g.k ? 'yes' : 'no'}</b>.` +
+    (s.yes ? ` There are ${s.count}${s.count >= CAP ? '+' : ''} cliques with exactly \\(k\\) vertices.` : '')
+};
+const P_IS = {
+  id: 'independent-set', name: 'Independent Set',
+  def: { given: 'graph \\(G=(V,E)\\) and \\(k\\in\\N\\)',
+         goal: '\\(\\exists V\' \\subseteq V \\wwrel: |V\'| \\ge k \\wbin\\wedge \\forall u,v\\in V\' : \\{u,v\\} \\notin E\\)',
+         note: '(for \\(u \\ne v\\))' },
+  hint: 'Click vertices to put them into \\(V\'\\). Red edges join two chosen vertices.',
+  fmt: GRAPH_FMT,
+  parse: t => parseGraphP(t, false, true),
+  formal: g => graphFormal(g),
+  solve(g) { const r = cliquesAtLeast(g.n, complementAdj(g.n, g.A), g.k); return { yes: r.count > 0, certs: r.certs, count: r.count, opt: r.opt, optCert: r.optCert }; },
+  empty: () => new Set(), fromCert: (g, c) => new Set(c), best: (g, s) => new Set(s.optCert),
+  draw(svg, c) {
+    const g = c.inst, S = c.cand, P = graphPos(g, c.W, c.H);
+    drawGraphL(svg, g, P, {
+      overlay: c.overlay,
+      edgeStyle: (u, v) => (S.has(u) && S.has(v)) ? { stroke: COL.active, width: 4.5 } : (S.has(u) || S.has(v)) ? { stroke: COL.accentSoft, width: 2 } : {},
+      vertexStyle: v => S.has(v) ? SEL : {},
+      onVertex: v => c.update(setToggle(S, v))
+    });
+  },
+  verify(g, S) {
+    const bad = g.edges.filter(([u, v]) => S.has(u) && S.has(v));
+    return { rows: [
+      [S.size >= g.k, `\\(|V'| = ${S.size} \\wrel\\ge k = ${g.k}\\)`],
+      [bad.length === 0, bad.length === 0 ? 'no two vertices of \\(V\'\\) are adjacent' : `${bad.length} edge${bad.length > 1 ? 's' : ''} inside \\(V'\\), e.g. \\(\\{${vtex(g, bad[0][0])}, ${vtex(g, bad[0][1])}\\} \\in E\\)`]
+    ] };
+  },
+  facts: (g, s) => `A largest independent set has \\(\\alpha(G) = ${s.opt}\\) vertices (exhaustive search); with \\(k = ${g.k}\\) the answer is <b>${s.opt >= g.k ? 'yes' : 'no'}</b>.` +
+    (s.yes ? ` There are ${s.count}${s.count >= CAP ? '+' : ''} independent sets with exactly \\(k\\) vertices.` : '')
+};
+
+/* ---------------- Graph Coloring ---------------- */
+const P_COL = {
+  id: 'coloring', name: 'Graph Coloring',
+  def: { given: 'graph \\(G=(V,E)\\) and \\(k\\in \\N\\)', goal: '\\(\\exists c : V\\to [k] \\wwrel: \\forall \\{u,v\\} \\in E : c(u) \\ne c(v)\\) ?' },
+  hint: 'Click a vertex to cycle through the colours \\(1, \\ldots, k\\) (right-click: backwards). Red edges join equal colours.',
+  fmt: GRAPH_FMT,
+  parse: t => { const g = parseGraphP(t, false, true); if (g.k < 1) throw new Error('k must be at least 1.'); return g; },
+  formal: g => graphFormal(g),
+  solve(g) {
+    if (g.n > 30) return tooBig('graph');
+    const r = colorings(g.n, g.A, g.k), ch = chromatic(g.n, g.A);
+    return { yes: r.count > 0, certs: r.certs, count: r.count, opt: ch.opt, optCert: ch.optCert };
+  },
+  empty: g => new Array(g.n).fill(0), fromCert: (g, c) => c.slice(),
+  best: (g, s) => s.optCert.map(x => x <= g.k ? x : 0), bestName: 'an optimal colouring, with colours above \\(k\\) removed',
+  draw(svg, c) {
+    const g = c.inst, col = c.cand, P = graphPos(g, c.W, c.H, 26);
+    drawGraphL(svg, g, P, {
+      overlay: c.overlay,
+      edgeStyle: (u, v) => (col[u] && col[u] === col[v]) ? { stroke: COL.active, width: 4.5 } : {},
+      vertexStyle: v => col[v] ? { fill: palette(col[v] - 1), stroke: COL.inkSoft, sw: 1.8, text: COL.inkStrong } : {},
+      onVertex: (v, ev, back) => { const a = col.slice(); a[v] = back ? (a[v] + g.k) % (g.k + 1) : (a[v] + 1) % (g.k + 1); c.update(a); }
+    });
+    // legend: the colour set [k]
+    const lg = el('g', null, svg);
+    txt(lg, 12, 16, 'colours:', { 'text-anchor': 'start', 'font-size': 13, fill: COL.inkSoft });
+    for (let i = 0; i < g.k; i++) {
+      el('circle', { cx: 78 + i * 26, cy: 16, r: 9, fill: palette(i), stroke: COL.inkSoft }, lg);
+      txt(lg, 78 + i * 26, 16.5, String(i + 1), { 'font-size': 11, 'font-weight': 'bold' });
+    }
+  },
+  verify(g, col) {
+    const unc = col.filter(x => !x).length, bad = g.edges.filter(([u, v]) => col[u] && col[u] === col[v]);
+    return { rows: [
+      [unc === 0, unc === 0 ? `every vertex has a colour \\(c(v) \\in [${g.k}]\\)` : `${unc} vertex${unc > 1 ? 'es' : ''} not coloured yet`],
+      [bad.length === 0, bad.length === 0 ? 'adjacent vertices have different colours' : `${bad.length} edge${bad.length > 1 ? 's' : ''} with equal colours, e.g. \\(c(${vtex(g, bad[0][0])}) = c(${vtex(g, bad[0][1])}) = ${col[bad[0][0]]}\\)`]
+    ] };
+  },
+  facts: (g, s) => `The chromatic number is \\(\\chi(G) = ${s.opt}\\) (exhaustive search); with \\(k = ${g.k}\\) the answer is <b>${s.opt <= g.k ? 'yes' : 'no'}</b>.` +
+    (s.yes ? ` Up to renaming the colours, there are ${s.count}${s.count >= CAP ? '+' : ''} proper \\(k\\)-colourings.` : '')
+};
+
+/* ---------------- Max Cut ---------------- */
+const P_MC = {
+  id: 'max-cut', name: 'Max Cut',
+  def: { given: 'graph \\(G=(V,E)\\) and \\(k\\in \\N\\)', goal: '\\(\\exists C \\subset V \\wwrel: \\bigl| E \\cap \\{\\{u,v\\} \\mid u\\in C, v\\notin C\\} \\bigr| \\ge k \\) ?' },
+  hint: 'Click vertices to move them into \\(C\\) (filled) or back. Thick edges are cut, i.e., cross between \\(C\\) and \\(V\\setminus C\\).',
+  fmt: GRAPH_FMT,
+  parse: t => parseGraphP(t, false, true),
+  formal: g => graphFormal(g),
+  solve(g) {
+    if (g.n > 22) return tooBig('graph');
+    const r = maxCuts(g.n, g.edges, g.k);
+    return { yes: r.count > 0, certs: r.certs, count: r.count, opt: r.opt, optCert: r.optCert };
+  },
+  empty: () => new Set(), fromCert: (g, c) => new Set(c), best: (g, s) => new Set(s.optCert), bestName: 'a maximum cut',
+  draw(svg, c) {
+    const g = c.inst, C = c.cand, P = graphPos(g, c.W, c.H);
+    drawGraphL(svg, g, P, {
+      overlay: c.overlay,
+      edgeStyle: (u, v) => (C.has(u) !== C.has(v)) ? { stroke: COL.examine, width: 4.2 } : { stroke: COL.edge, width: 1.6, dash: '3 4' },
+      vertexStyle: v => C.has(v) ? SEL : {},
+      onVertex: v => c.update(setToggle(C, v))
+    });
+  },
+  verify(g, C) {
+    const cut = g.edges.filter(([u, v]) => C.has(u) !== C.has(v)).length;
+    return { rows: [
+      [cut >= g.k, `cut edges: \\(\\bigl|E \\cap \\{\\{u,v\\} \\mid u\\in C, v\\notin C\\}\\bigr| = ${cut} \\wrel\\ge k = ${g.k}\\)`]
+    ] };
+  },
+  facts: (g, s) => `A maximum cut has \\(${s.opt}\\) of the \\(${g.edges.length}\\) edges (exhaustive search over all \\(2^{${g.n - 1}}\\) cuts); with \\(k = ${g.k}\\) the answer is <b>${s.opt >= g.k ? 'yes' : 'no'}</b>.` +
+    (s.yes ? ` ${s.count}${s.count >= CAP ? '+' : ''} cuts (counting \\(C\\) and \\(V\\setminus C\\) once) reach \\(k\\).` : '')
+};
+
+/* ---------------- TSP ---------------- */
+const P_TSP = {
+  id: 'tsp', name: 'Traveling Salesperson (TSP)',
+  def: { given: 'distance matrix \\(D \\in \\N^{n\\times n}\\) and \\(k\\in\\N\\)',
+         goal: 'Is there a permutation \\(\\pi:[n]\\to[n]\\) with \\(\\displaystyle\\sum_{i=1}^{n-1} D_{\\pi(i),\\pi(i+1)} + D_{\\pi(n),\\pi(1)} \\wrel\\le k\\) ?' },
+  hint: 'Click cities in tour order \\(\\pi(1), \\pi(2), \\ldots\\) Click the last city again to undo, or an earlier one to cut back.',
+  fmt: `<b>Format</b>: a line <code>k = …</code>, then <code>n</code>, then the <code>n</code> rows of the distance matrix \\(D\\) (city \\(i\\) = row \\(i\\)).
+    Optionally, <code>n</code> more lines <code>x y</code> place the cities in the drawing (y pointing down); otherwise they sit on a circle.`,
+  parse(text) {
+    const { params, lines } = splitInput(text);
+    if (!lines.length) throw new Error('Empty input.');
+    const n = toInt(lines[0].toks[0], 'n');
+    if (n < 2 || n > 10) throw new Error('n must be between 2 and 10 on this page.');
+    if (lines.length < 1 + n) throw new Error(`Expected ${n} matrix rows.`);
+    const D = [];
+    for (let i = 0; i < n; i++) {
+      const L = lines[1 + i]; if (L.toks.length !== n) throw new Error(`Line ${L.lineNo}: matrix row ${i + 1} needs ${n} entries.`);
+      D.push(L.toks.map(t => { const v = toInt(t, `Line ${L.lineNo}`); if (v < 0) throw new Error(`Line ${L.lineNo}: distances must be in \u2115.`); return v; }));
+    }
+    let pos = null; const rest = lines.length - 1 - n;
+    if (rest) {
+      if (rest !== n) throw new Error(`After the matrix, expected nothing or ${n} coordinate lines.`);
+      pos = lines.slice(1 + n).map(L => [Number(L.toks[0]), Number(L.toks[1])]);
+      if (pos.some(p => !p.every(Number.isFinite))) throw new Error('Bad coordinate line.');
+    } else pos = circlePos(n);
+    const sym = D.every((r, i) => r.every((x, j) => x === D[j][i]));
+    return { n, D, pos, sym, k: intParam(params, 'k', { min: 0 }) };
+  },
+  formal: t => `<div class="frow">\\(n = ${t.n}\\), \\(\\quad D = ${texMatrix(t.D)}\\)</div><div class="frow">\\(k = ${t.k}\\)</div>`,
+  solve(t) {
+    const r = tspTours(t.D, t.k);
+    const lb = t.sym ? Math.ceil(t.D.reduce((s, row, i) => { const a = row.filter((_, j) => j !== i).sort((p, q) => p - q); return s + a[0] + (a[1] || 0); }, 0) / 2) : null;
+    let tours = null;
+    if (t.n <= 6) {
+      const seen = new Set(); tours = [];
+      for (const { t: seq, L } of r.all) {
+        const key = t.sym ? [seq.join(','), [seq[0], ...seq.slice(1).reverse()].join(',')].sort()[0] : seq.join(',');
+        if (seen.has(key)) continue; seen.add(key); tours.push({ seq, L });
+      }
+      tours.sort((a, b) => a.L - b.L);
+    }
+    return { yes: r.count > 0, certs: r.certs, count: r.count, opt: r.opt, optCert: r.optCert, lb, tours };
+  },
+  empty: () => [], fromCert: (t, c) => c.slice(), best: (t, s) => s.optCert.slice(), bestName: 'a shortest tour',
+  draw(svg, c) {
+    const t = c.inst, seq = c.cand, n = t.n, cell = 30;
+    const tw = (n + 1) * cell + 10, side = c.W >= 600;
+    const gw = side ? c.W - tw - 20 : c.W, gh = side ? c.H : Math.max(260, c.H - (n + 1) * cell - 30);
+    const g = { n, edges: [], pos: t.pos, directed: false };
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) g.edges.push([i, j]);
+    const P = graphPos(g, gw, gh);
+    const posI = new Map(seq.map((v, i) => [v, i]));
+    const steps = [];
+    for (let i = 0; i + 1 < seq.length; i++) steps.push([seq[i], seq[i + 1]]);
+    if (seq.length === n) steps.push([seq[n - 1], seq[0]]);
+    const extra = steps.map(([a, b]) => ({ u: a, v: b, stroke: COL.accent, width: 3.6, arrow: true, curve: 0, label: t.D[a][b], labelColor: COL.accent }));
+    drawGraph(svg, g, P, {
+      extra,
+      edgeStyle: (u, v) => ({ stroke: COL.edge, width: 1.2, opacity: 0.45, label: (t.sym && n <= 5 && !steps.some(([a, b]) => (a === u && b === v) || (a === v && b === u))) ? t.D[u][v] : undefined }),
+      vertexStyle: v => Object.assign(posI.has(v) ? Object.assign({}, SEL, { badge: posI.get(v) + 1 }) : {}, { label: String(v + 1) }),
+      onVertex: v => {
+        if (!posI.has(v)) c.update([...seq, v]);
+        else if (posI.get(v) === seq.length - 1) c.update(seq.slice(0, -1));
+        else c.update(seq.slice(0, posI.get(v) + 1));
+      }
+    });
+    // the matrix, with the cells used by the tour highlighted
+    const ox = side ? c.W - tw : (c.W - tw) / 2, oy = side ? Math.max(12, (c.H - (n + 1) * cell) / 2) : gh + 10;
+    const gm = el('g', null, svg), used = new Set(steps.map(([a, b]) => a + ',' + b));
+    texLabel(gm, 'D', ox + cell / 2, oy + cell / 2, { fs: 17 });
+    for (let i = 0; i < n; i++) {
+      txt(gm, ox + (i + 1.5) * cell, oy + cell / 2, String(i + 1), { 'font-size': 13, fill: COL.inkFaint });
+      txt(gm, ox + cell / 2, oy + (i + 1.5) * cell, String(i + 1), { 'font-size': 13, fill: COL.inkFaint });
+      for (let j = 0; j < n; j++) {
+        const u = used.has(i + ',' + j);
+        el('rect', { x: ox + (j + 1) * cell + 1, y: oy + (i + 1) * cell + 1, width: cell - 2, height: cell - 2, rx: 3,
+                     fill: u ? COL.accent : i === j ? COL.controls : COL.panel2, stroke: COL.borderSoft }, gm);
+        txt(gm, ox + (j + 1.5) * cell, oy + (i + 1.5) * cell, String(t.D[i][j]), { 'font-size': 13.5, fill: u ? COL.panel2 : COL.ink, 'font-weight': u ? 'bold' : null });
+      }
+    }
+    return side ? c.H : gh + (n + 1) * cell + 24;
+  },
+  verify(t, seq) {
+    const n = t.n; let L = 0; const parts = [];
+    for (let i = 0; i < seq.length; i++) {
+      if (i + 1 < seq.length || seq.length === n) { const a = seq[i], b = seq[(i + 1) % seq.length]; L += t.D[a][b]; parts.push(t.D[a][b]); }
+    }
+    const piTex = `\\pi = (${seq.map(v => v + 1).join(', ')}${seq.length < n ? (seq.length ? ', ' : '') + '\\ldots' : ''})`;
+    return { rows: [
+      [seq.length === n, seq.length === n ? `\\(${piTex}\\) is a permutation of \\([${n}]\\)` : `\\(${piTex}\\): ${n - seq.length} cit${n - seq.length > 1 ? 'ies' : 'y'} still missing`],
+      [seq.length === n && L <= t.k, seq.length === n ? `tour length \\(${parts.join(' + ')} = ${L} \\wrel\\le k = ${t.k}\\)` : `length so far: \\(${parts.length ? parts.join(' + ') + ' = ' : ''}${L}\\)`]
+    ] };
+  },
+  facts(t, s) {
+    const nt = t.sym ? `(n-1)!/2 = ${[...Array(t.n - 1).keys()].reduce((a, i) => a * (i + 1), 1) / 2}` : `(n-1)! = ${[...Array(t.n - 1).keys()].reduce((a, i) => a * (i + 1), 1)}`;
+    let h = `There are \\(${nt}\\) different tours; the shortest has length \\(${s.opt}\\), so with \\(k = ${t.k}\\) the answer is <b>${s.opt <= t.k ? 'yes' : 'no'}</b>.`;
+    if (s.lb !== null) h += ` (Every tour enters and leaves each city once; half the sum of each city's two cheapest distances gives the lower bound \\(${s.lb}\\).)`;
+    if (s.tours) h += `<table class="tours">` + s.tours.map(x => `<tr class="${x.L === s.opt ? 'best' : ''}"><td>${x.seq.map(v => v + 1).join(' → ')} → ${x.seq[0] + 1}</td><td class="L">${x.L}</td></tr>`).join('') + '</table>';
+    return h;
+  }
+};
+
+/* =====================================================================
+   set problems (Set Cover, Weighted Set Cover, Exact Cover) and Closest String
+   ===================================================================== */
+function setsFmt(weighted, withK) {
+  return `<b>Format</b>: ${withK ? 'a line <code>k = …</code>, ' : ''}${weighted ? 'a line <code>c = c₁ c₂ … cₘ</code> with the costs, ' : ''}then a line
+    <code>n m</code>, then <code>m</code> lines listing the elements of \\(S_1, \\ldots, S_m\\) (from \\([n] = \\{1,\\ldots,n\\}\\); a line <code>-</code> is the empty set).
+    Optionally, <code>n</code> more lines <code>x y</code> place the elements in the plane (y pointing down); the sets are then also drawn as regions.`;
+}
+function parseSets(text, weighted, withK) {
+  const { params, lines } = splitInput(text);
+  if (!lines.length) throw new Error('Empty input.');
+  const n = toInt(lines[0].toks[0], 'n'), m = toInt(lines[0].toks[1] === undefined ? NaN : lines[0].toks[1], 'm');
+  if (n < 1 || n > 30) throw new Error('n must be between 1 and 30 on this page.');
+  if (m < 1 || m > 22) throw new Error('m must be between 1 and 22 on this page.');
+  if (lines.length < 1 + m) throw new Error(`Expected ${m} set lines.`);
+  const sets = [];
+  for (let i = 0; i < m; i++) {
+    const L = lines[1 + i];
+    const elems = L.toks[0] === '-' ? [] : L.toks.map(t => toInt(t, `Line ${L.lineNo}`));
+    for (const e of elems) if (e < 1 || e > n) throw new Error(`Line ${L.lineNo}: element ${e} is not in [${n}].`);
+    sets.push([...new Set(elems)].sort((a, b) => a - b));
+  }
+  let pos = null; const rest = lines.length - 1 - m;
+  if (rest) {
+    if (rest !== n) throw new Error(`After the sets, expected nothing or ${n} coordinate lines "x y".`);
+    pos = lines.slice(1 + m).map(L => [Number(L.toks[0]), Number(L.toks[1])]);
+    if (pos.some(p => !p.every(Number.isFinite))) throw new Error('Bad coordinate line.');
+  }
+  const inst = { n, m, sets, pos };
+  if (weighted) {
+    if (!params.c) throw new Error('Missing the costs line "c = c1 c2 … cm".');
+    inst.c = intList(params.c, 'costs');
+    if (inst.c.length !== m) throw new Error(`Expected ${m} costs, got ${inst.c.length}.`);
+    if (inst.c.some(x => x < 0)) throw new Error('Costs must be in ℕ₀.');
+  }
+  if (withK) inst.k = intParam(params, 'k', { min: 0 });
+  return inst;
+}
+function setsFormal(s) {
+  let h = `<div class="frow">\\(n = ${s.n}\\), \\(\\quad m = ${s.m}\\)</div>`;
+  h += '<div class="frow">' + s.sets.map((S, i) => `\\(S_{${i + 1}} = ${S.length ? texSet(S) : '\\emptyset'}\\)`).join(', ') + '</div>';
+  if (s.c) h += `<div class="frow">\\(c = ${texVec(s.c)}\\)</div>`;
+  if (s.k !== undefined) h += `<div class="frow">\\(k = ${s.k}\\)</div>`;
+  return h;
+}
+function coverCounts(s, I) {
+  const cnt = new Array(s.n + 1).fill(0);
+  for (const i of I) for (const e of s.sets[i]) cnt[e]++;
+  return cnt;
+}
+/* MST over member points, used to draw a set as a "blob" */
+function mstEdges(pts) {
+  const n = pts.length, inT = new Array(n).fill(false), d = new Array(n).fill(Infinity), par = new Array(n).fill(-1), E = [];
+  if (!n) return E;
+  d[0] = 0;
+  for (let it = 0; it < n; it++) {
+    let u = -1; for (let i = 0; i < n; i++) if (!inT[i] && (u < 0 || d[i] < d[u])) u = i;
+    inT[u] = true; if (par[u] >= 0) E.push([par[u], u]);
+    for (let v = 0; v < n; v++) if (!inT[v]) { const dd = Math.hypot(pts[u][0] - pts[v][0], pts[u][1] - pts[v][1]); if (dd < d[v]) { d[v] = dd; par[v] = u; } }
+  }
+  return E;
+}
+function drawSets(svg, c, mode) {
+  const s = c.inst, I = c.cand, cnt = coverCounts(s, I), cell = 25, lw = 52, rw = s.c ? 74 : 44;
+  const mw = lw + s.n * cell + rw, mh = (s.m + 2) * cell + 16;
+  const geo = !!s.pos, side = geo && c.W - mw >= 250;
+  const mx = geo ? (side ? 8 : Math.max(8, (c.W - mw) / 2)) : Math.max(8, (c.W - mw) / 2), my = 10;
+  const gm = el('g', null, svg);
+  const anyChosen = I.size > 0;
+  const bad = e => cnt[e] === 0 ? anyChosen : (mode === 'exact' && cnt[e] > 1);
+  const elemOv = new Map();
+  if (c.overlay && c.overlay.elemGroups) c.overlay.elemGroups.forEach((grp, gi) => grp.es.forEach(e => elemOv.set(e, grp.color || palette(gi))));
+  // header: elements
+  for (let e = 1; e <= s.n; e++) {
+    const x = mx + lw + (e - 0.5) * cell;
+    if (elemOv.has(e)) el('rect', { x: x - cell / 2 + 2, y: my + 1, width: cell - 4, height: cell - 4, rx: 4, fill: elemOv.get(e), opacity: 0.6 }, gm);
+    txt(gm, x, my + cell / 2, String(e), { 'font-size': 13, fill: COL.inkSoft });
+  }
+  if (s.c) texLabel(gm, 'c_i', mx + lw + s.n * cell + rw / 2, my + cell / 2, { fs: 15, color: COL.inkSoft });
+  else texLabel(gm, '|S_i|', mx + lw + s.n * cell + rw / 2, my + cell / 2, { fs: 15, color: COL.inkSoft });
+  for (let i = 0; i < s.m; i++) {
+    const y = my + (i + 1) * cell, on = I.has(i), color = palette(i);
+    const row = el('g', { class: 'clk' }, gm);
+    el('rect', { x: mx, y: y + 1, width: mw, height: cell - 2, rx: 4, fill: on ? color : 'transparent', opacity: on ? 0.32 : 1 }, row);
+    if (on) el('rect', { x: mx + 2, y: y + 3, width: 5, height: cell - 6, rx: 2, fill: color }, row);
+    texLabel(row, `S_{${i + 1}}`, mx + lw / 2, y + cell / 2, { fs: 16, color: on ? COL.inkStrong : COL.ink });
+    for (let e = 1; e <= s.n; e++) {
+      const x = mx + lw + (e - 1) * cell, mem = s.sets[i].includes(e);
+      el('rect', { x: x + 1.5, y: y + 1.5, width: cell - 3, height: cell - 3, rx: 3, fill: mem ? (on ? color : COL.panel2) : 'transparent',
+                   stroke: mem ? (on ? COL.inkSoft : COL.border) : 'none', 'stroke-width': 1 }, row);
+      if (mem) el('circle', { cx: x + cell / 2, cy: y + cell / 2, r: 4.2, fill: on ? COL.inkStrong : COL.inkSoft }, row);
+    }
+    txt(row, mx + lw + s.n * cell + rw / 2, y + cell / 2, String(s.c ? s.c[i] : s.sets[i].length), { 'font-size': 14, fill: on ? COL.inkStrong : COL.inkSoft, 'font-weight': on ? 'bold' : null });
+    row.addEventListener('click', () => c.update(setToggle(I, i)));
+  }
+  // footer: how often each element is covered
+  const fy = my + (s.m + 1) * cell + 6;
+  txt(gm, mx + lw - 8, fy + cell / 2, 'covered', { 'font-size': 11.5, fill: COL.inkFaint, 'text-anchor': 'end' });
+  for (let e = 1; e <= s.n; e++) {
+    const x = mx + lw + (e - 1) * cell, k = cnt[e];
+    el('rect', { x: x + 1.5, y: fy + 1.5, width: cell - 3, height: cell - 3, rx: 3,
+                 fill: bad(e) ? COL.active : k ? COL.okBg : COL.panel2, stroke: COL.borderSoft }, gm);
+    txt(gm, x + cell / 2, fy + cell / 2, String(k), { 'font-size': 13, fill: bad(e) ? COL.panel2 : COL.ink, 'font-weight': 'bold' });
+  }
+  let height = fy + cell + 12;
+  if (geo) {
+    const gx = side ? mx + mw + 24 : 10, gy = side ? 10 : height + 10;
+    const gw = side ? c.W - gx - 10 : c.W - 20, gh = side ? Math.max(c.H - 20, mh) : Math.max(220, c.H - height - 20);
+    const P = fitPos(s.pos, gx + 30, gy + 30, gw - 60, gh - 60);
+    // element spacing -> size of the cells / dots
+    let dmin = Infinity;
+    for (let a = 0; a < s.n; a++) for (let b = a + 1; b < s.n; b++) dmin = Math.min(dmin, Math.hypot(P[a][0] - P[b][0], P[a][1] - P[b][1]));
+    const integral = s.pos.every(([x, y]) => Number.isInteger(x) && Number.isInteger(y));
+    const half = Math.min(integral ? dmin * 0.42 : 13, 30);
+    const gg = el('g', null, svg);
+    for (const i of I) {          // chosen sets as blobs (MST of their elements, thick round strokes)
+      const pts = s.sets[i].map(e => P[e - 1]);
+      const blob = el('g', { opacity: 0.5 }, gg);
+      const w = 2 * half + 6 - (mode === 'exact' ? 0 : (i % 3) * 3);
+      for (const [a, b] of mstEdges(pts)) el('line', { x1: pts[a][0], y1: pts[a][1], x2: pts[b][0], y2: pts[b][1], stroke: palette(i), 'stroke-width': w, 'stroke-linecap': 'round' }, blob);
+      for (const p of pts) el('circle', { cx: p[0], cy: p[1], r: w / 2, fill: palette(i) }, blob);
+    }
+    for (let e = 1; e <= s.n; e++) {
+      const [x, y] = P[e - 1];
+      if (elemOv.has(e)) { if (integral) el('rect', { x: x - half - 4, y: y - half - 4, width: 2 * half + 8, height: 2 * half + 8, rx: 6, fill: elemOv.get(e), opacity: 0.6 }, gg);
+                           else el('circle', { cx: x, cy: y, r: half + 6, fill: elemOv.get(e), opacity: 0.6 }, gg); }
+      const st = { fill: COL.panel2, stroke: bad(e) ? COL.active : COL.inkSoft, 'stroke-width': bad(e) ? 2.6 : 1.4 };
+      if (integral) el('rect', Object.assign({ x: x - half * 0.78, y: y - half * 0.78, width: half * 1.56, height: half * 1.56, rx: 4 }, st), gg);
+      else el('circle', Object.assign({ cx: x, cy: y, r: half }, st), gg);
+      txt(gg, x, y + 0.5, String(e), { 'font-size': 13.5, 'font-weight': 'bold', fill: bad(e) ? COL.active : COL.inkStrong });
+    }
+    height = side ? Math.max(height, gh + 10) : gy + gh;
+  }
+  return height;
+}
+function setsVerifyCover(s, I) {
+  const cnt = coverCounts(s, I), unc = [];
+  for (let e = 1; e <= s.n; e++) if (!cnt[e]) unc.push(e);
+  return { cnt, unc, row: [unc.length === 0, unc.length === 0 ? `\\(\\bigcup_{i\\in I} S_i = [${s.n}]\\)` : `not covered: \\(${texSet(unc.slice(0, 10))}\\)${unc.length > 10 ? ' …' : ''}`] };
+}
+const Iname = I => `\\(I = ${I.size ? texSet(sortedArr(I).map(i => i + 1)) : '\\emptyset'}\\)`;
+
+const P_SC = {
+  id: 'set-cover', name: 'Set Cover',
+  def: { given: '\\(n\\in\\N\\), sets \\(S_1,\\ldots,S_m \\subseteq [n]\\) and \\(k\\in\\N\\)',
+         goal: '\\(\\exists I\\subseteq[m] \\wwrel: \\bigcup_{i\\in I} S_i \\rel= [n] \\wbin\\wedge |I|\\le k\\) ?' },
+  hint: 'Click a row to put the set into \\(I\\). The bottom row counts how often each element is covered.',
+  fmt: setsFmt(false, true),
+  parse: t => parseSets(t, false, true), formal: setsFormal,
+  solve(s) { const r = setCoverAll(s.n, s.sets, null, s.k, false); return { yes: r.count > 0, certs: r.certs, count: r.count, opt: r.opt, optCert: r.optCert }; },
+  empty: () => new Set(), fromCert: (s, c) => new Set(c), best: (s, r) => r.optCert ? new Set(r.optCert) : null, bestName: 'a smallest cover',
+  draw: (svg, c) => drawSets(svg, c, 'cover'),
+  verify(s, I) { return { rows: [[I.size <= s.k, `${Iname(I)}: \\(|I| = ${I.size} \\wrel\\le k = ${s.k}\\)`], setsVerifyCover(s, I).row] }; },
+  facts: (s, r) => r.opt === null ? 'Even all sets together do not cover \\([n]\\).' :
+    `A smallest cover uses \\(${r.opt}\\) sets (exhaustive search over all \\(2^{${s.m}}\\) choices of \\(I\\)); with \\(k = ${s.k}\\) the answer is <b>${r.opt <= s.k ? 'yes' : 'no'}</b>.` +
+    (r.yes ? ` ${r.count}${r.count >= CAP ? '+' : ''} choices of \\(I\\) work.` : '')
+};
+const P_WSC = {
+  id: 'weighted-set-cover', name: 'Weighted Set Cover',
+  def: { given: '\\(n\\in\\N\\), sets \\(S_1,\\ldots,S_m \\subseteq [n]\\), costs \\(c_1,\\ldots,c_m\\in\\N_0\\) and \\(k\\in\\N\\)',
+         goal: '\\(\\exists I\\subseteq[m] \\wwrel:  \\bigcup_{i\\in I} S_i \\rel= [n] \\wbin\\wedge \\sum_{i\\in I} c_i \\rel\\le k\\) ?' },
+  hint: 'Click a row to put the set into \\(I\\). The right column shows the costs \\(c_i\\).',
+  fmt: setsFmt(true, true),
+  parse: t => parseSets(t, true, true), formal: setsFormal,
+  solve(s) { const r = setCoverAll(s.n, s.sets, s.c, s.k, false); return { yes: r.count > 0, certs: r.certs, count: r.count, opt: r.opt, optCert: r.optCert }; },
+  empty: () => new Set(), fromCert: (s, c) => new Set(c), best: (s, r) => r.optCert ? new Set(r.optCert) : null, bestName: 'a cheapest cover',
+  draw: (svg, c) => drawSets(svg, c, 'cover'),
+  verify(s, I) {
+    const arr = sortedArr(I), cost = arr.reduce((a, i) => a + s.c[i], 0);
+    return { rows: [[cost <= s.k, `${Iname(I)}: \\(\\sum_{i\\in I} c_i = ${arr.length ? arr.map(i => s.c[i]).join(' + ') + ' = ' : ''}${cost} \\wrel\\le k = ${s.k}\\)`], setsVerifyCover(s, I).row] };
+  },
+  facts: (s, r) => r.opt === null ? 'Even all sets together do not cover \\([n]\\).' :
+    `A cheapest cover costs \\(${r.opt}\\) and uses \\(${r.optCert.length}\\) sets (exhaustive search); with \\(k = ${s.k}\\) the answer is <b>${r.opt <= s.k ? 'yes' : 'no'}</b>.` +
+    (r.yes ? ` ${r.count}${r.count >= CAP ? '+' : ''} choices of \\(I\\) work.` : '')
+};
+const P_EC = {
+  id: 'exact-cover', name: 'Exact Cover',
+  def: { given: '\\(n\\in\\N\\), sets \\(S_1,\\ldots,S_m \\subseteq [n]\\)',
+         goal: '\\(\\exists I\\subseteq[m] \\wwrel: \\bigcup_{i\\in I} S_i \\rel= [n] \\wbin\\wedge \\sum_{i\\in I} |S_i| = n\\) ?',
+         note: 'The second condition says that the chosen sets are pairwise disjoint: every element is covered <i>exactly once</i>.' },
+  hint: 'Click a row to put the set into \\(I\\). Every element must be covered exactly once (bottom row).',
+  fmt: setsFmt(false, false),
+  parse: t => parseSets(t, false, false), formal: setsFormal,
+  solve(s) { const r = setCoverAll(s.n, s.sets, null, 0, true); return { yes: r.count > 0, certs: r.certs, count: r.count, opt: r.opt, optCert: r.optCert }; },
+  empty: () => new Set(), fromCert: (s, c) => new Set(c), best: (s, r) => new Set(r.optCert), bestName: 'pairwise disjoint sets covering as many elements as possible',
+  draw: (svg, c) => drawSets(svg, c, 'exact'),
+  verify(s, I) {
+    const v = setsVerifyCover(s, I), tot = sortedArr(I).reduce((a, i) => a + s.sets[i].length, 0);
+    const multi = []; for (let e = 1; e <= s.n; e++) if (v.cnt[e] > 1) multi.push(e);
+    return { rows: [v.row, [tot === s.n, `\\(\\sum_{i\\in I} |S_i| = ${tot} \\wrel{${tot === s.n ? '=' : '\\neq'}} n = ${s.n}\\)` + (multi.length ? ` (covered twice: \\(${texSet(multi.slice(0, 8))}\\))` : '')]] };
+  },
+  facts: (s, r) => r.yes ? `Exhaustive search finds ${r.count}${r.count >= CAP ? '+' : ''} exact cover${r.count > 1 ? 's' : ''}.`
+    : `Exhaustive search: no exact cover. Pairwise disjoint sets cover at most \\(${r.opt}\\) of the \\(${s.n}\\) elements.`
+};
+
+/* ---------------- Closest String ---------------- */
+const P_CS = {
+  id: 'closest-string', name: 'Closest String',
+  def: { given: '\\(s_1,\\ldots,s_n \\in \\Sigma^m\\) and \\(k\\in\\N\\)',
+         goal: '\\(\\exists s \\in \\Sigma^m \\wwrel: \\forall i\\in[n] : d_H(s, s_i) \\le k\\) ? \\(\\qquad\\)(\\(d_H\\) Hamming-distance)' },
+  hint: 'Click a letter in row \\(s_i\\) to copy it into \\(s\\) (top row); click a letter of \\(s\\) to cycle through \\(\\Sigma\\). Shaded cells mismatch \\(s\\).',
+  fmt: `<b>Format</b>: a line <code>k = …</code>, optionally <code>Sigma = ACGT</code> (default: the letters that occur), then one string per line, all of the same length \\(m\\).`,
+  parse(text) {
+    const { params, lines } = splitInput(text);
+    const strs = lines.map(L => L.toks.join(''));
+    if (strs.length < 1) throw new Error('Need at least one string.');
+    if (strs.length > 10) throw new Error('At most 10 strings on this page.');
+    const m = strs[0].length;
+    if (strs.some(s => s.length !== m)) throw new Error('All strings must have the same length.');
+    if (m > 16) throw new Error('Strings of length at most 16 on this page.');
+    let sigma = params.Sigma || params.sigma;
+    sigma = sigma ? [...new Set(sigma.replace(/[\s,{}]/g, ''))] : [...new Set(strs.join(''))].sort();
+    for (const s of strs) for (const ch of s) if (!sigma.includes(ch)) throw new Error(`Letter ${ch} is not in Σ.`);
+    return { strs, n: strs.length, m, sigma, k: intParam(params, 'k', { min: 0 }) };
+  },
+  formal: s => `<div class="frow">\\(\\Sigma = ${texSet(s.sigma.map(c => '\\mathtt{' + c + '}'))}\\), \\(\\quad m = ${s.m}\\), \\(\\quad n = ${s.n}\\)</div>` +
+    s.strs.map((x, i) => `<div class="frow">\\(s_{${i + 1}} = \\mathtt{${x}}\\)</div>`).join('') + `<div class="frow">\\(k = ${s.k}\\)</div>`,
+  solve(s) {
+    if (Math.pow(s.sigma.length, s.m) > 5e7) return tooBig('strings');
+    const r = closestStrings(s.strs, s.sigma, s.k);
+    return { yes: r.count > 0, certs: r.certs, count: r.count, opt: r.opt, optCert: r.optCert };
+  },
+  empty: s => new Array(s.m).fill(null), fromCert: (s, c) => c.split(''), best: (s, r) => r.optCert.split(''), bestName: 'a string minimising the largest distance',
+  dist: (s, cand, i) => { let d = 0; for (let j = 0; j < s.m; j++) if (cand[j] !== s.strs[i][j]) d++; return d; },
+  draw(svg, c) {
+    const s = c.inst, cand = c.cand, cell = 30, lw = 44, gap = 14;
+    const gw = lw + s.m * cell + 110;
+    const pdw = (s.n + 1) * 26 + 20;
+    const ox = 10, oy = 14, g = el('g', null, svg);
+    const ovRows = (c.overlay && c.overlay.rows) || null;
+    // candidate row
+    texLabel(g, 's', ox + lw / 2, oy + cell / 2, { fs: 18, color: COL.accent });
+    for (let j = 0; j < s.m; j++) {
+      const x = ox + lw + j * cell, ch = cand[j];
+      const r = el('g', { class: 'clk' }, g);
+      el('rect', { x: x + 1.5, y: oy + 1.5, width: cell - 3, height: cell - 3, rx: 4, fill: ch ? COL.accent : COL.panel2, stroke: ch ? COL.accentDark : COL.border, 'stroke-dasharray': ch ? null : '3 3' }, r);
+      txt(r, x + cell / 2, oy + cell / 2, ch || '·', { 'font-family': 'var(--mono)', 'font-size': 17, fill: ch ? COL.panel2 : COL.inkFaint, 'font-weight': 'bold' });
+      r.addEventListener('click', () => {
+        const a = cand.slice(), idx = a[j] === null ? -1 : s.sigma.indexOf(a[j]);
+        a[j] = idx + 1 < s.sigma.length ? s.sigma[idx + 1] : null; c.update(a);
+      });
+      txt(g, x + cell / 2, oy + cell + 9, String(j + 1), { 'font-size': 10.5, fill: COL.inkFaint });
+    }
+    const y0 = oy + cell + gap + 6;
+    for (let i = 0; i < s.n; i++) {
+      const y = y0 + i * cell, d = this.dist(s, cand, i), full = cand.every(x => x);
+      if (ovRows && ovRows.includes(i)) el('rect', { x: ox, y: y + 1, width: lw + s.m * cell, height: cell - 2, rx: 4, fill: palette(2), opacity: 0.35 }, g);
+      texLabel(g, `s_{${i + 1}}`, ox + lw / 2, y + cell / 2, { fs: 16 });
+      for (let j = 0; j < s.m; j++) {
+        const x = ox + lw + j * cell, ch = s.strs[i][j], mis = cand[j] !== null && cand[j] !== ch;
+        const ovMis = ovRows && ovRows.includes(i) && s.strs[ovRows[0]][j] !== s.strs[ovRows[1]][j];
+        const r = el('g', { class: 'clk' }, g);
+        el('rect', { x: x + 1.5, y: y + 1.5, width: cell - 3, height: cell - 3, rx: 3, fill: mis ? '#f2cfc6' : COL.panel2, stroke: ovMis ? COL.examine : COL.borderSoft, 'stroke-width': ovMis ? 2.4 : 1 }, r);
+        txt(r, x + cell / 2, y + cell / 2, ch, { 'font-family': 'var(--mono)', 'font-size': 16, fill: mis ? COL.active : COL.inkStrong });
+        r.addEventListener('click', () => { const a = cand.slice(); a[j] = ch; c.update(a); });
+      }
+      const okk = d <= s.k;
+      const dx = ox + lw + s.m * cell + 12;
+      el('rect', { x: dx, y: y + 3, width: 92, height: cell - 6, rx: 4, fill: okk ? COL.okBg : '#f2cfc6' }, g);
+      texLabel(g, `d_H = ${d}${full ? '' : '^{\\ast}'}`, dx + 46, y + cell / 2, { fs: 14.5, color: okk ? '#3b6332' : COL.active });
+    }
+    let h = y0 + s.n * cell + 8;
+    if (!cand.every(x => x)) { txt(g, ox, h + 8, '* positions of s not yet chosen count as mismatches', { 'font-size': 11.5, fill: COL.inkFaint, 'text-anchor': 'start' }); h += 22; }
+    // pairwise distances of the inputs
+    const px = c.W - pdw >= gw + 10 ? gw + 20 : ox, py = c.W - pdw >= gw + 10 ? y0 - 26 : h + 16;
+    const gp = el('g', null, svg);
+    texLabel(gp, '\\text{pairwise distances }d_H(s_i, s_j)', px, py - 10, { fs: 13, anchor: 'start', color: COL.inkFaint });
+    for (let i = 0; i < s.n; i++) {
+      txt(gp, px + 10, py + (i + 1.5) * 26, String(i + 1), { 'font-size': 12, fill: COL.inkFaint });
+      txt(gp, px + 10 + (i + 1) * 26, py + 13, String(i + 1), { 'font-size': 12, fill: COL.inkFaint });
+      for (let j = 0; j < s.n; j++) {
+        let d = 0; for (let t = 0; t < s.m; t++) if (s.strs[i][t] !== s.strs[j][t]) d++;
+        const hot = ovRows && ovRows.includes(i) && ovRows.includes(j) && i !== j;
+        el('rect', { x: px + (j + 1) * 26 - 2, y: py + (i + 1) * 26, width: 24, height: 24, rx: 3, fill: hot ? palette(2) : i === j ? COL.controls : COL.panel2, stroke: COL.borderSoft }, gp);
+        txt(gp, px + (j + 1) * 26 + 10, py + (i + 1.5) * 26, String(d), { 'font-size': 12.5, fill: COL.ink });
+      }
+    }
+    return Math.max(h, py + (s.n + 1) * 26 + 10);
+  },
+  verify(s, cand) {
+    const full = cand.every(x => x), rows = [[full, full ? `\\(s = \\mathtt{${cand.join('')}} \\in \\Sigma^{${s.m}}\\)` : `\\(s\\): ${cand.filter(x => !x).length} position(s) not chosen yet`]];
+    for (let i = 0; i < s.n; i++) { const d = this.dist(s, cand, i); rows.push([full && d <= s.k, `\\(d_H(s, s_{${i + 1}}) = ${d} \\wrel\\le k = ${s.k}\\)`]); }
+    return { rows };
+  },
+  facts: (s, r) => `The best possible \\(s\\) has distance \\(${r.opt}\\) to the farthest input string (exhaustive search over \\(\\Sigma^{${s.m}}\\)); with \\(k = ${s.k}\\) the answer is <b>${r.opt <= s.k ? 'yes' : 'no'}</b>.` +
+    (r.yes ? ` ${r.count}${r.count >= CAP ? '+' : ''} strings \\(s\\) work.` : '') + ' (Letters outside the input never help, so \\(\\Sigma\\) defaults to the letters that occur.)'
+};
+
+/* =====================================================================
+   number problems
+   ===================================================================== */
+function blockRow(g, items, x0, y0, W, h, opts) {
+  // places blocks (widths given) left to right, wrapping; returns bottom y and positions
+  let x = x0, y = y0; const P = [];
+  for (const it of items) {
+    if (x + it.w > x0 + W && x > x0) { x = x0; y += h + 10; }
+    P.push([x, y]); x += it.w + 6;
+  }
+  return { P, bottom: y + h };
+}
+function axis(g, x0, y, len, max, label) {
+  el('line', { x1: x0, y1: y, x2: x0 + len, y2: y, stroke: COL.inkSoft, 'stroke-width': 1.2 }, g);
+  const step = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000].find(s => max / s <= 12) || 1000;
+  for (let v = 0; v <= max; v += step) {
+    const x = x0 + len * v / max;
+    el('line', { x1: x, y1: y, x2: x, y2: y + 5, stroke: COL.inkSoft }, g);
+    txt(g, x, y + 14, String(v), { 'font-size': 11, fill: COL.inkFaint });
+  }
+  if (label) txt(g, x0 + len + 6, y, label, { 'font-size': 12, fill: COL.inkFaint, 'text-anchor': 'start' });
+}
+function marker(g, x, y1, y2, tex, color) {
+  el('line', { x1: x, y1, x2: x, y2, stroke: color, 'stroke-width': 2.5 }, g);
+  texLabel(g, tex, x, y1 - 11, { fs: 15, color });
+}
+
+/* ---------------- Subset Sum ---------------- */
+const P_SS = {
+  id: 'subset-sum', name: 'Subset Sum',
+  def: { given: '\\(x_1,\\ldots,x_n \\in \\N\\) and target \\(t \\in \\N\\)', goal: '\\(\\exists I\\subseteq [n] \\wrel: \\sum_{i\\in I} x_i = t\\) ?' },
+  hint: 'Click numbers to put them into \\(I\\); they stack up on the bar below, which has to end exactly at \\(t\\).',
+  fmt: `<b>Format</b>: a line <code>t = …</code>, then the numbers \\(x_1, \\ldots, x_n\\) (separated by spaces or line breaks).`,
+  parse(text) {
+    const { params, lines } = splitInput(text);
+    const x = lines.flatMap(L => L.toks.map(t => toInt(t, `Line ${L.lineNo}`)));
+    if (!x.length || x.length > 20) throw new Error('Give between 1 and 20 numbers.');
+    if (x.some(v => v < 1)) throw new Error('Numbers must be in ℕ (positive).');
+    if (x.reduce((a, b) => a + b, 0) > 100000) throw new Error('Numbers too large for this page.');
+    return { x, n: x.length, t: intParam(params, 't', { min: 0 }) };
+  },
+  formal: s => `<div class="frow">\\(n = ${s.n}\\)</div><div class="frow">` + s.x.map((v, i) => `\\(x_{${i + 1}} = ${v}\\)`).join(', ') + `</div><div class="frow">\\(t = ${s.t}\\)</div>`,
+  solve(s) { const r = subsetSums(s.x, s.t); return { yes: r.count > 0, certs: r.certs, count: r.count, reach: r.reach, below: r.below, above: r.above, tot: r.tot }; },
+  empty: () => new Set(), fromCert: (s, c) => new Set(c),
+  best(s, r) {
+    const target = r.below !== null ? r.below : r.above; if (target === null) return null;
+    for (let I = 0; I < (1 << s.n); I++) { let t = 0; for (let i = 0; i < s.n; i++) if ((I >> i) & 1) t += s.x[i]; if (t === target) return new Set(bitsOf(I)); }
+    return null;
+  }, bestName: 'a subset with the closest sum below \\(t\\)',
+  draw(svg, c) {
+    const s = c.inst, I = c.cand, sol = c.sol, tot = s.x.reduce((a, b) => a + b, 0);
+    const max = Math.max(tot, s.t), x0 = 20, len = c.W - 70, sc = len / max, g = el('g', null, svg);
+    const items = s.x.map(v => ({ w: Math.max(26, v * sc) }));
+    const { P, bottom } = blockRow(g, items, x0, 14, len, 38);
+    s.x.forEach((v, i) => {
+      const on = I.has(i), r = el('g', { class: 'clk' }, g);
+      el('rect', { x: P[i][0], y: P[i][1], width: items[i].w, height: 38, rx: 4, fill: on ? COL.accent : COL.panel2, stroke: on ? COL.accentDark : COL.border }, r);
+      txt(r, P[i][0] + items[i].w / 2, P[i][1] + 19, String(v), { 'font-size': 15, 'font-weight': 'bold', fill: on ? COL.panel2 : COL.inkStrong });
+      r.addEventListener('click', () => c.update(setToggle(I, i)));
+    });
+    // the sum bar
+    const by = bottom + 50; let x = x0, sum = 0;
+    txt(g, x0, by - 30, 'sum of the chosen numbers', { 'font-size': 12, fill: COL.inkFaint, 'text-anchor': 'start' });
+    el('rect', { x: x0, y: by, width: len, height: 30, fill: COL.panel, stroke: COL.borderSoft }, g);
+    for (const i of sortedArr(I)) {
+      const w = s.x[i] * sc;
+      el('rect', { x, y: by, width: w, height: 30, fill: COL.accent, stroke: COL.panel2 }, g);
+      if (w > 18) txt(g, x + w / 2, by + 15, String(s.x[i]), { 'font-size': 12.5, fill: COL.panel2 });
+      x += w; sum += s.x[i];
+    }
+    axis(g, x0, by + 34, len, max);
+    marker(g, x0 + s.t * sc, by - 8, by + 38, `t = ${s.t}`, sum === s.t ? COL.relax : COL.accentDark);
+    let h = by + 60;
+    if (c.analysis) {           // all reachable sums (dynamic programming over the numbers)
+      const ry = h + 26;
+      txt(g, x0, ry - 12, 'sums reached by some subset (pseudo-polynomial DP)', { 'font-size': 12, fill: COL.inkFaint, 'text-anchor': 'start' });
+      el('rect', { x: x0, y: ry, width: len, height: 22, fill: COL.panel, stroke: COL.borderSoft }, g);
+      for (let v = 0; v <= tot; v++) if (sol.reach[v]) el('rect', { x: x0 + v * sc - Math.max(sc, 1.2) / 2, y: ry, width: Math.max(sc, 1.2), height: 22, fill: COL.queue, opacity: 0.8 }, g);
+      el('line', { x1: x0 + s.t * sc, y1: ry - 4, x2: x0 + s.t * sc, y2: ry + 26, stroke: sol.yes ? COL.relax : COL.active, 'stroke-width': 2.5 }, g);
+      // zoom into the neighbourhood of t
+      const half = Math.max(3, Math.min(14, Math.floor((len / 22 - 1) / 2))), cw = Math.min(26, len / (2 * half + 1)), zy = ry + 58;
+      const zx = x0 + (len - (2 * half + 1) * cw) / 2;
+      txt(g, x0, zy - 14, 'zoomed in around t', { 'font-size': 12, fill: COL.inkFaint, 'text-anchor': 'start' });
+      for (let d = -half; d <= half; d++) {
+        const v = s.t + d, x = zx + (d + half) * cw, r = v >= 0 && v <= tot && sol.reach[v];
+        el('rect', { x: x + 1, y: zy, width: cw - 2, height: 24, rx: 3, fill: r ? COL.queue : COL.panel, opacity: r ? 0.8 : 1,
+                     stroke: d === 0 ? (r ? COL.relax : COL.active) : COL.borderSoft, 'stroke-width': d === 0 ? 3 : 1 }, g);
+        if (d === 0 || v % 5 === 0) txt(g, x + cw / 2, zy + 36, String(v), { 'font-size': 11, fill: d === 0 ? COL.inkStrong : COL.inkFaint, 'font-weight': d === 0 ? 'bold' : null });
+      }
+      h = zy + 50;
+    }
+    return h;
+  },
+  verify(s, I) {
+    const arr = sortedArr(I), sum = arr.reduce((a, i) => a + s.x[i], 0);
+    return { rows: [[sum === s.t, `\\(\\sum_{i\\in I} x_i = ${arr.length ? arr.map(i => s.x[i]).join(' + ') + ' = ' : ''}${sum} \\wrel{${sum === s.t ? '=' : '\\neq'}} t = ${s.t}\\)`]] };
+  },
+  facts: (s, r) => r.yes ? `${r.count}${r.count >= CAP ? '+' : ''} subset${r.count > 1 ? 's reach' : ' reaches'} exactly \\(t = ${s.t}\\) (exhaustive search).`
+    : `No subset sums to \\(t = ${s.t}\\). The closest reachable sums are ${r.below !== null ? `\\(${r.below}\\)` : '—'} below and ${r.above !== null ? `\\(${r.above}\\)` : '—'} above.`
+};
+
+/* ---------------- (0/1) Knapsack ---------------- */
+const P_KS = {
+  id: 'knapsack', name: '(0/1) Knapsack',
+  def: { given: '\\(w_1,\\ldots,w_n \\in\\N\\), \\(v_1,\\ldots,v_n\\in\\N\\) and \\(b, k \\in\\N\\)',
+         goal: '\\(\\exists I\\subseteq[n] \\wwrel: \\sum_{i\\in I} w_i \\le b \\wbin\\wedge \\sum_{i\\in I} v_i \\ge k\\) ?' },
+  hint: 'Click items (width = weight \\(w_i\\)) to pack them. In the plot, every dot is one subset; click a dot to load it.',
+  fmt: `<b>Format</b>: lines <code>b = …</code> (capacity) and <code>k = …</code> (value threshold), then one item <code>w v</code> per line.`,
+  parse(text) {
+    const { params, lines } = splitInput(text);
+    const w = [], v = [];
+    for (const L of lines) { if (L.toks.length < 2) throw new Error(`Line ${L.lineNo}: expected "w v".`); w.push(toInt(L.toks[0], `Line ${L.lineNo}`)); v.push(toInt(L.toks[1], `Line ${L.lineNo}`)); }
+    if (!w.length || w.length > 16) throw new Error('Give between 1 and 16 items.');
+    if (w.some(x => x < 1) || v.some(x => x < 1)) throw new Error('Weights and values must be in ℕ (positive).');
+    return { w, v, n: w.length, b: intParam(params, 'b', { min: 0 }), k: intParam(params, 'k', { min: 0 }) };
+  },
+  formal: s => `<div class="frow">\\(n = ${s.n}\\)</div><div class="frow">\\(w = ${texVec(s.w)}\\)</div><div class="frow">\\(v = ${texVec(s.v)}\\)</div><div class="frow">\\(b = ${s.b}\\), \\(\\quad k = ${s.k}\\)</div>`,
+  solve(s) { const r = knapsackAll(s.w, s.v, s.b, s.k); return { yes: r.count > 0, certs: r.certs, count: r.count, opt: r.opt, optCert: r.optCert, pts: r.pts }; },
+  empty: () => new Set(), fromCert: (s, c) => new Set(c), best: (s, r) => new Set(r.optCert), bestName: 'a feasible subset of maximum value',
+  draw(svg, c) {
+    const s = c.inst, I = c.cand, sol = c.sol, g = el('g', null, svg);
+    const plotW = c.analysis ? 300 : 0, side = c.analysis && c.W >= 760;
+    const avail = (side ? c.W - plotW - 40 : c.W) - 70, x0 = 20;
+    const W = sortedArr(I).reduce((a, i) => a + s.w[i], 0), V = sortedArr(I).reduce((a, i) => a + s.v[i], 0);
+    const sumW = s.w.reduce((a, b) => a + b, 0), sumV = s.v.reduce((a, b) => a + b, 0);
+    const wmax = Math.max(s.b, W) * 1.08, sc = avail / wmax;
+    const maxDens = Math.max(...s.v.map((v, i) => v / s.w[i]));
+    const items = s.w.map(w => ({ w: Math.max(40, w * sc) }));
+    const { P, bottom } = blockRow(g, items, x0, 14, avail, 46);
+    s.w.forEach((w, i) => {
+      const on = I.has(i), r = el('g', { class: 'clk' }, g), dens = s.v[i] / s.w[i] / maxDens;
+      el('rect', { x: P[i][0], y: P[i][1], width: items[i].w, height: 46, rx: 4, fill: on ? COL.accent : COL.panel2, stroke: on ? COL.accentDark : COL.border }, r);
+      if (!on) el('rect', { x: P[i][0] + 2, y: P[i][1] + 40, width: (items[i].w - 4) * dens, height: 4, rx: 2, fill: COL.examine, opacity: 0.7 }, r);
+      txt(r, P[i][0] + items[i].w / 2, P[i][1] + 15, `v=${s.v[i]}`, { 'font-size': 14, 'font-weight': 'bold', fill: on ? COL.panel2 : COL.inkStrong });
+      txt(r, P[i][0] + items[i].w / 2, P[i][1] + 31, `w=${s.w[i]}`, { 'font-size': 12, fill: on ? COL.panel2 : COL.inkSoft });
+      r.addEventListener('click', () => c.update(setToggle(I, i)));
+    });
+    // weight bar (capacity b) and value bar (threshold k)
+    const by = bottom + 48;
+    txt(g, x0, by - 28, 'total weight', { 'font-size': 12, fill: COL.inkFaint, 'text-anchor': 'start' });
+    el('rect', { x: x0, y: by, width: s.b * sc, height: 26, fill: COL.panel, stroke: COL.inkSoft, 'stroke-width': 1.4 }, g);
+    let x = x0;
+    for (const i of sortedArr(I)) { const ww = s.w[i] * sc; el('rect', { x, y: by, width: ww, height: 26, fill: x + ww > x0 + s.b * sc + 0.5 ? COL.active : COL.accent, stroke: COL.panel2 }, g); x += ww; }
+    axis(g, x0, by + 30, wmax * sc, Math.round(wmax));
+    marker(g, x0 + s.b * sc, by - 6, by + 32, `b = ${s.b}`, W <= s.b ? COL.inkStrong : COL.active);
+    const vy = by + 100, vmax = Math.max(sumV, s.k) * 1.05, vs = avail / vmax;
+    txt(g, x0, vy - 28, 'total value', { 'font-size': 12, fill: COL.inkFaint, 'text-anchor': 'start' });
+    el('rect', { x: x0, y: vy, width: avail, height: 26, fill: COL.panel, stroke: COL.borderSoft }, g);
+    x = x0;
+    for (const i of sortedArr(I)) { const ww = s.v[i] * vs; el('rect', { x, y: vy, width: ww, height: 26, fill: COL.queue, stroke: COL.panel2 }, g); x += ww; }
+    axis(g, x0, vy + 30, avail, Math.round(vmax));
+    marker(g, x0 + s.k * vs, vy - 6, vy + 32, `k = ${s.k}`, V >= s.k ? COL.relax : COL.accentDark);
+    let h = vy + 56;
+    if (c.analysis && s.n <= 14) {
+      const pw = plotW - 50, ph = 220, px = side ? c.W - plotW + 30 : x0 + 40, py = side ? 30 : h + 30;
+      const gp = el('g', null, svg), X = w => px + pw * w / sumW, Y = v => py + ph - ph * v / sumV;
+      el('rect', { x: px, y: py, width: pw, height: ph, fill: COL.panel, stroke: COL.borderSoft }, gp);
+      el('rect', { x: px, y: Y(sumV), width: Math.max(0, X(Math.min(s.b, sumW)) - px), height: Math.max(0, Y(Math.min(s.k, sumV)) - Y(sumV)), fill: COL.okBg, stroke: COL.relax, 'stroke-dasharray': '4 3' }, gp);
+      el('line', { x1: X(Math.min(s.b, sumW)), y1: py, x2: X(Math.min(s.b, sumW)), y2: py + ph, stroke: COL.inkSoft, 'stroke-dasharray': '3 3' }, gp);
+      el('line', { x1: px, y1: Y(Math.min(s.k, sumV)), x2: px + pw, y2: Y(Math.min(s.k, sumV)), stroke: COL.inkSoft, 'stroke-dasharray': '3 3' }, gp);
+      for (const [w, v, m] of sol.pts) el('circle', { cx: X(w), cy: Y(v), r: s.n > 10 ? 2 : 3, fill: w <= s.b ? (v >= s.k ? COL.relax : COL.inkSoft) : COL.inert, opacity: 0.8 }, gp);
+      el('circle', { cx: X(W), cy: Y(V), r: 7, fill: 'none', stroke: COL.accent, 'stroke-width': 2.6 }, gp);
+      texLabel(gp, 'b', X(Math.min(s.b, sumW)), py + ph + 14, { fs: 14 });
+      texLabel(gp, 'k', px - 12, Y(Math.min(s.k, sumV)), { fs: 14 });
+      txt(gp, px + pw / 2, py + ph + 30, 'total weight →', { 'font-size': 12, fill: COL.inkFaint });
+      txt(gp, px - 28, py + ph / 2, 'value →', { 'font-size': 12, fill: COL.inkFaint, transform: `rotate(-90 ${px - 28} ${py + ph / 2})` });
+      txt(gp, px, py - 12, `all ${1 << s.n} subsets`, { 'font-size': 12, fill: COL.inkFaint, 'text-anchor': 'start' });
+      el('rect', { x: px, y: py, width: pw, height: ph, fill: 'transparent', class: 'clk' }, gp).addEventListener('click', ev => {
+        const r = svg.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top;
+        let best = null, bd = Infinity;
+        for (const [w, v, m] of sol.pts) { const d = Math.hypot(X(w) - mx, Y(v) - my); if (d < bd) { bd = d; best = m; } }
+        if (best !== null && bd < 18) c.update(new Set(bitsOf(best)));
+      });
+      h = side ? Math.max(h, py + ph + 40) : py + ph + 44;
+    }
+    return h;
+  },
+  verify(s, I) {
+    const arr = sortedArr(I), W = arr.reduce((a, i) => a + s.w[i], 0), V = arr.reduce((a, i) => a + s.v[i], 0);
+    return { rows: [
+      [W <= s.b, `\\(\\sum_{i\\in I} w_i = ${arr.length ? arr.map(i => s.w[i]).join(' + ') + ' = ' : ''}${W} \\wrel\\le b = ${s.b}\\)`],
+      [V >= s.k, `\\(\\sum_{i\\in I} v_i = ${arr.length ? arr.map(i => s.v[i]).join(' + ') + ' = ' : ''}${V} \\wrel\\ge k = ${s.k}\\)`]] };
+  },
+  facts: (s, r) => `The best value within capacity \\(b = ${s.b}\\) is \\(${r.opt}\\) (exhaustive search over all \\(2^{${s.n}}\\) subsets); with \\(k = ${s.k}\\) the answer is <b>${r.opt >= s.k ? 'yes' : 'no'}</b>.` +
+    (r.yes ? ` ${r.count}${r.count >= CAP ? '+' : ''} subset${r.count > 1 ? 's' : ''} work.` : '')
+};
+
+/* ---------------- Bin Packing ---------------- */
+const P_BP = {
+  id: 'bin-packing', name: 'Bin Packing',
+  def: { given: '\\(w_1,\\ldots,w_n\\in\\N\\), \\(b\\in \\N\\), \\(k\\in\\N\\)',
+         goal: '\\(\\displaystyle \\exists a:[n]\\to[k] \\wwrel: \\forall j\\in[k] : \\sum_{\\substack{i=1,\\ldots,n\\\\a[i] = j}} w_i \\rel\\le b\\) ?' },
+  hint: 'Click an item to pick it up, then click a bin (or the pool on the left) to put it there.',
+  fmt: `<b>Format</b>: lines <code>b = …</code> (bin capacity) and <code>k = …</code> (number of bins), then the item sizes \\(w_1, \\ldots, w_n\\).`,
+  parse(text) {
+    const { params, lines } = splitInput(text);
+    const w = lines.flatMap(L => L.toks.map(t => toInt(t, `Line ${L.lineNo}`)));
+    if (!w.length || w.length > 16) throw new Error('Give between 1 and 16 item sizes.');
+    if (w.some(x => x < 1)) throw new Error('Sizes must be in ℕ (positive).');
+    const k = intParam(params, 'k', { min: 1 }); if (k > 10) throw new Error('At most 10 bins on this page.');
+    return { w, n: w.length, b: intParam(params, 'b', { min: 1 }), k };
+  },
+  formal: s => `<div class="frow">\\(n = ${s.n}\\), \\(\\quad w = ${texVec(s.w)}\\)</div><div class="frow">\\(b = ${s.b}\\), \\(\\quad k = ${s.k}\\)` +
+    `\\(\\qquad\\) <span style="color:var(--wi-ink-faint);font-size:.85em">(total size \\(${s.w.reduce((a, b) => a + b, 0)}\\), capacity \\(k\\cdot b = ${s.k * s.b}\\))</span></div>`,
+  solve(s) { const r = binPackings(s.w, s.b, s.k); return { yes: r.count > 0, certs: r.certs, count: r.count, opt: r.opt, optCert: r.optCert }; },
+  empty: s => new Array(s.n).fill(0), fromCert: (s, c) => c.slice(),
+  best: (s, r) => r.optCert ? r.optCert.map(j => j <= s.k ? j : 0) : null, bestName: 'an optimal packing, restricted to the \\(k\\) bins (the rest stays in the pool)',
+  draw(svg, c) {
+    const s = c.inst, a = c.cand, ui = c.ui, g = el('g', null, svg);
+    const sel = ui.sel === undefined ? -1 : ui.sel;
+    const maxw = Math.max(...s.w);
+    const H = Math.max(c.H, 300), sc = (H - 96) / Math.max(s.b, maxw), bw = 62;
+    const top = 44, base = top + s.b * sc, colW = 42;
+    // pool layout first (columns of unassigned items), so that the bins can be placed right of it
+    const poolPos = new Map(); let px = 16, py = top - 10, used = false;
+    for (let i = 0; i < s.n; i++) if (!a[i]) {
+      const h = s.w[i] * sc;
+      if (used && py + h > base + 14) { py = top - 10; px += colW + 8; }
+      poolPos.set(i, [px, py]); py += h + 6; used = true;
+    }
+    const poolW = Math.max(110, px + colW + 8 - 8);
+    const ovItems = (c.overlay && c.overlay.items) || [];
+    const itemRect = (i, x, y, w) => {
+      const r = el('g', { class: 'clk' }, g), h = s.w[i] * sc, on = sel === i;
+      if (ovItems.includes(i)) el('rect', { x: x - 4, y: y - 4, width: w + 8, height: h + 8, rx: 6, fill: palette(2), opacity: 0.6 }, r);
+      el('rect', { x, y, width: w, height: h, rx: 3, fill: on ? COL.accent : COL.panel2, stroke: on ? COL.accentDark : COL.inkSoft, 'stroke-width': on ? 2.4 : 1.2 }, r);
+      if (h >= 12) txt(r, x + w / 2, y + h / 2, String(s.w[i]), { 'font-size': Math.min(15, h - 1), 'font-weight': 'bold', fill: on ? COL.panel2 : COL.inkStrong });
+      r.addEventListener('click', ev => { ev.stopPropagation(); ui.sel = on ? -1 : i; c.redraw(); });
+    };
+    // pool
+    const pool = el('rect', { x: 8, y: top - 20, width: poolW, height: base - top + 40, rx: 6, fill: COL.panel, stroke: COL.borderSoft, 'stroke-dasharray': '5 4', class: 'clk' }, g);
+    pool.addEventListener('click', () => { if (sel >= 0) { const b = a.slice(); b[sel] = 0; ui.sel = -1; c.update(b); } });
+    txt(g, 8 + poolW / 2, top - 30, 'unassigned', { 'font-size': 12, fill: COL.inkFaint });
+    for (const [i, [x, y]] of poolPos) itemRect(i, x, y, colW);
+    // bins
+    for (let j = 1; j <= s.k; j++) {
+      const x = 8 + poolW + 30 + (j - 1) * (bw + 16);
+      const load = s.w.reduce((t, w, i) => t + (a[i] === j ? w : 0), 0), over = load > s.b;
+      const bin = el('g', { class: 'clk' }, g);
+      el('rect', { x: x - 3, y: top - 3, width: bw + 6, height: s.b * sc + 6, fill: over ? '#f6e6df' : COL.panel, stroke: 'none' }, bin);
+      el('path', { d: `M${x - 3},${top - 3} L${x - 3},${base + 3} L${x + bw + 3},${base + 3} L${x + bw + 3},${top - 3}`, fill: 'none', stroke: over ? COL.active : COL.inkSoft, 'stroke-width': 2.2 }, bin);
+      bin.addEventListener('click', () => { if (sel >= 0) { const b = a.slice(); b[sel] = j; ui.sel = -1; c.update(b); } });
+      let y = base;
+      for (let i = 0; i < s.n; i++) if (a[i] === j) { y -= s.w[i] * sc; itemRect(i, x + 3, y, bw - 6); }
+      if (over) el('line', { x1: x - 8, y1: top, x2: x + bw + 8, y2: top, stroke: COL.active, 'stroke-width': 2, 'stroke-dasharray': '4 3' }, g);
+      txt(g, x + bw / 2, base + 18, `bin ${j}`, { 'font-size': 12.5, fill: COL.inkSoft });
+      txt(g, x + bw / 2, base + 34, `${load} / ${s.b}`, { 'font-size': 12.5, fill: over ? COL.active : COL.inkStrong, 'font-weight': 'bold' });
+    }
+    return { h: base + 46, w: 8 + poolW + 30 + s.k * (bw + 16) + 10 };
+  },
+  verify(s, a) {
+    const un = a.filter(x => !x).length, loads = Array.from({ length: s.k }, (_, j) => s.w.reduce((t, w, i) => t + (a[i] === j + 1 ? w : 0), 0));
+    const over = loads.map((l, j) => [l, j]).filter(([l]) => l > s.b);
+    return { rows: [
+      [un === 0, un === 0 ? `every item has a bin: \\(a : [${s.n}] \\to [${s.k}]\\)` : `${un} item${un > 1 ? 's' : ''} not yet in a bin`],
+      [over.length === 0, over.length === 0 ? `all loads \\(\\le b = ${s.b}\\): \\(${loads.join(', ')}\\)` : `bin ${over[0][1] + 1} is overfull: \\(${over[0][0]} > b = ${s.b}\\)`]
+    ] };
+  },
+  facts: (s, r) => r.opt === null ? 'Some item is larger than \\(b\\): no packing at all.' :
+    `An optimal packing needs \\(${r.opt}\\) bins (exhaustive search); with \\(k = ${s.k}\\) the answer is <b>${r.opt <= s.k ? 'yes' : 'no'}</b>.` +
+    (r.yes ? ` Up to renaming the bins, there are ${r.count}${r.count >= CAP ? '+' : ''} packings.` : '')
+};
+
+/* ---------------- 0/1 Integer Programming ---------------- */
+function clipPoly(poly, a1, a2, b) {          // keep a1 x + a2 y <= b
+  const out = [];
+  for (let i = 0; i < poly.length; i++) {
+    const P = poly[i], Q = poly[(i + 1) % poly.length];
+    const fp = a1 * P[0] + a2 * P[1] - b, fq = a1 * Q[0] + a2 * Q[1] - b;
+    if (fp <= 1e-12) out.push(P);
+    if ((fp < -1e-12 && fq > 1e-12) || (fp > 1e-12 && fq < -1e-12)) { const t = fp / (fp - fq); out.push([P[0] + t * (Q[0] - P[0]), P[1] + t * (Q[1] - P[1])]); }
+  }
+  return out;
+}
+const P_ILP = {
+  id: 'ilp', name: '0/1 Integer Programming',
+  def: { given: 'integer linear program (ILP) \\(A\\in\\Z^{m\\times n}\\), \\(b\\in\\Z^m\\) and \\(c\\in\\Z^{n}\\) and \\(k\\in\\Z\\)',
+         goal: 'Is there \\(x\\in\\{0,1\\}^n\\) with \\(A x \\le b\\) and \\(c^T x \\ge k\\) ?' },
+  hint: 'Click the entries of \\(x\\) to flip them (or click a vector in the diagram).',
+  fmt: `<b>Format</b>: lines <code>c = c₁ … cₙ</code> and <code>k = …</code>, then one constraint per line: the row of \\(A\\), then <code>&lt;=</code> and \\(b_i\\), e.g. <code>2 3 &lt;= 4</code>.`,
+  parse(text) {
+    const { params, lines } = splitInput(text);
+    if (!params.c) throw new Error('Missing "c = …".');
+    const c = intList(params.c, 'c'), n = c.length;
+    if (n < 1 || n > 12) throw new Error('Between 1 and 12 variables on this page.');
+    const A = [], b = [];
+    for (const L of lines) {
+      const m = L.raw.match(/^(.*?)(<=|≤)(.*)$/);
+      if (!m) throw new Error(`Line ${L.lineNo}: expected "a1 … an <= b".`);
+      const row = intList(m[1], `Line ${L.lineNo}`);
+      if (row.length !== n) throw new Error(`Line ${L.lineNo}: expected ${n} coefficients.`);
+      A.push(row); b.push(toInt(m[3].trim(), `Line ${L.lineNo}`));
+    }
+    if (!A.length) throw new Error('Give at least one constraint.');
+    return { A, b, c, n, m: A.length, k: intParam(params, 'k') };
+  },
+  formal: s => `<div class="frow">\\(A = ${texMatrix(s.A)}\\), \\(\\quad b = ${texMatrix(s.b.map(x => [x]))}\\)</div>` +
+    `<div class="frow">\\(c = ${texVec(s.c)}^T\\), \\(\\quad k = ${s.k}\\)</div>`,
+  solve(s) { const r = ilpAll(s.A, s.b, s.c, s.k); return { yes: r.count > 0, certs: r.certs, count: r.count, opt: r.opt, optCert: r.optCert, pts: r.pts }; },
+  empty: s => new Array(s.n).fill(0), fromCert: (s, c) => c.slice(), best: (s, r) => r.optCert ? r.optCert.slice() : null, bestName: 'a feasible \\(x\\) of maximum objective',
+  draw(svg, c) {
+    const s = c.inst, x = c.cand, sol = c.sol, g = el('g', null, svg), cell = 36, ox = 14, oy = 14;
+    const dot = (row) => row.reduce((t, a, j) => t + a * x[j], 0);
+    // header: the vector x
+    for (let j = 0; j < s.n; j++) {
+      const cx = ox + 40 + j * cell, r = el('g', { class: 'clk' }, g);
+      texLabel(r, `x_{${j + 1}}`, cx + cell / 2, oy + 10, { fs: 15, color: COL.inkSoft });
+      el('rect', { x: cx + 3, y: oy + 22, width: cell - 6, height: cell - 6, rx: 5, fill: x[j] ? COL.accent : COL.panel2, stroke: x[j] ? COL.accentDark : COL.border }, r);
+      txt(r, cx + cell / 2, oy + 22 + (cell - 6) / 2, String(x[j]), { 'font-size': 16, 'font-weight': 'bold', fill: x[j] ? COL.panel2 : COL.inkStrong });
+      r.addEventListener('click', () => { const y = x.slice(); y[j] = 1 - y[j]; c.update(y); });
+    }
+    const rowY = i => oy + 22 + cell + 8 + i * cell;
+    const lhsX = ox + 40 + s.n * cell;
+    for (let i = 0; i <= s.m; i++) {
+      const obj = i === s.m, y = rowY(i) + (obj ? 8 : 0), row = obj ? s.c : s.A[i], val = dot(row);
+      const good = obj ? val >= s.k : val <= s.b[i];
+      if (obj) el('line', { x1: ox, y1: y - 4, x2: lhsX + 190, y2: y - 4, stroke: COL.borderSoft }, g);
+      texLabel(g, obj ? 'c^T' : `a_{${i + 1}}`, ox + 18, y + cell / 2, { fs: 15, color: COL.inkSoft });
+      for (let j = 0; j < s.n; j++) {
+        const cx = ox + 40 + j * cell;
+        el('rect', { x: cx + 3, y: y + 3, width: cell - 6, height: cell - 6, rx: 3, fill: x[j] ? COL.tint : COL.panel2, stroke: COL.borderSoft }, g);
+        txt(g, cx + cell / 2, y + cell / 2, String(row[j]), { 'font-size': 14.5, fill: x[j] ? COL.inkStrong : COL.inkFaint });
+      }
+      el('rect', { x: lhsX + 8, y: y + 4, width: 170, height: cell - 8, rx: 4, fill: good ? COL.okBg : '#f2cfc6' }, g);
+      texLabel(g, obj ? `c^T x = ${val} \\wrel{${good ? '\\ge' : '<'}} k = ${s.k}` : `a_{${i + 1}} x = ${val} \\wrel{${good ? '\\le' : '>'}} b_{${i + 1}} = ${s.b[i]}`,
+        lhsX + 93, y + cell / 2, { fs: 14, color: good ? '#3b6332' : COL.active });
+    }
+    const tableH = rowY(s.m) + cell + 16, tableW = lhsX + 190;
+    let h = tableH;
+    const sideX = c.W - tableW >= 300 ? tableW + 20 : 14, sideY = sideX > 14 ? 10 : tableH + 10, sideW = sideX > 14 ? c.W - tableW - 30 : c.W - 28;
+    if (s.n === 2) {                          // the geometric picture: half-planes, LP relaxation, the 4 lattice points
+      const S = Math.min(sideW - 60, 280), px = sideX + 40, py = sideY + 16, lo = -0.3, hi = 1.4;
+      const X = u => px + S * (u - lo) / (hi - lo), Y = v => py + S - S * (v - lo) / (hi - lo);
+      const gp = el('g', null, svg);
+      el('rect', { x: px, y: py, width: S, height: S, fill: COL.panel, stroke: COL.borderSoft }, gp);
+      let poly = [[0, 0], [1, 0], [1, 1], [0, 1]];
+      s.A.forEach((r, i) => { poly = clipPoly(poly, r[0], r[1], s.b[i]); });
+      if (poly.length >= 3) el('path', { d: 'M' + poly.map(p => X(p[0]) + ',' + Y(p[1])).join(' L') + ' Z', fill: COL.okBg, stroke: COL.relax, 'stroke-width': 1.2 }, gp);
+      el('rect', { x: X(0), y: Y(1), width: X(1) - X(0), height: Y(0) - Y(1), fill: 'none', stroke: COL.inkFaint, 'stroke-dasharray': '3 3' }, gp);
+      const lineThrough = (a1, a2, b0, attrs) => {     // a1 u + a2 v = b0, clipped to the box
+        const pts = [];
+        if (Math.abs(a2) > 1e-9) for (const u of [lo, hi]) { const v = (b0 - a1 * u) / a2; if (v >= lo - 1e-9 && v <= hi + 1e-9) pts.push([u, v]); }
+        if (Math.abs(a1) > 1e-9) for (const v of [lo, hi]) { const u = (b0 - a2 * v) / a1; if (u >= lo - 1e-9 && u <= hi + 1e-9) pts.push([u, v]); }
+        if (pts.length >= 2) el('line', Object.assign({ x1: X(pts[0][0]), y1: Y(pts[0][1]), x2: X(pts[1][0]), y2: Y(pts[1][1]) }, attrs), gp);
+        return pts;
+      };
+      s.A.forEach((r, i) => {
+        const pts = lineThrough(r[0], r[1], s.b[i], { stroke: palette(i + 1), 'stroke-width': 2.2 });
+        if (pts.length >= 2) {           // small ticks on the infeasible side
+          const nrm = Math.hypot(r[0], r[1]) || 1;
+          for (let t = 0.1; t < 1; t += 0.12) {
+            const u = pts[0][0] + t * (pts[1][0] - pts[0][0]), v = pts[0][1] + t * (pts[1][1] - pts[0][1]);
+            el('line', { x1: X(u), y1: Y(v), x2: X(u + 0.06 * r[0] / nrm), y2: Y(v + 0.06 * r[1] / nrm), stroke: palette(i + 1), 'stroke-width': 1.6 }, gp);
+          }
+          const m = pts[0][0] < pts[1][0] ? pts[1] : pts[0];
+          texLabel(gp, `a_{${i + 1}}`, Math.min(X(m[0]) + 14, px + S + 16), Math.max(py + 8, Math.min(py + S - 8, Y(m[1]))), { fs: 13, color: palette(i + 1) });
+        }
+      });
+      lineThrough(s.c[0], s.c[1], s.k, { stroke: COL.queue, 'stroke-width': 2, 'stroke-dasharray': '7 5' });
+      for (const p of sol.pts) {
+        const on = p.x[0] === x[0] && p.x[1] === x[1], r = el('g', { class: 'clk' }, gp);
+        el('circle', { cx: X(p.x[0]), cy: Y(p.x[1]), r: on ? 9 : 7, fill: c.analysis ? (p.feas ? (p.val >= s.k ? COL.relax : COL.inkSoft) : COL.panel2) : COL.inkSoft,
+                       stroke: on ? COL.accent : COL.inkSoft, 'stroke-width': on ? 3 : 1.4 }, r);
+        r.addEventListener('click', () => c.update(p.x.slice()));
+      }
+      texLabel(gp, 'x_1', px + S + 14, Y(lo) - 10, { fs: 14, color: COL.inkSoft });
+      texLabel(gp, 'x_2', X(lo) + 14, py - 6, { fs: 14, color: COL.inkSoft });
+      txt(gp, X(0), Y(lo) + 12, '0', { 'font-size': 11, fill: COL.inkFaint }); txt(gp, X(1), Y(lo) + 12, '1', { 'font-size': 11, fill: COL.inkFaint });
+      txt(gp, X(lo) - 8, Y(1), '1', { 'font-size': 11, fill: COL.inkFaint });
+      txt(gp, px, py + S + 32, 'shaded: LP relaxation  ·  dashed: c·x = k', { 'font-size': 11.5, fill: COL.inkFaint, 'text-anchor': 'start' });
+      h = Math.max(h, sideY + S + 60);
+    } else if (s.n <= 5) {                 // Boolean lattice {0,1}^n, levels by number of ones
+      const levels = Array.from({ length: s.n + 1 }, () => []);
+      sol.pts.forEach((p, idx) => levels[p.x.reduce((a, b) => a + b, 0)].push(idx));
+      const nw = 12 * s.n + 16, nh = 34, vgap = 52, gp = el('g', null, svg);
+      const P = new Map();
+      levels.forEach((L, d) => L.forEach((idx, j) => {
+        const span = Math.min(sideW, L.length * (nw + 8));
+        P.set(idx, [sideX + (sideW - span) / 2 + (j + 0.5) * span / L.length, sideY + 24 + (s.n - d) * vgap]);
+      }));
+      txt(gp, sideX, sideY + 6, `all ${1 << s.n} vectors x ∈ {0,1}^${s.n}`, { 'font-size': 11.5, fill: COL.inkFaint, 'text-anchor': 'start' });
+      for (const [i, [x1, y1]] of P) for (let j = 0; j < s.n; j++) if (!((i >> j) & 1)) {
+        const [x2, y2] = P.get(i | (1 << j)); el('line', { x1, y1, x2, y2, stroke: COL.borderSoft, 'stroke-width': 1 }, gp);
+      }
+      for (const [i, [cx, cy]] of P) {
+        const p = sol.pts[i], on = p.x.every((v, j) => v === x[j]), r = el('g', { class: 'clk' }, gp);
+        const fill = !c.analysis ? COL.panel2 : !p.feas ? COL.bg : p.val >= s.k ? COL.okBg : COL.panel2;
+        el('rect', { x: cx - nw / 2, y: cy - nh / 2, width: nw, height: nh, rx: 5, fill, stroke: on ? COL.accent : (c.analysis && p.feas && p.val >= s.k) ? COL.relax : COL.border,
+                     'stroke-width': on ? 3 : 1.2, 'stroke-dasharray': c.analysis && !p.feas ? '3 3' : null }, r);
+        txt(r, cx, cy - 6, p.x.join(''), { 'font-family': 'var(--mono)', 'font-size': 12.5, fill: c.analysis && !p.feas ? COL.inkFaint : COL.inkStrong });
+        txt(r, cx, cy + 9, c.analysis ? (p.feas ? 'c·x=' + p.val : 'infeasible') : 'c·x=' + p.val, { 'font-size': 10.5, fill: COL.inkFaint });
+        r.addEventListener('click', () => c.update(p.x.slice()));
+      }
+      h = Math.max(h, sideY + 24 + s.n * vgap + 40);
+    }
+    return h;
+  },
+  verify(s, x) {
+    const rows = s.A.map((r, i) => { const v = r.reduce((t, a, j) => t + a * x[j], 0); return [v <= s.b[i], `row ${i + 1}: \\(${v} \\wrel\\le ${s.b[i]}\\)`]; });
+    const v = s.c.reduce((t, a, j) => t + a * x[j], 0);
+    return { rows: [[true, `\\(x = ${texVec(x)}^T \\in \\{0,1\\}^{${s.n}}\\)`], ...rows, [v >= s.k, `\\(c^T x = ${v} \\wrel\\ge k = ${s.k}\\)`]] };
+  },
+  facts: (s, r) => r.opt === null ? `No \\(x\\in\\{0,1\\}^{${s.n}}\\) satisfies \\(Ax\\le b\\) at all.` :
+    `${r.pts.filter(p => p.feas).length} of the \\(2^{${s.n}}\\) vectors satisfy \\(Ax \\le b\\); the best objective among them is \\(c^Tx = ${r.opt}\\), so with \\(k = ${s.k}\\) the answer is <b>${r.opt >= s.k ? 'yes' : 'no'}</b>.`
+};
+
+/* =====================================================================
+   SAT (general formulas) and 3SAT (3-CNF, DIMACS)
+   ===================================================================== */
+const and3 = vs => vs.includes(0) ? 0 : vs.every(v => v === 1) ? 1 : null;
+const or3 = vs => vs.includes(1) ? 1 : vs.every(v => v === 0) ? 0 : null;
+const not3 = v => v === null ? null : 1 - v;
+function varTex(name) { const m = name.match(/^([A-Za-z]+)_?(\d+)$/); return m ? `${m[1]}_{${m[2]}}` : `\\mathit{${name.replace(/_/g, '\\_')}}`; }
+const natCmp = (a, b) => a.localeCompare(b, 'en', { numeric: true });
+
+/* ---- formula parser: ! ~ ¬ (not), & ∧ (and), ^ ⊕ (xor), | ∨ (or), -> → (implies), <-> ↔ (iff) ---- */
+function parseFormula(src) {
+  const toks = [], re = /\s*(<->|<=>|↔|->|=>|→|\(|\)|!|~|¬|-|&&|&|∧|\*|\|\||\||∨|\+|\^|⊕|[A-Za-z_][A-Za-z_0-9]*|[01])/y;
+  let m; re.lastIndex = 0;
+  while (re.lastIndex < src.length) {
+    const start = re.lastIndex;
+    if (/^\s*$/.test(src.slice(start))) break;
+    m = re.exec(src);
+    if (!m) throw new Error(`Cannot read the formula at "${src.slice(start, start + 12).trim()}".`);
+    let t = m[1];
+    const map = { '<=>': '<->', '↔': '<->', '=>': '->', '→': '->', '~': '!', '¬': '!', '-': '!', '&&': '&', '∧': '&', '*': '&', '||': '|', '∨': '|', '+': '|', '⊕': '^',
+                  and: '&', or: '|', not: '!', xor: '^', AND: '&', OR: '|', NOT: '!', XOR: '^' };
+    if (map[t]) t = map[t];
+    toks.push(t);
+  }
+  let i = 0;
+  const peek = () => toks[i], eat = t => { if (toks[i] !== t) throw new Error(`Expected "${t}" in the formula${toks[i] ? `, found "${toks[i]}"` : ' at its end'}.`); i++; };
+  const names = new Set();
+  const flat = (op, kids) => { const out = []; for (const k of kids) if (k.op === op) out.push(...k.kids); else out.push(k); return { op, kids: out }; };
+  function iff() { let a = imp(); while (peek() === '<->') { i++; a = { op: 'iff', kids: [a, imp()] }; } return a; }
+  function imp() { const a = or(); if (peek() === '->') { i++; return { op: 'imp', kids: [a, imp()] }; } return a; }
+  function or() { const ks = [xor()]; while (peek() === '|') { i++; ks.push(xor()); } return ks.length > 1 ? flat('or', ks) : ks[0]; }
+  function xor() { let a = and(); while (peek() === '^') { i++; a = { op: 'xor', kids: [a, and()] }; } return a; }
+  function and() { const ks = [un()]; while (peek() === '&') { i++; ks.push(un()); } return ks.length > 1 ? flat('and', ks) : ks[0]; }
+  function un() {
+    const t = peek();
+    if (t === '!') { i++; return { op: 'not', kids: [un()] }; }
+    if (t === '(') { i++; const a = iff(); eat(')'); return a; }
+    if (t === '0' || t === '1') { i++; return { op: 'const', val: +t }; }
+    if (t && /^[A-Za-z_]/.test(t)) { i++; names.add(t); return { op: 'var', name: t }; }
+    throw new Error(t ? `Unexpected "${t}" in the formula.` : 'The formula ends too early.');
+  }
+  if (!toks.length) throw new Error('Empty formula.');
+  const ast = iff();
+  if (i < toks.length) throw new Error(`Unexpected "${toks[i]}" in the formula.`);
+  const vars = [...names].sort(natCmp), idx = new Map(vars.map((v, j) => [v, j]));
+  (function bind(nd) { if (nd.op === 'var') nd.v = idx.get(nd.name); (nd.kids || []).forEach(bind); })(ast);
+  return { ast, vars };
+}
+function eval3(nd, a) {
+  switch (nd.op) {
+    case 'var': return a[nd.v];
+    case 'const': return nd.val;
+    case 'not': return not3(eval3(nd.kids[0], a));
+    case 'and': return and3(nd.kids.map(k => eval3(k, a)));
+    case 'or': return or3(nd.kids.map(k => eval3(k, a)));
+    case 'imp': return or3([not3(eval3(nd.kids[0], a)), eval3(nd.kids[1], a)]);
+    case 'iff': { const x = eval3(nd.kids[0], a), y = eval3(nd.kids[1], a); return x === null || y === null ? null : +(x === y); }
+    case 'xor': { const x = eval3(nd.kids[0], a), y = eval3(nd.kids[1], a); return x === null || y === null ? null : +(x !== y); }
+  }
+}
+const OPTEX = { and: '\\wedge', or: '\\vee', not: '\\neg', imp: '\\rightarrow', iff: '\\leftrightarrow', xor: '\\oplus' };
+const PREC = { iff: 1, imp: 2, or: 3, xor: 4, and: 5, not: 6, var: 7, const: 7 };
+function formulaTex(nd, vars, parentPrec) {
+  let s;
+  if (nd.op === 'var') return varTex(vars[nd.v]);
+  if (nd.op === 'const') return nd.val ? '\\mathsf{true}' : '\\mathsf{false}';
+  if (nd.op === 'not') s = '\\neg ' + formulaTex(nd.kids[0], vars, PREC.not);
+  else s = nd.kids.map(k => formulaTex(k, vars, PREC[nd.op] + (nd.op === 'imp' ? 1 : 0))).join(` \\wbin${OPTEX[nd.op]} `);
+  return (parentPrec || 0) > PREC[nd.op] || (parentPrec === PREC[nd.op] && ['imp', 'iff', 'xor'].includes(nd.op)) ? `(${s})` : s;
+}
+/* all satisfying assignments (n <= 18) */
+function satAll(n, test) {
+  const certs = []; let count = 0;
+  for (let m = 0; m < (1 << n); m++) {
+    const a = Array.from({ length: n }, (_, j) => (m >> (n - 1 - j)) & 1);
+    if (test(a)) { count++; if (certs.length < CAP) certs.push(a); }
+  }
+  return { certs, count };
+}
+/* case-analysis tree: branch on variables until the formula is decided under the partial assignment */
+function caseTree(n, ev, order, why) {
+  let nodes = 0;
+  function go(a, d) {
+    if (++nodes > 400) throw new Error('too big');
+    const v = ev(a);
+    if (v !== null) return { leaf: true, val: v, why: v === 0 ? why(a) : '' };
+    const x = order.find(j => a[j] === null);
+    const kids = [1, 0].map(b => { const c = a.slice(); c[x] = b; return { x, b, sub: go(c, d + 1) }; });
+    return { kids };
+  }
+  try { return go(new Array(n).fill(null), 0); } catch (e) { return null; }
+}
+function caseTreeHtml(t, vars) {
+  if (!t) return '';
+  const rec = nd => '<ul class="dtree">' + nd.kids.map(k => `<li>\\(${varTex(vars[k.x])} = ${k.b}\\)` +
+    (k.sub.leaf ? (k.sub.val ? ' <b style="color:var(--wi-relax)">✓ satisfied</b>' : ` <span class="x">✗ ${k.sub.why}</span>`) : rec(k.sub)) + '</li>').join('') + '</ul>';
+  if (t.leaf) return t.val ? 'Satisfied without any choice.' : `False without any choice: ${t.why}`;
+  return rec(t);
+}
+/* variable toggle row shared by SAT and 3SAT; returns its height */
+function drawVarRow(svg, c, vars, a) {
+  const g = el('g', null, svg), w = 72, gap = 8, perRow = Math.max(1, Math.floor((c.W - 20) / (w + gap)));
+  vars.forEach((nm, j) => {
+    const x = 10 + (j % perRow) * (w + gap), y = 10 + Math.floor(j / perRow) * 38, v = a[j];
+    const r = el('g', { class: 'clk' }, g);
+    el('rect', { x, y, width: w, height: 30, rx: 15, fill: v === 1 ? COL.okBg : v === 0 ? '#f2cfc6' : COL.panel2, stroke: v === 1 ? COL.relax : v === 0 ? COL.active : COL.border, 'stroke-width': 1.5 }, r);
+    texLabel(r, `${varTex(nm)} = ${v === null ? '?' : v}`, x + w / 2, y + 15, { fs: 15, color: v === 1 ? '#3b6332' : v === 0 ? COL.active : COL.inkSoft });
+    r.addEventListener('click', () => { const b = a.slice(); b[j] = b[j] === null ? 1 : b[j] === 1 ? 0 : null; c.update(b); });
+  });
+  return 10 + Math.ceil(vars.length / perRow) * 38;
+}
+const valFill = v => v === 1 ? COL.okBg : v === 0 ? '#f2cfc6' : COL.panel2;
+const valStroke = v => v === 1 ? COL.relax : v === 0 ? COL.active : COL.border;
+
+const P_SAT = {
+  id: 'sat', name: 'SAT',
+  def: { given: 'Boolean (propositional logic) formula \\(\\varphi\\) over variables \\(x_1,\\ldots,x_n\\).',
+         goal: 'Is there a variable assignment \\(V:\\{x_1,\\ldots,x_n\\} \\to \\{\\mathsf{true},\\, \\mathsf{false}\\}\\), so that \\(\\varphi\\) evaluates under \\(V\\) to \\(\\mathsf{true}\\)?',
+         gl: 'Goal', note: 'Below, \\(1\\) stands for \\(\\mathsf{true}\\) and \\(0\\) for \\(\\mathsf{false}\\); \\(?\\) is a variable not assigned yet.' },
+  hint: 'Click a variable to cycle \\(? \\to 1 \\to 0\\). The tree evaluates \\(\\varphi\\) bottom-up; parts already decided by a partial assignment are coloured.',
+  fmt: `<b>Format</b>: the formula, possibly over several lines. Variables like <code>x1</code>; operators <code>!</code> (not), <code>&amp;</code> (and), <code>|</code> (or),
+    <code>^</code> (xor), <code>-&gt;</code> (implies), <code>&lt;-&gt;</code> (iff), parentheses; also <code>¬ ∧ ∨ → ↔</code> and the words <code>and or not</code>.`,
+  parse(text) {
+    const src = text.split('\n').filter(l => !/^\s*(#|%|\/\/)/.test(l)).join(' ');
+    const { ast, vars } = parseFormula(src);
+    if (vars.length > 16) throw new Error('At most 16 variables on this page.');
+    return { ast, vars, n: vars.length };
+  },
+  formal: s => `<div class="frow">\\(\\varphi = \\)${s.ast.op === 'and' ? s.ast.kids.map(k => `\\(${formulaTex(k, s.vars, PREC.and)}\\)`).join(' \\(\\wedge\\) ') : `\\(${formulaTex(s.ast, s.vars)}\\)`}</div><div class="frow">variables: \\(${s.vars.map(varTex).join(', ')}\\)\\(\\quad (n = ${s.n})\\)</div>`,
+  solve(s) {
+    const r = satAll(s.n, a => eval3(s.ast, a) === 1);
+    const tree = r.count ? null : caseTree(s.n, a => eval3(s.ast, a), [...Array(s.n).keys()], () => '\\(\\varphi\\) is false');
+    return { yes: r.count > 0, certs: r.certs, count: r.count, tree };
+  },
+  empty: s => new Array(s.n).fill(null), fromCert: (s, c) => c.slice(),
+  draw(svg, c) {
+    const s = c.inst, a = c.cand, top = drawVarRow(svg, c, s.vars, a) + 26;
+    // tidy-ish tree layout: leaves left to right, parents centred over their children
+    let leaf = 0, depth = 0; const nodes = [];
+    (function lay(nd, d) {
+      depth = Math.max(depth, d);
+      if (nd.op === 'var' || nd.op === 'const') { nd._x = leaf++; }
+      else { nd.kids.forEach(k => lay(k, d + 1)); nd._x = (nd.kids[0]._x + nd.kids[nd.kids.length - 1]._x) / 2; }
+      nd._d = d; nodes.push(nd);
+    })(s.ast, 0);
+    const LW = 50, LV = 58, need = leaf * LW + 40, sx = Math.max(LW, Math.min(90, (c.W - 40) / Math.max(1, leaf)));
+    const X = nd => 20 + (nd._x + 0.5) * sx, Y = nd => top + 16 + nd._d * LV;
+    const g = el('g', null, svg);
+    for (const nd of nodes) for (const k of nd.kids || []) el('line', { x1: X(nd), y1: Y(nd), x2: X(k), y2: Y(k), stroke: COL.edge, 'stroke-width': 1.6 }, g);
+    for (const nd of nodes) {
+      const v = eval3(nd, a), x = X(nd), y = Y(nd);
+      if (nd.op === 'var' || nd.op === 'const') {
+        el('rect', { x: x - 21, y: y - 15, width: 42, height: 30, rx: 6, fill: valFill(v), stroke: valStroke(v), 'stroke-width': 1.6 }, g);
+        texLabel(g, nd.op === 'var' ? varTex(s.vars[nd.v]) : (nd.val ? '1' : '0'), x, y, { fs: 15 });
+      } else {
+        el('circle', { cx: x, cy: y, r: nd === s.ast ? 18 : 15, fill: valFill(v), stroke: valStroke(v), 'stroke-width': nd === s.ast ? 3 : 1.6 }, g);
+        texLabel(g, OPTEX[nd.op], x, y - 1, { fs: 16 });
+      }
+    }
+    texLabel(g, '\\varphi', X(s.ast) - 32, Y(s.ast), { fs: 17, color: COL.accent });
+    return { h: top + 16 + depth * LV + 34, w: Math.max(c.W, need) };
+  },
+  verify(s, a) {
+    const un = a.filter(x => x === null).length, v = eval3(s.ast, a);
+    return { rows: [
+      [un === 0, un === 0 ? `all \\(${s.n}\\) variables assigned` : `${un} variable${un > 1 ? 's' : ''} not assigned yet`],
+      [v === 1, `\\(\\varphi\\) evaluates to ${v === 1 ? '\\(\\mathsf{true}\\)' : v === 0 ? '\\(\\mathsf{false}\\)' : '(not determined yet)'}`]] };
+  },
+  facts(s, r) {
+    if (r.yes) return `${r.count} of the \\(2^{${s.n}}\\) assignments satisfy \\(\\varphi\\) (exhaustive search).`;
+    return `None of the \\(2^{${s.n}}\\) assignments satisfies \\(\\varphi\\). A case analysis, stopping as soon as \\(\\varphi\\) is decided:` + caseTreeHtml(r.tree, s.vars);
+  }
+};
+
+/* ---------------- 3SAT ---------------- */
+function parseCNF(text, exact3) {
+  const lits = []; let nDecl = null;
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    if (!line || /^(c\b|#|%|\/\/)/.test(line)) continue;
+    if (/^p\b/.test(line)) { const t = line.split(/\s+/); nDecl = toInt(t[2], 'p line'); continue; }
+    for (const t of line.split(/[\s,]+/).filter(x => x)) lits.push(toInt(t, 'clause'));
+    if (lits.length && lits[lits.length - 1] !== 0) lits.push(0);      // a line without trailing 0 ends a clause
+  }
+  const C = []; let cur = [];
+  for (const l of lits) { if (l === 0) { if (cur.length) C.push(cur); cur = []; } else cur.push(l); }
+  if (!C.length) throw new Error('No clauses.');
+  const n = Math.max(nDecl || 0, ...C.flat().map(Math.abs));
+  if (n > 16) throw new Error('At most 16 variables on this page.');
+  if (C.length > 60) throw new Error('At most 60 clauses on this page.');
+  if (exact3) C.forEach((c, i) => { if (c.length !== 3) throw new Error(`Clause ${i + 1} has ${c.length} literals; 3-CNF needs exactly 3.`); });
+  return { C, n, m: C.length, vars: Array.from({ length: n }, (_, i) => 'x' + (i + 1)) };
+}
+const litVal = (l, a) => { const v = a[Math.abs(l) - 1]; return v === null ? null : l > 0 ? v : 1 - v; };
+const litTex = l => (l < 0 ? '\\neg ' : '') + `x_{${Math.abs(l)}}`;
+const clauseVal = (c, a) => or3(c.map(l => litVal(l, a)));
+const P_3SAT = {
+  id: '3sat', name: '3SAT',
+  def: { given: 'A Boolean formula \\(\\varphi\\) in <i>3-CNF</i>: <i>conjunctive normal form</i> with <em>exactly</em> 3 literals per clause',
+         goal: 'Is there an assignment \\(V\\) of the variables in \\(\\varphi\\), so that \\(\\varphi\\) evaluates to \\(\\mathsf{true}\\)? (a.k.a. Is \\(\\varphi\\) <em>satisfiable</em>?)', gl: 'Goal' },
+  hint: 'Click a variable to cycle \\(? \\to 1 \\to 0\\), or click a literal to make it true (again: unassign). Green clauses are satisfied, red ones falsified.',
+  fmt: `<b>Format</b> (DIMACS CNF): optional header <code>p cnf n m</code>, then one clause per line as signed variable numbers ending in <code>0</code>,
+    e.g. <code>1 -3 2 0</code> for \\((x_1 \\vee \\neg x_3 \\vee x_2)\\). Lines starting with <code>c</code> are comments.`,
+  parse: t => parseCNF(t, true),
+  formal: s => `<div class="frow">\\(\\varphi = \\)` + s.C.map(c => `\\((${c.map(litTex).join(' \\vee ')})\\)`).join(' \\(\\wedge\\) ') + `</div><div class="frow">\\(n = ${s.n}\\) variables, \\(m = ${s.m}\\) clauses</div>`,
+  solve(s) {
+    const r = satAll(s.n, a => s.C.every(c => clauseVal(c, a) === 1));
+    let tree = null;
+    if (!r.count) {
+      const freq = Array.from({ length: s.n }, (_, j) => s.C.filter(c => c.some(l => Math.abs(l) === j + 1)).length);
+      const order = [...Array(s.n).keys()].sort((p, q) => freq[q] - freq[p] || p - q);
+      tree = caseTree(s.n, a => and3(s.C.map(c => clauseVal(c, a))), order, a => `\\(C_{${s.C.findIndex(c => clauseVal(c, a) === 0) + 1}}\\) false`);
+    }
+    return { yes: r.count > 0, certs: r.certs, count: r.count, tree };
+  },
+  empty: s => new Array(s.n).fill(null), fromCert: (s, c) => c.slice(),
+  draw(svg, c) {
+    const s = c.inst, a = c.cand, top = drawVarRow(svg, c, s.vars, a) + 34;
+    const lw = 58, bw = 3 * lw + 6, bh = 50, gap = 14, per = Math.max(1, Math.floor((c.W - 20) / (bw + gap)));
+    const g = el('g', null, svg);
+    s.C.forEach((cl, i) => {
+      const x = 10 + (i % per) * (bw + gap), y = top + Math.floor(i / per) * (bh + 30), v = clauseVal(cl, a);
+      texLabel(g, `C_{${i + 1}}`, x + 4, y - 11, { fs: 13, anchor: 'start', color: COL.inkFaint });
+      el('rect', { x, y, width: bw, height: bh, rx: 7, fill: v === 1 ? '#eef3e6' : v === 0 ? '#f6e6df' : COL.panel, stroke: valStroke(v), 'stroke-width': v === null ? 1.2 : 2.4 }, g);
+      cl.forEach((l, j) => {
+        const lv = litVal(l, a), r = el('g', { class: 'clk' }, g), lx = x + 7 + j * lw;
+        el('rect', { x: lx + 2, y: y + 9, width: lw - 18, height: bh - 18, rx: 5, fill: valFill(lv), stroke: valStroke(lv) }, r);
+        texLabel(r, litTex(l), lx + 2 + (lw - 18) / 2, y + bh / 2, { fs: 14.5 });
+        if (j < 2) texLabel(g, '\\vee', lx + lw - 7, y + bh / 2, { fs: 11, color: COL.inkFaint });
+        r.addEventListener('click', () => { const b = a.slice(), vi = Math.abs(l) - 1; b[vi] = lv === 1 ? null : (l > 0 ? 1 : 0); c.update(b); });
+      });
+    });
+    return top + Math.ceil(s.m / per) * (bh + 30) + 4;
+  },
+  verify(s, a) {
+    const un = a.filter(x => x === null).length, sat = s.C.filter(c => clauseVal(c, a) === 1).length, fal = s.C.map((c, i) => [clauseVal(c, a), i]).filter(([v]) => v === 0);
+    return { rows: [
+      [un === 0, un === 0 ? `all \\(${s.n}\\) variables assigned` : `${un} variable${un > 1 ? 's' : ''} not assigned yet`],
+      [sat === s.m, `satisfied clauses: \\(${sat}\\) of \\(${s.m}\\)` + (fal.length ? `; falsified: \\(${fal.slice(0, 6).map(([, i]) => `C_{${i + 1}}`).join(', ')}\\)${fal.length > 6 ? ' …' : ''}` : '')]] };
+  },
+  facts(s, r) {
+    if (r.yes) return `${r.count} of the \\(2^{${s.n}}\\) assignments satisfy \\(\\varphi\\) (exhaustive search).`;
+    return `None of the \\(2^{${s.n}}\\) assignments satisfies \\(\\varphi\\). A case analysis, stopping as soon as some clause is falsified:` + caseTreeHtml(r.tree, s.vars);
+  },
+  extraButtons: [{ label: '→ Vertex Cover instance (reduction)', title: 'build the graph of the reduction 3SAT ≤ₚ Vertex Cover and open it',
+                   run: s => ({ problem: 'vertex-cover', text: reduce3SATtoVC(s) }) }]
+};
+/* the reduction 3SAT <=_p Vertex Cover: one triangle per clause, plus edges between complementary literals */
+function reduce3SATtoVC(s) {
+  const n = 3 * s.m, E = [], cols = s.m <= 4 ? 2 : Math.ceil(Math.sqrt(s.m)), pos = [], lab = [];
+  s.C.forEach((cl, i) => {
+    const cx = (i % cols) * 4, cy = Math.floor(i / cols) * 4;
+    pos.push([cx, cy], [cx - 0.96, cy + 1.6], [cx + 0.96, cy + 1.6]);
+    cl.forEach(l => lab.push((l < 0 ? '-' : '') + 'x' + Math.abs(l)));
+    E.push([3 * i, 3 * i + 1], [3 * i + 1, 3 * i + 2], [3 * i, 3 * i + 2]);
+  });
+  const L = s.C.flat();
+  for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++)
+    if (L[p] === -L[q] && Math.floor(p / 3) !== Math.floor(q / 3)) E.push([p, q]);
+  return [`# reduction of a 3-CNF formula with ${s.m} clauses: vertex L(i,j) = 3(i-1)+(j-1)`,
+          `# phi satisfiable  <=>  vertex cover of size <= 2m = ${2 * s.m}`,
+          `k = ${2 * s.m}`, `labels = ${lab.join(' ')}`, String(n), String(E.length), ...E.map(e => e.join(' ')), ...pos.map(p => p.map(fmtNum).join(' '))].join('\n');
+}
+
+/* =====================================================================
+   presets: which instance is which, plus the human-readable arguments
+   ===================================================================== */
+const T = PRESET_TEXT;
+const grp = (vs, i) => ({ vs, color: palette(i) });
+const E_ = (pairs, o) => pairs.map(([u, v]) => Object.assign({ u, v }, o || {}));
+
+const SAT_TEXT = {
+  sy: '# a small satisfiable formula\n(x1 -> x2) & !(x2 & x3) & (x3 | x1)',
+  sn: '# a small unsatisfiable formula\n(x1 | x2) & (x1 -> x3) & (x2 -> x3) & !x3',
+  my: '# "neighbours differ" around a cycle of length 6\n(x1 <-> !x2) & (x2 <-> !x3) & (x3 <-> !x4) &\n(x4 <-> !x5) & (x5 <-> !x6) & (x6 <-> !x1)',
+  mn: '# "neighbours differ" around a cycle of length 5\n(x1 <-> !x2) & (x2 <-> !x3) & (x3 <-> !x4) &\n(x4 <-> !x5) & (x5 <-> !x1)'
+};
+const CNF_TEXT = {
+  slide: 'c the example from the 3SAT definition\np cnf 5 4\n1 -3 2 0\n-3 4 -5 0\n5 -5 -1 0\n1 3 5 0',
+  all8: 'c all 8 sign patterns over x1, x2, x3\np cnf 3 8\n1 2 3 0\n1 2 -3 0\n1 -2 3 0\n1 -2 -3 0\n-1 2 3 0\n-1 2 -3 0\n-1 -2 3 0\n-1 -2 -3 0',
+  my: 'p cnf 8 30\n1 8 -7 0\n5 3 -8 0\n-7 -6 -4 0\n-6 -5 -4 0\n-6 4 -3 0\n3 5 2 0\n3 -5 -7 0\n-8 -7 -4 0\n6 -3 -4 0\n8 6 5 0\n-6 8 -4 0\n8 4 -6 0\n-3 5 8 0\n7 -3 -6 0\n-2 -7 3 0\n-2 1 5 0\n2 7 -5 0\n-1 4 6 0\n4 -6 1 0\n1 -3 -7 0\n1 -4 5 0\n-1 -8 -3 0\n5 3 -4 0\n-1 -3 4 0\n-4 -1 6 0\n-3 5 7 0\n-6 3 7 0\n3 6 1 0\n-8 -6 -2 0\n4 2 -6 0',
+  mn: 'c a minimal unsatisfiable formula: dropping any clause makes it satisfiable\np cnf 6 13\n6 -2 4 0\n-6 1 -2 0\n-4 -1 -3 0\n6 -3 4 0\n6 3 -1 0\n3 2 -5 0\n3 2 -6 0\n-6 -2 -1 0\n5 1 -6 0\n1 -4 6 0\n-1 -6 4 0\n1 3 5 0\n2 -3 -5 0',
+  red: 'c the formula from the reduction 3SAT <= Vertex Cover\np cnf 4 4\n1 2 -3 0\n-1 3 4 0\n-1 -2 -4 0\n2 3 4 0'
+};
+const VC_SLIDE = `# the example graph from the Vertex Cover definition (v1 ... v7)
+k = 3
+labels = v1 v2 v3 v4 v5 v6 v7
+7
+7
+0 2
+0 1
+1 2
+2 3
+3 4
+3 5
+3 6
+0.45 -1
+-0.1 0
+1 0
+2 0
+3 0
+2 -1
+2 1`;
+const vcRed = k => reduce3SATtoVC(parseCNF(CNF_TEXT.red, true)).replace(/^k = \d+$/m, 'k = ' + k);
+const TRI4 = [0, 1, 2, 3].map(i => grp([3 * i, 3 * i + 1, 3 * i + 2], i));
+
+const PRESETS = {
+  'sat': [
+    { size: 'small', ans: true, text: SAT_TEXT.sy, why: 'For example \\(x_1 = x_2 = 1\\), \\(x_3 = 0\\).' },
+    { size: 'small', ans: false, text: SAT_TEXT.sn,
+      why: 'The last conjunct forces \\(x_3 = 0\\). Then \\(x_1 \\rightarrow x_3\\) forces \\(x_1 = 0\\), and \\(x_2 \\rightarrow x_3\\) forces \\(x_2 = 0\\) — but then \\(x_1 \\vee x_2\\) is false.' },
+    { size: 'medium', ans: true, text: SAT_TEXT.my, why: 'Neighbouring variables must differ, so the values alternate around the cycle: \\(x_1 = x_3 = x_5 = 1\\), \\(x_2 = x_4 = x_6 = 0\\) (or the other way round). The cycle has even length, so this closes up consistently.' },
+    { size: 'medium', ans: false, text: SAT_TEXT.mn, why: 'Neighbouring variables must differ, so going around the cycle the values alternate: \\(x_1, \\neg x_1, x_1, \\neg x_1, x_1\\) for \\(x_1,\\ldots,x_5\\). Then \\(x_5 = x_1\\), contradicting \\(x_5 \\leftrightarrow \\neg x_1\\). This is exactly why an odd cycle cannot be 2-coloured.' }
+  ],
+  '3sat': [
+    { size: 'small', ans: true, text: CNF_TEXT.slide, why: 'Satisfiable, e.g., via \\(x_1 \\mapsto \\mathsf{true}\\), \\(x_5 \\mapsto \\mathsf{false}\\) (other variables arbitrary). Note that the clause \\((x_5 \\vee \\neg x_5 \\vee \\neg x_1)\\) is always true.' },
+    { size: 'small', ans: false, text: CNF_TEXT.all8, why: 'Every assignment of \\(x_1, x_2, x_3\\) falsifies exactly one clause: the one in which every literal is the opposite of the assignment. Hence no assignment satisfies all 8 clauses.' },
+    { size: 'medium', ans: true, text: CNF_TEXT.my, why: 'Only 2 of the 256 assignments satisfy all 30 clauses — finding one by hand is a real search, checking one is easy.' },
+    { size: 'medium', ans: false, text: CNF_TEXT.mn, why: 'This formula is <i>minimally</i> unsatisfiable: removing any single clause makes it satisfiable, so there is no “obviously contradictory” small part. The case analysis below is a proof.' },
+    { size: 'reduction example', ans: true, text: CNF_TEXT.red, why: 'The formula used to illustrate the reduction to Vertex Cover; satisfied, e.g., by \\(x_1 = x_2 = x_3 = 0\\), \\(x_4 = 1\\). Use the button below to build the reduction graph.' }
+  ],
+  'vertex-cover': [
+    { size: 'small', ans: true, text: VC_SLIDE, cert: [0, 2, 3], why: '\\(S = \\{v_1, v_3, v_4\\}\\) covers all edges.' },
+    { size: 'small', ans: false, text: VC_SLIDE.replace('k = 3', 'k = 2'), overlay: { groups: [grp([0, 1, 2], 0), grp([3, 4, 5, 6], 1)] },
+      why: 'The triangle \\(v_1 v_2 v_3\\) needs two of its vertices in \\(S\\): one vertex covers only two of its three edges. The edges \\(\\{v_4, v_5\\}, \\{v_4, v_6\\}, \\{v_4, v_7\\}\\) need \\(v_4\\) (or all of \\(v_5, v_6, v_7\\)) — disjoint from the triangle. So \\(|S| \\ge 3\\).' },
+    { size: 'medium', ans: true, text: vcRed(8), cert: [0, 1, 4, 5, 7, 8, 9, 10],
+      why: 'The graph of the reduction \\(\\mathrm{3SAT} \\le_p \\mathrm{Vertex\\ Cover}\\) for \\(\\varphi=(x_1 \\vee x_2 \\vee \\neg x_3) \\wedge (\\neg x_1 \\vee x_3 \\vee x_4) \\wedge (\\neg x_1 \\vee \\neg x_2 \\vee \\neg x_4) \\wedge (x_2 \\vee x_3 \\vee x_4)\\), with \\(k = 2n = 8\\). The vertices <i>not</i> in the cover \\(S\\) define a satisfying assignment (one true literal per clause).' },
+    { size: 'medium', ans: false, text: vcRed(7), overlay: { groups: TRI4 },
+      why: 'Every clause triangle needs at least 2 of its 3 vertices in \\(S\\) (otherwise a triangle edge is not covered). The 4 triangles are disjoint, so \\(|S| \\ge 8 > 7\\).' }
+  ],
+  'dominating-set': [
+    { size: 'small', ans: true, text: T['dominating-set'][0], why: 'Two opposite corners of the cube, e.g. \\(\\{0, 7\\}\\), dominate themselves and their three neighbours each: exactly the 8 vertices, without any overlap (a <i>perfect</i> dominating set).' },
+    { size: 'small', ans: false, text: T['dominating-set'][1], why: 'Every vertex dominates only itself and its two neighbours. So 2 vertices dominate at most \\(2 \\cdot 3 = 6 < 7\\) vertices.' },
+    { size: 'medium', ans: true, text: T['dominating-set'][2], why: 'Four well-placed vertices suffice; the certificate is easy to check, but there are only a few of them.' },
+    { size: 'medium', ans: false, text: T['dominating-set'][3], why: 'A vertex dominates at most 5 vertices (itself and at most 4 neighbours). So 3 vertices dominate at most \\(3 \\cdot 5 = 15 < 16\\) vertices.' }
+  ],
+  'ham-cycle': [
+    { size: 'small', ans: true, text: T['ham-cycle'][0], why: 'For example \\(0, 1, 2, 3, 4, 5, 6\\) and back to \\(0\\).' },
+    { size: 'small', ans: false, text: T['ham-cycle'][1], overlay: { groups: [grp([0, 6], 0)] },
+      why: 'Removing the two highlighted vertices \\(0\\) and \\(6\\) leaves three separate pieces \\(\\{1,2\\}\\), \\(\\{3\\}\\), \\(\\{4,5\\}\\). Removing 2 vertices from a cycle leaves at most 2 pieces — so no cycle passes through all vertices.' },
+    { size: 'medium', ans: true, text: T['ham-cycle'][2], why: 'The dodecahedron: Hamilton’s own “Icosian game” (1857) asked for exactly such a cycle through its 20 corners.' },
+    { size: 'medium', ans: false, text: T['ham-cycle'][3], overlay: { groups: [grp([0, 1, 2, 3, 4], 0), grp([5, 6, 7, 8, 9, 10], 1)] },
+      why: 'The Herschel graph is bipartite: every edge joins one of the 5 orange vertices with one of the 6 blue vertices. A cycle alternates between the two sides, so it contains equally many of each — a Hamiltonian cycle would need 5 = 6.' },
+    { size: 'medium · Petersen', ans: false, text: T['ham-cycle'][4], why: 'The Petersen graph is the classic small example of a non-Hamiltonian graph, although it is 3-regular and highly symmetric. There is no one-line argument; the exhaustive search below settles it.' }
+  ],
+  'ham-cycle-directed': [
+    { size: 'small', ans: true, text: T['ham-cycle-directed'][0], why: 'There is exactly one Hamiltonian cycle.' },
+    { size: 'small', ans: false, text: T['ham-cycle-directed'][1], overlay: { groups: [grp([3, 5], 2)], edges: E_([[0, 3], [0, 5]], { color: palette(0) }) },
+      why: 'Vertices \\(3\\) and \\(5\\) can only be entered from \\(0\\) (each has a single incoming arc). A Hamiltonian cycle leaves \\(0\\) exactly once, so it cannot use both arcs \\((0,3)\\) and \\((0,5)\\).' },
+    { size: 'medium', ans: true, text: T['ham-cycle-directed'][2], why: 'There is exactly one Hamiltonian cycle.' },
+    { size: 'medium', ans: false, text: T['ham-cycle-directed'][3], overlay: { groups: [grp([7, 8], 2)], edges: E_([[7, 8], [8, 7]], { color: palette(0) }) },
+      why: 'Vertices \\(7\\) and \\(8\\) only have arcs to each other: once a walk enters \\(\\{7, 8\\}\\), it can never leave again. (Ignoring the directions, the graph <i>does</i> have a Hamiltonian cycle.)' }
+  ],
+  'clique': [
+    { size: 'small', ans: true, text: T['clique'][0], why: 'There is exactly one clique with 4 vertices.' },
+    { size: 'small', ans: false, text: T['clique'][1], overlay: { edges: E_([[0, 3], [1, 4], [2, 5]], { color: palette(0), dash: '2 7', width: 6 }) },
+      why: 'Each vertex is adjacent to all others except its “opposite” (marked pairs \\(0,3\\); \\(1,4\\); \\(2,5\\)). A clique contains at most one vertex of each opposite pair: at most 3 vertices.' },
+    { size: 'medium', ans: true, text: T['clique'][2], why: 'Three 5-cliques (overlapping heavily) hide among many 4-cliques.' },
+    { size: 'medium', ans: false, text: T['clique'][3], overlay: { groups: [grp([0, 1, 4, 7], 0), grp([2, 5, 9, 10], 1), grp([3, 6, 8, 11], 2)] },
+      why: 'The highlighted colouring uses only 3 colours, and adjacent vertices always get different colours. The vertices of a clique are pairwise adjacent, so they get pairwise different colours: a clique has at most 3 vertices.' }
+  ],
+  'independent-set': [
+    { size: 'small', ans: true, text: T['independent-set'][0], why: 'There is exactly one independent set with 4 vertices.' },
+    { size: 'small', ans: false, text: T['independent-set'][1], overlay: { edges: E_([[0, 1], [2, 3], [4, 5], [6, 7]], { color: palette(0) }) },
+      why: 'The 4 highlighted edges form a perfect matching: every vertex lies on exactly one of them. An independent set contains at most one endpoint of each, so at most 4 vertices.' },
+    { size: 'medium', ans: true, text: T['independent-set'][2], why: 'The Petersen graph has 5 independent sets with 4 vertices.' },
+    { size: 'medium', ans: false, text: T['independent-set'][3],
+      overlay: { edges: [...E_([[0, 1], [1, 2], [2, 3], [3, 4], [0, 4]], { color: palette(0) }), ...E_([[5, 7], [7, 9], [9, 6], [6, 8], [8, 5]], { color: palette(1) })] },
+      why: 'The outer 5-cycle and the inner 5-cycle (pentagram) together contain all 10 vertices. In a 5-cycle, an independent set has at most 2 vertices (no two consecutive). So at most \\(2 + 2 = 4\\).' }
+  ],
+  'coloring': [
+    { size: 'small', ans: true, text: T['coloring'][0], why: 'The rim is an <i>even</i> cycle: alternate colours 1 and 2 around it; the hub gets colour 3.' },
+    { size: 'small', ans: false, text: T['coloring'][1], overlay: { edges: E_([[0, 1], [1, 2], [2, 3], [3, 4], [4, 0]], { color: palette(0) }) },
+      why: 'The rim is an <i>odd</i> cycle (highlighted), which needs 3 colours: with 2 colours they would alternate and clash after going around. The hub is adjacent to all rim vertices and needs a 4th colour.' },
+    { size: 'medium', ans: true, text: T['coloring'][2], why: 'Every small triangle needs all 3 colours, and this forces the whole colouring: once one triangle is coloured, everything else follows (unique up to renaming colours).' },
+    { size: 'medium', ans: false, text: T['coloring'][3], why: 'The Grötzsch graph contains no triangle at all — so there is no small “clique” obstacle like in the odd wheel — and still needs 4 colours. It is the smallest triangle-free graph with this property (Mycielski’s construction applied to the 5-cycle). Here the proof is an exhaustive search.' }
+  ],
+  'max-cut': [
+    { size: 'small', ans: true, text: T['max-cut'][0], why: 'Put one vertex of each triangle into \\(C\\), at different “rungs”: 7 of the 9 edges are cut.' },
+    { size: 'small', ans: false, text: T['max-cut'][1], overlay: { edges: E_([[0, 1], [1, 2], [0, 2], [3, 4], [4, 5], [3, 5]], { color: palette(0) }) },
+      why: 'Walking around a cycle, you switch sides at every cut edge and must end on your start side — so a cycle contains an <i>even</i> number of cut edges, and a triangle at most 2. The two highlighted triangles share no edge, so at least 2 of the 9 edges are uncut: at most 7.' },
+    { size: 'medium', ans: true, text: T['max-cut'][2], why: 'The dodecahedron: 24 of its 30 edges can be cut.' },
+    { size: 'medium', ans: false, text: T['max-cut'][3],
+      why: 'Each of the 12 pentagonal faces (including the outer one) is an odd cycle, so it contains at least one uncut edge (same parity argument as for triangles). Every edge borders exactly 2 faces, so at least \\(12/2 = 6\\) edges are uncut: at most \\(30 - 6 = 24\\) cut edges.' }
+  ],
+  'tsp': [
+    { size: 'small', ans: true, text: T['tsp'][0], why: 'A shortest tour has length exactly 21.' },
+    { size: 'small', ans: false, text: T['tsp'][1], why: 'With 5 cities there are only 12 different tours; the table lists them all.' },
+    { size: 'medium', ans: true, text: T['tsp'][2], why: 'A shortest tour has length exactly 24.' },
+    { size: 'medium', ans: false, text: T['tsp'][3], why: 'With 7 cities there are 360 different tours; none is shorter than 24.' }
+  ],
+  'set-cover': [
+    { size: 'small', ans: true, text: T['set-cover'][0], why: '\\(S_1 \\cup S_4 = [7]\\).' },
+    { size: 'small', ans: false, text: T['set-cover'][1],
+      why: 'Element 4 lies only in \\(S_1\\) and \\(S_2\\), so a cover contains one of them. With \\(S_1\\), the rest \\(\\{5,6,7\\}\\) would have to lie in one single set — none contains all three. With \\(S_2\\), the rest \\(\\{1,2,3,7\\}\\) is not inside a single set either.' },
+    { size: 'medium', ans: true, text: T['set-cover'][2], why: 'There is exactly one cover with 3 sets.' },
+    { size: 'medium', ans: false, text: T['set-cover'][3], overlay: { elemGroups: [{ es: [2, 5, 8, 11], color: palette(2) }] },
+      why: 'No set contains two of the highlighted elements \\(2, 5, 8, 11\\). So each of them needs its own set: at least 4 sets.' }
+  ],
+  'weighted-set-cover': [
+    { size: 'small', ans: true, text: T['weighted-set-cover'][0],
+      why: 'The cheapest cover \\(\\{S_2, S_3, S_4, S_5\\}\\) costs \\(3+2+5+1 = 11\\) — although \\(S_1 \\cup S_4\\) covers everything with just two sets (cost \\(8 + 5 = 13\\)).' },
+    { size: 'small', ans: false, text: T['weighted-set-cover'][1],
+      why: 'Element 2 lies only in \\(S_1\\) and \\(S_4\\). With \\(S_1\\) (cost 8), the elements \\(5,6,7\\) still cost at least 4 (cheapest: \\(S_2\\) and \\(S_5\\)), total \\(\\ge 12\\). Without \\(S_1\\), we need \\(S_4\\) (5), and then \\(4\\) needs \\(S_2\\) (3), \\(1\\) needs \\(S_3\\) (2), \\(3\\) needs \\(S_5\\) (1): total 11. Either way \\(> 10\\).' },
+    { size: 'medium', ans: true, text: T['weighted-set-cover'][2], why: 'The same sets as for Set Cover (medium), now with costs: the unique 3-set cover costs 18, but a 4-set cover costs only 16.' },
+    { size: 'medium', ans: false, text: T['weighted-set-cover'][3], why: 'The cheapest cover costs 16 (exhaustive search).' }
+  ],
+  'exact-cover': [
+    { size: 'small', ans: true, text: T['exact-cover'][0], why: 'The example from Knuth’s “Dancing Links” paper: \\(S_1, S_4, S_5\\) partition \\([7]\\).' },
+    { size: 'small', ans: false, text: T['exact-cover'][1],
+      why: 'Element 1 lies only in \\(S_1\\) and \\(S_2\\). Taking \\(S_1 = \\{1,3,6\\}\\) excludes \\(S_2, S_3, S_6\\); then 2, 4, 5 must come from \\(S_4 = \\{4,5\\}\\) and \\(S_5 = \\{2,5\\}\\), which overlap in 5. Taking \\(S_2 = \\{1,2,6\\}\\) excludes \\(S_1, S_5, S_6\\); then 3, 4, 5 must come from \\(S_3 = \\{3,4\\}\\) and \\(S_4 = \\{4,5\\}\\), which overlap in 4.' },
+    { size: 'medium', ans: true, text: T['exact-cover'][2], why: 'Elements are the 14 squares of a 4×4 board with two squares removed; each set is a domino covering two adjacent squares. An exact cover is a domino tiling.' },
+    { size: 'medium', ans: false, text: T['exact-cover'][3], overlay: { elemGroups: [{ es: [2, 5, 7, 8, 10, 13], color: palette(1) }] },
+      why: 'The mutilated board: two opposite corners removed. Colour the squares like a chessboard (highlighted: one colour). Every domino covers one square of each colour, so a tiling covers equally many — but 6 squares of one colour remain and 8 of the other.' }
+  ],
+  'closest-string': [
+    { size: 'small', ans: true, text: T['closest-string'][0], why: 'There is exactly one string with distance at most 2 to all three inputs.' },
+    { size: 'small', ans: false, text: T['closest-string'][1], overlay: { rows: [0, 1] },
+      why: 'The highlighted strings have \\(d_H(s_1, s_2) = 4\\). If some \\(s\\) had distance \\(\\le 1\\) to both, the triangle inequality would give \\(d_H(s_1, s_2) \\le d_H(s_1, s) + d_H(s, s_2) \\le 2\\).' },
+    { size: 'medium', ans: true, text: T['closest-string'][2], why: 'Several strings achieve distance at most 3 to all five inputs.' },
+    { size: 'medium', ans: false, text: T['closest-string'][3], why: 'All pairwise distances are at most \\(4 = 2k\\), so the triangle-inequality argument does not apply. Still, exhaustive search shows that every \\(s\\) has distance \\(\\ge 3\\) to one of the inputs.' }
+  ],
+  'subset-sum': [
+    { size: 'small', ans: true, text: T['subset-sum'][0], why: 'For example \\(4 + 5 = 9\\), or \\(3 + 4 + 2 = 9\\).' },
+    { size: 'small', ans: false, text: T['subset-sum'][1], why: 'Without 34, all numbers together sum to only \\(3+4+12+5+2 = 26 < 30\\); with 34, we already exceed 30.' },
+    { size: 'medium', ans: true, text: T['subset-sum'][2], why: 'Exactly one subset sums to 186.' },
+    { size: 'medium', ans: false, text: T['subset-sum'][3],
+      why: '127 is a gap among the reachable sums (strip below). A partial argument: 41 is the only odd number, so a subset with odd sum 127 must contain 41 — and the remaining even numbers would have to make up exactly 86, which they cannot.' }
+  ],
+  'knapsack': [
+    { size: 'small', ans: true, text: T['knapsack'][0], why: 'Items 2 and 4: weight \\(4 + 3 = 7 \\le 10\\), value \\(40 + 50 = 90\\).' },
+    { size: 'small', ans: false, text: T['knapsack'][1], why: 'The plot shows all \\(2^4 = 16\\) subsets as (weight, value) points; none lies in the green region (weight \\(\\le 10\\) and value \\(\\ge 100\\)).' },
+    { size: 'medium', ans: true, text: T['knapsack'][2], why: 'Exactly one subset reaches value 62. (Greedily packing by value/weight ratio only reaches 58.)' },
+    { size: 'medium', ans: false, text: T['knapsack'][3], why: 'The plot shows all \\(2^8 = 256\\) subsets; the green region is empty.' }
+  ],
+  'bin-packing': [
+    { size: 'small', ans: true, text: T['bin-packing'][0], why: '\\(\\{4, 3, 3\\}\\) and \\(\\{4, 3, 3\\}\\), both filled exactly.' },
+    { size: 'small', ans: false, text: T['bin-packing'][1], overlay: { items: [0, 2, 4] },
+      why: 'The three items of size 6 are each larger than \\(b/2 = 5\\), so no two of them fit into one bin: 3 bins are needed — although the total size \\(20 \\le 2 \\cdot 10\\).' },
+    { size: 'medium', ans: true, text: T['bin-packing'][2], why: 'A packing into 4 bins exists (total size 79 of 80).' },
+    { size: 'medium', ans: false, text: T['bin-packing'][3], overlay: { items: [1, 4, 8] },
+      why: 'The three items of size 11 exceed \\(b/2 = 10\\), so they need three different bins. Each of those has 9 units left: room for at most one more item (all others are \\(\\ge 6\\), two need \\(\\ge 12\\)). So the 4th bin would have to take at least 4 items of size \\(\\ge 6\\), i.e. \\(\\ge 24 > 20\\) — although the total size is exactly \\(80 = k \\cdot b\\).' }
+  ],
+  'ilp': [
+    { size: 'small', ans: true, text: T['ilp'][0], why: '\\(x = (1, 0)^T\\) satisfies both rows and has \\(c^Tx = 2\\).' },
+    { size: 'small', ans: false, text: T['ilp'][1],
+      why: 'Only \\((0,1)\\) and \\((1,1)\\) reach objective \\(\\ge 3\\); \\((0,1)\\) violates row 2 and \\((1,1)\\) violates row 1. Note that the LP relaxation (shaded) <i>does</i> contain points with \\(c^Tx \\ge 3\\), e.g. \\((1, \\tfrac23)\\): integrality makes the difference.' },
+    { size: 'medium', ans: true, text: T['ilp'][2], why: 'Exactly one \\(x\\) is feasible with \\(c^Tx \\ge 5\\).' },
+    { size: 'medium', ans: false, text: T['ilp'][3], why: 'The diagram shows all 16 vectors; the feasible ones (solid) reach at most 5.' }
+  ]
+};
+
+const PROBLEMS = [P_SAT, P_3SAT, P_VC, P_DS, P_HC, P_DHC, P_CLIQUE, P_IS, P_TSP, P_COL, P_SC, P_WSC, P_CS, P_MC, P_EC, P_SS, P_KS, P_BP, P_ILP];
+
+/* =====================================================================
+   page state and wiring
+   ===================================================================== */
+const state = { pid: null, P: null, idx: 0, text: '', inst: null, sol: null, cand: null, certIdx: -1,
+                revealed: true, showArg: false, canvasH: 460, quiz: false, ui: {} };
+const solveCache = new Map();
+const presetsOf = pid => PRESETS[pid] || [];
+const curPreset = () => state.idx >= 0 ? presetsOf(state.pid)[state.idx] : null;
+
+function buildNav() {
+  const ol = $('plistOl');
+  for (const P of PROBLEMS) {
+    const li = document.createElement('li'), b = document.createElement('button');
+    b.innerHTML = '<span>' + esc(P.name) + (P.sub ? ` <span style="opacity:.75;font-size:.85em">(${P.sub})</span>` : '') + '</span>';
+    b.dataset.pid = P.id;
+    b.addEventListener('click', () => selectProblem(P.id, 0));
+    li.appendChild(b); ol.appendChild(li);
+  }
+}
+function selectProblem(pid, idx) {
+  const P = PROBLEMS.find(p => p.id === pid) || PROBLEMS[0];
+  state.pid = P.id; state.P = P;
+  document.querySelectorAll('#plistOl button').forEach(b => b.classList.toggle('on', b.dataset.pid === P.id));
+  renderDef();
+  setMath($('fmtHint'), P.fmt);
+  setMath($('clickHint'), P.hint);
+  const pr = presetsOf(P.id);
+  idx = Math.max(0, Math.min(idx || 0, pr.length - 1));
+  loadInstance(pr[idx].text, idx);
+}
+function loadInstance(text, idx) {
+  const P = state.P;
+  let inst;
+  try { inst = P.parse(text); } catch (e) { $('err').textContent = e.message; return false; }
+  $('err').textContent = '';
+  state.text = text; state.idx = idx; state.inst = inst;
+  const key = P.id + '\u0000' + text;
+  let sol = solveCache.get(key);
+  if (!sol) {
+    try { sol = P.solve(inst); } catch (e) { console.error(e); sol = { unknown: true }; }
+    const pre = idx >= 0 ? presetsOf(P.id)[idx] : null;
+    if (pre && pre.cert && sol.certs) {           // show the certificate from the lecture first
+      const same = c => JSON.stringify([...c].sort((a, b) => a - b)) === JSON.stringify([...pre.cert].sort((a, b) => a - b));
+      sol.certs = [pre.cert.slice(), ...sol.certs.filter(c => !same(c))];
+    }
+    solveCache.set(key, sol);
+  }
+  state.sol = sol; state.cand = P.empty(inst); state.certIdx = -1; state.ui = {};
+  state.revealed = !state.quiz; state.showArg = false;
+  $('ta').value = text;
+  history.replaceState(null, '', '#' + P.id + (idx > 0 ? '/' + idx : ''));
+  renderPresets(); renderFormal(); renderAll();
+  return true;
+}
+function setCand(c) { state.cand = c; renderAll(); }
+
+/* ---------------- rendering ---------------- */
+function renderDef() {
+  const P = state.P, d = P.def;
+  setMath($('defbox'), `<div class="dname">${esc(P.name)}${P.sub ? `<small>${P.sub} version</small>` : ''}</div>
+    <div class="drow"><span class="dl">Given:</span><span>${d.given}</span></div>
+    <div class="drow"><span class="dl">${d.gl || 'Question'}:</span><span>${d.goal}</span></div>` + (d.note ? `<div class="dnote">${d.note}</div>` : ''));
+}
+function quizOrder(pid, n) {               // in quiz mode, shuffle presets deterministically so the order gives nothing away
+  let h = 7; for (const ch of pid) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const a = [...Array(n).keys()];
+  for (let i = n - 1; i > 0; i--) { h = (h * 1103515245 + 12345) >>> 0; const j = h % (i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+function renderPresets() {
+  const seg = $('presetSeg'); seg.innerHTML = '';
+  const pr = presetsOf(state.pid);
+  const order = state.quiz ? quizOrder(state.pid, pr.length) : [...pr.keys()];
+  const counter = {};
+  for (const i of order) {
+    const p = pr[i], b = document.createElement('button');
+    if (state.quiz) { counter[p.size] = (counter[p.size] || 0) + 1; b.innerHTML = `${esc(p.size)} ${String.fromCharCode(64 + counter[p.size])}`; }
+    else b.innerHTML = `${esc(p.size)}<span class="yn">${p.ans ? 'yes' : 'no'}</span>`;
+    b.className = i === state.idx ? 'on' : '';
+    b.title = 'load this instance';
+    b.addEventListener('click', () => loadInstance(p.text, i));
+    seg.appendChild(b);
+  }
+  if (state.idx < 0) { const b = document.createElement('button'); b.textContent = 'custom'; b.className = 'on'; seg.appendChild(b); }
+}
+function renderFormal() {
+  setMath($('formal'), state.P.formal(state.inst));
+}
+function renderAll() { renderCanvas(); renderVerifier(); renderExpl(); renderButtons(); renderBadge(); }
+
+function renderBadge() {
+  const b = $('badge'), s = state.sol;
+  if (s.unknown) { b.className = 'badge hid'; b.textContent = 'too large to decide here'; return; }
+  if (!state.revealed) { b.className = 'badge hid'; b.textContent = 'yes or no?'; return; }
+  b.className = 'badge ' + (s.yes ? 'yes' : 'no'); b.textContent = s.yes ? 'Yes instance' : 'No instance';
+}
+let drawing = false;
+function renderCanvas() {
+  const svg = $('cv'), wrap = $('svgwrap');
+  const W = Math.max(280, wrap.clientWidth), H = state.canvasH;
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  const pre = curPreset();
+  const ctx = {
+    inst: state.inst, cand: state.cand, sol: state.sol, W, H, ui: state.ui,
+    analysis: state.revealed && !state.sol.unknown,
+    overlay: (state.showArg && state.revealed && pre && pre.overlay) ? pre.overlay : null,
+    update: setCand, redraw: renderCanvas
+  };
+  let res;
+  try { res = state.P.draw(svg, ctx); } catch (e) { console.error(e); res = H; }
+  let h = H, w = W;
+  if (typeof res === 'number') h = Math.max(H, res);
+  else if (res) { h = Math.max(H, res.h); w = Math.max(W, res.w || W); }
+  svg.setAttribute('width', w); svg.setAttribute('height', h); svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+}
+function renderVerifier() {
+  const v = state.P.verify(state.inst, state.cand);
+  const allOk = v.rows.every(r => r[0]);
+  let h = v.rows.map(([okk, s]) => `<div class="vrow ${okk ? 'ok' : 'bad'}"><span class="mark">${ok(okk)}</span><span>${s}</span></div>`).join('');
+  h += allOk ? `<div class="sum ok"><b>Accepted.</b> This certificate proves that the instance is a <b>Yes</b> instance.</div>`
+             : `<div class="sum bad">Not (yet) a valid certificate.</div>`;
+  setMath($('ver'), h);
+}
+function renderExpl() {
+  const s = state.sol, P = state.P, pre = curPreset(), box = $('expl');
+  if (s.unknown) { $('explTitle').textContent = 'Yes or no?'; setMath(box, '<p class="placeholder">This instance is too large for the exhaustive search on this page; the verifier still works.</p>'); return; }
+  if (!state.revealed) {
+    $('explTitle').textContent = 'Yes or no?';
+    setMath(box, `<p>Is this a <b>Yes</b> or a <b>No</b> instance? Try to find a certificate in the drawing — or convince yourself that none can exist.</p>
+      <div class="btns"><button class="pri" id="btnReveal">Reveal the answer</button></div>`);
+    $('btnReveal').addEventListener('click', () => { state.revealed = true; renderAll(); });
+    return;
+  }
+  $('explTitle').textContent = s.yes ? 'Why yes?' : 'Why no?';
+  let h = `<p><b>${s.yes ? 'Yes' : 'No'}</b> — ${s.yes ? 'a certificate exists.' : 'no certificate exists.'}</p>`;
+  if (pre && pre.why) h += `<p>${pre.why}</p>`;
+  const btns = [];
+  if (pre && pre.overlay) btns.push(`<button id="btnArg" class="${state.showArg ? 'pri' : ''}">${state.showArg ? 'Hide' : 'Show'} the argument in the drawing</button>`);
+  (P.extraButtons || []).forEach((b, i) => btns.push(`<button id="btnX${i}" title="${esc(b.title || '')}">${esc(b.label)}</button>`));
+  if (btns.length) h += `<div class="btns">${btns.join('')}</div>`;
+  h += `<div class="facts">${P.facts(state.inst, s)}</div>`;
+  setMath(box, h);
+  if ($('btnArg')) $('btnArg').addEventListener('click', () => { state.showArg = !state.showArg; renderAll(); });
+  (P.extraButtons || []).forEach((b, i) => $('btnX' + i).addEventListener('click', () => {
+    const r = b.run(state.inst); selectProblem(r.problem, 0); $('editor').open = true; loadInstance(r.text, -1);
+  }));
+}
+function renderButtons() {
+  const s = state.sol, P = state.P, bc = $('btnCert'), bn = $('btnNext');
+  const best = !s.unknown && !s.yes && P.best ? true : false;
+  bc.textContent = s.yes || s.unknown ? 'Show certificate' : 'Show best attempt';
+  bc.title = s.yes ? 'load a certificate (verified on the right)' : P.bestName ? 'load ' + P.bestName.replace(/\\\(|\\\)/g, '') : 'load the closest the search could get';
+  bc.disabled = !state.revealed || s.unknown || !(s.yes ? s.certs && s.certs.length : best);
+  bn.disabled = !state.revealed || !s.yes || !s.certs || s.certs.length < 2;
+  bn.textContent = s.yes && s.certs && state.certIdx >= 0 ? `Another (${state.certIdx + 1}/${s.certs.length}${s.count > s.certs.length ? '+' : ''})` : 'Another';
+}
+function showCert(step) {
+  const s = state.sol, P = state.P;
+  if (s.yes) {
+    state.certIdx = state.certIdx < 0 ? 0 : (state.certIdx + step + s.certs.length) % s.certs.length;
+    state.cand = P.fromCert(state.inst, s.certs[state.certIdx]);
+  } else if (P.best) {
+    const b = P.best(state.inst, s); if (b) state.cand = b;
+  }
+  renderAll();
+}
+
+/* ---------------- controls ---------------- */
+$('btnCert').addEventListener('click', () => showCert(0));
+$('btnNext').addEventListener('click', () => showCert(1));
+$('btnClear').addEventListener('click', () => { state.cand = state.P.empty(state.inst); state.certIdx = -1; state.ui = {}; renderAll(); });
+$('btnLoad').addEventListener('click', () => {
+  const t = $('ta').value, pr = presetsOf(state.pid);
+  const i = pr.findIndex(p => p.text === t);
+  loadInstance(t, i);
+});
+$('btnReset').addEventListener('click', () => { const pr = presetsOf(state.pid); const i = Math.max(0, state.idx); loadInstance(pr[i].text, i); });
+$('quiz').addEventListener('change', e => { state.quiz = e.target.checked; state.revealed = !state.quiz; state.showArg = false; renderPresets(); renderAll(); });
+
+document.addEventListener('keydown', e => {
+  if (/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName) || e.metaKey || e.ctrlKey || e.altKey) return;
+  const pr = presetsOf(state.pid), pi = PROBLEMS.findIndex(p => p.id === state.pid);
+  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+    const d = e.key === 'ArrowRight' ? 1 : -1, i = ((state.idx < 0 ? 0 : state.idx) + d + pr.length) % pr.length;
+    loadInstance(pr[i].text, i); e.preventDefault();
+  } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    const d = e.key === 'ArrowDown' ? 1 : -1;
+    selectProblem(PROBLEMS[(pi + d + PROBLEMS.length) % PROBLEMS.length].id, 0); e.preventDefault();
+  } else if (e.key === 'c') { if (!$('btnCert').disabled) showCert(0); }
+  else if (e.key === 'n') { if (!$('btnNext').disabled) showCert(1); }
+  else if (e.key === 'x') $('btnClear').click();
+});
+
+/* ---------------- draggable gutters ---------------- */
+function dragger(elm, onMove) {
+  elm.addEventListener('pointerdown', e => {
+    e.preventDefault(); elm.setPointerCapture(e.pointerId); elm.classList.add('drag');
+    const x0 = e.clientX, y0 = e.clientY, st = onMove(null);
+    const mv = ev => onMove({ dx: ev.clientX - x0, dy: ev.clientY - y0, st });
+    const up = () => { elm.classList.remove('drag'); elm.removeEventListener('pointermove', mv); elm.removeEventListener('pointerup', up); };
+    elm.addEventListener('pointermove', mv); elm.addEventListener('pointerup', up);
+  });
+}
+const root = document.documentElement;
+const cssPx = name => parseFloat(getComputedStyle(root).getPropertyValue(name));
+dragger($('gutL'), m => { if (!m) return cssPx('--navw'); root.style.setProperty('--navw', Math.max(140, Math.min(420, m.st + m.dx)) + 'px'); });
+dragger($('gutR'), m => { if (!m) return cssPx('--sidew'); root.style.setProperty('--sidew', Math.max(260, Math.min(900, m.st - m.dx)) + 'px'); });
+dragger($('gutH'), m => { if (!m) return state.canvasH; state.canvasH = Math.max(220, Math.min(1600, m.st + m.dy)); renderCanvas(); });
+let rq = null;
+new ResizeObserver(() => { if (rq) return; rq = requestAnimationFrame(() => { rq = null; if (state.inst) renderCanvas(); }); }).observe($('svgwrap'));
+
+/* ---------------- start ---------------- */
+buildNav();
+(function start() {
+  const m = location.hash.match(/^#([\w-]+)(?:\/(\d+))?/);
+  selectProblem(m ? m[1] : PROBLEMS[0].id, m && m[2] ? +m[2] : 0);
+})();
+window.addEventListener('hashchange', () => {
+  const m = location.hash.match(/^#([\w-]+)(?:\/(\d+))?/);
+  if (m && (m[1] !== state.pid || (+m[2] || 0) !== state.idx)) selectProblem(m[1], m[2] ? +m[2] : 0);
+});
+function onMathJax() {
+  mjReady = true; texCache.clear();
+  ['defbox', 'formal', 'ver', 'expl', 'fmtHint', 'clickHint'].forEach(id => { $(id)._last = null; });
+  renderDef(); setMath($('fmtHint'), state.P.fmt); setMath($('clickHint'), state.P.hint); renderFormal(); renderAll();
+}
+window.addEventListener('load', () => {
+  if (window.MathJax && MathJax.startup && MathJax.startup.promise) MathJax.startup.promise.then(onMathJax).catch(e => console.warn(e));
+});
+
+</script>
+</body>
+</html>

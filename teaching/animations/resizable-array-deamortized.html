@@ -101,13 +101,14 @@
               font-family:var(--wi-font-head); letter-spacing:.03em;
               background:var(--wi-panel); border:1px solid var(--wi-border-soft);
               border-left-width:0; border-radius:0; color:var(--wi-ink-faint); cursor:pointer;
-              text-overflow:ellipsis; white-space:nowrap; }
+              text-overflow:clip; white-space:nowrap; }
   .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
   .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
   .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3;
                     border-right:1px solid var(--wi-accent-soft); transition:width .12s linear; }
   .phasebtn .fill.empty { border-right:0; }
   .phasebtn .lab { position:relative; font-family:var(--mono); }
+  .phasebtn { padding-left:0 !important; padding-right:0 !important; text-align:center; }   /* no minimum width from padding */
   .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
   .phasebtn.past { color:var(--wi-ink-soft); }
   .phasebtn.past .fill { border-right-color:transparent; }
@@ -256,6 +257,18 @@
   @media (prefers-reduced-motion:reduce) {
     * { animation-duration:.001ms !important; transition-duration:.001ms !important; }
   }
+
+  /* the step slider has an exactly 16 px thumb, so that it lines up with the phase bar (inset by 8 px) */
+  .progress input[type=range] { -webkit-appearance:none; appearance:none; height:18px; background:transparent; margin:0; }
+  .progress input[type=range]::-webkit-slider-runnable-track { height:6px; border-radius:3px;
+    background:linear-gradient(to right, var(--wi-accent) 0, var(--wi-accent) calc(8px + (100% - 16px) * var(--f, 0)), #e4d8c4 calc(8px + (100% - 16px) * var(--f, 0)), #e4d8c4 100%); }
+  .progress input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; box-sizing:border-box; width:16px; height:16px; margin-top:-5px;
+    border-radius:50%; background:var(--wi-accent); border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent-dark); cursor:pointer; }
+  .progress input[type=range]::-moz-range-track { height:6px; border-radius:3px; background:#e4d8c4; }
+  .progress input[type=range]::-moz-range-progress { height:6px; border-radius:3px; background:var(--wi-accent); }
+  .progress input[type=range]::-moz-range-thumb { box-sizing:border-box; width:16px; height:16px; border-radius:50%;
+    background:var(--wi-accent); border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent-dark); cursor:pointer; }
+  .progress input[type=range]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:3px; }
 
   /* --- page-specific --- */
   .cell { fill:var(--wi-panel-2); stroke:var(--wi-border); stroke-width:1; }
@@ -487,23 +500,96 @@ function computeVis() {
     let last = -1; vis.forEach((i, v) => { if (i < to) last = v; });
     ph.vTo = last;
   });
-  el("scrubber").max = Math.max(0, vis.length - 1);
+}
+/* ---- phase bar + scrubber ------------------------------------------------------------
+   Each phase button gets a width proportional to its number of steps, but at least
+   PHASE_MINW px (enough for a short label); the remaining width is shared proportionally
+   ("water filling"). The scrubber is then piecewise linear over exactly these widths,
+   so its thumb is always above the button of the current phase. Labels are shown only
+   if they fit completely (no ellipsis); the tooltip always has the full name. */
+const SCRUB_RES = 100000, PHASE_MINW = 30;
+let phaseLay = null;
+function layoutPhases() {
+  const bar = el("phaseBar"), W = Math.max(1, bar.getBoundingClientRect().width || 600), n = phases.length;
+  const cnt = phases.map(ph => Math.max(1, ph.vTo - ph.vFrom + 1));
+  const minW = Math.min(PHASE_MINW, W / Math.max(1, n));
+  const w = new Array(n).fill(0), fixed = new Array(n).fill(false);
+  for (let it = 0; it <= n; it++) {
+    let remW = W, remC = 0;
+    for (let i = 0; i < n; i++) if (fixed[i]) remW -= minW; else remC += cnt[i];
+    let changed = false;
+    for (let i = 0; i < n; i++) if (!fixed[i]) {
+      w[i] = remC ? remW * cnt[i] / remC : minW;
+      if (w[i] < minW) { fixed[i] = true; changed = true; }
+    }
+    if (!changed) break;
+  }
+  for (let i = 0; i < n; i++) if (fixed[i]) w[i] = minW;
+  const x0 = []; let acc = 0; for (let i = 0; i < n; i++) { x0.push(acc); acc += w[i]; }
+  phaseLay = { W: acc, w: w, x0: x0, cnt: cnt };
+}
+function phaseOfStep(v) {
+  for (let k = phases.length - 1; k >= 0; k--) if (phases[k].vFrom >= 0 && v >= phases[k].vFrom) return k;
+  return 0;
+}
+function sliderFromStep(v) {
+  if (!phaseLay || !phases.length) return 0;
+  const k = phaseOfStep(v), ph = phases[k], c = phaseLay.cnt[k];
+  const x = phaseLay.x0[k] + phaseLay.w[k] * (Math.min(c - 1, Math.max(0, v - ph.vFrom)) + 0.5) / c;
+  return Math.round(SCRUB_RES * x / phaseLay.W);
+}
+function stepFromSlider(val) {
+  if (!phaseLay || !phases.length) return 0;
+  const x = val / SCRUB_RES * phaseLay.W;
+  let k = phases.length - 1;
+  for (let i = 0; i < phases.length; i++) if (x < phaseLay.x0[i] + phaseLay.w[i]) { k = i; break; }
+  const c = phaseLay.cnt[k], loc = Math.floor((x - phaseLay.x0[k]) / phaseLay.w[k] * c);
+  return Math.max(0, Math.min(vis.length - 1, phases[k].vFrom + Math.max(0, Math.min(c - 1, loc))));
+}
+let phaseCanvas = null;
+function textWidth(t, node) {
+  phaseCanvas = phaseCanvas || document.createElement("canvas");
+  const ctx = phaseCanvas.getContext("2d"), cs = getComputedStyle(node);
+  ctx.font = cs.fontWeight + " " + cs.fontSize + " " + cs.fontFamily;
+  return ctx.measureText(t).width;
+}
+function fitPhaseButtons() {
+  layoutPhases();
+  const btns = el("phaseBar").children;
+  phases.forEach((ph, k) => {
+    const b = btns[k]; if (!b) return;
+    b.style.flex = "0 0 " + phaseLay.w[k].toFixed(2) + "px";
+    // the longest of: full name, first word ("del" for delMax/delMin), first character — that fits completely
+    const lab = b.lastChild, full = String(ph.name), cands = [full, full.split(/[\s(]/)[0], /^del/.test(full) ? "del" : null, full.slice(0, 1)];
+    lab.textContent = cands.find(c => c && textWidth(c, lab) + 5 <= phaseLay.w[k]) || "";
+  });
+  el("scrubber").max = SCRUB_RES;
+  el("scrubber").value = sliderFromStep(cur);
 }
 function renderPhases() {
   const bar = el("phaseBar");
   bar.innerHTML = "";
   phases.forEach(ph => {
-    const cnt = Math.max(1, ph.vTo - ph.vFrom + 1);
     const b = document.createElement("button");
-    b.className = "phasebtn"; b.style.flexGrow = cnt;
+    b.className = "phasebtn";
     b.title = phaseTitle(ph) + " — click to jump to its start";
-    b.innerHTML = '<span class="fill empty"></span><span class="lab">' + esc(ph.name) + "</span>";
+    b.innerHTML = '<span class="fill empty"></span><span class="lab"></span>';
     b.addEventListener("click", () => { stopPlay(); go(ph.vFrom); });
     bar.appendChild(b);
   });
+  // the step counter next to the slider gets a fixed width, so the bar does not change width while stepping
+  const sn = el("stepNo"); if (sn) sn.style.minWidth = (2 * String(vis.length).length + 3) + "ch";
+  fitPhaseButtons();
   updatePhaseBar();
+  if (!bar._ro && window.ResizeObserver) {            // re-fit when the bar changes width
+    let last = bar.clientWidth;
+    bar._ro = new ResizeObserver(() => { if (Math.abs(bar.clientWidth - last) > 1) { last = bar.clientWidth; fitPhaseButtons(); updatePhaseBar(); } });
+    bar._ro.observe(bar);
+  }
 }
 function updatePhaseBar() {
+  const bw = el("phaseBar").getBoundingClientRect().width;
+  if (!phaseLay || Math.abs(bw - phaseLay.W) > 0.5) fitPhaseButtons();     // the bar changed width: re-fit
   const btns = el("phaseBar").children;
   phases.forEach((ph, k) => {
     const b = btns[k]; if (!b) return;
@@ -513,9 +599,21 @@ function updatePhaseBar() {
     const w = past ? 100 : on ? 100 * (cur - ph.vFrom + 1) / cnt : 0;
     f.style.width = w + "%"; f.classList.toggle("empty", w === 0);
   });
-  el("stepNo").textContent = (cur + 1) + " / " + vis.length;
-  el("scrubber").value = cur;
+  if (el("stepNo")) el("stepNo").textContent = (cur + 1) + " / " + vis.length;
+  const sc = el("scrubber"), v = sliderFromStep(cur);
+  sc.value = v; sc.style.setProperty("--f", v / SCRUB_RES);
 }
+function initScrubber() {
+  const sc = el("scrubber");
+  sc.max = SCRUB_RES; sc.step = 1;
+  sc.addEventListener("input", e => { stopPlay(); const v = stepFromSlider(+e.target.value); if (v !== cur) go(v); });
+  sc.addEventListener("change", () => { sc.value = sliderFromStep(cur); });   // snap the thumb onto the step
+  sc.addEventListener("keydown", e => {
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") { stopPlay(); go(cur + 1); e.preventDefault(); }
+    else if (e.key === "ArrowLeft" || e.key === "ArrowDown") { stopPlay(); go(cur - 1); e.preventDefault(); }
+  });
+}
+
 function go(v, animate) {
   v = Math.max(0, Math.min(vis.length - 1, v));
   const prev = steps[vis[cur]];
@@ -603,7 +701,7 @@ function initTransport() {
   el("backBtn").addEventListener("click", () => { stopPlay(); go(cur - 1); });
   el("stepBtn").addEventListener("click", () => { stopPlay(); go(cur + 1); });
   el("playBtn").addEventListener("click", () => togglePlay());
-  el("scrubber").addEventListener("input", e => { stopPlay(); go(+e.target.value); });
+  initScrubber();
   el("speed").addEventListener("input", e => { UI.delay = +e.target.value; el("speedVal").textContent = UI.delay + "ms"; });
   document.addEventListener("keydown", ev => {
     const t = ev.target.tagName;

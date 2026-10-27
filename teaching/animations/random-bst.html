@@ -1,0 +1,2062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Random BSTs · shape and search cost</title>
+
+<script type="text/x-mathjax-config">
+  var font = "Neo-Euler";
+  MathJax.Hub.Config({
+    tex2jax: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']], processEscapes: true },
+    TeX: { Macros: { wrel: ["\\mathrel{\\;#1\\;}", 1] } },
+    "SVG": { font: font },
+    "HTML-CSS": { webFont: font, imageFont: font, preferredFont: font, availableFonts: [],
+                  scale: 85, mtextFontInherit: true },
+    showProcessingMessages: false, messageStyle: "none"
+  });
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS_HTML"></script>
+
+<style>
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#8d897c;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --mono: var(--wi-font-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+    --wi-radius:4px; --wi-radius-lg:5px;
+    /* BST drawing style of the randomized-trees slides */
+    --node-fill:#ecd9d2; --node-stroke:#1d1b17; --node-key:#5b2a1e;
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; margin:0 0 6px; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 14px; max-width:100ch; line-height:1.5; }
+  .subtitle code, .hint code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; }
+  body.bare { padding:8px 10px 20px; }
+  body.bare .wi-topbar, body.bare .titlebar, body.bare .subtitle { display:none; }
+
+  /* --- tabs --- */
+  .tabs { display:flex; gap:0; margin:0 0 14px; border-bottom:1px solid var(--wi-border-soft); flex-wrap:wrap; }
+  .tabs button { border:1px solid transparent; border-bottom:0; border-radius:var(--wi-radius-lg) var(--wi-radius-lg) 0 0;
+                 background:transparent; padding:7px 16px 6px; font-size:.86rem; color:var(--wi-ink-soft); margin-bottom:-1px; }
+  .tabs button.on { background:var(--wi-panel); border-color:var(--wi-border-soft); color:var(--wi-accent); font-weight:bold; }
+  .tab { display:none; }
+  .tab.on { display:block; }
+
+  /* --- control chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:11px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; }
+  .ctl > label, .lbl { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer; transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text; font-size:1.02rem; line-height:1.1;
+                padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius); padding:4px 7px; font-size:.85rem; }
+  input[type=number] { width:4.6em; }
+  input.str { font-family:var(--mono); font-size:.8rem; width:22em; }
+  .seg { display:inline-flex; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 11px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; }
+  input[type=checkbox] { accent-color:var(--wi-accent); }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; }
+
+  /* --- transport: slider (16px thumb) + phase bar inset by half a thumb --- */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:14px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; }
+  input.scrub { -webkit-appearance:none; appearance:none; display:block; width:100%; height:16px; margin:2px 0 0;
+                background:transparent; cursor:pointer; }
+  input.scrub::-webkit-slider-runnable-track { height:6px; background:var(--wi-panel); border:1px solid var(--wi-border); border-radius:3px; }
+  input.scrub::-moz-range-track { height:6px; background:var(--wi-panel); border:1px solid var(--wi-border); border-radius:3px; }
+  input.scrub::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; margin-top:-6px; border-radius:50%;
+                background:var(--wi-accent); border:2px solid var(--wi-panel-2); box-sizing:border-box; }
+  input.scrub::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:var(--wi-accent);
+                border:2px solid var(--wi-panel-2); box-sizing:border-box; }
+  .phasebar { display:flex; margin:5px 8px 0; width:calc(100% - 16px); }
+  .phasebtn { position:relative; overflow:hidden; flex:0 0 auto; min-width:0; padding:3px 0; font-size:.68rem; line-height:1.3;
+              font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+              border:1px solid var(--wi-border-soft); border-left-width:0; border-radius:0; color:var(--wi-ink-faint);
+              cursor:pointer; white-space:nowrap; text-align:center; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3; border-right:1px solid var(--wi-accent-soft); }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+  .stepno { font-family:var(--mono); font-size:.76rem; color:var(--wi-ink-faint); white-space:nowrap; text-align:right;
+            padding-top:4px; width:9.5ch; flex:0 0 auto; }
+  .speedval { font-family:var(--mono); font-size:.76rem; color:var(--wi-ink-faint); width:6ch; display:inline-block; }
+
+  /* --- stage with draggable splitter --- */
+  .stage { display:flex; align-items:stretch; gap:0; }
+  .stage > .col-main { flex:0 0 auto; min-width:280px; }
+  .stage > .col-side { flex:1 1 0; min-width:260px; display:flex; flex-direction:column; gap:14px; }
+  .vsplit { flex:0 0 14px; cursor:col-resize; position:relative; touch-action:none; }
+  .vsplit::after { content:""; position:absolute; left:6px; top:12px; bottom:12px; width:2px; border-radius:1px; background:var(--wi-border-soft); }
+  .vsplit:hover::after, .vsplit.drag::after { background:var(--wi-accent-soft); }
+  .hsplit { height:12px; cursor:row-resize; position:relative; touch-action:none; margin-top:2px; }
+  .hsplit::after { content:""; position:absolute; top:5px; left:40%; right:40%; height:2px; border-radius:1px; background:var(--wi-border-soft); }
+  .hsplit:hover::after, .hsplit.drag::after { background:var(--wi-accent-soft); }
+  @media (max-width:900px) {
+    .stage { flex-direction:column; }
+    .stage > .col-main { width:100% !important; }
+    .vsplit { display:none; }
+    .stage > .col-side { margin-top:14px; }
+  }
+  .twin { display:flex; flex-wrap:wrap; gap:14px; margin-bottom:6px; }
+  .twin > .sim-box { flex:1 1 360px; min-width:0; }
+  .twin > .sim-box.off { display:none; }
+  .status p { margin:0 0 6px; } .status p:last-child { margin-bottom:0; }
+  .status .who { font-family:var(--wi-font-head); font-size:.7rem; letter-spacing:.08em; text-transform:uppercase; color:var(--wi-ink-faint); margin-right:4px; }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); padding:12px 15px; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--wi-ink-faint); margin:0 0 9px;
+               display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--mono); font-size:.9em; color:var(--wi-ink-soft); }
+  .svgscroll { overflow:auto; position:relative; background:var(--wi-bg); border-radius:var(--wi-radius); }
+  .svgscroll svg { display:block; max-width:none; }
+  .overlay { position:absolute; left:0; top:0; pointer-events:none; }
+  .olab { position:absolute; font-size:.85rem; white-space:nowrap; transform:translate(-50%,0); color:var(--wi-ink-strong); }
+  .olab.l { color:var(--wi-relax); } .olab.r { color:var(--wi-queue); }
+
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius);
+            padding:10px 13px; font-size:.9rem; color:var(--wi-ink-strong); min-height:96px; }
+  .status b.k { color:var(--wi-accent); }
+  .status .go-l { color:var(--wi-relax); font-weight:bold; } .status .go-r { color:var(--wi-queue); font-weight:bold; }
+  .insq { font-family:var(--mono); font-size:.82rem; line-height:1.9; color:var(--wi-ink-soft); word-wrap:break-word; }
+  .insq span { padding:1px 4px; border-radius:3px; }
+  .insq span.done { color:var(--wi-ink-strong); }
+  .insq span.cur { background:#f6e6df; color:var(--wi-active); font-weight:bold; outline:1px solid var(--wi-active); }
+  .insq span.dup { text-decoration:line-through; color:var(--wi-ink-faint); }
+  table.two { border-collapse:collapse; font-size:.86rem; width:100%; }
+  table.two td { padding:3px 6px; vertical-align:top; }
+  table.two td.lh { color:var(--wi-ink-soft); white-space:nowrap; width:1%; }
+  table.two td.sum { font-family:var(--mono); font-size:.8rem; color:var(--wi-ink-strong); word-break:break-word; }
+  table.two td.tot { text-align:right; font-weight:bold; color:var(--wi-accent); white-space:nowrap; width:1%; }
+
+  /* --- code --- */
+  .codebody { padding:2px 0 4px; }
+  .cline { display:flex; gap:9px; padding:1px 9px; font-family:var(--mono); font-size:.75rem; line-height:1.55;
+           color:var(--wi-ink-strong); border-left:3px solid transparent; white-space:pre; }
+  .cline .ln { color:var(--wi-ink-faint); min-width:1.4em; text-align:right; user-select:none; }
+  .cline.on { background:#f6e6df; border-left-color:var(--wi-active); }
+  .cline .kw { color:var(--wi-accent); }
+  .codenote { font-size:.74rem; color:var(--wi-ink-faint); padding:6px 4px 0; line-height:1.45; }
+
+  /* --- input editor --- */
+  details.editor { margin-top:16px; background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:11px 16px; font-family:var(--wi-font-head); font-size:.78rem;
+                             letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,340px) 1fr; gap:16px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  textarea { width:100%; height:150px; font-family:var(--mono); font-size:.78rem; background:var(--wi-panel-2); color:var(--wi-ink);
+             border:1px solid var(--wi-border); border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.78rem; color:var(--wi-ink-soft); line-height:1.5; }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+
+  .tooltip { position:fixed; z-index:40; pointer-events:none; background:var(--wi-panel-2); border:1px solid var(--wi-border-strong);
+             border-radius:var(--wi-radius); padding:7px 10px; font-size:.78rem; color:var(--wi-ink-strong);
+             box-shadow:0 3px 10px rgba(0,0,0,.12); max-width:460px; display:none; line-height:1.45; }
+  .tooltip .tt-h { font-family:var(--wi-font-head); letter-spacing:.04em; color:var(--wi-accent); }
+  .tooltip .tt-s { color:var(--wi-ink-faint); }
+  .tooltip svg { display:block; margin:4px 0; }
+
+  /* --- tree drawing (slide style) --- */
+  .edge { stroke:var(--node-stroke); stroke-width:1.1; fill:none; }
+  .edge.dim, .nd.dim, .nullsq.dim { opacity:.22; }
+  .edge.path { stroke:var(--wi-active); stroke-width:2.6; }
+  .nd circle { fill:var(--node-fill); stroke:var(--node-stroke); stroke-width:1.1; }
+  .nd text { font-family:var(--wi-font-body); font-size:14px; fill:var(--node-key); text-anchor:middle; dominant-baseline:central; }
+  .nd.cur circle { stroke:var(--wi-active); stroke-width:2.6; fill:#f6dcd3; }
+  .nd.onpath circle { stroke:var(--wi-active); stroke-width:1.8; }
+  .nd.fresh circle { stroke:var(--wi-active); stroke-width:2.4; }
+  .nd.target circle { fill:#f3cfc2; }
+  .nullsq { fill:var(--wi-panel-2); stroke:var(--wi-ink-faint); stroke-width:.9; }
+  .keyline { stroke:var(--wi-ink-strong); stroke-width:1; stroke-dasharray:1 3; opacity:.75; }
+  .keyline.dim { opacity:.15; }
+  .keytxt { font-family:var(--mono); font-size:13px; fill:var(--wi-ink-strong); text-anchor:middle; dominant-baseline:central; }
+  .keytxt.dim { opacity:.3; }
+  .keytxt.hot { fill:var(--wi-active); font-weight:bold; }
+  .costtxt { font-family:var(--wi-font-body); font-size:14px; fill:var(--wi-accent); text-anchor:middle; dominant-baseline:central; }
+  .costtxt.fresh { font-weight:bold; }
+  .rowlab { font-family:var(--wi-font-head); font-size:10px; letter-spacing:.08em; text-transform:uppercase; fill:var(--wi-ink-faint); dominant-baseline:central; }
+  .tally rect { fill:var(--wi-panel-2); stroke:var(--wi-accent-soft); stroke-width:1; }
+  .tally text { font-family:var(--wi-font-body); font-size:12.5px; fill:var(--wi-accent); text-anchor:middle; dominant-baseline:central; }
+  .tally.bump rect { fill:#f6dcd3; stroke:var(--wi-active); stroke-width:1.6; }
+  .tally.bump text { font-weight:bold; }
+  .tally.zero { opacity:.45; }
+  /* subtree highlight: one group per subtree, opacity on the group so overlaps do not darken */
+  .halogrp { opacity:.30; }
+  .halogrp line { stroke-width:26; stroke-linecap:round; }
+  .halogrp.sub line { stroke:var(--wi-examine); } .halogrp.sub circle { fill:var(--wi-examine); }
+  .halogrp.lt line { stroke:var(--wi-relax); }    .halogrp.lt circle { fill:var(--wi-relax); }
+  .halogrp.rt line { stroke:var(--wi-queue); }    .halogrp.rt circle { fill:var(--wi-queue); }
+  .band { opacity:.18; }
+  .band.sub { fill:var(--wi-examine); } .band.lt { fill:var(--wi-relax); } .band.rt { fill:var(--wi-queue); }
+  .token rect { fill:var(--wi-panel-2); stroke:var(--wi-active); stroke-width:1.6; }
+  .token text { font-family:var(--mono); font-size:13px; fill:var(--wi-active); font-weight:bold; text-anchor:middle; dominant-baseline:central; }
+  .token { transition:transform .32s ease, opacity .2s; }
+  @keyframes pop { from { opacity:0; transform:scale(.4); } to { opacity:1; transform:none; } }
+  .pop { animation:pop .32s cubic-bezier(.2,1.3,.5,1) both; transform-box:fill-box; transform-origin:center; }
+
+  /* --- distribution tab --- */
+  .axis line, .axis path { stroke:var(--wi-ink-faint); stroke-width:1; fill:none; }
+  .axis text { font-family:var(--wi-font-body); font-size:12.5px; fill:var(--wi-ink-soft); }
+  .grid { stroke:var(--wi-border-soft); stroke-width:1; stroke-dasharray:2 4; }
+  .bar { fill:#e3c8bd; stroke:var(--wi-accent-soft); stroke-width:1; }
+  .bar.hot { fill:#f0b9a6; stroke:var(--wi-active); }
+  .xmark { stroke-width:1.6; }
+  .xmark.exact { stroke:var(--wi-accent); stroke-dasharray:5 4; }
+  .xmark.emp { stroke:var(--wi-ink-strong); }
+  .xlab { font-family:var(--wi-font-body); font-size:12px; }
+  .xlab.exact { fill:var(--wi-accent); } .xlab.emp { fill:var(--wi-ink-strong); }
+  .pmfdot { fill:var(--wi-accent); }
+  .pmfline { fill:none; stroke:var(--wi-accent); stroke-width:1.5; }
+  .pmfstep { fill:none; stroke:var(--wi-accent); stroke-width:1.6; stroke-dasharray:4 3; }
+  .box { cursor:pointer; }
+  .box rect.bg { fill:var(--wi-panel-2); stroke:var(--wi-border); stroke-width:1; }
+  .box.new rect.bg { fill:#f6e6df; stroke:var(--wi-active); }
+  .box.same rect.bg { fill:#f3d8cc; stroke:var(--wi-accent); stroke-width:1.6; }
+  .box.hov rect.bg { fill:#efc6b6; stroke:var(--wi-active); stroke-width:2; }
+  .th-e { stroke:var(--node-stroke); stroke-width:1; vector-effect:non-scaling-stroke; }
+  .th-n { fill:#c98f80; stroke:var(--node-stroke); stroke-width:.8; vector-effect:non-scaling-stroke; }
+  .conv-line { fill:none; stroke:var(--wi-ink-strong); stroke-width:1.5; }
+  .conv-exact { stroke:var(--wi-accent); stroke-width:1.4; stroke-dasharray:5 4; }
+  .conv-band { fill:var(--wi-accent-soft); opacity:.2; }
+  .shape-e { stroke:var(--node-stroke); stroke-width:.8; }
+  .shape-n { fill:#c98f80; }
+  table.stats { border-collapse:collapse; font-size:.84rem; width:100%; }
+  table.stats td { padding:2px 6px; border-bottom:1px solid var(--wi-border-soft); }
+  table.stats td:first-child { color:var(--wi-ink-soft); }
+  table.stats td.v { text-align:right; font-variant-numeric:tabular-nums; }
+  table.stats tr:last-child td { border-bottom:0; }
+  .legend { display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:8px; font-size:.74rem; color:var(--wi-ink-soft); }
+  .legend .item { display:flex; align-items:center; gap:6px; }
+  .sw { width:.85em; height:.85em; border-radius:2px; border:1px solid var(--wi-border); display:inline-block; }
+  .swl { width:1.6em; height:0; border-top:2px solid; display:inline-block; }
+  .note { font-size:.76rem; color:var(--wi-ink-faint); line-height:1.45; margin-top:6px; }
+
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls { gap:8px 12px; padding:10px 12px; }
+    button { padding:6px 10px; font-size:.8rem; }
+    .phasebtn { font-size:.6rem; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { animation-duration:.001ms !important; transition-duration:.001ms !important; } }
+</style>
+<style>
+h1, h2, h3, h4, h5, h6, .sim-title { font-family: var(--wi-font-head); letter-spacing: .05em; }
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1>Random BSTs &nbsp;·&nbsp; shape and search cost</h1>
+</div>
+
+<p class="subtitle">
+  Insert <i>n</i> distinct keys in <b>random order</b> (all <i>n</i>! orders equally likely) into an ordinary,
+  unbalanced binary search tree. How good is the resulting tree? We measure it by its
+  <b>internal path length</b> \(C(T)\): the total cost of searching <i>every</i> key once, where the cost of a
+  search is the number of nodes on its search path.
+  The first tab shows how to count \(C(T)\) — and why counting it the other way round gives the recurrence for
+  its expectation \(C_n\). The second tab samples many random trees and shows the whole distribution.
+</p>
+
+<div class="tabs" role="tablist">
+  <button id="tabBtn1" class="on" role="tab">One tree, step by step</button>
+  <button id="tabBtn2" role="tab">Many trees: the distribution</button>
+</div>
+
+<!-- ============================== TAB 1 ============================== -->
+<div class="tab on" id="tab1">
+  <div class="controls">
+    <div class="ctl">
+      <label for="t1Preset">Example</label>
+      <select id="t1Preset"></select>
+    </div>
+    <div class="ctl">
+      <label for="t1N">n</label>
+      <input type="number" id="t1N" min="1" max="40" value="15">
+      <button id="t1Rand" class="pri" title="insert 1..n in a fresh random order">New random tree</button>
+    </div>
+    <div class="ctl">
+      <span class="lbl">Show</span>
+      <span class="seg" id="t1Op">
+        <button data-op="both" class="on">Both side by side</button><button data-op="search">Search every key</button><button data-op="sizes">Add up subtree sizes</button><button data-op="rec">Split at the root</button>
+      </span>
+    </div>
+    <div class="ctl" id="t1GranCtl">
+      <span class="lbl">Searches</span>
+      <span class="seg" id="t1Gran">
+        <button data-g="0">One step per search</button><button data-g="1" class="on">One step per node</button>
+      </span>
+    </div>
+  </div>
+
+  <div class="transport">
+    <div class="transport-row">
+      <span class="ctl" style="gap:6px">
+        <button id="t1Reset" class="icon" title="Back to the first step" aria-label="Back to the first step">&#x21BA;</button>
+        <button id="t1Back" class="icon" title="One step back  (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+        <button id="t1Step" class="icon pri" title="One step forward  (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+        <button id="t1Play" class="icon" title="Play / pause  (space)" aria-label="Play">&#x25B6;&#xFE0E;</button>
+      </span>
+      <span class="progress">
+        <input type="range" class="scrub" id="t1Scrub" min="0" max="100000" value="0">
+        <div class="phasebar" id="t1Phases"></div>
+      </span>
+      <span class="stepno" id="t1StepNo">— / —</span>
+      <span class="ctl" style="gap:6px">
+        <span class="lbl">Speed</span>
+        <input type="range" id="t1Speed" min="60" max="1500" value="520" style="width:88px;accent-color:var(--wi-accent)">
+        <span class="speedval" id="t1SpeedVal">520ms</span>
+      </span>
+    </div>
+  </div>
+
+  <div class="stage" id="t1Stage">
+    <div class="col-main" id="t1Main">
+      <div class="twin">
+        <div class="sim-box" id="t1BoxS">
+          <div class="sim-title"><span>Searching every key once</span><span class="rhs" id="t1MetaS"></span></div>
+          <div class="svgscroll" id="t1WrapS"><svg id="t1SvgS"></svg><div class="overlay" id="t1OverS"></div></div>
+        </div>
+        <div class="sim-box" id="t1BoxZ">
+          <div class="sim-title"><span id="t1TitleZ">Subtree sizes</span><span class="rhs" id="t1MetaZ"></span></div>
+          <div class="svgscroll" id="t1WrapZ"><svg id="t1SvgZ"></svg><div class="overlay" id="t1OverZ"></div></div>
+        </div>
+      </div>
+      <div class="legend" style="padding:0 4px">
+        <span class="item"><span class="sw" style="background:var(--node-fill);border-color:var(--node-stroke);border-radius:50%"></span> node</span>
+        <span class="item"><span class="sw" style="background:var(--wi-panel-2);border-color:var(--wi-accent-soft)"></span> number on a node: tally of searches through it (searches) or size of its subtree (sizes)</span>
+        <span class="item"><span class="swl" style="border-color:var(--wi-active)"></span> current search path</span>
+        <span class="item"><span class="sw" style="background:var(--wi-examine);opacity:.4"></span> current subtree</span>
+        <span class="item"><span class="sw" style="background:var(--wi-panel-2)"></span> null link</span>
+      </div>
+    </div>
+    <div class="vsplit" id="t1Split" title="drag to resize"></div>
+    <div class="col-side">
+      <div class="sim-box">
+        <div class="sim-title"><span>What just happened</span><span class="rhs" id="t1PhaseName"></span></div>
+        <div class="status" id="t1Status"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>Insertion order</span><span class="rhs" id="t1InsMeta"></span></div>
+        <div class="insq" id="t1Ins"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>Internal path length C(T), counted two ways</span></div>
+        <table class="two" id="t1Two"></table>
+      </div>
+      <div class="sim-box" id="t1CodeBox">
+        <div class="sim-title"><span>Search code</span><span class="rhs">iterative get</span></div>
+        <div class="codebody" id="t1Code"></div>
+        <div class="codenote">Each key is searched once, in sorted order. Every execution of the
+          <code>compareTo</code> line is one node on the search path — and one tick on that node's tally.</div>
+      </div>
+    </div>
+  </div>
+
+  <details class="editor">
+    <summary>Input</summary>
+    <div class="editor-body">
+      <div>
+        <textarea id="t1Text" spellcheck="false"></textarea>
+        <div style="margin-top:8px"><button class="pri" id="t1Load">Load</button></div>
+        <div class="err" id="t1Err"></div>
+      </div>
+      <div class="hint">
+        The keys in insertion order, separated by whitespace — for example <code>S E A R C H E X A M P L E</code>
+        as in algs4's <code>tinyST.txt</code>, or <code>77 12 85 11 57</code>. If all keys are numbers they are
+        compared as numbers, otherwise as strings. A repeated key is a <code>put</code> of an existing key: it
+        overwrites the value and leaves the shape unchanged. Lines starting with <code>#</code> are ignored.
+        At most 40 distinct keys.
+      </div>
+    </div>
+  </details>
+</div>
+
+<!-- ============================== TAB 2 ============================== -->
+<div class="tab" id="tab2">
+  <div class="controls">
+    <div class="ctl">
+      <label for="t2Preset">Example</label>
+      <select id="t2Preset"></select>
+    </div>
+    <div class="ctl">
+      <label for="t2N">n</label>
+      <input type="number" id="t2N" min="1" max="5000" value="5">
+      <label for="t2Seed">seed</label>
+      <input type="number" id="t2Seed" min="0" value="1">
+      <button id="t2ResetBtn" title="discard all samples and restart the random generator">Reset</button>
+    </div>
+    <div class="ctl">
+      <span class="lbl">Sample</span>
+      <button data-k="1" class="t2add pri">+1</button><button data-k="10" class="t2add">+10</button>
+      <button data-k="100" class="t2add">+100</button><button data-k="1000" class="t2add">+1000</button>
+      <button id="t2Play" class="icon" title="sample continuously" aria-label="Play">&#x25B6;&#xFE0E;</button>
+      <input type="range" id="t2Speed" min="0" max="100" value="30" style="width:84px;accent-color:var(--wi-accent)" title="trees per second">
+      <span class="speedval" id="t2SpeedVal" style="width:8ch"></span>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="ctl">
+      <span class="lbl">Measure</span>
+      <span class="seg" id="t2Metric"></span>
+    </div>
+    <div class="ctl">
+      <span class="lbl">Scale</span>
+      <span class="seg" id="t2Scale">
+        <button data-s="norm" class="on" title="C / (n lg n), height / lg n, leaves / n, leftmost depth / lg n">normalized</button><button data-s="raw">raw</button>
+      </span>
+    </div>
+    <div class="ctl">
+      <span class="lbl">Show</span>
+      <span class="seg" id="t2Mode">
+        <button data-m="auto" class="on" title="trees while they fit, bars afterwards">auto</button><button data-m="trees">trees</button><button data-m="bars">frequencies</button>
+      </span>
+    </div>
+    <label class="chk"><input type="checkbox" id="t2Exact" checked> exact distribution</label>
+  </div>
+
+  <div class="stage" id="t2Stage">
+    <div class="col-main" id="t2Main">
+      <div class="sim-box">
+        <div class="sim-title"><span id="t2HistTitle">Distribution</span><span class="rhs" id="t2Meta"></span></div>
+        <div class="svgscroll" id="t2Wrap" style="height:420px"><svg id="t2Svg"></svg><div class="overlay" id="t2Over"></div></div>
+        <div class="hsplit" id="t2HSplit" title="drag to resize"></div>
+        <div class="legend" id="t2Legend"></div>
+      </div>
+    </div>
+    <div class="vsplit" id="t2Split" title="drag to resize"></div>
+    <div class="col-side">
+      <div class="sim-box">
+        <div class="sim-title"><span>Latest tree</span><span class="rhs" id="t2LastMeta"></span></div>
+        <div class="svgscroll" id="t2LastWrap" style="background:transparent"><svg id="t2Last"></svg></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>Running average</span><span class="rhs" id="t2ConvMeta"></span></div>
+        <div id="t2ConvWrap" style="position:relative"><svg id="t2Conv"></svg><div class="overlay" id="t2ConvOver"></div></div>
+        <div class="legend">
+          <span class="item"><span class="swl" style="border-color:var(--wi-ink-strong)"></span> average of the first <i>m</i> samples</span>
+          <span class="item"><span class="swl" style="border-color:var(--wi-accent);border-top-style:dashed"></span> exact expectation</span>
+          <span class="item"><span class="sw" style="background:var(--wi-accent-soft);opacity:.5"></span> ± 2 σ/√m</span>
+        </div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>Numbers</span></div>
+        <table class="stats" id="t2Stats"></table>
+      </div>
+    </div>
+  </div>
+
+  <details class="editor">
+    <summary>Input</summary>
+    <div class="editor-body">
+      <div>
+        <textarea id="t2Text" spellcheck="false"></textarea>
+        <div style="margin-top:8px"><button class="pri" id="t2Load">Load</button></div>
+        <div class="err" id="t2Err"></div>
+      </div>
+      <div class="hint">
+        One setting per line: <code>n 7</code>, <code>seed 42</code>, <code>samples 30</code> (random trees to draw
+        right away), <code>measure C</code> (or <code>h</code>, <code>leaves</code>, <code>leftmost</code>),
+        <code>show auto</code> (or <code>trees</code>, <code>frequencies</code>), <code>scale normalized</code> (or <code>raw</code>).
+        Normalized means \(C(T)/(n\lg n)\), \(h(T)/\lg n\), leaves\(/n\) and leftmost depth\(/\lg n\).
+        Any other line is a permutation of <code>1 … n</code>, inserted as a sample of its own — so a lecture
+        example can be fixed exactly (try listing all 24 permutations of 4). Lines starting with <code>#</code>
+        are ignored. The same seed always produces the same sequence of trees.
+      </div>
+    </div>
+  </details>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+"use strict";
+/* ==========================================================================
+   Random BSTs: shape and search cost.
+
+   Model: the keys 1..n are inserted in uniformly random order into an
+   (unbalanced) BST, no deletions.
+
+   Conventions (as on the lecture slides)
+     * cost(k)  = #nodes on the search path for k  (= #comparisons of get(k))
+     * C(T)     = internal path length of T
+                = sum over all keys k of cost(k)  =  sum over nodes v of |T_v|
+                (each node counts the nodes on its root path, i.e. depth + 1 with
+                depths in edges; with that convention C(T) = sum of depths + n)
+       so that  C_n = E[C(T_n)]  satisfies  C_n = n + (2/n) sum_{k<n} C_k,  C_0 = 0.
+     * height h(T) = #edges on a longest root-to-leaf path.
+   ========================================================================== */
+
+const el  = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const SVGNS = "http://www.w3.org/2000/svg";
+function S(tag, attrs, parent) {
+  const e = document.createElementNS(SVGNS, tag);
+  if (attrs) for (const k in attrs) if (attrs[k] != null) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const fmt = (x, d) => (x == null || !isFinite(x)) ? "—" : x.toFixed(d == null ? 2 : d);
+
+/* seeded PRNG: mulberry32 */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function harmonic(n, p) { let s = 0; for (let k = n; k >= 1; k--) s += 1 / Math.pow(k, p || 1); return s; }
+/* C_n = 2(n+1)H_n - 3n */
+function cExact(n) { return n === 0 ? 0 : 2 * (n + 1) * harmonic(n) - 3 * n; }
+
+/* ---------- the metrics ---------------------------------------------------
+   value(T) for the four tracked quantities; exact mean / variance / pmf where
+   we can get them.                                                          */
+const METRICS = [
+  { id: "C",      label: "path length",  tex: "C(T)",
+    axis: "internal path length \\(C(T)\\) = total cost of searching every key once",
+    long: "internal path length C(T) = Σ cost(k) = Σ subtree sizes" },
+  { id: "h",      label: "height",       tex: "h(T)",
+    axis: "height \\(h(T)\\) (edges on a longest root-to-leaf path)",
+    long: "height h(T) (edges)" },
+  { id: "leaves", label: "leaves",       tex: "\\lambda(T)",
+    axis: "number of leaves \\(\\lambda(T)\\) (nodes with two null links)",
+    long: "number of leaves (nodes with two null links)" },
+  { id: "spine",  label: "leftmost depth", tex: "d_0(T)",
+    axis: "depth \\(d_0(T)\\) of the leftmost external leaf (edges)",
+    long: "depth of the leftmost external leaf (= #left-to-right minima)" }
+];
+const MIDX = { C: 0, h: 1, leaves: 2, spine: 3 };
+/* normalized scale: C / (n lg n), h / lg n, leaves / n, leftmost depth / lg n, with their limits as n -> oo */
+const NORM = {
+  C:      { tex: "C(T) \\,/\\, (n \\lg n)", lim: 2 * Math.LN2, limTex: "2 ln 2", txt: "C(T) / (n lg n)" },
+  h:      { tex: "h(T) \\,/\\, \\lg n",       lim: 4.31107 * Math.LN2, limTex: "4.311 ln 2", txt: "h(T) / lg n" },
+  leaves: { tex: "\\lambda(T) \\,/\\, n",     lim: 1 / 3, limTex: "1/3", txt: "λ(T) / n" },
+  spine:  { tex: "d_0(T) \\,/\\, \\lg n",     lim: Math.LN2, limTex: "ln 2", txt: "d₀(T) / lg n" }
+};
+function normOf(id, n) {
+  const z = id === "C" ? n * Math.log2(n) : id === "leaves" ? n : Math.log2(n);
+  return z > 0 ? z : 1;                                   // n = 1: lg n = 0, show raw values
+}
+const decimalsFor = st => Math.max(0, Math.min(4, -Math.floor(Math.log10(st) + 1e-9)));
+
+/* smallest / largest possible value for n keys */
+function metricRange(id, n) {
+  if (n === 0) return [0, 0];
+  if (id === "C") {   // complete tree: sum of (depth+1);  path: n(n+1)/2
+    let lo = 0, d = 0, left = n;
+    while (left > 0) { const t = Math.min(left, 1 << d); lo += t * (d + 1); left -= t; d++; }
+    return [lo, n * (n + 1) / 2];
+  }
+  if (id === "h") return [Math.floor(Math.log2(n)), n - 1];
+  if (id === "leaves") return n === 1 ? [1, 1] : [1, Math.floor((n + 1) / 2)];
+  if (id === "spine") return [1, n];
+  return [0, n];
+}
+
+/* ---------- sampling one random BST --------------------------------------
+   keys 1..n, node id = key; L/R child arrays, 0 = null.                     */
+const SAMPLER = {
+  n: 0, L: null, R: null, D: null, perm: null, root: 0,
+  ensure(n) {
+    if (this.n === n) return;
+    this.n = n; this.L = new Int32Array(n + 1); this.R = new Int32Array(n + 1);
+    this.D = new Int32Array(n + 1); this.perm = new Int32Array(n);
+  },
+  /* draws a uniform permutation (Fisher-Yates) unless one is given */
+  run(n, rng, givenPerm) {
+    this.ensure(n);
+    const L = this.L, R = this.R, D = this.D, P = this.perm;
+    if (givenPerm) for (let i = 0; i < n; i++) P[i] = givenPerm[i];
+    else {
+      for (let i = 0; i < n; i++) P[i] = i + 1;
+      for (let i = n - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = P[i]; P[i] = P[j]; P[j] = t; }
+    }
+    L.fill(0); R.fill(0);
+    let root = 0, C = 0, h = 0, spine = 0, minKey = Infinity;
+    for (let i = 0; i < n; i++) {
+      const k = P[i];
+      if (root === 0) { root = k; D[k] = 0; }
+      else {
+        let x = root;
+        for (;;) {
+          if (k < x) { if (L[x] === 0) { L[x] = k; break; } x = L[x]; }
+          else       { if (R[x] === 0) { R[x] = k; break; } x = R[x]; }
+        }
+        D[k] = D[x] + 1;
+      }
+      C += D[k] + 1; if (D[k] > h) h = D[k];
+      if (k < minKey) { minKey = k; spine++; }
+    }
+    let leaves = 0;
+    for (let k = 1; k <= n; k++) if (L[k] === 0 && R[k] === 0) leaves++;
+    this.root = root;
+    return [C, h, leaves, spine];
+  }
+};
+/* recursive shape string (only used for n <= 12) */
+function shapeOf(L, R, x) { return x === 0 ? "." : "(" + shapeOf(L, R, L[x]) + shapeOf(L, R, R[x]) + ")"; }
+/* hook-length formula: Pr[shape] = prod over nodes 1/|T_v| */
+function shapeProb(L, R, root) {
+  let p = 1;
+  const size = x => { if (x === 0) return 0; const s = 1 + size(L[x]) + size(R[x]); p /= s; return s; };
+  size(root);
+  return p;
+}
+
+/* ---------- exact distributions ------------------------------------------
+   All four quantities are recursive functionals of the random BST: given the
+   root's rank r (uniform in [1..n]), the subtrees are independent random BSTs
+   of r-1 and n-r keys.  Each pmf is {lo, p: Float64Array} with p[i] = Pr[X = lo+i]. */
+const EXACT_LIMIT = { C: 100, h: 2000, leaves: 250, spine: 3000 };
+const EXACT = { C: [], h: null, leaves: [], spine: [] };
+
+function convInto(acc, accLo, a, b, w, shift) {
+  /* acc[accLo-indexed] += w * (a * b) shifted by `shift` (value-space offset) */
+  const off = a.lo + b.lo + shift - accLo, ap = a.p, bp = b.p, nb = bp.length;
+  for (let i = 0; i < ap.length; i++) {
+    const ai = ap[i] * w; if (ai === 0) continue;
+    const base = off + i;
+    for (let j = 0; j < nb; j++) acc[base + j] += ai * bp[j];
+  }
+}
+function trimPmf(lo, p) {
+  let a = 0, b = p.length - 1;
+  while (a < b && p[a] < 1e-300) a++;
+  while (b > a && p[b] < 1e-300) b--;
+  return { lo: lo + a, p: p.slice(a, b + 1) };
+}
+
+/* C: X_n = n + X_{r-1} + X'_{n-r} */
+function exactC(n) {
+  const T = EXACT.C;
+  if (!T.length) T.push({ lo: 0, p: new Float64Array([1]) });
+  for (let k = T.length; k <= n; k++) {
+    const [lo, hi] = metricRange("C", k);
+    const acc = new Float64Array(hi - lo + 1);
+    for (let r = 1; r <= k; r++) {
+      const a = T[r - 1], b = T[k - r];
+      if (r - 1 > k - r) break;                                 // symmetry: r <-> k+1-r
+      const w = (r - 1 === k - r) ? 1 / k : 2 / k;
+      convInto(acc, lo, a, b, w, k);
+    }
+    T.push(trimPmf(lo, acc));
+  }
+  return T[n];
+}
+/* leaves: n=1 -> 1;  n>=2 -> leaves(T_L) + leaves(T_R) */
+function exactLeaves(n) {
+  const T = EXACT.leaves;
+  if (!T.length) { T.push({ lo: 0, p: new Float64Array([1]) }); T.push({ lo: 1, p: new Float64Array([1]) }); }
+  for (let k = T.length; k <= n; k++) {
+    const acc = new Float64Array(Math.floor((k + 1) / 2) + 2);
+    for (let r = 1; r <= k; r++) {
+      if (r - 1 > k - r) break;
+      const w = (r - 1 === k - r) ? 1 / k : 2 / k;
+      convInto(acc, 0, T[r - 1], T[k - r], w, 0);
+    }
+    T.push(trimPmf(0, acc));
+  }
+  return T[n];
+}
+/* leftmost depth: D_0 = 0, D_n = 1 + D_{r-1}.  P_n = shift(sum_{j<n} P_j) / n */
+function exactSpine(n) {
+  const T = EXACT.spine;
+  if (!T.length) { T.push({ lo: 0, p: new Float64Array([1]) }); T.sum = new Float64Array([1]); }
+  for (let k = T.length; k <= n; k++) {
+    const s = T.sum, p = new Float64Array(s.length + 1);
+    for (let i = 0; i < s.length; i++) p[i + 1] = s[i] / k;
+    const ns = new Float64Array(p.length);
+    for (let i = 0; i < s.length; i++) ns[i] = s[i];
+    for (let i = 0; i < p.length; i++) ns[i] += p[i];
+    T.sum = ns; T.push({ lo: 0, p: p });
+  }
+  return trimPmf(T[n].lo, T[n].p);
+}
+/* height: G_k(t) = Pr[h_k < t], h(empty) = -1.
+   G_0(t) = 1 (t >= 0);  G_k(0) = 0 (k >= 1);  G_k(t) = (1/k) sum_r G_{r-1}(t-1) G_{k-r}(t-1).
+   Computed layer by layer in t, up to the requested n.                       */
+function exactHeight(n) {
+  const E = EXACT.h;
+  if (E && E.n >= n) return E.pmfs[n];
+  const N = n;
+  let prev = new Float64Array(N + 1); prev[0] = 1;            // t = 0
+  const layers = [prev];
+  for (let t = 1; t <= N + 1; t++) {
+    const cur = new Float64Array(N + 1); cur[0] = 1;
+    for (let k = 1; k <= N; k++) {
+      let s = 0;
+      for (let r = 1; r <= k; r++) s += prev[r - 1] * prev[k - r];
+      cur[k] = s / k;
+    }
+    layers.push(cur); prev = cur;
+    if (cur[N] > 1 - 1e-15) break;
+  }
+  const pmfs = [];
+  for (let k = 0; k <= N; k++) {
+    if (k === 0) { pmfs.push({ lo: -1, p: new Float64Array([1]) }); continue; }
+    const p = new Float64Array(layers.length);
+    for (let t = 0; t + 1 < layers.length; t++) p[t] = Math.max(0, layers[t + 1][k] - layers[t][k]);
+    // remaining mass beyond the last layer is < 1e-15
+    pmfs.push(trimPmf(0, p));
+  }
+  EXACT.h = { n: N, pmfs: pmfs };
+  return pmfs[n];
+}
+function exactPmf(id, n) {
+  if (n > EXACT_LIMIT[id]) return null;
+  if (id === "C") return exactC(n);
+  if (id === "h") return exactHeight(n);
+  if (id === "leaves") return exactLeaves(n);
+  return exactSpine(n);
+}
+function pmfMoments(d) {
+  let m = 0, m2 = 0;
+  for (let i = 0; i < d.p.length; i++) { const v = d.lo + i; m += d.p[i] * v; m2 += d.p[i] * v * v; }
+  return { mean: m, sd: Math.sqrt(Math.max(0, m2 - m * m)) };
+}
+/* exact mean and standard deviation, closed forms where known */
+function exactMoments(id, n) {
+  if (n === 0) return { mean: 0, sd: 0 };
+  if (id === "C") {
+    // Var = 7n^2 - 4(n+1)^2 H_n^(2) - 2(n+1) H_n + 13n  (the same as for Quicksort's comparisons)
+    const H = harmonic(n), H2 = harmonic(n, 2);
+    const v = 7 * n * n - 4 * (n + 1) * (n + 1) * H2 - 2 * (n + 1) * H + 13 * n;
+    return { mean: cExact(n), sd: Math.sqrt(Math.max(0, v)) };
+  }
+  if (id === "spine") { const H = harmonic(n), H2 = harmonic(n, 2); return { mean: H, sd: Math.sqrt(Math.max(0, H - H2)) }; }
+  if (id === "leaves" && n >= 4) return { mean: (n + 1) / 3, sd: Math.sqrt(2 * (n + 1) / 45) };
+  const d = exactPmf(id, n);
+  return d ? pmfMoments(d) : null;
+}
+
+/* ---------- MathJax (2.7, Neo-Euler) ------------------------------------- */
+function typeset(node) {
+  if (window.MathJax && MathJax.Hub && MathJax.Hub.Queue) MathJax.Hub.Queue(["Typeset", MathJax.Hub, node]);
+}
+function setMath(node, html) {
+  if (node._last === html) return;
+  node.innerHTML = html; node._last = html;
+  if (html.indexOf("\\(") >= 0 || html.indexOf("\\[") >= 0) typeset(node);
+}
+
+/* ---------- tooltip ------------------------------------------------------ */
+const TIP = {
+  show(html, ev) {
+    const t = el("tooltip"); t.innerHTML = html; t.style.display = "block"; this.move(ev);
+  },
+  move(ev) {
+    const t = el("tooltip"); if (t.style.display !== "block") return;
+    const w = t.offsetWidth, h = t.offsetHeight;
+    let x = ev.clientX + 16, y = ev.clientY + 16;
+    if (x + w > window.innerWidth - 8) x = ev.clientX - w - 16;
+    if (y + h > window.innerHeight - 8) y = Math.max(8, ev.clientY - h - 16);
+    t.style.left = Math.max(8, x) + "px"; t.style.top = y + "px";
+  },
+  hide() { el("tooltip").style.display = "none"; }
+};
+
+/* ---------- persisted layout + splitters --------------------------------- */
+const LS_KEY = "rbst-layout:" + location.pathname;
+let LAYOUT = {};
+try { LAYOUT = JSON.parse(localStorage.getItem(LS_KEY) || "{}") || {}; } catch (e) { LAYOUT = {}; }
+function saveLayout() { try { localStorage.setItem(LS_KEY, JSON.stringify(LAYOUT)); } catch (e) {} }
+
+/* vertical splitter between .col-main and .col-side; stores the main column's share */
+function vSplitter(splitId, mainId, key, defFrac, onChange) {
+  const sp = el(splitId), main = el(mainId), stage = sp.parentElement;
+  const apply = () => {
+    const W = stage.getBoundingClientRect().width;
+    if (W <= 0) return;                                   // hidden tab: sized when shown
+    const f = LAYOUT[key] != null ? LAYOUT[key] : defFrac;
+    main.style.width = Math.round(clamp(f, 0.25, 0.85) * W) + "px";
+    if (onChange) onChange();
+  };
+  let drag = null;
+  sp.addEventListener("pointerdown", e => {
+    drag = { x: e.clientX, w: main.getBoundingClientRect().width }; sp.classList.add("drag");
+    sp.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  sp.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const W = stage.getBoundingClientRect().width;
+    LAYOUT[key] = clamp((drag.w + e.clientX - drag.x) / W, 0.25, 0.85); apply();
+  });
+  const end = () => { if (drag) { drag = null; sp.classList.remove("drag"); saveLayout(); } };
+  sp.addEventListener("pointerup", end); sp.addEventListener("pointercancel", end);
+  sp.addEventListener("dblclick", () => { delete LAYOUT[key]; saveLayout(); apply(); });
+  window.addEventListener("resize", apply);
+  return apply;
+}
+/* horizontal splitter: sets the height of a box */
+function hSplitter(splitId, boxId, key, defH, onChange) {
+  const sp = el(splitId), box = el(boxId);
+  const apply = () => { box.style.height = (LAYOUT[key] || defH) + "px"; if (onChange) onChange(); };
+  let drag = null;
+  sp.addEventListener("pointerdown", e => {
+    drag = { y: e.clientY, h: box.getBoundingClientRect().height }; sp.classList.add("drag");
+    sp.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  sp.addEventListener("pointermove", e => {
+    if (!drag) return;
+    LAYOUT[key] = Math.round(clamp(drag.h + e.clientY - drag.y, 200, 1400)); apply();
+  });
+  const end = () => { if (drag) { drag = null; sp.classList.remove("drag"); saveLayout(); } };
+  sp.addEventListener("pointerup", end); sp.addEventListener("pointercancel", end);
+  sp.addEventListener("dblclick", () => { delete LAYOUT[key]; saveLayout(); apply(); });
+  return apply;
+}
+
+/* ---------- keys ---------------------------------------------------------- */
+function parseKeyList(text) {
+  const toks = [];
+  for (const line of text.split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t || t[0] === "#") continue;
+    for (const w of t.split(/[\s,]+/)) if (w) toks.push(w);
+  }
+  const numeric = toks.length > 0 && toks.every(w => /^[-+]?\d+(\.\d+)?$/.test(w));
+  return numeric ? toks.map(Number) : toks;
+}
+function cmpKeys(a, b) {
+  if (typeof a === "number" && typeof b === "number") return a < b ? -1 : a > b ? 1 : 0;
+  a = String(a); b = String(b); return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/* ---------- a BST built by put(), remembering every insertion ------------- */
+function buildTree(keys) {
+  const nodes = [], events = [];
+  let root = -1;
+  for (const key of keys) {
+    const path = []; let x = root, parent = -1, dir = null;
+    while (x !== -1) {
+      path.push(x);
+      const c = cmpKeys(key, nodes[x].key);
+      if (c < 0) { parent = x; dir = "L"; x = nodes[x].left; }
+      else if (c > 0) { parent = x; dir = "R"; x = nodes[x].right; }
+      else break;
+    }
+    if (x !== -1) { events.push({ key: key, node: x, dup: true, path: path }); continue; }
+    const id = nodes.length;
+    nodes.push({ key: key, left: -1, right: -1, parent: parent, depth: path.length, dir: dir, born: events.length });
+    if (parent < 0) root = id; else if (dir === "L") nodes[parent].left = id; else nodes[parent].right = id;
+    events.push({ key: key, node: id, dup: false, path: path });
+  }
+  const n = nodes.length;
+  const sorted = nodes.map((_, i) => i).sort((a, b) => cmpKeys(nodes[a].key, nodes[b].key));
+  const rank = new Array(n); sorted.forEach((id, r) => rank[id] = r);
+  const size = new Array(n).fill(0), lo = new Array(n), hi = new Array(n);
+  const post = id => {
+    if (id < 0) return;
+    const v = nodes[id]; post(v.left); post(v.right);
+    size[id] = 1 + (v.left >= 0 ? size[v.left] : 0) + (v.right >= 0 ? size[v.right] : 0);
+    lo[id] = v.left >= 0 ? lo[v.left] : rank[id]; hi[id] = v.right >= 0 ? hi[v.right] : rank[id];
+  };
+  post(root);
+  let height = -1; for (const v of nodes) height = Math.max(height, v.depth);
+  const pre = []; const pr = id => { if (id < 0) return; pre.push(id); pr(nodes[id].left); pr(nodes[id].right); }; pr(root);
+  const C = nodes.reduce((s, v) => s + v.depth + 1, 0);
+  return { nodes: nodes, root: root, events: events, n: n, sorted: sorted, rank: rank, size: size,
+           lo: lo, hi: hi, height: height, pre: pre, C: C };
+}
+/* all ids in the subtree of v */
+function subtreeIds(T, v) {
+  const out = []; const go = id => { if (id < 0) return; out.push(id); go(T.nodes[id].left); go(T.nodes[id].right); };
+  go(v); return out;
+}
+const keyStr = k => esc(String(k));
+
+/* ---------- drawing a BST in the slide style -----------------------------
+   geo: { x0, dx, y0, dy, r, keyY (null: no key row), costY }
+   st:  { present: count of nodes created so far (by birth order; default all),
+          cur, onpath:Set, pathEdges:Set(child ids), fresh, dim:Set,
+          tallies:[], bump:Set, halos:[{v, cls}], bands:[{lo,hi,cls}],
+          keyHot:rank, costs:[] by rank, costFresh:rank, showTallies }          */
+function treeGeo(T, x0, dx, y0, dy, r, withKeys) {
+  const g = { x0: x0, dx: dx, y0: y0, dy: dy, r: r };
+  g.x = id => x0 + T.rank[id] * dx;
+  g.y = id => y0 + T.nodes[id].depth * dy;
+  g.treeBottom = y0 + Math.max(0, T.height) * dy + dy * 0.55 + 6;
+  if (withKeys) { g.keyY = g.treeBottom + 22; g.costY = g.keyY + 25; g.bottom = g.costY + 16; }
+  else g.bottom = g.treeBottom + 4;
+  g.width = x0 + Math.max(0, T.n - 1) * dx + x0;
+  return g;
+}
+function renderTree(svgG, T, g, st) {
+  st = st || {};
+  const present = st.present == null ? T.n : st.present;
+  const isAlive = new Array(T.n);             // node ids are in creation order
+  for (let id = 0; id < T.n; id++) isAlive[id] = id < present;
+  const dim = st.dim || new Set();
+  const r = g.r;
+
+  /* subtree highlights and key bands (behind everything) */
+  for (const h of st.halos || []) {
+    const grp = S("g", { class: "halogrp " + h.cls }, svgG);
+    for (const id of subtreeIds(T, h.v)) {
+      const v = T.nodes[id];
+      for (const c of [v.left, v.right]) if (c >= 0 && isAlive[c])
+        S("line", { x1: g.x(id), y1: g.y(id), x2: g.x(c), y2: g.y(c) }, grp);
+      S("circle", { cx: g.x(id), cy: g.y(id), r: 15 }, grp);
+    }
+  }
+  if (g.keyY != null) for (const b of st.bands || [])
+    S("rect", { class: "band " + b.cls, x: g.x0 + (b.lo - 0.5) * g.dx + 1, y: g.keyY - 11, width: (b.hi - b.lo + 1) * g.dx - 2,
+                height: (g.costY - g.keyY) + 22, rx: 4 }, svgG);
+
+  /* dotted lines to the key row */
+  if (g.keyY != null) for (let id = 0; id < T.n; id++) {
+    if (!isAlive[id]) continue;
+    S("line", { class: "keyline" + (dim.has(id) ? " dim" : ""), x1: g.x(id), y1: g.y(id) + r, x2: g.x(id), y2: g.keyY - 10 }, svgG);
+  }
+  /* edges and null links */
+  const pe = st.pathEdges || new Set();
+  for (let id = 0; id < T.n; id++) {
+    if (!isAlive[id]) continue;
+    const v = T.nodes[id];
+    for (const [c, side] of [[v.left, -1], [v.right, 1]]) {
+      if (c >= 0 && isAlive[c]) {
+        const dx = g.x(c) - g.x(id), dy = g.y(c) - g.y(id), L = Math.hypot(dx, dy);
+        S("line", { class: "edge" + (pe.has(c) ? " path" : "") + (dim.has(c) ? " dim" : ""),
+                    x1: g.x(id) + dx / L * r, y1: g.y(id) + dy / L * r, x2: g.x(c) - dx / L * r, y2: g.y(c) - dy / L * r }, svgG);
+      } else if (st.showNulls !== false) {
+        const sx = g.x(id) + side * Math.min(g.dx * 0.42, 15), sy = g.y(id) + g.dy * 0.55, q = 4.5;
+        const dx = sx - g.x(id), dy = sy - g.y(id), L = Math.hypot(dx, dy);
+        S("line", { class: "edge" + (dim.has(id) ? " dim" : ""), x1: g.x(id) + dx / L * r, y1: g.y(id) + dy / L * r,
+                    x2: sx, y2: sy - q }, svgG);
+        S("rect", { class: "nullsq" + (dim.has(id) ? " dim" : ""), x: sx - q, y: sy - q, width: 2 * q, height: 2 * q }, svgG);
+      }
+    }
+  }
+  /* nodes */
+  const onpath = st.onpath || new Set();
+  for (let id = 0; id < T.n; id++) {
+    if (!isAlive[id]) continue;
+    let cls = "nd";
+    if (dim.has(id)) cls += " dim";
+    if (st.cur === id) cls += " cur"; else if (onpath.has(id)) cls += " onpath";
+    if (st.fresh === id) cls += " fresh";
+    if (st.target === id) cls += " target";
+    const gg = S("g", { class: cls }, svgG);
+    if (st.fresh === id && st.animate) gg.classList.add("pop");
+    S("circle", { cx: g.x(id), cy: g.y(id), r: r }, gg);
+    const t = S("text", { x: g.x(id), y: g.y(id) + 0.5 }, gg); t.textContent = String(T.nodes[id].key);
+    if (String(T.nodes[id].key).length > 2) t.setAttribute("font-size", String(Math.max(9, 14 - 2 * (String(T.nodes[id].key).length - 2))));
+  }
+  /* tallies */
+  if (st.tallies) for (let id = 0; id < T.n; id++) {
+    if (!isAlive[id]) continue;
+    const val = st.tallies[id]; if (val == null) continue;
+    const w = val >= 10 ? 21 : 16, h = 15;
+    const tx = g.x(id) + r * 0.62, ty = g.y(id) - r - 6;
+    const gg = S("g", { class: "tally" + (st.bump && st.bump.has(id) ? " bump" : "") + (val === 0 ? " zero" : "") }, svgG);
+    S("rect", { x: tx, y: ty - h / 2, width: w, height: h, rx: 3 }, gg);
+    const t = S("text", { x: tx + w / 2, y: ty + 0.5 }, gg); t.textContent = String(val);
+  }
+  /* key row and cost row */
+  if (g.keyY != null) {
+    S("text", { class: "rowlab", x: 4, y: g.keyY }, svgG).textContent = "key";
+    if (st.costs) S("text", { class: "rowlab", x: 4, y: g.costY }, svgG).textContent = "cost";
+    for (let rk = 0; rk < T.n; rk++) {
+      const id = T.sorted[rk];
+      const t = S("text", { class: "keytxt" + (rk === st.keyHot ? " hot" : "") + (!isAlive[id] ? " dim" : ""),
+                            x: g.x0 + rk * g.dx, y: g.keyY }, svgG);
+      t.textContent = String(T.nodes[id].key);
+      if (st.costs && st.costs[rk] != null) {
+        const c = S("text", { class: "costtxt" + (rk === st.costFresh ? " fresh" : ""), x: g.x0 + rk * g.dx, y: g.costY }, svgG);
+        c.textContent = String(st.costs[rk]);
+      }
+    }
+  }
+}
+
+/* a compact static drawing (tooltips, latest sample): returns an <svg> */
+function treeSvg(T, opt) {
+  opt = opt || {};
+  const r = opt.r || 11, dx = opt.dx || 26, dy = opt.dy || 34;
+  const g = treeGeo(T, opt.keys ? 40 : r + 8, dx, r + 6, dy, r, !!opt.keys);
+  if (opt.keys) g.width -= 40 - (r + 8);
+  const svg = document.createElementNS(SVGNS, "svg");
+  svg.setAttribute("width", g.width); svg.setAttribute("height", g.bottom);
+  svg.setAttribute("viewBox", "0 0 " + g.width + " " + g.bottom);
+  renderTree(S("g", null, svg), T, g, { showNulls: opt.nulls !== false });
+  return svg;
+}
+
+/* ---------- transport with the phase bar ---------------------------------
+   Phase widths are proportional to their step counts but at least PHASE_MINW
+   pixels (water filling; if that is impossible, all equal).  The slider maps
+   piecewise linearly onto exactly these widths, so the thumb always sits over
+   the button of the current phase.                                          */
+const SCRUB_RES = 100000, PHASE_MINW = 30;
+class Transport {
+  constructor(prefix, onGo) {
+    this.p = prefix; this.onGo = onGo; this.steps = 0; this.phases = []; this.cur = 0; this.timer = null; this.lay = null;
+    this.scrub = el(prefix + "Scrub"); this.bar = el(prefix + "Phases");
+    this.scrub.max = String(SCRUB_RES);
+    this.scrub.addEventListener("input", () => this.go(this.stepOfValue(+this.scrub.value), true));
+    el(prefix + "Reset").onclick = () => { this.stop(); this.go(0); };
+    el(prefix + "Back").onclick = () => { this.stop(); this.go(this.cur - 1); };
+    el(prefix + "Step").onclick = () => { this.stop(); this.go(this.cur + 1); };
+    el(prefix + "Play").onclick = () => this.toggle();
+    const sp = el(prefix + "Speed");
+    sp.addEventListener("input", () => { el(prefix + "SpeedVal").textContent = sp.value + "ms"; if (this.timer) { this.stop(); this.play(); } });
+    el(prefix + "SpeedVal").textContent = sp.value + "ms";
+    if (window.ResizeObserver) new ResizeObserver(() => this.refit()).observe(this.bar);
+    else window.addEventListener("resize", () => this.refit());
+  }
+  setup(nSteps, phases) {
+    this.steps = nSteps; this.phases = phases;   // phases: [{name, from, to}] covering 0..nSteps-1
+    this.bar.innerHTML = "";
+    phases.forEach((ph, k) => {
+      const b = document.createElement("button");
+      b.className = "phasebtn"; b.title = ph.title || ph.name;
+      b.innerHTML = '<span class="fill"></span><span class="lab"></span>';
+      b.onclick = () => { this.stop(); this.go(ph.from); };
+      this.bar.appendChild(b);
+    });
+    this.lay = null; this.refit();
+  }
+  refit() {
+    const W = this.bar.getBoundingClientRect().width;
+    if (!this.phases.length || W <= 0) return;
+    const n = this.phases.length, cnt = this.phases.map(p => p.to - p.from + 1);
+    let w = new Array(n);
+    if (n * PHASE_MINW >= W) w.fill(W / n);
+    else {
+      const fixed = new Array(n).fill(false);
+      for (;;) {
+        let rest = W, tot = 0;
+        for (let k = 0; k < n; k++) if (fixed[k]) rest -= PHASE_MINW; else tot += cnt[k];
+        let changed = false;
+        for (let k = 0; k < n; k++) if (!fixed[k]) {
+          w[k] = rest * cnt[k] / tot;
+          if (w[k] < PHASE_MINW) { fixed[k] = true; changed = true; }
+        }
+        if (!changed) break;
+        for (let k = 0; k < n; k++) if (fixed[k]) w[k] = PHASE_MINW;
+      }
+      for (let k = 0; k < n; k++) if (fixed[k]) w[k] = PHASE_MINW;
+    }
+    const st = []; let acc = 0; for (let k = 0; k < n; k++) { st.push(acc); acc += w[k]; }
+    this.lay = { W: W, w: w, st: st };
+    /* labels: the longest of full name / first word / first letter that fits */
+    const btns = this.bar.children, ctx = Transport.ctx || (Transport.ctx = document.createElement("canvas").getContext("2d"));
+    for (let k = 0; k < n; k++) {
+      const b = btns[k]; b.style.width = w[k] + "px";
+      const cs = getComputedStyle(b); ctx.font = (b.classList.contains("on") ? "bold " : "") + cs.fontSize + " " + cs.fontFamily;
+      const full = this.phases[k].name, word = full.split(/\s+/)[0], ch = full[0];
+      const room = w[k] - 6;
+      const lab = [full, word, ch].find(s => ctx.measureText(s).width * 1.06 <= room) || ch;
+      b.querySelector(".lab").textContent = lab;
+    }
+    this.update();
+  }
+  phaseOf(i) { return Math.max(0, this.phases.findIndex(ph => i >= ph.from && i <= ph.to)); }
+  valueOfStep(i) {
+    if (!this.lay) return 0;
+    const k = this.phaseOf(i), ph = this.phases[k], c = ph.to - ph.from + 1;
+    const pos = this.lay.st[k] + this.lay.w[k] * (c === 1 ? 0.5 : (i - ph.from) / (c - 1) * 0.98 + 0.01);
+    return Math.round(pos / this.lay.W * SCRUB_RES);
+  }
+  stepOfValue(v) {
+    if (!this.lay) return 0;
+    const pos = v / SCRUB_RES * this.lay.W;
+    let k = 0; while (k + 1 < this.phases.length && pos >= this.lay.st[k + 1]) k++;
+    const ph = this.phases[k], c = ph.to - ph.from + 1;
+    if (c === 1) return ph.from;
+    const f = ((pos - this.lay.st[k]) / this.lay.w[k] - 0.01) / 0.98;
+    return ph.from + clamp(Math.round(f * (c - 1)), 0, c - 1);
+  }
+  update() {
+    const i = this.cur, k = this.phaseOf(i);
+    const btns = this.bar.children;
+    for (let j = 0; j < btns.length; j++) {
+      const ph = this.phases[j], b = btns[j], fill = b.firstChild;
+      b.classList.toggle("on", j === k); b.classList.toggle("past", j < k);
+      const f = j < k ? 1 : j > k ? 0 : (ph.to === ph.from ? 1 : (i - ph.from) / (ph.to - ph.from));
+      fill.style.width = (f * 100) + "%"; fill.classList.toggle("empty", f === 0);
+    }
+    if (document.activeElement !== this.scrub || !this._dragging) this.scrub.value = String(this.valueOfStep(i));
+    el(this.p + "StepNo").textContent = (i + 1) + " / " + this.steps;
+  }
+  go(i, fromScrub) {
+    i = clamp(i, 0, this.steps - 1);
+    const prev = this.cur; this.cur = i;
+    if (!fromScrub) this.scrub.value = String(this.valueOfStep(i));
+    this.update(); this.onGo(i, prev);
+  }
+  play() {
+    if (this.cur >= this.steps - 1) this.go(0);
+    el(this.p + "Play").innerHTML = "&#x23F8;&#xFE0E;";
+    const tick = () => {
+      if (this.cur >= this.steps - 1) { this.stop(); return; }
+      this.go(this.cur + 1);
+      this.timer = setTimeout(tick, +el(this.p + "Speed").value);
+    };
+    this.timer = setTimeout(tick, 60);
+  }
+  stop() { if (this.timer) clearTimeout(this.timer); this.timer = null; el(this.p + "Play").innerHTML = "&#x25B6;&#xFE0E;"; }
+  toggle() { if (this.timer) this.stop(); else this.play(); }
+}
+
+/* ==========================================================================
+   Tab 1: one tree.  Insert the keys, search every key once while each node
+   keeps a tally, observe tally = subtree size, and read off the recurrence.
+   ========================================================================== */
+
+const T1_PRESETS = [
+  { name: "Example from the slides (n = 15)", text: "77 12 11 57 28 17 35 55 69 63 85 80 79 82 97" },
+  { name: "tinyST.txt: S E A R C H E X A M P L E", text: "S E A R C H E X A M P L E" },
+  { name: "Perfectly balanced (n = 15)", text: "8 4 12 2 6 10 14 1 3 5 7 9 11 13 15" },
+  { name: "Sorted input: a path (n = 8)", text: "1 2 3 4 5 6 7 8" },
+  { name: "Zig-zag (n = 8)", text: "1 8 2 7 3 6 4 5" }
+];
+const T1_CODE = [
+  [null, "public Value get(Key key)"], [null, "{"],
+  ["g.x", "   Node x = root;"],
+  ["g.w", "   while (x != null)"], [null, "   {"],
+  ["g.cmp", "      int cmp = key.compareTo(x.key);"],
+  ["g.l", "      if      (cmp < 0) x = x.left;"],
+  ["g.r", "      else if (cmp > 0) x = x.right;"],
+  ["g.eq", "      else if (cmp == 0) return x.val;"],
+  [null, "   }"], ["g.null", "   return null;"], [null, "}"]
+];
+
+const t1 = { T: null, keys: [], steps: [], phases: [], fine: 1, op: "both", geoS: null, geoZ: null, tr: null };
+
+const kq = k => '<b class="k">' + keyStr(k) + "</b>";
+const goL = '<span class="go-l">left</span>', goR = '<span class="go-r">right</span>';
+
+function t1Parse(text) {
+  const keys = parseKeyList(text);
+  if (!keys.length) throw new Error("no keys found");
+  const distinct = new Set(keys.map(String));
+  if (distinct.size > 40) throw new Error("at most 40 distinct keys (got " + distinct.size + ")");
+  return keys;
+}
+
+function t1Load(keys) {
+  t1.keys = keys;
+  t1.T = buildTree(keys);
+  el("t1Text").value = keys.map(String).join(" ");
+  const T = t1.T;
+  el("t1Ins").innerHTML = T.events.map((e, j) =>
+    '<span class="' + (j === 0 ? "cur" : "done") + (e.dup ? " dup" : "") + '"' + (j === 0 ? ' title="the first key is the root"' : "")
+    + ">" + keyStr(e.key) + "</span>").join(" ");
+  el("t1InsMeta").textContent = "first key = root" + (T.events.length > T.n ? "; " + (T.events.length - T.n) + " repeated" : "");
+  t1Rebuild(0);
+}
+function t1Rebuild(toStep) {
+  t1Build();
+  t1Visibility();
+  t1Layout();
+  t1.tr.setup(t1.steps.length, t1.phases);
+  t1.tr.go(toStep || 0);
+}
+
+/* ---------- the steps ------------------------------------------------------
+   A step holds the state of the search tree (S) and/or of the size tree (Z):
+   S: { tallies, costs, cur, onpath, pathEdges, keyHot, costFresh, bump, token, line, txt }
+   Z: { sizes, cur, halos, bands, bump, txt, rec }
+   Both operations walk through the nodes in sorted key order; one phase per key. */
+function t1Build() {
+  const T = t1.T, N = T.nodes, n = T.n, op = t1.op, steps = [], phases = [];
+  const K = id => N[id].key;
+  const phase = (name, title) => phases.push({ name: name, title: title || name, from: steps.length, to: steps.length });
+  const add = o => { steps.push(o); phases[phases.length - 1].to = steps.length - 1; };
+  const sum = a => a.reduce((x, y) => x + (y || 0), 0);
+
+  if (op === "rec") { t1BuildRec(steps, phases, phase, add); t1.steps = steps; t1.phases = phases; return; }
+
+  const doS = op !== "sizes", doZ = op !== "search";
+  const tal = new Array(n).fill(0), costs = new Array(n).fill(null), sizes = new Array(n).fill(null);
+  const S = o => doS ? Object.assign({ tallies: tal.slice(), costs: costs.slice() }, o) : null;
+  let Zcur = doZ ? { sizes: sizes.slice(), txt: "Next we write the size of its subtree on every node, again in sorted key order." } : null;
+
+  const startS = "We search for every key once, in sorted order. Every node keeps a <b>tally</b> of the searches that pass "
+    + "through it. The cost of a search is the number of nodes on its path.";
+  const startZ = "We write on every node the <b>size of its subtree</b> \\(|T_v|\\), the number of keys in it.";
+  phase(String(K(T.sorted[0])), "key " + K(T.sorted[0]));
+  add({ S: S({ txt: startS + (doZ ? " Searches and sizes go through the keys in the same order — watch the numbers on the nodes." : "") }),
+        Z: doZ ? { sizes: sizes.slice(), txt: startZ } : null });
+
+  for (let rk = 0; rk < n; rk++) {
+    const s = T.sorted[rk], key = K(s);
+    if (rk > 0) phase(String(key), "key " + key);
+    if (doZ) {
+      sizes[s] = T.size[s];
+      const lo = T.lo[s], hi = T.hi[s], sz = T.size[s];
+      let txt = "\\(|T_{" + keyStr(key) + "}| = " + sz + "\\): ";
+      if (s === T.root) txt += "the root's subtree is the whole tree.";
+      else if (sz === 1) txt += "a leaf, its subtree is just itself.";
+      else txt += "the subtree of " + keyStr(key) + " holds the keys " + keyStr(K(T.sorted[lo])) + " … " + keyStr(K(T.sorted[hi])) + ".";
+      txt += " Sum so far: " + sum(sizes) + ".";
+      Zcur = { sizes: sizes.slice(), cur: s, bump: [s], halos: [{ v: s, cls: "sub" }], bands: [{ lo: lo, hi: hi, cls: "sub" }], txt: txt };
+    }
+    if (!doS) { add({ S: null, Z: Zcur }); continue; }
+
+    const path = []; for (let x = s; x >= 0; x = N[x].parent) path.unshift(x);
+    if (t1.fine) {
+      /* one step per node on the search path: x arrives at v, the comparison happens, v's tally goes up */
+      path.forEach((v, j) => {
+        tal[v]++;
+        let txt = (j === 0 ? "<code>get(" + keyStr(key) + ")</code>: <code>x = root</code>. " : "")
+          + "Compare " + kq(key) + " with " + keyStr(K(v)) + ": node " + keyStr(K(v)) + " is on the search path, "
+          + "its tally goes up to <b>" + tal[v] + "</b>. ";
+        let line;
+        if (v === s) {
+          costs[rk] = j + 1; line = ["g.cmp", "g.eq"];
+          txt += "Equal: found after " + (j + 1) + " comparison" + (j ? "s" : "") + ", \\(\\mathrm{cost}(" + keyStr(key) + ") = "
+               + (j + 1) + "\\). Sum of the costs so far: " + sum(costs) + ".";
+        } else {
+          const left = N[path[j + 1]].dir === "L"; line = ["g.cmp", left ? "g.l" : "g.r"];
+          txt += keyStr(key) + (left ? " &lt; " : " &gt; ") + keyStr(K(v)) + ": go " + (left ? goL : goR) + ".";
+        }
+        add({ Z: Zcur, S: S({ line: (j === 0 ? ["g.x"] : []).concat(line), keyHot: rk, cur: v, target: v === s ? v : null,
+          onpath: path.slice(0, j + 1), pathEdges: path.slice(1, j + 1), bump: [v], costFresh: v === s ? rk : null,
+          token: { at: v, key: key }, txt: txt }) });
+      });
+    } else {
+      path.forEach(v => tal[v]++);
+      costs[rk] = path.length;
+      add({ Z: Zcur, S: S({ line: "g.eq", keyHot: rk, cur: s, target: s, onpath: path, pathEdges: path.slice(1), bump: path, costFresh: rk,
+        txt: "<code>get(" + keyStr(key) + ")</code> visits " + path.map(v => keyStr(K(v))).join(" → ")
+           + ": \\(\\mathrm{cost}(" + keyStr(key) + ") = " + path.length + "\\); these " + path.length + " nodes each add one to their tally. "
+           + "Sum of the costs so far: " + sum(costs) + "." }) });
+    }
+  }
+
+  /* the end: the same total, and (side by side) the same number on every node */
+  phase("Σ", "total");
+  const all = T.sorted.slice();
+  let tS, tZ;
+  if (doS && doZ) {
+    tS = "All searches done: every node's tally is final, and \\(\\sum_k \\mathrm{cost}(k) = \\sum_v \\mathrm{tally}(v) = " + T.C + "\\).";
+    tZ = "<b>Every tally equals the subtree size.</b> A search passes \\(v\\) exactly when its key lies in the subtree of \\(v\\): "
+       + "the search for such a key must enter that subtree through \\(v\\), and every other search turns away above \\(v\\). Therefore "
+       + "\\[C(T) \\wrel= \\sum_{k} \\mathrm{cost}(k) \\wrel= \\sum_{v} \\mathrm{tally}(v) \\wrel= \\sum_{v} |T_v| \\wrel= " + T.C + ",\\] "
+       + "the <b>internal path length</b> of \\(T\\).";
+  } else if (doS) {
+    tS = "All " + n + " searches done. The total cost of all searches is the <b>internal path length</b> \\(C(T)\\). Adding up per key "
+       + "(bottom row) or per node (tallies) counts every pair (search, node on its path) once: "
+       + "\\[C(T) \\wrel= \\sum_{k} \\mathrm{cost}(k) \\wrel= \\sum_{v} \\mathrm{tally}(v) \\wrel= " + T.C + ".\\]";
+  } else {
+    tZ = "All subtree sizes written: \\[\\sum_{v} |T_v| \\wrel= " + T.C + ",\\] the same as the total cost of searching every key once, "
+       + "the <b>internal path length</b> \\(C(T)\\). (Compare with “Search every key”, or show both side by side.)";
+  }
+  add({ S: S({ txt: tS, bump: doZ ? all : null }), Z: doZ ? { sizes: sizes.slice(), bump: all, txt: tZ } : null, final: true });
+  t1.steps = steps; t1.phases = phases;
+}
+
+/* split at the root: C(T) = n + C(T_L) + C(T_R), then expectations */
+function t1BuildRec(steps, phases, phase, add) {
+  const T = t1.T, N = T.nodes, n = T.n, root = N[T.root], L = root.left, R = root.right;
+  const cOf = v => v < 0 ? 0 : subtreeIds(T, v).reduce((s, id) => s + T.size[id], 0);
+  const r = T.rank[T.root] + 1, cL = cOf(L), cR = cOf(R);
+  const halos = [], bands = [];
+  if (L >= 0) { halos.push({ v: L, cls: "lt" }); bands.push({ lo: T.lo[L], hi: T.hi[L], cls: "lt" }); }
+  if (R >= 0) { halos.push({ v: R, cls: "rt" }); bands.push({ lo: T.lo[R], hi: T.hi[R], cls: "rt" }); }
+  const sizes = T.size.slice(), rec = { cL: cL, cR: cR, r: r, L: L, R: R };
+  phase("Split at the root");
+  add({ S: null, Z: { sizes: sizes, cur: T.root, bump: [T.root], halos: halos, bands: bands, rec: rec,
+    txt: "\\(C(T)\\) is the sum of all subtree sizes. Split this sum at the root, which has rank \\(r = " + r + "\\). The root contributes "
+       + "\\(|T| = n\\). Every other node lies in the left subtree \\(T_L\\) (" + (r - 1) + " keys) or the right subtree \\(T_R\\) ("
+       + (n - r) + " keys), and its subtree there is the same as in \\(T\\). Hence "
+       + "\\[C(T) \\wrel= n + C(T_L) + C(T_R) \\wrel= " + n + " + " + cL + " + " + cR + " \\wrel= " + T.C + ".\\]" } });
+  phase("Random order: expectation");
+  add({ S: null, Z: { sizes: sizes, cur: T.root, halos: halos, bands: bands, rec: rec,
+    txt: "Now let the insertion order be <b>random</b>. The root is the first inserted key, so its rank \\(r\\) is uniform in "
+       + "\\([1..n]\\). The smaller and the larger keys still arrive in random order among themselves, so \\(T_L\\) and \\(T_R\\) "
+       + "are random BSTs with \\(r-1\\) and \\(n-r\\) keys. Taking expectations of \\(C(T) = n + C(T_L) + C(T_R)\\): "
+       + "\\[C_n \\wrel= n + \\frac1n \\sum_{r=1}^{n} \\bigl(C_{r-1} + C_{n-r}\\bigr) \\wrel= n + \\frac2n\\sum_{k=0}^{n-1} C_k, "
+       + "\\qquad C_0 = 0,\\] which solves to \\(C_n = 2(n+1)H_n - 3n\\). Here \\(C_{" + n + "} \\approx " + cExact(n).toFixed(2)
+       + "\\), and this particular tree has \\(C(T) = " + T.C + "\\). "
+       + '<br><button style="margin-top:8px" onclick="openDistribution(' + n + ')">How are the values of C(T) distributed? →</button>' } });
+}
+
+/* ---------- drawing ------------------------------------------------------- */
+function t1Visibility() {
+  const op = t1.op;
+  el("t1BoxS").classList.toggle("off", op === "sizes" || op === "rec");
+  el("t1BoxZ").classList.toggle("off", op === "search");
+  el("t1CodeBox").style.display = (op === "sizes" || op === "rec") ? "none" : "";
+  el("t1GranCtl").style.visibility = (op === "sizes" || op === "rec") ? "hidden" : "";
+  el("t1TitleZ").textContent = op === "rec" ? "Splitting the sum at the root" : "Subtree sizes";
+}
+function t1GeoFor(wrapId, withCost) {
+  const T = t1.T, avail = Math.max(260, el(wrapId).clientWidth - 2);
+  const x0 = 46, dx = clamp(T.n > 1 ? (avail - x0 - 30) / (T.n - 1) : 40, 22, 54);
+  const g = treeGeo(T, x0, dx, 40, 52, dx < 25 ? 10.5 : dx < 30 ? 12 : 14, true);
+  if (!withCost) g.bottom = g.keyY + 16;
+  g.width = Math.max(avail, x0 + (T.n - 1) * dx + 32);
+  return g;
+}
+function t1Layout() {
+  const T = t1.T;
+  if (!el("t1BoxS").classList.contains("off")) t1.geoS = t1GeoFor("t1WrapS", true);
+  if (!el("t1BoxZ").classList.contains("off")) t1.geoZ = t1GeoFor("t1WrapZ", t1.op === "rec");
+  el("t1MetaS").textContent = el("t1MetaZ").textContent = "n = " + T.n + ", height " + T.height;
+}
+function sizeSvg(svg, g, extra) {
+  const H = g.bottom + (extra || 0);
+  svg.setAttribute("width", g.width); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + g.width + " " + H);
+  let layer = svg.querySelector("g.layer");
+  if (!layer) layer = S("g", { class: "layer" }, svg);
+  layer.innerHTML = "";
+  return layer;
+}
+
+function t1Render(i, prev) {
+  const T = t1.T, st = t1.steps[i];
+  const forward = prev === i - 1;
+
+  /* --- the search tree --- */
+  if (st.S && t1.geoS) {
+    const g = t1.geoS, svg = el("t1SvgS"), s = st.S;
+    const layer = sizeSvg(svg, g);
+    renderTree(layer, T, g, {
+      cur: s.cur, onpath: new Set(s.onpath || []), pathEdges: new Set(s.pathEdges || []), target: s.target,
+      tallies: s.tallies, bump: new Set(s.bump || []), keyHot: s.keyHot, costs: s.costs, costFresh: s.costFresh
+    });
+    let tok = svg.querySelector("g.token");
+    if (!tok) {
+      tok = S("g", { class: "token" }, svg);
+      S("rect", { x: -17, y: -11, width: 34, height: 22, rx: 4 }, tok); S("text", { x: 0, y: 0.5 }, tok);
+    }
+    svg.appendChild(tok);
+    if (s.token) {
+      const v = s.token.at, x = Math.max(20, g.x(v) - g.r - 22), y = Math.max(13, g.y(v) - g.r - 6);
+      tok.querySelector("text").textContent = String(s.token.key);
+      const w = Math.max(34, 10 + 8.2 * String(s.token.key).length);
+      tok.querySelector("rect").setAttribute("width", w); tok.querySelector("rect").setAttribute("x", -w / 2);
+      if (!forward) tok.style.transition = "none";
+      tok.style.transform = "translate(" + x + "px," + y + "px)"; tok.style.opacity = "1";
+      void tok.getBoundingClientRect(); tok.style.transition = "";
+    } else tok.style.opacity = "0";
+  }
+
+  /* --- the size tree --- */
+  if (st.Z && t1.geoZ) {
+    const g = t1.geoZ, svg = el("t1SvgZ"), z = st.Z;
+    const layer = sizeSvg(svg, g, z.rec ? 30 : 0);
+    renderTree(layer, T, g, { cur: z.cur, tallies: z.sizes, bump: new Set(z.bump || []), halos: z.halos, bands: z.bands });
+    let ohtml = "";
+    if (z.rec) {
+      const lab = (v, cls, nm, cnt, c) => {
+        if (v < 0) return "";
+        const x = g.x0 + (T.lo[v] + T.hi[v]) / 2 * g.dx;
+        return '<div class="olab ' + cls + '" style="left:' + x + "px;top:" + (g.keyY + 14) + 'px">\\(' + nm + "\\): " + cnt
+             + " key" + (cnt === 1 ? "" : "s") + ", \\(C(" + nm + ") = " + c + "\\)</div>";
+      };
+      ohtml = lab(z.rec.L, "l", "T_L", z.rec.r - 1, z.rec.cL) + lab(z.rec.R, "r", "T_R", T.n - z.rec.r, z.rec.cR);
+    }
+    setMath(el("t1OverZ"), ohtml);
+  }
+
+  /* --- status --- */
+  let html;
+  if (st.S && st.Z) html = '<p><span class="who">Searches</span>' + st.S.txt + '</p><p><span class="who">Sizes</span>' + st.Z.txt + "</p>";
+  else html = (st.S || st.Z).txt;
+  setMath(el("t1Status"), html);
+  const ph = t1.phases[t1.tr.phaseOf(i)];
+  el("t1PhaseName").textContent = ph.title;
+
+  const lines = el("t1Code").children, line = st.S && st.S.line ? [].concat(st.S.line) : [];
+  for (let j = 0; j < lines.length; j++) lines[j].classList.toggle("on", T1_CODE[j][0] != null && line.indexOf(T1_CODE[j][0]) >= 0);
+
+  /* --- the sums --- */
+  const show = arr => arr.length ? (arr.length > 24 ? arr.slice(0, 24).join(" + ") + " + …" : arr.join(" + ")) : "0";
+  let two = "";
+  if (st.S) {
+    const cs = st.S.costs.filter(c => c != null), ts = T.sorted.map(v => st.S.tallies[v]).filter(t => t > 0);
+    two += '<tr><td class="lh">Σ cost(k)</td><td class="sum">' + show(cs) + '</td><td class="tot">' + cs.reduce((a, b) => a + b, 0) + "</td></tr>";
+    two += '<tr><td class="lh">Σ tally(v)</td><td class="sum">' + show(ts) + '</td><td class="tot">' + ts.reduce((a, b) => a + b, 0) + "</td></tr>";
+  }
+  if (st.Z) {
+    const zs = T.sorted.map(v => st.Z.sizes[v]).filter(t => t != null);
+    two += '<tr><td class="lh">Σ |T<sub>v</sub>|</td><td class="sum">' + show(zs) + '</td><td class="tot">' + zs.reduce((a, b) => a + b, 0) + "</td></tr>";
+  }
+  two += '<tr><td colspan="3" class="note" style="padding-top:4px">all terms in key order; at the end, all equal C(T) = ' + T.C + "</td></tr>";
+  el("t1Two").innerHTML = two;
+}
+
+function t1Init() {
+  const sel = el("t1Preset");
+  T1_PRESETS.forEach((p, i) => { const o = document.createElement("option"); o.value = i; o.textContent = p.name; sel.appendChild(o); });
+  const o = document.createElement("option"); o.value = "custom"; o.textContent = "(random / own input)"; sel.appendChild(o);
+  sel.onchange = () => { if (sel.value !== "custom") { t1.tr.stop(); t1Load(t1Parse(T1_PRESETS[+sel.value].text)); } };
+  el("t1Code").innerHTML = T1_CODE.map((l, j) => '<div class="cline"><span class="ln">' + (j + 1) + "</span><span>"
+    + esc(l[1]).replace(/\b(public|while|if|else|return|int|null)\b/g, '<span class="kw">$1</span>') + "</span></div>").join("");
+  t1.tr = new Transport("t1", (i, prev) => t1Render(i, prev));
+  el("t1Rand").onclick = () => {
+    const n = clamp(Math.round(+el("t1N").value) || 15, 1, 40); el("t1N").value = n;
+    const p = []; for (let k = 1; k <= n; k++) p.push(k);
+    for (let k = n - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [p[k], p[j]] = [p[j], p[k]]; }
+    t1.tr.stop(); sel.value = "custom"; t1Load(p);
+  };
+  el("t1Op").querySelectorAll("button").forEach(b => b.onclick = () => {
+    el("t1Op").querySelectorAll("button").forEach(c => c.classList.toggle("on", c === b));
+    t1.op = b.dataset.op; t1.tr.stop(); t1Rebuild(0);
+  });
+  el("t1Gran").querySelectorAll("button").forEach(b => b.onclick = () => {
+    el("t1Gran").querySelectorAll("button").forEach(c => c.classList.toggle("on", c === b));
+    t1.fine = +b.dataset.g;
+    const k = t1.tr.phaseOf(t1.tr.cur), atEnd = t1.tr.cur === t1.phases[k].to && k === t1.phases.length - 1;
+    t1.tr.stop(); t1Build(); t1.tr.setup(t1.steps.length, t1.phases);
+    t1.tr.go(atEnd ? t1.steps.length - 1 : t1.phases[Math.min(k, t1.phases.length - 1)].from);   // same key, from its start
+  });
+  el("t1Load").onclick = () => {
+    try { const k = t1Parse(el("t1Text").value); el("t1Err").textContent = ""; sel.value = "custom"; t1.tr.stop(); t1Load(k); }
+    catch (e) { el("t1Err").textContent = e.message; }
+  };
+  const relayout = () => { if (t1.T) { t1Layout(); t1Render(t1.tr.cur, -1); } };
+  t1.applySplit = vSplitter("t1Split", "t1Main", "t1split", 0.66, relayout);
+  t1.applySplit();
+  let rt = null;
+  window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(relayout, 80); });
+  t1Load(t1Parse(T1_PRESETS[0].text));
+}
+
+/* ==========================================================================
+   Tab 2: sample many random BSTs of fixed size n and watch the distribution
+   of C(T) (or another measure) build up.  Small n: every sampled tree is a
+   little box stacked onto its bar.  Later: relative frequencies.
+   ========================================================================== */
+
+const THUMB_MAX_N = 12;          // trees are kept (and drawn) only up to this n
+const TREE_KEEP = 8000;          // ... and only for the first this many samples
+const MAX_SAMPLES = 5000000;
+
+function allPermsText(n) {
+  const out = [], a = []; for (let i = 1; i <= n; i++) a.push(i);
+  const go = k => { if (k === n) { out.push(a.join(" ")); return; }
+    for (let i = k; i < n; i++) { [a[k], a[i]] = [a[i], a[k]]; go(k + 1); [a[k], a[i]] = [a[i], a[k]]; } };
+  go(0); return out.sort().join("\n");
+}
+const T2_PRESETS = [
+  { name: "n = 4: every insertion order once", text: "# all 4! = 24 insertion orders, each exactly once\nn 4\nshow trees\n" + allPermsText(4) },
+  { name: "n = 5: start sampling", text: "n 5\nseed 1\nshow auto" },
+  { name: "n = 7: 150 random trees", text: "n 7\nseed 7\nsamples 150" },
+  { name: "n = 10: 1500 random trees", text: "n 10\nseed 10\nsamples 1500" },
+  { name: "n = 100: 20 000 trees", text: "n 100\nseed 100\nsamples 20000\nshow frequencies" },
+  { name: "n = 1000: height", text: "n 1000\nseed 1\nsamples 3000\nmeasure h" }
+];
+
+const t2 = {
+  n: 5, seed: 1, rng: null, m: 0, metric: 0, mode: "auto", exact: true,
+  sum: [0, 0, 0, 0], sum2: [0, 0, 0, 0], min: [], max: [], counts: [],
+  kept: [],                      // first TREE_KEEP samples: {perm, shape, v:[4]}
+  shapes: [], shapeMap: new Map(),
+  conv: [[], [], [], []], nextCk: 1,
+  scale: "norm",
+  queue: 0, playing: false, acc: 0, lastT: 0, raf: 0,
+  last: null, dirty: true, rendered: null, ymax: 0, hoverShape: -1
+};
+
+function t2Reset(n, seed) {
+  if (n != null) t2.n = n;
+  if (seed != null) t2.seed = seed;
+  t2.rng = mulberry32(t2.seed * 2654435761 + 12345);
+  t2.m = 0; t2.sum = [0, 0, 0, 0]; t2.sum2 = [0, 0, 0, 0];
+  t2.min = [Infinity, Infinity, Infinity, Infinity]; t2.max = [-Infinity, -Infinity, -Infinity, -Infinity];
+  t2.counts = [new Map(), new Map(), new Map(), new Map()];
+  t2.kept = []; t2.shapes = []; t2.shapeMap = new Map();
+  t2.conv = [[], [], [], []]; t2.nextCk = 1; t2.queue = 0; t2.last = null;
+  t2.rendered = null; t2.ymax = 0; t2.dirty = true;
+  el("t2N").value = t2.n; el("t2Seed").value = t2.seed;
+  el("t2Svg").innerHTML = "";
+}
+
+/* draw one tree (random, or the given insertion order) and record it */
+function t2AddSample(perm) {
+  const n = t2.n, v = SAMPLER.run(n, t2.rng, perm);
+  const m = ++t2.m;
+  for (let k = 0; k < 4; k++) {
+    t2.sum[k] += v[k]; t2.sum2[k] += v[k] * v[k];
+    if (v[k] < t2.min[k]) t2.min[k] = v[k];
+    if (v[k] > t2.max[k]) t2.max[k] = v[k];
+    const c = t2.counts[k]; c.set(v[k], (c.get(v[k]) || 0) + 1);
+  }
+  if (m >= t2.nextCk) {
+    for (let k = 0; k < 4; k++) t2.conv[k].push([m, t2.sum[k] / m]);
+    t2.nextCk = m < 60 ? m + 1 : Math.ceil(m * 1.025);
+  }
+  if (n <= THUMB_MAX_N && t2.kept.length < TREE_KEEP) {
+    const key = shapeOf(SAMPLER.L, SAMPLER.R, SAMPLER.root);
+    let s = t2.shapeMap.get(key);
+    if (s == null) {
+      s = t2.shapes.length; t2.shapeMap.set(key, s);
+      t2.shapes.push({ key: key, count: 0, prob: shapeProb(SAMPLER.L, SAMPLER.R, SAMPLER.root),
+                       L: SAMPLER.L.slice(), R: SAMPLER.R.slice(), root: SAMPLER.root, D: SAMPLER.D.slice() });
+    }
+    t2.shapes[s].count++;
+    t2.kept.push({ perm: Int16Array.from(SAMPLER.perm), shape: s, v: v });
+  } else if (t2.shapes.length || n <= THUMB_MAX_N) {
+    const key = shapeOf(SAMPLER.L, SAMPLER.R, SAMPLER.root), s = t2.shapeMap.get(key);
+    if (s != null) t2.shapes[s].count++;
+  }
+  t2.last = { perm: perm ? Int32Array.from(perm) : SAMPLER.perm.slice(), v: v };
+  t2.dirty = true;
+}
+
+/* ---------- histogram ----------------------------------------------------- */
+function niceStep(range, target) {
+  const raw = range / Math.max(1, target), p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+  return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
+}
+function t2Range(id) {
+  const n = t2.n, k = MIDX[id], [rlo, rhi] = metricRange(id, n);
+  const d = exactPmf(id, n);
+  let a, b;
+  if (d) {
+    let mx = 0; for (const p of d.p) mx = Math.max(mx, p);
+    let i = 0, j = d.p.length - 1;
+    while (i < j && d.p[i] < 1e-4 * mx) i++;
+    while (j > i && d.p[j] < 1e-4 * mx) j--;
+    a = d.lo + i; b = d.lo + j;
+  } else {
+    const mo = exactMoments(id, n);
+    if (mo) { a = Math.floor(mo.mean - 4 * mo.sd); b = Math.ceil(mo.mean + 5 * mo.sd); }
+    else { a = rlo; b = rhi; }
+  }
+  if (t2.m) { a = Math.min(a, t2.min[k]); b = Math.max(b, t2.max[k]); }
+  return [Math.max(rlo, a), Math.min(rhi, b), d];
+}
+
+function t2Draw() {
+  const id = METRICS[t2.metric].id, k = t2.metric, n = t2.n;
+  const wrap = el("t2Wrap"), W = Math.max(320, wrap.clientWidth), H = Math.max(200, wrap.clientHeight);
+  const svg = el("t2Svg");
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  const ml = 58, mr = 18, mt = 26, mb = 50, PW = W - ml - mr, PH = H - mt - mb, baseY = mt + PH;
+  const [xlo, xhi, dRaw] = t2Range(id);
+  const d = t2.exact ? dRaw : null;
+  const nv = xhi - xlo + 1;
+  let bw = 1; if (PW / nv < 5) bw = Math.ceil(nv / (PW / 7));
+  const nb = Math.ceil(nv / bw), colW = PW / nb;
+  const binOf = v => Math.floor((v - xlo) / bw);
+  const cnt = new Array(nb).fill(0);
+  for (const [v, c] of t2.counts[k]) { const b = binOf(v); if (b >= 0 && b < nb) cnt[b] += c; }
+  const ex = new Array(nb).fill(0);
+  if (d) for (let i = 0; i < d.p.length; i++) { const b = binOf(d.lo + i); if (b >= 0 && b < nb) ex[b] += d.p[i]; }
+  const maxCnt = Math.max(1, ...cnt);
+
+  /* trees or bars? */
+  const treesOk = n <= THUMB_MAX_N && bw === 1 && t2.m <= t2.kept.length;
+  let s = Math.min(colW - 2, 46, PH / maxCnt);
+  let trees = t2.mode === "trees" ? treesOk && s >= 2.5 : t2.mode === "bars" ? false : treesOk && s >= 9;
+  if (trees && t2.m === 0) s = Math.min(colW - 2, 46);
+
+  const sig = [trees, W, H, xlo, xhi, trees ? s.toFixed(3) : bw, k, n].join("|");
+  const full = !t2.rendered || t2.rendered.sig !== sig;
+  let gAxes, gData, gTop;
+  if (full) {
+    svg.innerHTML = "";
+    S("defs", null, svg);
+    gAxes = S("g", { class: "g-axes" }, svg); gData = S("g", { class: "g-data" }, svg); gTop = S("g", { class: "g-top" }, svg);
+    const prevDrawn = t2.rendered && t2.rendered.trees ? t2.rendered.drawn : (t2.rendered ? t2.rendered.prevM : 0);
+    t2.rendered = { sig: sig, drawn: 0, colH: new Array(nb).fill(0), symbols: new Set(), trees: trees, prevDrawn: prevDrawn };
+  } else {
+    gAxes = svg.querySelector(".g-axes"); gData = svg.querySelector(".g-data"); gTop = svg.querySelector(".g-top");
+  }
+  const xOfBin = b => ml + b * colW;
+  const xOfVal = v => ml + ((v - xlo) / bw + (bw === 1 ? 0.5 : 0)) / nb * PW;
+  const Z = t2.scale === "norm" ? normOf(id, n) : 1, nd = Z === 1 ? 2 : 3;
+
+  /* --- axes (always redrawn) --- */
+  gAxes.innerHTML = "";
+  const ax = S("g", { class: "axis" }, gAxes);
+  S("line", { x1: ml, y1: baseY + .5, x2: ml + PW, y2: baseY + .5 }, ax);
+  if (Z === 1) {
+    const xst = Math.max(bw, niceStep(nv, Math.max(2, PW / 70)));
+    for (let v = Math.ceil(xlo / xst) * xst; v <= xhi; v += xst) {
+      const x = xOfVal(v);
+      S("line", { x1: x, y1: baseY, x2: x, y2: baseY + 5 }, ax);
+      S("text", { x: x, y: baseY + 18, "text-anchor": "middle" }, ax).textContent = String(v);
+    }
+  } else if (bw === 1 && colW >= 36) {                    // few columns: label each with its normalized value
+    for (let v = xlo; v <= xhi; v++) {
+      const x = xOfVal(v);
+      S("line", { x1: x, y1: baseY, x2: x, y2: baseY + 5 }, ax);
+      S("text", { x: x, y: baseY + 18, "text-anchor": "middle" }, ax).textContent = (v / Z).toFixed(2);
+    }
+  } else {
+    const ulo = (xlo - (bw === 1 ? 0.5 : 0)) / Z, uhi = (xhi + 0.5) / Z, ust = niceStep(uhi - ulo, Math.max(2, PW / 70)), dd = decimalsFor(ust);
+    for (let u = Math.ceil(ulo / ust) * ust; u <= uhi + 1e-12; u += ust) {
+      const x = xOfVal(u * Z); if (x < ml - 0.5 || x > ml + PW + 0.5) continue;
+      S("line", { x1: x, y1: baseY, x2: x, y2: baseY + 5 }, ax);
+      S("text", { x: x, y: baseY + 18, "text-anchor": "middle" }, ax).textContent = u.toFixed(dd);
+    }
+  }
+  let yUnit, ylab;
+  if (trees) {
+    yUnit = s; ylab = "number of trees";
+    const ymaxC = PH / s, st = Math.max(1, niceStep(ymaxC, PH / 45));
+    for (let c = 0; c <= ymaxC + 1e-9; c += st) {
+      const y = baseY - c * s;
+      if (c > 0) S("line", { class: "grid", x1: ml, y1: y, x2: ml + PW, y2: y }, gAxes);
+      const t = S("text", { x: ml - 7, y: y + 4, "text-anchor": "end" }, ax); t.textContent = String(Math.round(c));
+    }
+  } else {
+    let need = 0;
+    for (let b = 0; b < nb; b++) need = Math.max(need, t2.m ? cnt[b] / t2.m : 0, ex[b]);
+    need = Math.max(need, 1e-9) * 1.08;
+    if (!t2.ymax || need > t2.ymax || need < 0.55 * t2.ymax || t2.rendered.ylock !== sig) { t2.ymax = need; t2.rendered.ylock = sig; }
+    const ymax = t2.ymax; yUnit = PH / ymax;
+    ylab = bw === 1 ? "relative frequency" : "relative frequency (bins of " + bw + " values)";
+    const st = niceStep(ymax, PH / 45);
+    for (let f = 0; f <= ymax + 1e-12; f += st) {
+      const y = baseY - f * yUnit;
+      if (f > 0) S("line", { class: "grid", x1: ml, y1: y, x2: ml + PW, y2: y }, gAxes);
+      const t = S("text", { x: ml - 7, y: y + 4, "text-anchor": "end" }, ax);
+      t.textContent = st >= 0.1 ? f.toFixed(1) : st >= 0.01 ? f.toFixed(2) : st >= 0.001 ? f.toFixed(3) : f.toExponential(0);
+    }
+  }
+  S("line", { x1: ml + .5, y1: mt - 6, x2: ml + .5, y2: baseY }, ax);
+  const yl = S("text", { x: 14, y: mt + PH / 2, "text-anchor": "middle", transform: "rotate(-90 14 " + (mt + PH / 2) + ")" }, ax);
+  yl.textContent = ylab;
+
+  /* --- data --- */
+  if (trees) {
+    const R = t2.rendered, defs = svg.querySelector("defs");
+    gData.querySelectorAll(".box.new").forEach(e => e.classList.remove("new", "pop"));
+    const from = R.drawn, to = Math.min(t2.m, t2.kept.length);
+    const animate = !full && to - from <= 40, freshFrom = full ? R.prevDrawn : from;
+    for (let j = from; j < to; j++) {
+      const smp = t2.kept[j], v = smp.v[k], b = binOf(v);
+      if (b < 0 || b >= nb) continue;
+      const h = R.colH[b]++;
+      const bwid = Math.max(s, Math.min(colW - 4, 2 * s, 46));
+      const x = xOfBin(b) + (colW - bwid) / 2, y = baseY - (h + 1) * s;
+      const sh = smp.shape;
+      if (!R.symbols.has(sh)) { R.symbols.add(sh); t2Symbol(defs, sh); }
+      const outer = S("g", { transform: "translate(" + x.toFixed(2) + "," + y.toFixed(2) + ")" }, gData);
+      const g = S("g", { class: "box" + (j >= freshFrom && to - freshFrom <= 10 ? " new" : "") + (animate ? " pop" : ""),
+                         "data-j": j, "data-s": sh }, outer);
+      S("rect", { class: "bg", x: .5, y: .5, width: Math.max(1, bwid - 1), height: Math.max(1, s - 1), rx: s > 10 ? 2 : 0 }, g);
+      if (s >= 7) S("use", { href: "#shp" + sh, x: 1, y: 1, width: bwid - 2, height: s - 2 }, g);
+      if (sh === t2.hoverShape) g.classList.add("same");
+    }
+    R.drawn = to;
+  } else {
+    gData.innerHTML = "";
+    for (let b = 0; b < nb; b++) {
+      if (!cnt[b]) continue;
+      const f = cnt[b] / t2.m, h = f * yUnit;
+      S("rect", { class: "bar", x: xOfBin(b) + (colW > 6 ? 1 : 0), y: baseY - h, width: Math.max(1, colW - (colW > 6 ? 2 : 0)), height: h,
+                  "data-b": b }, gData);
+    }
+    t2.rendered.drawn = 0; t2.rendered.prevM = t2.m;
+  }
+
+  /* --- exact distribution and means (always redrawn) --- */
+  gTop.innerHTML = "";
+  if (d) {
+    const scale = trees ? t2.m * s : yUnit;            // expected count (trees) or probability (bars)
+    if (trees || colW >= 4) {
+      for (let b = 0; b < nb; b++) {
+        if (ex[b] <= 0) continue;
+        const y = baseY - ex[b] * scale;
+        S("line", { class: "pmfstep", x1: xOfBin(b) + 1, y1: y, x2: xOfBin(b) + colW - 1, y2: y }, gTop);
+      }
+    } else {
+      let pts = [];
+      for (let b = 0; b < nb; b++) pts.push((xOfBin(b) + colW / 2).toFixed(1) + "," + (baseY - ex[b] * scale).toFixed(1));
+      S("polyline", { class: "pmfline", points: pts.join(" ") }, gTop);
+    }
+  }
+  const mo = exactMoments(id, n);
+  const marks = [];
+  if (mo) marks.push({ v: mo.mean, cls: "exact", lab: "exact mean " + fmt(mo.mean / Z, nd) });
+  if (t2.m) marks.push({ v: t2.sum[k] / t2.m, cls: "emp", lab: "sample mean " + fmt(t2.sum[k] / t2.m / Z, nd) });
+  if (marks.length === 2 && xOfVal(marks[1].v) < xOfVal(marks[0].v)) marks.reverse();
+  marks.forEach((mk, i) => {
+    const x = xOfVal(mk.v);
+    if (x < ml || x > ml + PW) return;
+    S("line", { class: "xmark " + mk.cls, x1: x, y1: mt - 4, x2: x, y2: baseY }, gTop);
+    const t = S("text", { class: "xlab " + mk.cls, x: x + (i === 0 && marks.length === 2 ? -4 : 4), y: mt - 9,
+                          "text-anchor": i === 0 && marks.length === 2 ? "end" : "start" }, gTop);
+    t.textContent = mk.lab;
+  });
+
+  /* x-axis title (MathJax overlay) */
+  const axisHtml = Z === 1 ? METRICS[k].axis
+    : "\\(" + NORM[id].tex + "\\) &nbsp;(" + METRICS[k].label + ", normalized; tends to " + NORM[id].limTex + " ≈ " + NORM[id].lim.toFixed(3) + ")";
+  setMath(el("t2Over"), '<div class="olab" style="left:' + (ml + PW / 2) + "px;top:" + (baseY + 24) + 'px">' + axisHtml + "</div>");
+
+  t2.view = { trees: trees, xlo: xlo, bw: bw, nb: nb, cnt: cnt, ex: ex, d: d, s: s, Z: Z };
+  el("t2HistTitle").textContent = trees ? "Every sampled tree, stacked by its value" : "Relative frequencies";
+  el("t2Meta").textContent = "n = " + n + ", " + t2.m.toLocaleString("en-US") + " tree" + (t2.m === 1 ? "" : "s");
+  t2Legend(trees, !!d, dRaw);
+}
+
+function t2Legend(trees, exactShown, dRaw) {
+  const id = METRICS[t2.metric].id;
+  let h = trees
+    ? '<span class="item"><span class="sw" style="background:var(--wi-panel-2)"></span> one sampled tree (hover: enlarge, click: open in the first tab)</span>'
+    : '<span class="item"><span class="sw" style="background:#e3c8bd;border-color:var(--wi-accent-soft)"></span> fraction of the sampled trees</span>';
+  if (exactShown) h += '<span class="item"><span class="swl" style="border-color:var(--wi-accent);border-top-style:dashed"></span> '
+    + (trees ? "expected number of trees" : "exact probability") + "</span>";
+  h += '<span class="item"><span class="swl" style="border-color:var(--wi-ink-strong)"></span> sample mean</span>';
+  if (!dRaw) h += '<span class="item note" style="margin:0">exact distribution of this measure computed for n ≤ ' + EXACT_LIMIT[id] + "</span>";
+  if (t2.n > THUMB_MAX_N && t2.mode === "trees") h += '<span class="item note" style="margin:0">trees are drawn for n ≤ ' + THUMB_MAX_N + " only</span>";
+  else if (t2.mode === "trees" && !(t2.view && t2.view.trees) && t2.n <= THUMB_MAX_N) h += '<span class="item note" style="margin:0">too many trees to draw: showing frequencies</span>';
+  if (el("t2Legend")._h !== h) { el("t2Legend").innerHTML = h; el("t2Legend")._h = h; }
+}
+
+/* a shape as a reusable symbol in a 100 x 100 box */
+function t2Symbol(defs, sh) {
+  const S0 = t2.shapes[sh], n = t2.n, sym = S("symbol", { id: "shp" + sh, viewBox: "0 0 100 100", preserveAspectRatio: "none" }, defs);
+  const pad = 9, X = k => pad + (n === 1 ? 41 : (k - 1) / (n - 1) * (100 - 2 * pad)), Y = k => pad + S0.D[k] / Math.max(3, n - 1) * (100 - 2 * pad);
+  for (let k = 1; k <= n; k++) for (const c of [S0.L[k], S0.R[k]]) if (c) S("line", { class: "th-e", x1: X(k), y1: Y(k), x2: X(c), y2: Y(c) }, sym);
+  const rr = Math.max(3.2, Math.min(7.5, 32 / n));
+  for (let k = 1; k <= n; k++) S("circle", { class: "th-n", cx: X(k), cy: Y(k), r: rr }, sym);
+}
+
+/* ---------- side panels ---------------------------------------------------- */
+function t2DrawLast() {
+  const box = el("t2Last"), meta = el("t2LastMeta"), L = t2.last, n = t2.n;
+  if (!L) { box.innerHTML = ""; box.setAttribute("width", 10); box.setAttribute("height", 10);
+            meta.textContent = ""; return; }
+  meta.textContent = METRICS.map((mm, i) => (i === 0 ? "C" : i === 1 ? "h" : i === 2 ? "λ" : "d₀") + " = " + L.v[i]).join(", ");
+  const avail = Math.max(200, el("t2LastWrap").clientWidth - 4);
+  if (n <= 24) {
+    const T = buildTree(Array.from(L.perm));
+    const dx = clamp((avail - 34) / Math.max(1, n - 1), 18, 30);
+    const g = treeGeo(T, 16, dx, 16, 34, 11, false);
+    box.innerHTML = ""; box.setAttribute("width", g.width); box.setAttribute("height", g.bottom);
+    box.setAttribute("viewBox", "0 0 " + g.width + " " + g.bottom);
+    renderTree(S("g", null, box), T, g, {});
+    box.querySelectorAll(".nd text").forEach(t => t.setAttribute("font-size", "12"));
+    return;
+  }
+  if (n > 3000) { box.innerHTML = ""; box.setAttribute("height", 10); meta.textContent += " (too large to draw)"; return; }
+  SAMPLER.run(n, null, L.perm);
+  const D = SAMPLER.D, Lc = SAMPLER.L, Rc = SAMPLER.R;
+  let h = 0; for (let k = 1; k <= n; k++) h = Math.max(h, D[k]);
+  const W = avail, dy = clamp(220 / Math.max(1, h), 3, 14), Hh = h * dy + 12;
+  box.setAttribute("width", W); box.setAttribute("height", Hh); box.setAttribute("viewBox", "0 0 " + W + " " + Hh);
+  const X = k => 6 + (k - 1) / Math.max(1, n - 1) * (W - 12), Y = k => 6 + D[k] * dy;
+  let path = "";
+  for (let k = 1; k <= n; k++) for (const c of [Lc[k], Rc[k]]) if (c) path += "M" + X(k).toFixed(1) + " " + Y(k).toFixed(1) + "L" + X(c).toFixed(1) + " " + Y(c).toFixed(1);
+  box.innerHTML = "";
+  S("path", { class: "shape-e", d: path }, box);
+  if (n <= 400) for (let k = 1; k <= n; k++) S("circle", { class: "shape-n", cx: X(k), cy: Y(k), r: n <= 100 ? 2.4 : 1.5 }, box);
+}
+
+function t2DrawConv() {
+  const k = t2.metric, id = METRICS[k].id, wrap = el("t2ConvWrap");
+  const W = Math.max(220, wrap.clientWidth), H = 190, ml = 50, mr = 12, mt = 10, mb = 30, PW = W - ml - mr, PH = H - mt - mb;
+  const svg = el("t2Conv");
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.innerHTML = "";
+  const Z = t2.scale === "norm" ? normOf(id, t2.n) : 1, mo0 = exactMoments(id, t2.n);
+  const mo = mo0 ? { mean: mo0.mean / Z, sd: mo0.sd / Z } : null, pts = t2.conv[k].map(([m, v]) => [m, v / Z]), M = Math.max(10, t2.m);
+  const lx = m => ml + Math.log10(m) / Math.log10(M) * PW;
+  let lo = Infinity, hi = -Infinity;
+  for (const [m, v] of pts) { if (m >= Math.min(5, t2.m)) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }
+  if (mo) {
+    const sp = Math.max(2.2 * mo.sd / Math.sqrt(Math.min(4, M)), 1e-6);
+    lo = Math.min(lo, mo.mean - sp); hi = Math.max(hi, mo.mean + sp);
+    if (!isFinite(lo)) { lo = mo.mean - 2 * mo.sd; hi = mo.mean + 2 * mo.sd; }
+  }
+  if (!isFinite(lo)) { lo = 0; hi = 1; }
+  if (hi - lo < 1e-9) { lo -= .5; hi += .5; }
+  const pad = (hi - lo) * 0.06; lo -= pad; hi += pad;
+  const Y = v => mt + (hi - v) / (hi - lo) * PH;
+  const ax = S("g", { class: "axis" }, svg);
+  const st = niceStep(hi - lo, 4);
+  for (let v = Math.ceil(lo / st) * st; v <= hi; v += st) {
+    S("line", { class: "grid", x1: ml, y1: Y(v), x2: ml + PW, y2: Y(v) }, svg);
+    S("text", { x: ml - 6, y: Y(v) + 4, "text-anchor": "end" }, ax).textContent = v.toFixed(decimalsFor(st));
+  }
+  for (let e = 0; Math.pow(10, e) <= M; e++) {
+    const x = lx(Math.pow(10, e));
+    S("line", { x1: x, y1: mt + PH, x2: x, y2: mt + PH + 4 }, ax);
+    S("text", { x: x, y: mt + PH + 16, "text-anchor": "middle" }, ax).textContent = e < 4 ? String(Math.pow(10, e)) : "10" + "⁰¹²³⁴⁵⁶⁷⁸⁹"[e];
+  }
+  S("line", { x1: ml, y1: mt + PH + .5, x2: ml + PW, y2: mt + PH + .5 }, ax);
+  S("text", { x: ml + PW, y: H - 2, "text-anchor": "end" }, ax).textContent = "number of samples m (log scale)";
+  if (mo) {
+    if (mo.sd > 0) {
+      const up = [], dn = [];
+      for (let i = 0; i <= 80; i++) {
+        const m = Math.pow(M, i / 80), w = 2 * mo.sd / Math.sqrt(m);
+        up.push(lx(m).toFixed(1) + "," + Y(Math.min(hi, mo.mean + w)).toFixed(1));
+        dn.push(lx(m).toFixed(1) + "," + Y(Math.max(lo, mo.mean - w)).toFixed(1));
+      }
+      S("polygon", { class: "conv-band", points: up.concat(dn.reverse()).join(" ") }, svg);
+    }
+    S("line", { class: "conv-exact", x1: ml, y1: Y(mo.mean), x2: ml + PW, y2: Y(mo.mean) }, svg);
+  }
+  if (pts.length) S("polyline", { class: "conv-line", points: pts.map(([m, v]) => lx(m).toFixed(1) + "," + Y(clamp(v, lo, hi)).toFixed(1)).join(" ") }, svg);
+  el("t2ConvMeta").textContent = (Z === 1 ? "" : NORM[id].txt + ", ") + (mo ? "exact " + fmt(mo.mean, Z === 1 ? 2 : 3) : "");
+}
+
+function t2DrawStats() {
+  const k = t2.metric, id = METRICS[k].id, n = t2.n, m = t2.m, mo0 = exactMoments(id, n);
+  const Z = t2.scale === "norm" ? normOf(id, n) : 1, nd = Z === 1 ? 2 : 3;
+  const mo = mo0 ? { mean: mo0.mean / Z, sd: mo0.sd / Z } : null;
+  const mean0 = m ? t2.sum[k] / m : null, mean = m ? mean0 / Z : null;
+  const sd = m > 1 ? Math.sqrt(Math.max(0, (t2.sum2[k] - m * mean0 * mean0) / (m - 1))) / Z : null;
+  const fz = v => Z === 1 ? String(v) : (v / Z).toFixed(nd);
+  const row = (a, b, c) => "<tr><td>" + a + '</td><td class="v">' + b + '</td><td class="v">' + (c == null ? "" : c) + "</td></tr>";
+  let h = '<tr><td class="note" style="margin:0">' + (Z === 1 ? esc(METRICS[k].label) : esc(NORM[id].txt))
+    + '</td><td class="v note" style="margin:0">samples</td><td class="v note" style="margin:0">exact</td></tr>';
+  h += row("trees sampled", m.toLocaleString("en-US"), "");
+  h += row("mean", m ? fmt(mean, nd) + (m > 1 ? " ± " + fmt(2 * sd / Math.sqrt(m), nd) : "") : "—", mo ? fmt(mo.mean, nd) : "—");
+  h += row("standard deviation", sd != null ? fmt(sd, nd) : "—", mo ? fmt(mo.sd, nd) : "—");
+  h += row("smallest / largest seen", m ? fz(t2.min[k]) + " / " + fz(t2.max[k]) : "—", metricRange(id, n).map(fz).join(" / ") + " possible");
+  if (Z !== 1) h += row("limit as n → ∞", "", NORM[id].limTex + " ≈ " + NORM[id].lim.toFixed(3));
+  if (id === "C") h += row("average cost per search C/n", m ? fmt(mean0 / n, 3) : "—", fmt(cExact(n) / n, 3));
+  if (Z === 1 && id === "C") h += row("2 ln n &nbsp;·&nbsp; lg n", "", fmt(2 * Math.log(n), 2) + " · " + fmt(Math.log2(n), 2));
+  if (Z === 1 && id === "h") h += row("4.311 ln n − 1.953 ln ln n", "", n > 2 ? fmt(4.311 * Math.log(n) - 1.953 * Math.log(Math.log(n))) : "—");
+  if (n <= THUMB_MAX_N && t2.shapes.length) h += row("distinct shapes seen", String(t2.shapes.length), catalan(n).toLocaleString("en-US") + " exist");
+  el("t2Stats").innerHTML = h;
+}
+function catalan(n) { let c = 1; for (let i = 0; i < n; i++) c = c * 2 * (2 * i + 1) / (i + 2); return Math.round(c); }
+
+/* ---------- the animation loop ------------------------------------------- */
+function t2Rate() { const v = +el("t2Speed").value; return Math.round(Math.pow(10, v / 100 * 5)); }
+function t2Frame(now) {
+  t2.raf = 0;
+  const dt = t2.lastT ? Math.min(0.1, (now - t2.lastT) / 1000) : 0.016; t2.lastT = now;
+  let todo = 0;
+  if (t2.playing) { t2.acc += t2Rate() * dt; todo += Math.floor(t2.acc); t2.acc -= Math.floor(t2.acc); }
+  if (t2.queue > 0) {
+    const fewTrees = t2.view && t2.view.trees && t2.queue <= 60;
+    const take = fewTrees ? 1 : Math.max(1, Math.ceil(t2.queue / 20));
+    todo += Math.min(t2.queue, take); t2.queue -= Math.min(t2.queue, take);
+  }
+  const t0 = performance.now();
+  for (let i = 0; i < todo && t2.m < MAX_SAMPLES; i++) {
+    t2AddSample(null);
+    if ((i & 15) === 15 && performance.now() - t0 > 22) { t2.queue += todo - i - 1; break; }
+  }
+  if (t2.m >= MAX_SAMPLES && t2.playing) t2Pause();
+  if (t2.dirty && el("tab2").classList.contains("on")) { t2.dirty = false; t2Draw(); t2DrawLast(); t2DrawConv(); t2DrawStats(); }
+  if (t2.playing || t2.queue > 0) t2.raf = requestAnimationFrame(t2Frame); else t2.lastT = 0;
+}
+function t2Kick() { if (!t2.raf) t2.raf = requestAnimationFrame(t2Frame); }
+function t2Play() { t2.playing = true; el("t2Play").innerHTML = "&#x23F8;&#xFE0E;"; t2Kick(); }
+function t2Pause() { t2.playing = false; el("t2Play").innerHTML = "&#x25B6;&#xFE0E;"; }
+function t2Redraw() { t2.dirty = true; t2Kick(); }
+
+/* ---------- input ------------------------------------------------------- */
+function t2ParseInput(text) {
+  const cfg = { n: null, seed: null, samples: 0, metric: null, mode: null, perms: [] };
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim(); if (!line || line[0] === "#") continue;
+    const w = line.split(/[\s,]+/), key = w[0].toLowerCase();
+    if (key === "n") cfg.n = +w[1];
+    else if (key === "seed") cfg.seed = +w[1];
+    else if (key === "samples") cfg.samples = +w[1];
+    else if (key === "measure" || key === "metric") {
+      const v = (w[1] || "").toLowerCase();
+      cfg.metric = v === "c" || v === "cost" || v === "ipl" ? 0 : v === "h" || v === "height" ? 1 : v.startsWith("leave") ? 2 : v.startsWith("left") || v === "spine" ? 3 : null;
+      if (cfg.metric == null) throw new Error("unknown measure: " + w[1]);
+    } else if (key === "show" || key === "mode") {
+      const v = (w[1] || "").toLowerCase();
+      cfg.mode = v === "trees" ? "trees" : v.startsWith("freq") || v === "bars" ? "bars" : v === "auto" ? "auto" : null;
+      if (!cfg.mode) throw new Error("unknown display: " + w[1]);
+    } else if (key === "scale") {
+      const v = (w[1] || "").toLowerCase();
+      cfg.scale = v.startsWith("norm") ? "norm" : v === "raw" ? "raw" : null;
+      if (!cfg.scale) throw new Error("unknown scale: " + w[1]);
+    } else cfg.perms.push(w.map(Number));
+  }
+  if (cfg.n == null && cfg.perms.length) cfg.n = cfg.perms[0].length;
+  if (cfg.n == null) cfg.n = t2.n;
+  if (!(cfg.n >= 1 && cfg.n <= 5000 && Number.isInteger(cfg.n))) throw new Error("n must be an integer in 1 … 5000");
+  for (const p of cfg.perms) {
+    const ok = p.length === cfg.n && p.every(x => Number.isInteger(x) && x >= 1 && x <= cfg.n) && new Set(p).size === cfg.n;
+    if (!ok) throw new Error("not a permutation of 1 … " + cfg.n + ": " + p.join(" "));
+  }
+  if (!(cfg.samples >= 0 && cfg.samples <= 1e6)) throw new Error("samples must be in 0 … 1 000 000");
+  return cfg;
+}
+function t2Apply(cfg) {
+  t2Pause();
+  t2Reset(cfg.n, cfg.seed != null ? cfg.seed : t2.seed);
+  t2SetMetric(cfg.metric != null ? cfg.metric : 0);         // unspecified settings: back to the defaults
+  t2SetMode(cfg.mode || "auto");
+  t2SetScale(cfg.scale || "norm");
+  for (const p of cfg.perms) t2AddSample(p);
+  t2.queue = cfg.samples;
+  t2Redraw();
+}
+function t2SetMetric(k) {
+  t2.metric = k; t2.rendered = null; t2.ymax = 0;
+  el("t2Metric").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === k));
+  t2Redraw();
+}
+function t2SetScale(sc) {
+  t2.scale = sc; t2.rendered = null; t2.ymax = 0;
+  el("t2Scale").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.s === sc));
+  t2Redraw();
+}
+function t2SetMode(m) {
+  t2.mode = m; t2.rendered = null;
+  el("t2Mode").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
+  t2Redraw();
+}
+
+/* ---------- hover and click ------------------------------------------------ */
+function t2ShapeHighlight(sh) {
+  if (t2.hoverShape === sh) return;
+  t2.hoverShape = sh;
+  el("t2Svg").querySelectorAll(".box").forEach(b => b.classList.toggle("same", sh >= 0 && +b.dataset.s === sh));
+}
+function t2BoxTip(j, ev) {
+  const smp = t2.kept[j], perm = Array.from(smp.perm), sh = t2.shapes[smp.shape];
+  const T = buildTree(perm), svg = treeSvg(T, { keys: true, dx: 26, dy: 36, r: 11 });
+  const pct = x => (100 * x).toFixed(1) + " %";
+  const sizes = T.nodes.map((_, i) => T.size[i]).sort((a, b) => b - a);
+  const html = '<div class="tt-h">tree #' + (j + 1) + "</div>"
+    + '<div class="tt-s">insertion order ' + perm.join(" ") + "</div>" + svg.outerHTML
+    + "C(T) = " + smp.v[0] + ", height " + smp.v[1] + ", " + smp.v[2] + " leaves, leftmost depth " + smp.v[3]
+    + '<div class="tt-s" style="margin-top:4px">Probability of this shape: 1 / (' + sizes.join("·") + ") = " + pct(sh.prob)
+    + " (product of the subtree sizes).<br>Seen " + sh.count + " of " + t2.m + " times = " + pct(sh.count / t2.m)
+    + ". Equal shapes are highlighted. Click to step through this tree.</div>";
+  TIP.show(html, ev);
+}
+function t2Init() {
+  const sel = el("t2Preset");
+  T2_PRESETS.forEach((p, i) => { const o = document.createElement("option"); o.value = i; o.textContent = p.name; sel.appendChild(o); });
+  const oc = document.createElement("option"); oc.value = "custom"; oc.textContent = "(own settings)"; sel.appendChild(oc);
+  sel.value = 1;
+  sel.onchange = () => { if (sel.value === "custom") return; el("t2Text").value = T2_PRESETS[+sel.value].text; t2Apply(t2ParseInput(el("t2Text").value)); };
+  el("t2Metric").innerHTML = METRICS.map((mm, i) => '<button title="' + esc(mm.long) + '">' + esc(mm.label) + "</button>").join("");
+  el("t2Metric").querySelectorAll("button").forEach((b, i) => b.onclick = () => t2SetMetric(i));
+  el("t2Mode").querySelectorAll("button").forEach(b => b.onclick = () => t2SetMode(b.dataset.m));
+  el("t2Scale").querySelectorAll("button").forEach(b => b.onclick = () => t2SetScale(b.dataset.s));
+  el("t2Exact").onchange = () => { t2.exact = el("t2Exact").checked; t2.rendered = null; t2Redraw(); };
+  document.querySelectorAll(".t2add").forEach(b => b.onclick = () => { t2.queue += +b.dataset.k; t2Kick(); });
+  el("t2Play").onclick = () => t2.playing ? t2Pause() : t2Play();
+  const sp = () => { const r = t2Rate(); el("t2SpeedVal").textContent = r.toLocaleString("en-US") + "/s"; };
+  el("t2Speed").addEventListener("input", sp); sp();
+  el("t2ResetBtn").onclick = () => { t2Pause(); sel.value = "custom"; t2Reset(clamp(Math.round(+el("t2N").value) || 5, 1, 5000), Math.max(0, Math.round(+el("t2Seed").value) || 0)); t2Redraw(); };
+  el("t2N").onchange = () => el("t2ResetBtn").onclick();
+  el("t2Seed").onchange = () => el("t2ResetBtn").onclick();
+  el("t2Load").onclick = () => {
+    try { const c = t2ParseInput(el("t2Text").value); el("t2Err").textContent = ""; sel.value = "custom"; t2Apply(c); }
+    catch (e) { el("t2Err").textContent = e.message; }
+  };
+
+  const svg = el("t2Svg");
+  svg.addEventListener("mousemove", ev => {
+    const box = ev.target.closest(".box"), bar = ev.target.closest(".bar");
+    if (box) { t2BoxTip(+box.dataset.j, ev); t2ShapeHighlight(+box.dataset.s); return; }
+    t2ShapeHighlight(-1);
+    if (bar && t2.view) {
+      const b = +bar.dataset.b, V = t2.view, a = V.xlo + b * V.bw, z = a + V.bw - 1;
+      const name = METRICS[t2.metric].label;
+      TIP.show('<div class="tt-h">' + esc(name) + " " + (V.bw === 1 ? "= " + a : "∈ [" + a + " .. " + z + "]") + "</div>"
+        + V.cnt[b].toLocaleString("en-US") + " of " + t2.m.toLocaleString("en-US") + " trees = " + (100 * V.cnt[b] / t2.m).toFixed(2) + " %"
+        + (V.d ? "<br>exact probability " + (100 * V.ex[b]).toFixed(2) + " %" : "")
+        + (V.Z !== 1 ? '<br><span class="tt-s">normalized: ' + (V.bw === 1 ? (a / V.Z).toFixed(3) : (a / V.Z).toFixed(3) + " … " + (z / V.Z).toFixed(3)) + "</span>" : ""), ev);
+      return;
+    }
+    TIP.hide();
+  });
+  svg.addEventListener("mouseleave", () => { TIP.hide(); t2ShapeHighlight(-1); });
+  svg.addEventListener("click", ev => {
+    const box = ev.target.closest(".box"); if (!box) return;
+    TIP.hide(); openInStepper(Array.from(t2.kept[+box.dataset.j].perm));
+  });
+
+  t2.applySplit = vSplitter("t2Split", "t2Main", "t2split", 0.64, () => { t2.rendered = null; t2Redraw(); });
+  t2.applySplit();
+  hSplitter("t2HSplit", "t2Wrap", "t2h", 420, () => { t2.rendered = null; t2Redraw(); })();
+  let rt = null;
+  window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { t2.rendered = null; t2Redraw(); }, 80); });
+
+  el("t2Text").value = T2_PRESETS[1].text;
+  t2Apply(t2ParseInput(el("t2Text").value));
+}
+
+/* ---------- glue between the tabs ----------------------------------------- */
+function showTab(k) {
+  el("tab1").classList.toggle("on", k === 1); el("tab2").classList.toggle("on", k === 2);
+  el("tabBtn1").classList.toggle("on", k === 1); el("tabBtn2").classList.toggle("on", k === 2);
+  TIP.hide();
+  if (k === 1) { t1.applySplit(); t1Layout(); t1.tr.refit(); t1Render(t1.tr.cur, -1); }
+  else { t2.applySplit(); t2.rendered = null; t2Redraw(); }
+  history.replaceState(null, "", location.pathname + location.search + (k === 2 ? "#distribution" : ""));
+}
+function openDistribution(n) {
+  if (t2.n !== n) { t2Pause(); el("t2Preset").value = "custom"; t2Reset(n, t2.seed); }
+  t2SetMetric(0);
+  showTab(2);
+}
+function openInStepper(perm) {
+  el("t1Preset").value = "custom"; t1.tr.stop(); t1Load(perm); showTab(1);
+  window.scrollTo({ top: el("tab1").offsetTop - 60, behavior: "smooth" });
+}
+
+document.addEventListener("keydown", ev => {
+  if (!el("tab1").classList.contains("on")) return;
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) && document.activeElement.type !== "range") return;
+  if (ev.key === "ArrowRight") { t1.tr.stop(); t1.tr.go(t1.tr.cur + 1); ev.preventDefault(); }
+  else if (ev.key === "ArrowLeft") { t1.tr.stop(); t1.tr.go(t1.tr.cur - 1); ev.preventDefault(); }
+  else if (ev.key === " ") { t1.tr.toggle(); ev.preventDefault(); }
+});
+
+function init() {
+  if (/[?&]bare=1/.test(location.search)) document.body.classList.add("bare");
+  el("tabBtn1").onclick = () => showTab(1);
+  el("tabBtn2").onclick = () => showTab(2);
+  t1Init();
+  t2Init();
+  if (location.hash === "#distribution") showTab(2);
+}
+init();
+
+</script>
+</body>
+</html>

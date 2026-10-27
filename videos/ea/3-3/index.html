@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <script>document.documentElement.className += ' js';</script>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><title>Video 3-3: Resizable arrays deamortized &amp; optimal space</title>
+  <meta name="description" content="Website of Sebastian Wild, algorithms researcher">
+  <link rel="canonical" href="https://www.wild-inter.net/videos/ea/3-3/"><meta property="og:type" content="website">
+  <meta property="og:site_name" content="Sebastian Wild&#39;s Site">
+  <meta property="og:title" content="Video 3-3: Resizable arrays deamortized &amp; optimal space">
+  <meta property="og:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta property="og:url" content="https://www.wild-inter.net/videos/ea/3-3/">
+  <meta property="og:image" content="https://www.wild-inter.net/assets/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Sebastian Wild">
+  <meta property="og:locale" content="en_GB">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Video 3-3: Resizable arrays deamortized &amp; optimal space">
+  <meta name="twitter:description" content="Website of Sebastian Wild, algorithms researcher">
+  <meta name="twitter:image" content="https://www.wild-inter.net/assets/og-card.png">
+
+  <meta name="theme-color" content="#F5EBD9"><link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest"><link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/pagella/texgyrepagella-regular-webfont.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="/fonts/epigrafica/epigrafica-entona-webfont.woff2">
+
+  <link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+  <link rel="stylesheet" href="/fonts/fontawesome/fontawesome-all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+
+  <link rel="alternate" type="application/rss+xml" title="Sebastian Wild&#39;s Site"
+        href="https://www.wild-inter.net/feed.xml">
+
+  <script data-goatcounter="https://wild-inter-net.goatcounter.com/count"
+          async src="https://gc.zgo.at/count.js"></script>
+</head>
+
+
+  <body>
+
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header">
+
+  <div class="wrapper"><a class="site-title" href="/">
+      <img class="site-mark" src="/assets/two-pivots.svg"
+           alt="" width="100" height="100" aria-hidden="true">
+      <span class="site-wordmark">
+        <span class="site-name">Sebastian Wild</span>
+        <span class="site-tagline">Algorithms Group &middot; Universität Marburg</span>
+      </span>
+    </a>
+
+    <nav class="site-nav" aria-label="Main">
+
+      <button type="button" class="menu-icon" id="menu-toggle"
+              aria-expanded="false" aria-controls="site-nav-menu">
+        <svg viewBox="0 0 18 15" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="currentColor" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="currentColor" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+        <span class="visually-hidden">Menu</span>
+      </button>
+
+      <div class="trigger" id="site-nav-menu">
+          <a class="page-link" href="/research/"
+             >Research</a>
+          <a class="page-link" href="/teaching/"
+             >Teaching</a>
+          <a class="page-link" href="/posts/"
+             >Blog</a>
+          <a class="page-link" href="/about/"
+             >About</a>
+      </div>
+
+    </nav>
+
+  </div>
+
+</header>
+
+<script>
+  /* Mobile menu. Without JS the CSS leaves the menu permanently expanded,
+     so navigation still works — see the `.js` guard in _sass/_layout.scss. */
+  (function () {
+    var btn = document.getElementById('menu-toggle');
+    if (!btn) return;
+    var nav = btn.parentNode;
+
+    function setOpen(open) {
+      nav.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    btn.addEventListener('click', function () {
+      setOpen(!nav.classList.contains('is-open'));
+    });
+
+    document.addEventListener('click', function (e) {
+      if (nav.classList.contains('is-open') && !nav.contains(e.target)) setOpen(false);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && nav.classList.contains('is-open')) {
+        setOpen(false);
+        btn.focus();
+      }
+    });
+  })();
+</script>
+
+
+    <main id="content" class="page-content">
+      <div class="wrapper">
+        <article class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Video 3-3: Resizable arrays deamortized &amp; optimal space</h1>
+  </header>
+
+  <div class="post-content">
+    
+
+    <style>
+  .vo-summary { font-size: 0.9em; }
+  .vo-scroll { overflow-x: auto; margin-bottom: 1.5em; }
+  .vo-table { border-collapse: collapse; font-size: 0.9em; width: 100%; font-variant-numeric: tabular-nums; }
+  .vo-table.vo-compact { width: auto; margin-left: 0; margin-right: auto; }
+  .vo-table.vo-compact th, .vo-table.vo-compact td { white-space: nowrap; }
+  .vo-table th, .vo-table td { padding: 0.2em 0.45em; vertical-align: baseline; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.08); }
+  .vo-table th { border-bottom: 2px solid rgba(0,0,0,0.25); white-space: nowrap; }
+  .vo-table tr.vo-newunit td { border-top: 2px solid rgba(0,0,0,0.2); }
+  .vo-table .vo-num { text-align: right; white-space: nowrap; padding-left: 0.9em; }
+  .vo-mono { font-family: Menlo, Consolas, monospace; font-size: 0.8em; }
+  .vo-table td.vo-small, .vo-table td .vo-small { font-size: inherit; }
+  .vo-table td .vo-note { font-size: 0.9em; opacity: 0.85; }
+  .vo-nowrap { white-space: nowrap; }
+  .vo-small { font-size: 0.9em; }
+  .vo-muted { opacity: 0.6; }
+
+  /* search */
+  .ts { margin: 1em 0 1.5em; }
+  .ts-input { font: inherit; width: min(100%, 28em); padding: 0.3em 0.5em; border: 1px solid rgba(0,0,0,0.3); border-radius: 4px; background: rgba(255,255,255,0.6); }
+  .ts-status { margin-left: 0.5em; opacity: 0.7; }
+  .ts-results { margin-top: 0.5em; }
+  .ts-hit { margin: 0.6em 0; }
+  .ts-hit-title { font-size: 0.95em; }
+  .ts-hit-ctx { font-size: 0.85em; margin: 0.1em 0 0 1em; }
+  .ts-hit-ctx a.ts-t { font-variant-numeric: tabular-nums; margin-right: 0.4em; }
+  .ts mark, .tp-text mark { background: rgba(255, 210, 0, 0.45); color: inherit; padding: 0 0.05em; }
+
+  /* transcript page: player sticks to the top while reading */
+  .tp-bar { position: sticky; top: 0; z-index: 5; background: #F5EBD9; padding: 4px 0 6px; }
+  .tp-player { position: relative; max-width: 560px; aspect-ratio: 16 / 9;
+               padding: 5px; box-sizing: content-box; width: calc(100% - 12px);
+               background: #faf6ed; border: 1px solid #aeaa9e; border-radius: 4px; }
+  .tp-player iframe, .tp-player > div, .tp-start { position: absolute; top: 5px; left: 5px; width: calc(100% - 10px); height: calc(100% - 10px); border: 0; margin: 0; padding: 0; background: #000; }
+  .tp-start { cursor: pointer; overflow: hidden; }
+  .tp-start img { width: 100%; height: 100%; object-fit: cover; display: block; margin: 0; padding: 0; border: 0; border-radius: 0; }
+  .tp-start .yt-lite-play { position: absolute; left: 50%; top: 50%; width: 68px; height: 48px; transform: translate(-50%, -50%); }
+  .tp-start .yt-lite-play-bg { fill: #212121; fill-opacity: 0.8; }
+  .tp-start:hover .yt-lite-play-bg, .tp-start:focus-visible .yt-lite-play-bg { fill: #902015; fill-opacity: 1; }
+  .tp-controls { margin: 0.3em 0 0; opacity: 0.8; }
+  .tp-disclaimer { margin: 0.6em 0 1.2em; padding: 0.4em 0.6em; border-left: 3px solid rgba(144, 32, 21, 0.35); background: rgba(255, 255, 255, 0.35); }
+  .tp-controls label { margin-left: 1em; white-space: nowrap; }
+  .tp-text p { position: relative; }
+  .tp-text [data-t] { cursor: pointer; border-radius: 2px; }
+  .tp-text span[data-t]:hover { background: rgba(144, 32, 21, 0.08); }
+  .tp-text span.tp-now { background: rgba(144, 32, 21, 0.16); box-shadow: 0 0 0 2px rgba(144, 32, 21, 0.16); }
+  .tp-text .tp-time { font-size: 0.75em; font-variant-numeric: tabular-nums; opacity: 0.6; margin-right: 0.3em; text-decoration: none; }
+  .tp-text .tp-chapter { font-size: 1.15em; margin-top: 1.5em; }
+  .tp-text .tp-chapter a { font-size: 0.7em; opacity: 0.6; font-variant-numeric: tabular-nums; text-decoration: none; }
+  .tp-nav { display: flex; justify-content: space-between; gap: 1em; margin-top: 2em; }
+  .tp-nav .tp-next { margin-left: auto; text-align: right; }
+</style>
+
+<p class="vo-summary">
+  <a href="/videos/ea/">CS 566 – Efficient Algorithms (Winter 2026-27)</a> · <a href="/teaching/ea/03-fundamental-data-structures">unit page</a>
+  · <a href="https://youtu.be/qTbVhusHa0U">YouTube</a>
+  <br/>2026-10-26, 11:39
+</p>
+
+<div class="tp" data-id="qTbVhusHa0U">
+  <div class="tp-bar"><div class="tp-player" id="tp-player">
+    <button type="button" class="tp-start" data-t="0" aria-label="Play video">
+      <img src="/assets/video-thumbs/qTbVhusHa0U.webp" alt="" width="640" height="360" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/qTbVhusHa0U/hqdefault.jpg'">
+      <svg class="yt-lite-play" viewBox="0 0 68 48" aria-hidden="true" focusable="false"><path class="yt-lite-play-bg" d="M66.5 7.7c-.8-2.9-2.5-5.4-5.4-6.2C55.8.1 34 0 34 0S12.2.1 6.9 1.6C4 2.3 2.3 4.8 1.5 7.7.1 13 0 24 0 24s.1 11 1.5 16.3c.8 2.9 2.5 5.4 5.4 6.2C12.2 47.9 34 48 34 48s21.8-.1 27.1-1.6c2.9-.7 4.6-3.2 5.4-6.1C67.9 35 68 24 68 24s-.1-11-1.5-16.3z"/><path d="M45 24 27 14v20z" fill="#fff"/></svg>
+    </button>
+  </div>
+  <p class="tp-controls vo-small">
+    <em>Click any sentence to play from there.</em>
+    <label><input type="checkbox" class="tp-follow" checked> follow along</label>
+  </p></div>
+  <p class="tp-disclaimer vo-small"><em>The transcript was generated automatically by YouTube's speech
+  recognition and is offered as is. It may contain errors, in particular in concerning technical terms,
+  names and formulas.</em></p>
+  <div class="tp-text" lang="en">
+<p><a class="tp-time" href="#t=3" data-t="3">0:03</a> <span data-t="3">Sometimes you would like to use these</span> <span data-t="3">amortized doubling arrays but you can&#39;t</span> <span data-t="6">really because you really really really</span> <span data-t="9">want a worst case guarantee for</span> <span data-t="11">individual operations. So sometimes uh</span> <span data-t="15">this is called a real time requirement</span> <span data-t="17">that you cannot afford some operations</span> <span data-t="19">to be slower than others even if they</span> <span data-t="21">average to a good time. You need every</span> <span data-t="24">single one to be fast and then you</span> <span data-t="27">simply cannot use this data structure we</span> <span data-t="29">discussed and analyzed last time because</span> <span data-t="31">it occasionally has to do the copying.</span> <span data-t="33">There&#39;s no way around it. Now, here&#39;s a</span> <span data-t="37">um a trick that is I&#39;ll show it on this</span> <span data-t="40">data structure. It&#39;s somewhat more</span> <span data-t="42">general. You can apply this often times</span> <span data-t="45">when you have amortized data structures</span> <span data-t="47">that lets you get around this and in a</span> <span data-t="49">way you trade a bit of space for time</span> <span data-t="51">here.</span> <span data-t="53">Um it has one assumption that we&#39;ll come</span> <span data-t="55">to. Uh the general idea is to deamortize</span> <span data-t="61">such a solution as we&#39;ve seen. One an</span> <span data-t="63">amortized solution that needs to spread</span> <span data-t="66">the cost of expensive operations over</span> <span data-t="68">several deamortization tries to preempt</span> <span data-t="72">that so that you um you already know you</span> <span data-t="75">will eventually have to do this</span> <span data-t="77">expensive copying. Let&#39;s try to spread</span> <span data-t="80">the cost of that out a bit and um work</span> <span data-t="83">ahead of of time. The way to do this</span> <span data-t="86">here is to have three arrays instead of</span> <span data-t="88">just one where you keep the current one</span> <span data-t="91">that you actually want to work with and</span> <span data-t="93">also the twice and half as big ones</span> <span data-t="96">around as a fallback. So that when you</span> <span data-t="99">run into the situation where you would</span> <span data-t="101">have to now say double the size, this</span> <span data-t="104">twice as big array is already there for</span> <span data-t="107">you ready to jump to.</span></p>
+<p><a class="tp-time" href="#t=111" data-t="111">1:51</a> <span data-t="111">There&#39;s um there&#39;s one caveat that this</span> <span data-t="113">needs</span> <span data-t="115">um which is I&#39;m I&#39;m assuming here I can</span> <span data-t="118">allocate arrays in constant time without</span> <span data-t="122">initialization. So sadly in Java you</span> <span data-t="125">couldn&#39;t implement this properly.</span> <span data-t="128">There&#39;s no way to do that without</span> <span data-t="129">spending the time to fill in the array.</span> <span data-t="132">Uh but that aside, in a low-level</span> <span data-t="134">language, you could do this. Um and the</span> <span data-t="138">trick is</span> <span data-t="140">so here&#39;s uh what this might look like.</span> <span data-t="142">Uh you have some actual array in the</span> <span data-t="145">middle that works just as the amortized</span> <span data-t="147">solution we&#39;ve seen.</span> <span data-t="149">And then you have um the two versions of</span> <span data-t="153">the array of half and twice the size. Of</span> <span data-t="156">course, the half the size one may not be</span> <span data-t="158">big enough to hold all elements. It</span> <span data-t="161">holds the prefix up to this position</span> <span data-t="163">where it can. And um the longer one has</span> <span data-t="167">space for many more elements.</span> <span data-t="170">Now,</span> <span data-t="171">let me show you what this looks like</span> <span data-t="173">briefly before we discuss um</span> <span data-t="177">the solutions. there.</span></p>
+<p><a class="tp-time" href="#t=187" data-t="187">3:07</a> <span data-t="187">Here&#39;s the situation.</span> <span data-t="187">Now, uh this shows an intermediate stage</span> <span data-t="190">where um some elements are already</span> <span data-t="192">filled. Let me go back to what happened</span> <span data-t="195">when we had to say double the size.</span></p>
+<p><a class="tp-time" href="#t=202" data-t="202">3:22</a> <span data-t="202">So, we&#39;re coming from some previous</span> <span data-t="202">state.</span> <span data-t="204">Now the array our actual working array</span> <span data-t="207">is out of capacity.</span> <span data-t="210">So we have to allocate the twice as long</span> <span data-t="213">array and make that the current one.</span> <span data-t="215">Right? This this is the previously</span> <span data-t="217">bigger one. This becomes the current.</span> <span data-t="219">I&#39;m allocating a new twice as long</span> <span data-t="221">array. Suppose that is possible in</span> <span data-t="224">constant time. Wouldn&#39;t be in Java. But</span> <span data-t="226">with me alloc you could m alloc you</span> <span data-t="230">could do this. and the smaller</span> <span data-t="231">previously smaller array we three that</span> <span data-t="234">one we forget. Now, of course, there&#39;s a</span> <span data-t="236">problem, right? Normally, if I double</span> <span data-t="239">the array, I would have to copy my</span> <span data-t="241">elements down here because they</span> <span data-t="243">eventually need to be in that array that</span> <span data-t="244">I&#39;m working with. But the trick is that</span> <span data-t="248">we don&#39;t need this twice as big array</span> <span data-t="250">for quite a while. We can only need that</span> <span data-t="253">once we run out of spare space in this</span> <span data-t="256">current middle array. And so what we do</span> <span data-t="259">over the subsequent operations</span> <span data-t="263">is whenever we add a new element here,</span> <span data-t="266">we add that also to the two other</span> <span data-t="268">arrays. That&#39;s kind of for free. But on</span> <span data-t="271">top of that, I&#39;m going to copy two</span> <span data-t="274">elements from my uh small array to the</span> <span data-t="277">bigger one.</span></p>
+<p><a class="tp-time" href="#t=279" data-t="279">4:39</a> <span data-t="279">Why two? because that happens to be</span> <span data-t="282">enough so that by the time I might need</span> <span data-t="285">the bigger array, I&#39;m guaranteed to have</span> <span data-t="288">caught up with my copying.</span> <span data-t="291">So, um here for the for the case where</span> <span data-t="295">you um only add elements, you certainly</span> <span data-t="299">run out of elements to copy before you</span> <span data-t="302">have to double again. The bad case</span> <span data-t="304">happens if you pop elements. So that you</span> <span data-t="307">may want to go down uh maybe so the</span> <span data-t="310">copying two elements is already a bit uh</span> <span data-t="313">overly cautious and once you&#39;re done</span> <span data-t="315">with the copying the operations get a</span> <span data-t="317">bit cheaper.</span></p>
+<p><a class="tp-time" href="#t=320" data-t="320">5:20</a> <span data-t="320">So you can add more elements</span> <span data-t="323">and then here okay pop one.</span> <span data-t="334">And if you now go back to insize,</span> <span data-t="334">I should really go back to in size.</span> <span data-t="336">Sorry.</span></p>
+<p><a class="tp-time" href="#t=343" data-t="343">5:43</a> <span data-t="343">Now you have quite some time before you</span> <span data-t="343">reach back the point where you have to</span> <span data-t="345">half again. Okay. Um</span> <span data-t="353">again, two things we have to do.</span> <span data-t="353">Question.</span></p>
+<p><a class="tp-time" href="#t=361" data-t="361">6:01</a> <span data-t="361">Yeah, I&#39;ll put the links on the website.</span> <span data-t="361">I&#39;m a bit behind on updating the website</span> <span data-t="362">with these. Uh but yeah, you can you can</span> <span data-t="364">have a play with them. Um they try to</span> <span data-t="368">stick very close to the lecture, but</span> <span data-t="370">they&#39;re not all equally polished in</span> <span data-t="372">terms of what they show. Let me know if</span> <span data-t="374">you find some bugs. Yep.</span></p>
+<p><a class="tp-time" href="#t=393" data-t="393">6:33</a> <span data-t="393">Oh yeah. Um so</span> <span data-t="393">the question is don&#39;t we pay something</span> <span data-t="396">for the copying of the elements? Uh we</span> <span data-t="399">do. Um we definitely need what</span> <span data-t="402">previously was a single write operation.</span> <span data-t="404">We may need three for each of the three</span> <span data-t="406">copies. In the example it was when you</span> <span data-t="409">were be half the length of this small</span> <span data-t="412">array. and only these two arrays get</span> <span data-t="414">updated. But in principle, it could be</span> <span data-t="416">all three. Uh plus you may have this uh</span> <span data-t="420">copying that you have to do to catch up</span> <span data-t="422">with the duplicate doubling of the array</span> <span data-t="425">size. So this also costs namely uh two</span> <span data-t="429">extra copies.</span> <span data-t="431">So you may copy quite a bit</span> <span data-t="434">um I guess up to five operations where</span> <span data-t="437">previously it was a single one. On the</span> <span data-t="440">positive side, you never ever have to do</span> <span data-t="442">more. Each step now costs at most five</span> <span data-t="445">full stop. No amortization needed. Of</span> <span data-t="449">course, understanding why this data</span> <span data-t="450">structure works kind of relies on the</span> <span data-t="453">analysis we&#39;ve done for the amortized</span> <span data-t="454">one. So, pedagogically speaking, you</span> <span data-t="458">would first want to go to the amortized</span> <span data-t="460">one, understand the analysis there, and</span> <span data-t="463">then deamortize it again. But in the</span> <span data-t="466">guarantee for the runtime you get at the</span> <span data-t="467">end, this has no amortization anymore.</span></p>
+<p><a class="tp-time" href="#t=476" data-t="476">7:56</a> <span data-t="476">Uh I&#39;m I&#39;m skipping the details of why</span> <span data-t="476">exactly you get um ready in time. Um</span> <span data-t="481">let&#39;s just state the results here. Uh we</span> <span data-t="485">have a constant number of things that we</span> <span data-t="487">need to do for all these operations</span> <span data-t="490">we&#39;ve had before. no unknown um</span> <span data-t="493">amortization anymore. We may have up to</span> <span data-t="496">seven array accesses. I guess that&#39;s um</span> <span data-t="499">if you do uh a push that needs to</span> <span data-t="503">double, then you also write your new</span> <span data-t="505">element in two arrays.</span> <span data-t="508">And um if you work out the worst case,</span> <span data-t="511">it&#39;s 14* n space that you may have at</span> <span data-t="515">some point in time. That&#39;s a bit</span> <span data-t="517">annoying that we pay so much. And you</span> <span data-t="520">can play with the constants to reduce</span> <span data-t="522">the space and increase a bit in time.</span> <span data-t="524">Um,</span> <span data-t="526">by uh basically by doing more than two</span> <span data-t="528">copies, you can get away with not</span> <span data-t="531">exactly doubling the array, but maybe</span> <span data-t="532">just making it 50% larger, something</span> <span data-t="534">like this.</span> <span data-t="536">Um, if you really need this worst case</span> <span data-t="539">guarantee and no amortization is</span> <span data-t="542">possible, that kind of trade-off may be</span> <span data-t="545">inevitable.</span></p>
+<p><a class="tp-time" href="#t=553" data-t="553">9:13</a> <span data-t="553">And the caveat from before,</span> <span data-t="553">you can&#39;t really do this in Java. Now,</span> <span data-t="555">once you started thinking about this,</span> <span data-t="557">and I should say the whole um this whole</span> <span data-t="560">slide is is kind of not exam material.</span> <span data-t="563">This is just for a bit of extra fun.</span> <span data-t="568">All of these um data structures still</span> <span data-t="570">need linear extra space.</span> <span data-t="573">And yeah, you may ask yourself if this</span> <span data-t="575">is necessary.</span> <span data-t="577">So all of them</span> <span data-t="587">all of them store essentially a large</span> <span data-t="587">integer multiple of the space that we</span> <span data-t="589">would need for elements.</span> <span data-t="591">Um, and if you insist that it&#39;s a</span> <span data-t="594">contiguous chunk of memory, it seems</span> <span data-t="596">tricky to um, avoid, but it is actually</span> <span data-t="598">possible to do better.</span> <span data-t="601">Uh, there&#39;s a research paper that shows</span> <span data-t="605">in some sense the best possible way to</span> <span data-t="607">do this. Um what it gives you is</span> <span data-t="611">constant time worst case operations like</span> <span data-t="614">the uh previous solution but it has not</span> <span data-t="618">a multiple times the space that you need</span> <span data-t="621">then rather just square root n extra</span> <span data-t="624">space on top of only storing the</span> <span data-t="626">elements that you really need. This is</span> <span data-t="628">way way better than our amortized</span> <span data-t="630">solution. So we&#39;ve not even come close</span> <span data-t="632">to this and I&#39;m not going to explain in</span> <span data-t="635">detail how it works. is a bit more</span> <span data-t="637">complicated. Uh but in uh the intuitive</span> <span data-t="641">essence is you don&#39;t really maintain one</span> <span data-t="643">long array. You just simulate you had</span> <span data-t="646">access to something like this and you</span> <span data-t="649">fake it if you want. Uh you keep a</span> <span data-t="651">collection of small arrays of uh</span> <span data-t="655">cleverly chosen sizes say. So you have</span> <span data-t="659">certain um uh a hierarchy of of sizes</span> <span data-t="666">um where you have arrays of of a certain</span> <span data-t="668">length and then a certain collection of</span> <span data-t="670">those and you keep the sizes just so</span> <span data-t="672">that you can add another uh chunk of</span> <span data-t="675">this size without using too much extra</span> <span data-t="677">space. But the hierarchy is still cheap</span> <span data-t="680">enough to navigate so that you can do</span> <span data-t="682">constant time access by index.</span></p>
+<p><a class="tp-time" href="#t=686" data-t="686">11:26</a> <span data-t="686">It&#39;s not a real array anymore, but it</span> <span data-t="688">behaves as if it was one. So maybe</span> <span data-t="690">that&#39;s good enough. And um in some</span> <span data-t="693">senses even this extra space is the best</span> <span data-t="696">possible trade-off that you can have.</span></p>
+
+  </div>
+</div>
+
+<p class="tp-nav vo-small"><a href="/videos/ea/3-2/">← Video 3-2: Resizing Arrays</a><a class="tp-next" href="/videos/ea/3-4-IIXh4rbXvYs/">Video 3-4: Operations on Binary Heaps →</a>
+</p>
+
+<script src="/assets/js/transcript-player.js" defer></script>
+
+  </div>
+
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Sebastian Wild</h2>
+
+    <div class="footer-col-wrapper">
+
+      <div class="footer-col footer-col-1">
+        <p>Contact:</p>
+
+        <ul class="link-group">
+          <li><a href="mailto:%77%69%6C%64@%69%6E%66%6F%72%6D%61%74%69%6B.%75%6E%69-%6D%61%72%62%75%72%67.%64%65" title="Contact me">wild at informatik.uni-marburg.de</a></li>
+          <li><a href="mailto:%77%69%6C%64@%6C%69%76%65%72%70%6F%6F%6C.%61%63.%75%6B" title="Contact me">wild at liverpool.ac.uk</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x34EE39A78B149255">PGP</a></li>
+          <li><a href="mailto:%73%65%62%61%77%69%6C%64@%67%6D%61%69%6C.%63%6F%6D" title="Contact me">sebawild at gmail</a>
+            &nbsp;⋅&nbsp;
+            <a href="http://pgp.mit.edu/pks/lookup?op=get&amp;search=0x38600ABC14973198">PGP</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://www.uni-marburg.de/de/fb12/arbeitsgruppen/algorith/team/sebastian-wild">Website at UMR</a></li>
+          <li><a href="https://www.liverpool.ac.uk/computer-science/staff/sebastian-wild">Website at UoL</a></li>
+          <li><a href="https://tcs.csc.liv.ac.uk">TCS @ Liverpool</a></li>
+        </ul>
+
+        <p class="footer-note">
+          Retired addresses (no longer read):
+          <span class="retired">wild at uwaterloo.ca</span>,
+          <span class="retired">wild at cs.uni-kl.de</span>.
+        </p>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <p>Elsewhere:</p>
+
+        <ul class="link-group">
+          <li><a href="https://github.com/sebawild" title="GitHub sebawild"><i class="fab fa-github" aria-hidden="true"></i> GitHub sebawild</a></li>
+          <li><a rel="me" href="https://mathstodon.xyz/@wild" title="Mastodon @wild@mathstodon.xyz"><i class="fab fa-mastodon" aria-hidden="true"></i> @wild@mathstodon.xyz</a></li>
+          <li><a href="https://bsky.app/profile/sebastianwild.bsky.social" title="Bluesky @sebastianwild.bsky.social"><span aria-hidden="true">🦋</span> @sebastianwild</a></li>
+          <li><a href="https://www.linkedin.com/in/sebastian-wild-liverpool/"><i class="fab fa-linkedin" aria-hidden="true"></i> LinkedIn profile</a></li>
+          <li><a href="https://www.youtube.com/c/SebastianWildLectures"><i class="fab fa-youtube" aria-hidden="true"></i> YouTube channel</a></li>
+        </ul>
+
+        <ul class="link-group">
+          <li><a href="https://orcid.org/0000-0002-6061-9177" title="ORCID: 0000-0002-6061-9177"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-orcid"/></svg>
+ 0000-0002-6061-9177</a></li>
+          <li><a href="https://scholar.google.de/citations?user=aMyZiK0AAAAJ"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-google-scholar"/></svg>
+ Google Scholar</a></li>
+          <li><a href="https://dblp.uni-trier.de/pers/hd/w/Wild:Sebastian"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-dblp"/></svg>
+ dblp</a></li>
+          <li><a href="https://www.semanticscholar.org/author/3124206"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-semantic-scholar"/></svg>
+ Semantic Scholar</a></li>
+          <li><a href="https://arxiv.org/a/wild_s_2"><svg class="ai-icon" aria-hidden="true" focusable="false"><use href="/assets/academicons.svg#ai-arxiv"/></svg>
+ arXiv</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>Quick links:</p>
+        <ul class="link-group">
+          <li><a href="/publications/">my publications</a></li>
+          <li><a href="/cv.html">my CV</a></li>
+          <li><a href="/feed.xml">RSS feed</a></li>
+          <li><a href="https://disk.wild-inter.net/sharing/WwXHITc2j">my library</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

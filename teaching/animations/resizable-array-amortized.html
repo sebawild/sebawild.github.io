@@ -289,9 +289,13 @@
   .mklab { font-family:var(--mono); font-size:12px; fill:var(--wi-accent); font-weight:bold; text-anchor:middle; }
   .bnd { stroke:var(--wi-ink-soft); stroke-width:1.5; stroke-dasharray:4 3; }
   .bndlab { font-family:var(--mono); font-size:11.5px; fill:var(--wi-ink-soft); text-anchor:middle; }
-  .phibar { stroke:var(--wi-relax); stroke-width:5; stroke-linecap:round; opacity:.75; }
-  .philab { font-family:var(--mono); font-size:12px; fill:var(--wi-relax); font-weight:bold; text-anchor:middle; }
-  .zone { fill:#eaf1e2; }
+  .phibar { stroke:#2f5f9e; stroke-width:5; stroke-linecap:round; opacity:.8; }
+  .philab { font-family:var(--mono); font-size:12px; fill:#2f5f9e; font-weight:bold; text-anchor:middle; }
+  .zone { fill:#e4ebf4; }
+  .ch-tick { font-family:var(--mono); font-size:10px; fill:#8b8779; }
+  .ch-ax { font-family:var(--wi-font-body); font-size:11px; fill:#8b8779; }
+  .ch-val { font-family:var(--mono); font-size:11px; fill:#902015; font-weight:bold; }
+  #chartBox .sw { width:.7em; height:.7em; border-radius:50%; border:1.5px solid; display:inline-block; }
   table.led { border-collapse:collapse; width:100%; font-size:.78rem; font-variant-numeric:tabular-nums; }
   table.led th { font-family:var(--wi-font-head); font-weight:normal; font-size:.68rem; letter-spacing:.04em;
                  color:var(--wi-ink-faint); text-align:right; padding:2px 5px; border-bottom:1px solid var(--wi-border-soft); }
@@ -332,7 +336,7 @@ body { font-family: var(--wi-font-body); }
   <code>push</code> on a full array copies everything into an array of twice the size; when it is only a quarter
   full, the next operation copies into an array of half the size. A single operation can cost Θ(<i>n</i>), but a
   copy is always preceded by many cheap operations that pay for it. The <b>potential</b> Φ — the distance of
-  <i>n</i> to the nearer boundary, drawn as the green bar — makes this precise.
+  <i>n</i> to the nearer boundary, drawn as the blue bar — makes this precise.
 </p>
 
 <div class="mobile-note">
@@ -366,7 +370,7 @@ body { font-family: var(--wi-font-body); }
   </span>
   <span class="opnote">Leave the field empty for a random key. New operations are added right after the one on screen.</span>
   <span class="ctl" style="margin-left:auto">
-    <input type="number" id="bulkN" min="1" max="32" value="8" aria-label="how many operations">
+    <input type="number" id="bulkN" min="1" max="500" value="8" aria-label="how many operations">
     <button id="bulkPush" title="Push this many random keys right away, without animation">push ×</button>
     <button id="bulkPop" title="Pop this many times right away, without animation">pop ×</button>
   </span>
@@ -408,11 +412,11 @@ body { font-family: var(--wi-font-body); }
         <span class="item"><span class="swb" style="background:#e5eedb;border:2px solid var(--wi-relax)"></span>written</span>
         <span class="item"><span class="swb" style="background:#f7ebcf;border:2px solid var(--wi-examine)"></span>copied</span>
         <span class="item"><span class="swb" style="background:#f6ded6;border:2px solid var(--wi-active)"></span>deleted</span>
-        <span class="item"><span class="swb" style="background:var(--wi-relax);height:4px;opacity:.75"></span>potential Φ: distance from <i>n</i> to ¼<i>C</i> or <i>C</i></span>
+        <span class="item"><span class="swb" style="background:#2f5f9e;height:4px;opacity:.8"></span>potential Φ: distance from <i>n</i> to ¼<i>C</i> or <i>C</i></span>
       </div>
     </div>
     <div class="sim-box" style="margin-top:14px">
-      <div class="sim-title"><span>Total cost over the operations so far</span><span class="rhs" id="chartMeta"></span></div>
+      <div class="sim-title"><span>Cost per operation</span><span class="rhs" id="chartMeta"></span></div>
       <div id="chartBox"></div>
     </div>
   </div>
@@ -449,8 +453,8 @@ body { font-family: var(--wi-font-body); }
     </div>
     <div class="hint">
       A sequence of stack operations in the format of Sedgewick &amp; Wayne’s <code>tobe.txt</code>:
-      every word is pushed, a <code>-</code> pops. An optional first line <code>init: a b c</code> gives elements that are on the stack at the start (at most 8, the initial capacity). Keys are up to 4 characters; <code>#</code> starts a comment.
-      The stack holds at most 32 elements here (capacity 64), so that the array stays readable.
+      every word is pushed, a <code>-</code> pops. An optional first line <code>init: a b c</code> gives elements that are on the stack at the start; the initial capacity is the smallest power of two ≥ max(8, their number). Keys are up to 4 characters; <code>#</code> starts a comment.
+      The stack holds at most 500 elements here.
       The array has capacity 8 at the start.
     </div>
   </div>
@@ -675,8 +679,9 @@ function initSplitters(onResize) {
   sp.addEventListener("pointermove", e => {
     if (!drag) return;
     const r = stage.getBoundingClientRect();
+    // stored as a fraction of the stage, so the narrow-screen (or zoomed-in) layout can still stack the columns
     const w = Math.max(320, Math.min(r.width - 330, e.clientX - r.left));
-    stage.style.gridTemplateColumns = w + "px 10px minmax(320px,1fr)";
+    stage.style.setProperty("--left", (100 * w / r.width).toFixed(2) + "%");
     if (onResize) onResize();
   });
   sp.addEventListener("pointerup", () => { drag = false; sp.classList.remove("drag"); });
@@ -714,7 +719,7 @@ function setGran(g) {
 }
 
 /* ---- stack-operation scripts (tobe.txt format, plus an optional init: line) ---- */
-const MAXKEY = 4, MAXINIT = 8;
+const MAXKEY = 4;
 function parseStackOps(text, maxN) {
   const script = { init: [], ops: [] };
   const lines = text.split(/\r?\n/).map(l => l.replace(/#.*$/, ""));
@@ -725,7 +730,7 @@ function parseStackOps(text, maxN) {
     else body.push(l);
   }
   for (const k of script.init) if (k.length > MAXKEY || k === "-") throw new Error("Initial key '" + k + "' is not allowed (at most " + MAXKEY + " characters).");
-  if (script.init.length > MAXINIT) throw new Error("The initial array has capacity " + MAXINIT + ": at most " + MAXINIT + " initial elements.");
+  if (script.init.length > maxN) throw new Error("At most " + maxN + " initial elements here.");
   let n = script.init.length;
   const toks = body.join(" ").split(/[\s,]+/).filter(Boolean);
   toks.forEach((t, i) => {
@@ -748,6 +753,8 @@ function stackOpsToText(script) {
   return lines.join("\n");
 }
 function sizeAfter(script, k) { let n = script.init.length; for (let i = 0; i < k; i++) n += script.ops[i].t === "push" ? 1 : -1; return n; }
+/* the starting capacity for n0 prefilled elements: the smallest power of two >= max(8, n0) */
+function initialCapacity(n0) { let c = 8; while (c < n0) c *= 2; return c; }
 /* push n keys, then pop them all again, with a few random operations mixed in */
 function genPushPop(n, init) {
   const toks = [], noise = Math.max(1, Math.round(n / 8));
@@ -822,7 +829,8 @@ function initZoom(redraw) {
 
 const WORDS = ("to be or not that is the q all we see seem a dream in it my so far it was oak elm ash yew fir " +
   "cat dog owl fox elk bee ant emu yak").split(" ");
-function randomWord() { return WORDS[Math.floor(Math.random() * WORDS.length)]; }
+/* random keys must respect the key length limit (the cells are only that wide) */
+function randomWord() { const ok = WORDS.filter(w => w.length <= MAXKEY); return ok[Math.floor(Math.random() * ok.length)]; }
 
 
 /* =====================================================================
@@ -832,7 +840,7 @@ function randomWord() { return WORDS[Math.floor(Math.random() * WORDS.length)]; 
    the smallest threshold that keeps the initial capacity 8 from shrinking.
    Cost = array accesses: arraycopy of n elements = 2n, a write = 1.
    ===================================================================== */
-const MAXN = 32, INITCAP = 8;
+const MAXN = 500, INITCAP = 8;     // only memory limits n: every step stores a snapshot
 const CW = 36, CH = 34, PADL = 128, PADR = 34, Y0 = 84, ROWGAP = 104;
 let script = { init: [], ops: [] };
 let ledgerAll = [];        // one record per operation of the whole trace
@@ -840,7 +848,7 @@ let ledgerAll = [];        // one record per operation of the whole trace
 class Tracer {
   constructor(init) {
     this.arrays = {}; this.aid = 0; this.eid = 0; this.key = {};
-    this.elements = this.newArr(INITCAP); this.newElements = null; this.garbage = null;
+    this.elements = this.newArr(initialCapacity((init || []).length)); this.newElements = null; this.garbage = null;
     this.size = 0;
     (init || []).forEach((k, i) => { const id = "e" + (++this.eid); this.key[id] = k; this.arrays[this.elements][i] = id; this.size++; }); this.steps = []; this.phases = []; this.out = []; this.ledger = [];
     this.opAcc = 0; this.totAcc = 0; this.op = -1; this.stack = [];
@@ -943,7 +951,7 @@ function trace(sc) {
   const T = new Tracer(sc.init);
   T.phase("start", "start");
   T.snap({ major: true, txt: (T.size ? "A stack with " + T.size + " element" + (T.size === 1 ? "" : "s") : "An empty stack") +
-    " on an array of capacity " + INITCAP + ", so Φ = " + fmt(T.phi()) + " at the start." });
+    " on an array of capacity " + T.C() + ", so Φ = " + fmt(T.phi()) + " at the start." });
   for (const o of sc.ops) { if (o.t === "push") T.push(o.key); else T.pop(); }
   return T;
 }
@@ -1129,38 +1137,46 @@ function renderLedger(B) {
   el("anaMeta").textContent = m ? m + " operations" : "";
 }
 function renderChart(B) {
+  /* in the style of Sedgewick & Wayne’s amortized cost plots: one dot per operation for its actual cost,
+     one (blue) for its potential term −4·ΔΦ, and the running average Σ actual / i as a red line */
   const L = ledgerAll, m = L.length;
   if (!m) { el("chartBox").innerHTML = '<span class="placeholder">No operations yet.</span>'; el("chartMeta").textContent = ""; return; }
-  const Wc = 560, Hc = 190, ml = 44, mr = 12, mt = 10, mb = 26;
-  let ca = [0], cm = [0], cp = [0];
-  const phi0 = steps[0].phi;
-  L.forEach(r => { ca.push(ca[ca.length - 1] + r.actual); cm.push(cm[cm.length - 1] + r.amort); cp.push(-4 * (r.phi1 - phi0)); });
-  const ymax = Math.max(5 * m, ...ca, ...cm) * 1.05, ymin = Math.min(0, ...cm, ...cp) * 1.05;
-  const xs = i => ml + i / m * (Wc - ml - mr), ys = v => mt + (1 - (v - ymin) / (ymax - ymin)) * (Hc - mt - mb);
-  const step = arr => arr.map((v, i) => (i ? "L" + xs(i).toFixed(1) + " " + ys(arr[i - 1]).toFixed(1) + " " : "M" + xs(0) + " " + ys(0) + " ") +
-    "L" + xs(i).toFixed(1) + " " + ys(v).toFixed(1)).join(" ");
-  const k = B.nled;
-  let s = '<svg viewBox="0 0 ' + Wc + " " + Hc + '" width="100%" style="max-width:' + Wc + 'px;display:block">';
-  const raw = (ymax - ymin) / 5, mag = Math.pow(10, Math.floor(Math.log10(Math.max(1, raw))));
+  const Wc = 600, Hc = 250, ml = 40, mr = 44, mt = 12, mb = 28;
+  const act = L.map(r => r.actual), pot = L.map(r => -4 * (r.phi1 - r.phi0));
+  const avg = []; let s = 0; L.forEach((r, i) => { s += r.actual; avg.push(s / (i + 1)); });
+  const ymax = Math.max(8, ...act) * 1.05, ymin = Math.min(-4, ...pot) * 1.05;
+  const xs = i => ml + (i + 0.5) / m * (Wc - ml - mr), ys = v => mt + (ymax - v) / (ymax - ymin) * (Hc - mt - mb);
+  const k = B.nled;      // operations done so far
+  const raw = (ymax - ymin) / 6, mag = Math.pow(10, Math.floor(Math.log10(Math.max(1, raw))));
   const tick = [1, 2, 5, 10].map(f => f * mag).find(t => t >= raw) || 10 * mag;
-  for (let v = Math.ceil(ymin / tick) * tick; v <= ymax; v += tick) {
-    s += '<line x1="' + ml + '" x2="' + (Wc - mr) + '" y1="' + ys(v) + '" y2="' + ys(v) + '" stroke="#e3d6c1"/>' +
-      '<text x="' + (ml - 5) + '" y="' + (ys(v) + 4) + '" text-anchor="end" font-size="10" fill="#8b8779" font-family="ui-monospace,monospace">' + Math.round(v) + "</text>";
-  }
-  s += '<rect x="' + xs(k) + '" y="' + mt + '" width="' + Math.max(0, xs(m) - xs(k)) + '" height="' + (Hc - mt - mb) + '" fill="#f5ebd9" opacity=".65"/>';
-  s += '<line x1="' + xs(0) + '" y1="' + ys(0) + '" x2="' + xs(m) + '" y2="' + ys(5 * m) + '" stroke="#8b8779" stroke-dasharray="5 4"/>';
-  s += '<path d="' + step(cm) + '" fill="none" stroke="#4a7c3f" stroke-width="2"/>';
-  s += '<line x1="' + ml + '" x2="' + (Wc - mr) + '" y1="' + ys(0) + '" y2="' + ys(0) + '" stroke="#b9a793"/>';
-  s += '<path d="' + step(cp) + '" fill="none" stroke="#2f5f9e" stroke-width="2"/>';
-  s += '<path d="' + step(ca) + '" fill="none" stroke="#902015" stroke-width="2.2"/>';
-  s += '<line x1="' + xs(k) + '" x2="' + xs(k) + '" y1="' + mt + '" y2="' + (Hc - mb) + '" stroke="#cc2f22" stroke-dasharray="2 3"/>';
-  s += '<text x="' + ((ml + Wc - mr) / 2) + '" y="' + (Hc - 6) + '" text-anchor="middle" font-size="10.5" fill="#8b8779">operations</text>';
-  s += "</svg>";
-  el("chartBox").innerHTML = s + '<div class="legend">' +
-    '<span class="item"><span class="swb" style="background:#902015;height:3px"></span>actual cost (array accesses), summed</span>' +
-    '<span class="item"><span class="swb" style="background:#4a7c3f;height:3px"></span>amortized cost, summed</span>' +
-    '<span class="item"><span class="swb" style="background:#2f5f9e;height:3px"></span>−4·(Φ − Φ<sub>start</sub>): green = red + blue</span>' +
-    '<span class="item"><span class="swb" style="border-top:2px dashed #8b8779;height:0"></span>5 per operation</span></div>';
+  let g = "";
+  for (let v = Math.ceil(ymin / tick) * tick; v <= ymax; v += tick)
+    g += '<line x1="' + ml + '" x2="' + (Wc - mr) + '" y1="' + ys(v) + '" y2="' + ys(v) + '" stroke="' + (v === 0 ? "#b9a793" : "#e9dfcf") + '"/>' +
+      '<text x="' + (ml - 5) + '" y="' + (ys(v) + 4) + '" text-anchor="end" class="ch-tick">' + v + "</text>";
+  g += '<line x1="' + ml + '" x2="' + (Wc - mr) + '" y1="' + ys(5) + '" y2="' + ys(5) + '" stroke="#902015" stroke-dasharray="5 4" stroke-width="1.2"/>' +
+    '<text x="' + (Wc - mr + 4) + '" y="' + (ys(5) + 4) + '" class="ch-tick" fill="#902015">5</text>';
+  const r = Math.max(1.6, Math.min(3, (Wc - ml - mr) / m / 2.2));
+  let dots = "";
+  L.forEach((_, i) => {
+    const op = i < k ? 1 : 0.18;
+    dots += '<circle cx="' + xs(i).toFixed(1) + '" cy="' + ys(pot[i]).toFixed(1) + '" r="' + r + '" fill="#2f5f9e" opacity="' + op + '"/>';
+    dots += '<circle cx="' + xs(i).toFixed(1) + '" cy="' + ys(act[i]).toFixed(1) + '" r="' + r + '" fill="#5b574d" opacity="' + op + '"/>';
+  });
+  const line = arr => arr.map((v, i) => (i ? "L" : "M") + xs(i).toFixed(1) + " " + ys(v).toFixed(1)).join("");
+  const done = avg.slice(0, Math.max(1, k));
+  let svg = '<svg viewBox="0 0 ' + Wc + " " + Hc + '" width="100%" style="max-width:' + Wc + 'px;display:block">' + g + dots +
+    '<path d="' + line(avg) + '" fill="none" stroke="#902015" stroke-width="2.2" opacity=".18"/>' +
+    (k ? '<path d="' + line(done) + '" fill="none" stroke="#902015" stroke-width="2.4"/>' +
+         '<text x="' + (xs(k - 1) + 6) + '" y="' + (ys(avg[k - 1]) - 6) + '" class="ch-val">' + avg[k - 1].toFixed(2) + "</text>" : "") +
+    (k ? '<line x1="' + xs(k - 1) + '" x2="' + xs(k - 1) + '" y1="' + mt + '" y2="' + (Hc - mb) + '" stroke="#cc2f22" stroke-dasharray="2 3"/>' : "") +
+    '<text x="' + ((ml + Wc - mr) / 2) + '" y="' + (Hc - 6) + '" text-anchor="middle" class="ch-ax">operation i</text></svg>';
+  el("chartBox").innerHTML = svg + '<div class="legend">' +
+    '<span class="item"><span class="sw" style="background:#5b574d;border-color:#5b574d"></span>actual cost of operation <i>i</i> (array accesses)</span>' +
+    '<span class="item"><span class="sw" style="background:#2f5f9e;border-color:#2f5f9e"></span>its potential term −4·ΔΦ</span>' +
+    '<span class="item"><span class="swb" style="background:#902015;height:3px"></span>average so far: Σ actual / <i>i</i></span>' +
+    '<span class="item"><span class="swb" style="border-top:2px dashed #902015;height:0"></span>5</span></div>' +
+    '<div class="anote">Every copy is a high grey dot, and the blue dot of the same operation lies about as far below — the potential pays for it. ' +
+    "Actual + potential term = amortized cost ≤ 5, and the average actual cost (red) stays below 5 as well.</div>";
   el("chartMeta").textContent = k + " of " + m + " operations done";
 }
 
@@ -1202,7 +1218,9 @@ const PRESETS = [
   { name: "Push n, pop n (with a few random operations)", gen: true },
   { name: "tobe.txt — to be or not to - be - - that - - - is", text: "init: a b c\nto be or not to - be - - that - - - is" },
   { name: "No thrashing at a boundary", text: "init: a b c\n" + nums(4, 16).join(" ") + "\n17 - 17 - 17 - 17\n- - - - - - - - -\n9 10" },
-  { name: "Random walk, 60 operations", rnd: 60 }
+  { name: "Random walk, 60 operations", rnd: 60 },
+  { name: "Empty stack", text: "init:\n" + nums(1, 20).join(" ") + "\n" + "- ".repeat(20) },
+  { name: "20 elements prefilled, then push 12, pop 24", text: "init: " + nums(101, 120).join(" ") + "\n" + nums(1, 12).join(" ") + "\n" + "- ".repeat(24) },
 ];
 const DEFAULT_N = 24;
 function presetText(p) {

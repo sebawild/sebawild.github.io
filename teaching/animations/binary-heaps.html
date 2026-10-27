@@ -196,10 +196,18 @@
   .formula { font-size:.92rem; overflow-x:auto; margin:4px 0 6px; }
   .chain { font-size:.84rem; margin-top:6px; font-variant-numeric:tabular-nums; }
   .chain .v { color:var(--wi-accent); font-weight:bold; }
+  /* the analysis spans the full width below the drawing (for projecting it enlarged) */
+  .anafull { margin-top:14px; }
+  .anagrid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px 28px; align-items:start; }
+  @media (max-width:900px) { .anagrid { grid-template-columns:minmax(0,1fr); } }
   #proofBox svg { display:block; max-width:100%; }
-  .pf-lab { font-family:var(--wi-font-body); font-size:13px; fill:var(--wi-ink-soft); }
+  .anafull table.lv { font-size:.9rem; }
+  .anafull .formula { font-size:1.02rem; }
+  /* the same sizes as the surrounding text (.anote / table) */
+  .pf-lab { font-family:var(--wi-font-body); font-size:.9rem; fill:var(--wi-ink-soft); }
+  .pf-sub { font-size:.72rem; fill:var(--wi-ink-faint); }
   .pf-lab.cur { fill:var(--wi-accent); font-weight:bold; }
-  .pf-val { font-family:var(--wi-font-body); font-size:12.5px; fill:var(--wi-ink-faint); }
+  .pf-val { font-family:var(--wi-font-body); font-size:.84rem; fill:var(--wi-ink-faint); }
   .pf-out { fill:#f3e4dd; stroke:var(--wi-accent-soft); stroke-width:1.2; }
   .pf-out.cur { stroke:var(--wi-accent); stroke-width:2; }
   .pf-act { fill:var(--wi-accent-soft); }
@@ -207,12 +215,13 @@
   .pf-half.extra { fill:none; stroke-dasharray:3 2; }
   .pf-rem { fill:#cfe0c3; stroke:var(--wi-relax); stroke-width:1.2; }
   .pf-box { fill:none; stroke:var(--wi-ink); stroke-width:1.6; }
-  .pf-note { font-family:var(--wi-font-body); font-size:12.5px; fill:var(--wi-ink-strong); }
+  .pf-note { font-family:var(--wi-font-body); font-size:.84rem; fill:var(--wi-ink-strong); }
   .pf-axis { stroke:var(--wi-border); stroke-width:1; }
   .pf-legend { margin-top:6px; }
   .pf-legend .item { transition:opacity .3s; }
   .pf-legend .item.later { opacity:.18; }
   .pf-legend .swb { width:1.7em; height:.8em; border-radius:2px; }
+  .pf-legend sup { vertical-align:super; font-size:.75em; line-height:0; }
   details.sub > summary { cursor:pointer; font-family:var(--wi-font-head); font-size:.72rem;
                           letter-spacing:.08em; text-transform:uppercase; color:var(--wi-ink-faint); margin-top:10px; }
   details.sub[open] > summary { color:var(--wi-accent); }
@@ -474,29 +483,36 @@ body { font-family: var(--wi-font-body); }
       <div class="sim-title" style="margin-top:10px"><span id="outTitle">Returned by delMax()</span></div>
       <div class="outrow" id="outRow"></div>
     </div>
-    <div class="sim-box" id="buildPanel" style="display:none">
-      <div class="sim-title"><span>Analysis</span><span class="rhs" id="anaMeta"></span></div>
-      <div class="anote" style="margin-top:0">Each node may sink at most down to the last level, i.e., <span id="hmlText"></span>
-        steps. Summed over the levels:</div>
-      <div class="formula" id="formula"></div>
-      <table class="lv" id="lvTable"></table>
-      <div class="sim-title" style="margin-top:12px"><span>The sum, to scale</span><span class="rhs" id="proofMeta"></span></div>
-      <div id="proofBox"></div>
-      <div class="chain" id="chain"></div>
-      <div class="anote" id="cmpNote"></div>
-      <details class="sub" id="scaleDetails">
-        <summary>How does it scale?</summary>
-        <div class="anote">Comparisons <i>per key</i>, bottom-up construction vs. inserting the keys one
-          by one. Worst case: keys sorted against the heap order. Random: average of 5 random permutations.</div>
-        <div id="chartBox"></div>
-      </details>
-    </div>
     <div class="sim-box">
       <div class="sim-title"><span id="codeTitle">Java code</span><span class="rhs" id="codeMeta"></span></div>
       <div class="codebody" id="codeBody"></div>
       <div class="codenote" id="codeNote"></div>
     </div>
   </div>
+</div>
+
+<div class="sim-box anafull" id="buildPanel" style="display:none">
+  <div class="sim-title"><span>Analysis</span><span class="rhs" id="anaMeta"></span></div>
+  <div class="anagrid">
+    <div>
+      <div class="anote" style="margin-top:0">Each node may sink at most down to the last level, i.e., <span id="hmlText"></span>
+        steps. Summed over the levels:</div>
+      <div class="formula" id="formula"></div>
+      <table class="lv" id="lvTable"></table>
+      <div class="chain" id="chain"></div>
+      <div class="anote" id="cmpNote"></div>
+    </div>
+    <div>
+      <div class="sim-title"><span>The sum, to scale</span><span class="rhs" id="proofMeta"></span></div>
+      <div id="proofBox"></div>
+    </div>
+  </div>
+  <details class="sub" id="scaleDetails">
+    <summary>How does it scale?</summary>
+    <div class="anote">Comparisons <i>per key</i>, bottom-up construction vs. inserting the keys one
+      by one. Worst case: keys sorted against the heap order. Random: average of 5 random permutations.</div>
+    <div id="chartBox"></div>
+  </details>
 </div>
 
 <details class="editor" id="editor">
@@ -913,7 +929,9 @@ function mirrorText(t) {
     if (/^\s*#/.test(l)) return l;
     const m = /^(\s*init\s*:)(.*)$/i.exec(l);
     const head = m ? m[1] : "", body = m ? m[2] : l;
-    return head + body.replace(/(^|[\s:])([A-Za-z]+)/g, (q, a, w) => a + mirrorLetters(w));
+    return head + body.replace(/(^|[\s:])([A-Za-z]+)/g, (q, a, w) => a + mirrorLetters(w))
+      // numbers mirror as x -> 100 - x (keys 1..99); the index k of a changeKey token k:x stays as it is
+      .replace(/(^|[\s:])(\d+)(?![\d:])/g, (q, a, d) => a + (100 - +d));
   }).join("\n");
 }
 function mulberry(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
@@ -929,6 +947,7 @@ function worstKeys(n) {   // sorted against the heap order
   return isMax() ? a : a.reverse();
 }
 const OPS_PRESETS = [
+  { name: "A small heap: inserts and deletions", init: true, text: "init: 90 70 80 30 60 50 40 20 10 15\n85 - 35 95 - - 65" },
   { name: "tinyPQ.txt — P Q E - X A M - P L E -", text: "P Q E - X A M - P L E -" },
   { name: "Insert S, then delete the maximum", init: true, text: "init: T P R N H O A E I G\nS -" },
   { name: "Change a key: promotion (swim)", init: true, text: "init: S P R N L O A E I H G\n5:T" },
@@ -1448,18 +1467,22 @@ function renderAnalysis(B) {
    on that level, on the same scale. At the end, a graphical proof that
    S = sum i/2^i <= 2:  S - S/2 = 1/2 + 1/4 + ... <= 1.
    --------------------------------------------------------------------- */
-const PF = { U: 240, X0: 74, RH: 27, BH: 14, top: 8 };
+/* drawn at 1 SVG unit = 1 CSS px, so its text matches the page; the available width is used
+   by lengthening the unit of the bars (U), not by scaling the picture */
+const PF = { U: 240, X0: 104, RH: 32, BH: 17, top: 10 };
 let pf = null;
 function buildProof(h) {
+  const avail = el("proofBox").clientWidth || 420;
+  PF.U = Math.max(150, Math.min(560, avail - PF.X0 - 40));
   const { U, X0, RH, BH, top } = PF;
   const rowY = i => top + i * RH, boxY = top + (h + 2) * RH + 4;
   const W = X0 + U + 30, H = boxY + BH + 30;
-  let s = '<svg id="pfSvg" viewBox="0 0 ' + W + " " + H + '" width="' + W + '">';
+  let s = '<svg id="pfSvg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '">';
   s += '<line class="pf-axis" x1="' + X0 + '" x2="' + X0 + '" y1="' + (top - 4) + '" y2="' + (rowY(h + 1) + BH + 4) + '"/>';
   for (let i = 0; i <= h; i++) {
     const y = rowY(i), len = U * i / (1 << i);
     s += '<text class="pf-lab" id="pfl' + i + '" x="4" y="' + (y + BH - 2) + '"><tspan font-style="italic">i</tspan> = ' + i +
-      '<tspan dx="6" font-size="10.5" fill="#8b8779">ℓ = ' + (h - i) + "</tspan></text>";
+      '<tspan dx="8" class="pf-sub">ℓ = ' + (h - i) + "</tspan></text>";
     s += '<rect class="pf-out" id="pfo' + i + '" x="' + X0 + '" y="' + y + '" width="' + len + '" height="' + BH + '"/>';
     s += '<rect class="pf-act" id="pfa' + i + '" x="' + X0 + '" y="' + (y + 3) + '" width="0" height="' + (BH - 6) + '"/>';
     s += '<text class="pf-val" id="pfv' + i + '" x="' + (X0 + len + 6) + '" y="' + (y + BH - 2) + '">' + i + "/" + (1 << i) + "</text>";
@@ -1468,21 +1491,30 @@ function buildProof(h) {
   for (let j = 1; j <= h; j++) s += '<rect class="pf-rem" id="pfr' + j + '" x="' + X0 + '" y="' + rowY(j) + '" width="0" height="' + BH + '" opacity="0"/>';
   s += '<rect class="pf-box" id="pfbox" x="' + X0 + '" y="' + boxY + '" width="' + U + '" height="' + BH + '" opacity="0"/>';
   s += '<text class="pf-note" id="pfboxL" x="' + (X0 + U + 6) + '" y="' + (boxY + BH - 2) + '" opacity="0">1</text>';
-  s += '<text class="pf-note" id="pfextra" x="' + (X0 + U * h / (2 << h) + 8) + '" y="' + (rowY(h + 1) + BH - 2) + '" opacity="0" font-size="11.5">' + h + "/" + (2 << h) + " — nothing to cancel</text>";
+  s += '<text class="pf-note" id="pfextra" x="' + (X0 + U * h / (2 << h) + 8) + '" y="' + (rowY(h + 1) + BH - 2) + '" opacity="0">' + h + "/" + (2 << h) + " — nothing to cancel</text>";
   s += '<text class="pf-note" id="pfsum" x="' + X0 + '" y="' + (boxY + BH + 18) + '" opacity="0">S − S/2 = 1/2 + 1/4 + … ≤ 1, so S ≤ 2</text>';
   s += "</svg>";
   const sw = (st) => '<span class="swb" style="' + st + '"></span>';
   s += '<div class="legend pf-legend">' +
-    '<span class="item" data-from="0">' + sw("background:#f3e4dd;border:1.2px solid var(--wi-accent-soft)") + "bound of a level ÷ 2<sup><i>h</i></sup> = <i>i</i>/2<sup><i>i</i></sup>, a summand of <i>S</i></span>" +
-    '<span class="item" data-from="0">' + sw("background:var(--wi-accent-soft);height:.45em") + "exchanges actually made on that level ÷ 2<sup><i>h</i></sup></span>" +
-    '<span class="item" data-from="2">' + sw("background:#9fb7d8;border:1px solid #2f5f9e") + "<i>S</i>/2: every bar at half length, one row down</span>" +
-    '<span class="item" data-from="3">' + sw("border:1px dashed #2f5f9e") + "last half bar: nothing to cancel</span>" +
-    '<span class="item" data-from="4">' + sw("background:#cfe0c3;border:1.2px solid var(--wi-relax)") + "left over after cancelling: 1/2<sup><i>i</i></sup></span>" +
-    '<span class="item" data-from="4">' + sw("border:1.6px solid var(--wi-ink)") + "a box of length 1</span>" +
+    '<span class="item" data-from="0">' + sw("background:#f3e4dd;border:1.2px solid var(--wi-accent-soft)") + "<span>bound of a level ÷ 2<sup><i>h</i></sup> = <i>i</i>/2<sup><i>i</i></sup>, a summand of <i>S</i></span></span>" +
+    '<span class="item" data-from="0">' + sw("background:var(--wi-accent-soft);height:.45em") + "<span>exchanges actually made on that level ÷ 2<sup><i>h</i></sup></span></span>" +
+    '<span class="item" data-from="2">' + sw("background:#9fb7d8;border:1px solid #2f5f9e") + "<span><i>S</i>/2: every bar at half length, one row down</span></span>" +
+    '<span class="item" data-from="3">' + sw("border:1px dashed #2f5f9e") + "<span>last half bar: nothing to cancel</span></span>" +
+    '<span class="item" data-from="4">' + sw("background:#cfe0c3;border:1.2px solid var(--wi-relax)") + "<span>left over after cancelling: 1/2<sup><i>i</i></sup></span></span>" +
+    '<span class="item" data-from="4">' + sw("border:1.6px solid var(--wi-ink)") + "<span>a box of length 1</span></span>" +
     "</div>";
   el("proofBox").innerHTML = s;
   pf = { h: h, rowY: rowY, boxY: boxY, cur: {} };
   el("proofMeta").textContent = "unit = 2^" + h + " = " + (1 << h) + " exchanges";
+  const box = el("proofBox");
+  if (!box._ro && window.ResizeObserver) {        // the column changed width: redraw with a new unit length
+    let last = box.clientWidth;
+    box._ro = new ResizeObserver(() => {
+      if (Math.abs(box.clientWidth - last) < 4 || S.tab !== "build" || !steps.length) return;
+      last = box.clientWidth; buildProof(pf.h); renderAnalysis(curStep());
+    });
+    box._ro.observe(box);
+  }
 }
 function pfSet(id, attrs, dur) {
   const e = el(id); if (!e) return;
@@ -1863,7 +1895,7 @@ function setOrient(o) {
       const mir = parseOps(mirrorText(opsToText(opsInput)));
       const save = opsInput; opsInput = mir;
       if (tryRebuild(false, "opErr"))
-        el("opErr").textContent = "The starting heap was mirrored (A↔Z) so that it is a " + mx() + "-heap.";
+        el("opErr").textContent = "The starting heap was mirrored (A↔Z, x ↦ 100 − x) so that it is a " + mx() + "-heap.";
       else { opsInput = save; S.orient = was; segOn("orientSeg", was); tryRebuild(true, "opErr"); }
     }
   }
@@ -1989,9 +2021,9 @@ function initSplitters() {
   sp.addEventListener("pointermove", e => {
     if (!drag) return;
     const r = stage.getBoundingClientRect();
+    // stored as a fraction of the stage, so the narrow-screen (or zoomed-in) layout can still stack the columns
     const w = Math.max(320, Math.min(r.width - 330, e.clientX - r.left));
-    stage.style.setProperty("--left", w + "px");
-    stage.style.gridTemplateColumns = w + "px 10px minmax(320px,1fr)";
+    stage.style.setProperty("--left", (100 * w / r.width).toFixed(2) + "%");
     if (scene) applyZoom();
   });
   sp.addEventListener("pointerup", () => { drag = false; sp.classList.remove("drag"); });
@@ -2018,7 +2050,7 @@ function init() {
   lay = { from: 0, to: S.layout === "array" ? 1 : 0, t0: 0, dur: 0 };
   el("delBtn").textContent = DELNAME() + "()";
 
-  opsInput = parseOps(OPS_PRESETS[0].text);
+  opsInput = parseOps(presetText(OPS_PRESETS[0]));
   buildKeys = parseBuild(BUILD_PRESETS[0].text);
 
   for (const b of el("tabSeg").children) b.addEventListener("click", () => setTab(b.dataset.v));

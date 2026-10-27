@@ -375,7 +375,7 @@ body { font-family: var(--wi-font-body); }
   </span>
   <span class="opnote">Leave the field empty for a random key. New operations are added right after the one on screen.</span>
   <span class="ctl" style="margin-left:auto">
-    <input type="number" id="bulkN" min="1" max="24" value="6" aria-label="how many operations">
+    <input type="number" id="bulkN" min="1" max="200" value="6" aria-label="how many operations">
     <button id="bulkPush" title="Push this many random keys right away, without animation">push ×</button>
     <button id="bulkPop" title="Pop this many times right away, without animation">pop ×</button>
   </span>
@@ -458,9 +458,8 @@ body { font-family: var(--wi-font-body); }
     </div>
     <div class="hint">
       A sequence of stack operations in the format of Sedgewick &amp; Wayne’s <code>tobe.txt</code>:
-      every word is pushed, a <code>-</code> pops. An optional first line <code>init: a b c</code> gives elements that are on the stack at the start (at most 8, the initial capacity). Keys are up to 4 characters; <code>#</code> starts a comment.
-      The stack holds at most 24 elements here, so that the three arrays stay readable.
-      At the start, the three arrays have capacities 4, 8 and 16.
+      every word is pushed, a <code>-</code> pops. An optional first line <code>init: a b c</code> gives elements that are on the stack at the start; the initial capacity is the smallest power of two ≥ max(8, their number). Keys are up to 4 characters; <code>#</code> starts a comment.
+      The stack holds at most 200 elements here.
     </div>
   </div>
 </details>
@@ -684,8 +683,9 @@ function initSplitters(onResize) {
   sp.addEventListener("pointermove", e => {
     if (!drag) return;
     const r = stage.getBoundingClientRect();
+    // stored as a fraction of the stage, so the narrow-screen (or zoomed-in) layout can still stack the columns
     const w = Math.max(320, Math.min(r.width - 330, e.clientX - r.left));
-    stage.style.gridTemplateColumns = w + "px 10px minmax(320px,1fr)";
+    stage.style.setProperty("--left", (100 * w / r.width).toFixed(2) + "%");
     if (onResize) onResize();
   });
   sp.addEventListener("pointerup", () => { drag = false; sp.classList.remove("drag"); });
@@ -723,7 +723,7 @@ function setGran(g) {
 }
 
 /* ---- stack-operation scripts (tobe.txt format, plus an optional init: line) ---- */
-const MAXKEY = 4, MAXINIT = 8;
+const MAXKEY = 4;
 function parseStackOps(text, maxN) {
   const script = { init: [], ops: [] };
   const lines = text.split(/\r?\n/).map(l => l.replace(/#.*$/, ""));
@@ -734,7 +734,7 @@ function parseStackOps(text, maxN) {
     else body.push(l);
   }
   for (const k of script.init) if (k.length > MAXKEY || k === "-") throw new Error("Initial key '" + k + "' is not allowed (at most " + MAXKEY + " characters).");
-  if (script.init.length > MAXINIT) throw new Error("The initial array has capacity " + MAXINIT + ": at most " + MAXINIT + " initial elements.");
+  if (script.init.length > maxN) throw new Error("At most " + maxN + " initial elements here.");
   let n = script.init.length;
   const toks = body.join(" ").split(/[\s,]+/).filter(Boolean);
   toks.forEach((t, i) => {
@@ -757,6 +757,8 @@ function stackOpsToText(script) {
   return lines.join("\n");
 }
 function sizeAfter(script, k) { let n = script.init.length; for (let i = 0; i < k; i++) n += script.ops[i].t === "push" ? 1 : -1; return n; }
+/* the starting capacity for n0 prefilled elements: the smallest power of two >= max(8, n0) */
+function initialCapacity(n0) { let c = 8; while (c < n0) c *= 2; return c; }
 /* push n keys, then pop them all again, with a few random operations mixed in */
 function genPushPop(n, init) {
   const toks = [], noise = Math.max(1, Math.round(n / 8));
@@ -831,7 +833,8 @@ function initZoom(redraw) {
 
 const WORDS = ("to be or not that is the q all we see seem a dream in it my so far it was oak elm ash yew fir " +
   "cat dog owl fox elk bee ant emu yak").split(" ");
-function randomWord() { return WORDS[Math.floor(Math.random() * WORDS.length)]; }
+/* random keys must respect the key length limit (the cells are only that wide) */
+function randomWord() { const ok = WORDS.filter(w => w.length <= MAXKEY); return ok[Math.floor(Math.random() * ok.length)]; }
 
 
 /* =====================================================================
@@ -841,7 +844,7 @@ function randomWord() { return WORDS[Math.floor(Math.random() * WORDS.length)]; 
    threshold that keeps the initial capacity 8 from shrinking.
    Cost = array accesses: each write 1, each copied element 2.
    ===================================================================== */
-const MAXN = 24, INITCAP = 8;
+const MAXN = 200, INITCAP = 8;     // only memory limits n: every step stores three arrays
 const CW = 32, CH = 32, PADL = 150, PADR = 30, Y0 = 70, RG = 92;
 let script = { init: [], ops: [] };
 let ledgerAll = [];
@@ -850,7 +853,8 @@ const ROLE = { smaller: "elementsSmaller", elements: "elements", bigger: "elemen
 class Tracer {
   constructor(init) {
     this.arrays = {}; this.aid = 0; this.eid = 0; this.key = {};
-    this.elements = this.newArr(INITCAP); this.bigger = this.newArr(2 * INITCAP); this.smaller = this.newArr(INITCAP / 2);
+    const c0 = initialCapacity((init || []).length);
+    this.elements = this.newArr(c0); this.bigger = this.newArr(2 * c0); this.smaller = this.newArr(c0 / 2);
     this.size = 0; this.uncopied = 0; this.copyingToBigger = true;
     this.opAcc = this.opW = this.opCp = 0;
     (init || []).forEach(k => { const id = "e" + (++this.eid); this.key[id] = k; this.setUnchecked(this.size++, id); });
@@ -976,7 +980,7 @@ function trace(sc) {
   T.opAcc = T.opW = T.opCp = 0;
   T.phase("start", "start");
   T.snap({ major: true, txt: (T.size ? "A stack with " + T.size + " element" + (T.size === 1 ? "" : "s") + ", in sync in all three arrays." : "An empty stack.") +
-    " <code>elements</code> has capacity " + INITCAP + ", its neighbours " + (INITCAP / 2) + " and " + (2 * INITCAP) + "." });
+    " <code>elements</code> has capacity " + T.C() + ", its neighbours " + (T.C() / 2) + " and " + (2 * T.C()) + "." });
   for (const o of sc.ops) { if (o.t === "push") T.push(o.key); else T.pop(); }
   return T;
 }
@@ -1273,7 +1277,9 @@ const PRESETS = [
   { name: "Push n, pop n (with a few random operations)", gen: true },
   { name: "tobe.txt — to be or not to - be - - that - - - is", text: "init: a b c\nto be or not to - be - - that - - - is" },
   { name: "Shift up, then straight back down", text: "init: a b c\n" + nums(4, 16).join(" ") + "\n17 - - - - - - - - - -" },
-  { name: "Random walk, 50 operations", rnd: 50 }
+  { name: "Random walk, 50 operations", rnd: 50 },
+  { name: "Empty stack", text: "init:\n" + nums(1, 20).join(" ") + "\n" + "- ".repeat(20) },
+  { name: "20 elements prefilled, then push 12, pop 24", text: "init: " + nums(101, 120).join(" ") + "\n" + nums(1, 12).join(" ") + "\n" + "- ".repeat(24) },
 ];
 const DEFAULT_N = 18;
 function presetText(p) {

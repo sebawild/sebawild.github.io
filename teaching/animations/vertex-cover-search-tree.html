@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vertex Cover · the bounded search tree, step by step</title>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  skipStartupTypeset: true,
+  messageStyle: "none",
+  showMathMenu: false,
+  tex2jax: { inlineMath: [["\\(", "\\)"]], processEscapes: true },
+  TeX: { extensions: ["AMSmath.js", "AMSsymbols.js"] },
+  SVG: { font: "Neo-Euler", useGlobalCache: false, useFontCache: true, mtextFontInherit: true, blacker: 0 }
+});
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS_SVG"></script>
+<style>
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#9c866d;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-font-mono:ui-monospace, Menlo, Consolas, monospace;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    --gw:42%;           /* graph pane share of the main row (splitter) */
+    --rowh:560px;       /* main row height (splitter) */
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; margin:0 0 6px; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 16px; max-width:96ch; line-height:1.5; }
+  .subtitle code, .hint code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; }
+  .mj svg { overflow:visible; }
+
+  /* --- control chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:12px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; }
+  .ctl > label, .lbl { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer; transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text; font-size:1.02rem; line-height:1.1;
+                padding:4px 0; width:2.5em; text-align:center; }
+  button.small { padding:3px 9px; font-size:.72rem; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  input[type=number] { width:4.2em; }
+  .seg { display:inline-flex; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+
+  /* --- transport: slider + phase bar ---
+     The slider is custom-styled with an exactly 16px thumb; its centre travels
+     from 8px to width-8px, so the phase bar is inset by 8px on both sides and
+     the slider value is mapped piecewise-linearly onto the phase widths. */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:14px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; }
+  .progress input[type=range] { -webkit-appearance:none; appearance:none; display:block; width:100%; margin:0;
+       height:16px; background:transparent; cursor:pointer; }
+  .progress input[type=range]::-webkit-slider-runnable-track { height:6px; background:var(--wi-panel);
+       border:1px solid var(--wi-border-soft); border-radius:3px; }
+  .progress input[type=range]::-moz-range-track { height:6px; background:var(--wi-panel);
+       border:1px solid var(--wi-border-soft); border-radius:3px; }
+  .progress input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:16px; height:16px;
+       border-radius:50%; background:var(--wi-accent); border:2px solid var(--wi-panel-2); margin-top:-6px;
+       box-shadow:0 0 0 1px var(--wi-accent); box-sizing:border-box; }
+  .progress input[type=range]::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:var(--wi-accent);
+       border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); box-sizing:border-box; }
+  .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint);
+            white-space:nowrap; text-align:right; padding-top:1px; }
+  #stepNo { display:inline-block; width:8.5em; }
+  .phasebar { display:flex; margin:5px 8px 0; width:calc(100% - 16px); }
+  .phasebtn { position:relative; overflow:hidden; flex:none; padding:3px 0; font-size:.68rem; line-height:1.3;
+              font-family:var(--wi-font-head); letter-spacing:.03em; text-align:center;
+              background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+              border-left-width:0; border-radius:0; color:var(--wi-ink-faint); cursor:pointer; white-space:nowrap; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3;
+                    border-right:1px solid var(--wi-accent-soft); }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+
+  /* --- main row: graph | splitter | tree --- */
+  .mainrow { display:flex; height:var(--rowh); min-height:240px; }
+  .pane { display:flex; flex-direction:column; min-width:0; min-height:0; }
+  #graphPane { flex:0 0 var(--gw); }
+  #treePane { flex:1 1 0; }
+  .vsplit { flex:0 0 14px; cursor:col-resize; position:relative; touch-action:none; }
+  .vsplit::after { content:""; position:absolute; left:6px; top:30%; bottom:30%; width:2px;
+                   border-radius:1px; background:var(--wi-border-soft); }
+  .vsplit:hover::after, .vsplit.drag::after { background:var(--wi-accent-soft); }
+  .hsplit { height:14px; cursor:row-resize; position:relative; touch-action:none; }
+  .hsplit::after { content:""; position:absolute; top:6px; left:40%; right:40%; height:2px;
+                   border-radius:1px; background:var(--wi-border-soft); }
+  .hsplit:hover::after, .hsplit.drag::after { background:var(--wi-accent-soft); }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+             border-radius:var(--wi-radius-lg); padding:12px 15px; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--wi-ink-faint);
+               margin:0 0 9px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--wi-font-body);
+                    font-size:1.15em; color:var(--wi-ink-soft); display:flex; gap:8px; align-items:center; }
+  .svgwrap { flex:1 1 0; min-height:0; position:relative; background:var(--wi-bg); border-radius:var(--wi-radius); overflow:hidden; }
+  .svgwrap svg { position:absolute; left:0; top:0; display:block; }
+  #treeWrap { cursor:grab; touch-action:none; }
+  #treeWrap.panning { cursor:grabbing; }
+
+  .legend { display:flex; flex-wrap:wrap; gap:5px 15px; margin-top:8px; font-size:.72rem; color:var(--wi-ink-soft); }
+  .legend .item { display:flex; align-items:center; gap:6px; }
+  .sw { width:.9em; height:.9em; border-radius:50%; border:1.5px solid var(--wi-ink-soft); display:inline-block; }
+  .swr { width:1.1em; height:.8em; border-radius:2px; border:1.5px solid var(--wi-border); display:inline-block; }
+  .swl { width:1.4em; height:0; border-top:3px solid var(--wi-active); display:inline-block; }
+
+  /* --- lower row: status | code --- */
+  .lowrow { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); gap:14px; align-items:start; }
+  .col-side { display:flex; flex-direction:column; gap:14px; }
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius);
+            padding:10px 13px; font-size:.9rem; color:var(--wi-ink-strong); min-height:96px; }
+  .status .ans { display:block; margin-top:6px; font-size:.95rem; color:var(--wi-accent); font-weight:bold; }
+  .tt { font-family:var(--wi-font-mono); font-size:.8em; }
+  .vars { display:grid; grid-template-columns:auto 1fr; gap:3px 14px; font-size:.9rem; align-items:baseline; }
+  .vars .vk { text-align:right; color:var(--wi-ink-soft); }
+  .vars .vv { color:var(--wi-ink-strong); }
+  .vars .vv.np { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-active); }
+  .vars .vv.none { color:var(--wi-ink-faint); }
+  .vars .vv.fresh { background:#f6e6df; border-radius:3px; padding:0 4px; justify-self:start; }
+  .counts { display:grid; grid-template-columns:auto auto auto; gap:3px 16px; font-size:.88rem; align-items:baseline; justify-content:start; }
+  .counts .h { font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; color:var(--wi-ink-faint); }
+  .counts .n { text-align:right; font-variant-numeric:tabular-nums; }
+  .countnote { font-size:.76rem; color:var(--wi-ink-soft); margin-top:8px; line-height:1.45; }
+
+  details.code { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.code > summary { cursor:pointer; padding:10px 15px; font-family:var(--wi-font-head); font-size:.72rem;
+                           text-transform:uppercase; letter-spacing:.1em; color:var(--wi-ink-faint); }
+  details.code[open] > summary { border-bottom:1px solid var(--wi-border-soft); color:var(--wi-accent); }
+  .codebody { padding:8px 6px 10px; }
+  .cline { display:flex; gap:10px; padding:1px 9px; font-size:.84rem; line-height:1.6;
+           color:var(--wi-ink-strong); border-left:3px solid transparent; white-space:nowrap; }
+  .cline .ln { color:var(--wi-ink-faint); min-width:1.3em; text-align:right; user-select:none; font-size:.8em; padding-top:.15em; }
+  .cline .ind { display:inline-block; }
+  .cline.on { background:#f6e6df; border-left-color:var(--wi-active); }
+  .cline b { color:var(--wi-ink-strong); }
+  .cline .cm { color:var(--wi-ink-faint); font-style:italic; padding-left:1.5em; }
+  .codenote { font-size:.74rem; color:var(--wi-ink-soft); padding:8px 15px 12px; line-height:1.5;
+              border-top:1px solid var(--wi-border-soft); }
+  .codewrap { overflow-x:auto; }
+
+  details.editor { margin-top:18px; background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:11px 16px; font-family:var(--wi-font-head); font-size:.78rem;
+                             letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,300px) 1fr; gap:16px; align-items:start; }
+  textarea { width:100%; height:220px; font-family:var(--wi-font-mono); font-size:.78rem; background:var(--wi-panel-2);
+             color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.8rem; color:var(--wi-ink-soft); line-height:1.55; }
+  .err { color:var(--wi-active); font-size:.8rem; min-height:1.2em; margin-top:6px; }
+
+  .tooltip { position:fixed; z-index:40; pointer-events:none; background:var(--wi-panel-2);
+             border:1px solid var(--wi-border-strong); border-radius:var(--wi-radius); padding:6px 9px;
+             font-size:.8rem; color:var(--wi-ink-strong); box-shadow:0 3px 10px rgba(0,0,0,.12);
+             max-width:300px; display:none; line-height:1.45; }
+  .tooltip .tt-h { font-family:var(--wi-font-head); letter-spacing:.04em; color:var(--wi-accent); }
+
+  /* --- SVG: graph --- */
+  .e { stroke:var(--wi-ink-soft); stroke-width:2; }
+  .e.gone { stroke:var(--wi-inert); stroke-width:1.3; stroke-dasharray:4 4; }
+  .e.hot { stroke:var(--wi-active); stroke-width:4.2; }
+  .e.nbr { stroke:var(--wi-examine); stroke-width:3.2; }
+  .e.comp { stroke:var(--wi-queue); stroke-width:3; }
+  .e.left { stroke:var(--wi-active); stroke-width:2.6; }
+  .vx { cursor:grab; }
+  #graphSvg { touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+  #graphSvg.dragging, #graphSvg.dragging .vx { cursor:grabbing; }
+  .vx circle { fill:var(--wi-panel-2); stroke:var(--wi-ink-soft); stroke-width:1.6; }
+  .vx text { font-family:var(--wi-font-body); font-size:13px; font-weight:bold; fill:var(--wi-ink-strong);
+             text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  .vx.cov circle { fill:var(--wi-accent); stroke:var(--wi-accent-dark); }
+  .vx.cov text { fill:var(--wi-panel-2); }
+  .vx.taking circle { fill:#f0c9bf; stroke:var(--wi-active); stroke-width:3; }
+  .vx.hot circle { stroke:var(--wi-active); stroke-width:3.4; }
+  .vx.nbr circle { stroke:var(--wi-examine); stroke-width:3; fill:#f6ecd6; }
+  .vx.outc circle { fill:#dcebd5; stroke:var(--wi-relax); stroke-width:2.4; }
+  .vx.pick circle { fill:#d5e7e3; stroke:var(--wi-queue); stroke-width:3; }
+  .vx .ring { fill:none; stroke:var(--wi-relax); stroke-width:3; }
+  .vx .deg { font-size:10.5px; font-weight:normal; fill:var(--wi-ink-faint); }
+
+  /* --- SVG: tree --- */
+  .tn rect.box { fill:var(--wi-panel-2); stroke:var(--wi-border); stroke-width:1.2; }
+  .tn.path rect.box { stroke:var(--wi-accent-soft); stroke-width:2; }
+  .tn.cur rect.box { stroke:var(--wi-active); stroke-width:3; }
+  .tn.l-empty rect.box { fill:#eef4ea; }
+  .tn.l-trunc rect.box { fill:#f7e4de; }
+  .tn.l-base rect.box  { fill:#e3efec; }
+  .tn.l-empty.done rect.box { stroke:var(--wi-relax); }
+  .tn.l-trunc.done rect.box { stroke:var(--wi-active); }
+  .tn.l-base.done rect.box  { stroke:var(--wi-queue); }
+  .tn.cur rect.box { stroke:var(--wi-active) !important; }
+  .tn { cursor:pointer; }
+  .tn .me { stroke:var(--wi-ink-soft); stroke-width:.9; }
+  .tn .me.hot { stroke:var(--wi-active); stroke-width:2.2; }
+  .tn .mv { fill:var(--wi-ink-soft); }
+  .tn .mv.hot { fill:var(--wi-active); }
+  .tn .mv.nbr { fill:var(--wi-examine); }
+  .tn .sep { stroke:var(--wi-border-soft); stroke-width:1; }
+  .tn .np { font-family:var(--wi-font-body); font-weight:bold; fill:var(--wi-active); }
+  .te { stroke:var(--wi-border); stroke-width:1.6; fill:none; vector-effect:non-scaling-stroke; }
+  .tn rect.box, .tskip rect { vector-effect:non-scaling-stroke; }
+  .te.path { stroke:var(--wi-accent-soft); stroke-width:2.4; }
+  .te.win { stroke:var(--wi-relax); stroke-width:3.4; }
+  .te.skip { stroke:var(--wi-inert); stroke-dasharray:4 4; }
+  .tskip rect { fill:none; stroke:var(--wi-inert); stroke-dasharray:4 3; }
+  .tfallback { font-family:var(--wi-font-body); font-style:italic; fill:var(--wi-ink-strong); }
+
+  .mobile-note { display:none; background:var(--wi-controls); border:1px solid var(--wi-accent-soft);
+                 border-radius:var(--wi-radius-lg); padding:11px 15px; font-size:.82rem; color:var(--wi-ink-strong); margin-bottom:14px; }
+  @media (max-width:980px) {
+    .lowrow { grid-template-columns:minmax(0,1fr); }
+  }
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls { gap:8px 12px; padding:10px 12px; }
+    .ctl { flex-wrap:wrap; min-width:0; }
+    .seg button { padding:5px 7px; font-size:.7rem; }
+    .transport { padding:10px 12px 12px; }
+    .sim-box { padding:10px 10px; }
+    .mainrow { flex-direction:column; height:auto; }
+    #graphPane { flex:none; height:340px; }
+    #treePane { flex:none; height:420px; margin-top:12px; }
+    .vsplit, .hsplit { display:none; }
+    .lowrow { margin-top:14px; }
+    .editor-body { grid-template-columns:1fr; }
+    .mobile-note { display:block; }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    * { animation-duration:.001ms !important; transition-duration:.001ms !important; }
+  }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title { font-family: var(--wi-font-head); letter-spacing: .05em; }
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1>Vertex Cover &nbsp;·&nbsp; the bounded search tree, step by step</h1>
+</div>
+
+<p class="subtitle">
+  Every edge needs one of its endpoints in the cover, so we can <b>branch</b> on which one, and every branch
+  spends budget: the parameter <span class="mt">$k$</span> drops in each recursive call, and the search stops at
+  <span class="mt">$k = 0$</span>. The tree on the right is that search; its size depends only on
+  <span class="mt">$k$</span>, not on the size of the graph. <b>simpleFptVertexCover</b> branches on an edge
+  (branching vector <span class="mt">$(1,1)$</span>, at most <span class="mt">$2^k$</span> leaves);
+  <b>betterFptVertexCover</b> branches on a vertex <span class="mt">$v$</span> of maximal degree versus all of
+  its neighbours (<span class="mt">$(1,d)$</span> with <span class="mt">$d \ge 3$</span>) and solves graphs of
+  maximal degree 2 directly. Click a node of the tree to jump there.
+</p>
+
+<div class="mobile-note">
+  <b>Small screen:</b> the graph and the tree are stacked. Drag a vertex to move it; drag the tree to pan it. The pseudocode scrolls sideways.
+</div>
+
+<div class="controls">
+  <div class="ctl">
+    <label for="presetSel">Example</label>
+    <select id="presetSel"></select>
+  </div>
+  <div class="ctl">
+    <span class="lbl">Algorithm</span>
+    <span class="seg" id="algSeg">
+      <button id="algSimple" class="on">simpleFptVertexCover</button>
+      <button id="algBetter">betterFptVertexCover</button>
+    </span>
+  </div>
+  <div class="ctl">
+    <label for="kIn">Parameter <span class="mt">$k$</span></label>
+    <input type="number" id="kIn" min="0" max="14" value="3">
+  </div>
+  <div class="ctl">
+    <span class="lbl">Detail</span>
+    <span class="seg">
+      <button id="detFine" class="on">Every line</button>
+      <button id="detCoarse">One step per call</button>
+    </span>
+  </div>
+</div>
+
+<div class="transport">
+  <div class="transport-row">
+    <span class="ctl" style="gap:6px">
+      <button id="resetBtn" class="icon" title="Back to the first step  (Home)" aria-label="Back to the first step">&#x21BA;</button>
+      <button id="backBtn" class="icon" title="One step back  (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+      <button id="stepBtn" class="icon pri" title="One step forward  (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+      <button id="playBtn" class="icon" title="Play / pause  (space)" aria-label="Play">&#x25B6;&#xFE0E;</button>
+    </span>
+    <span class="progress">
+      <input type="range" id="scrubber" min="0" max="100000" step="1" value="0" aria-label="Step">
+      <div class="phasebar" id="phaseBar"></div>
+    </span>
+    <span class="stepno" id="stepNo">— / —</span>
+    <span class="ctl" style="gap:6px">
+      <span class="lbl">Delay</span>
+      <input type="range" id="speed" min="60" max="1600" value="500" style="width:88px;accent-color:var(--wi-accent)">
+      <span class="stepno" id="speedVal" style="width:3.6em">500ms</span>
+    </span>
+  </div>
+</div>
+
+<div class="mainrow" id="mainRow">
+  <div class="pane sim-box" id="graphPane">
+    <div class="sim-title"><span>Graph of the current call</span><span class="rhs" id="graphMeta"></span></div>
+    <div class="svgwrap" id="graphWrap"><svg id="graphSvg"></svg></div>
+    <div class="legend">
+      <span class="item"><span class="sw" style="background:var(--wi-accent);border-color:var(--wi-accent-dark)"></span> in the cover on this branch (removed)</span>
+      <span class="item"><span class="swl"></span> branching on</span>
+      <span class="item"><span class="sw" style="background:#f6ecd6;border-color:var(--wi-examine)"></span> neighbours <span class="mt">$w_1,\ldots,w_d$</span></span>
+      <span class="item"><span class="sw" style="border-color:var(--wi-relax);border-width:2.5px"></span> returned cover</span>
+      <span class="item" style="margin-left:auto;color:var(--wi-ink-faint)">drag vertices to rearrange</span>
+      <span class="item" id="lgPick"><span class="sw" style="background:#d5e7e3;border-color:var(--wi-queue)"></span> picked in the base case</span>
+    </div>
+  </div>
+  <div class="vsplit" id="vsplit" title="Drag to resize; double-click to reset"></div>
+  <div class="pane sim-box" id="treePane">
+    <div class="sim-title"><span>Search tree</span>
+      <span class="rhs">
+        <label class="chk"><input type="checkbox" id="miniChk" checked> graphs in nodes</label>
+        <label class="chk"><input type="checkbox" id="followChk" checked> follow</label>
+        <button class="small" id="fitBtn" title="Show the whole tree">Fit</button>
+        <button class="small" id="oneBtn" title="Natural size">1:1</button>
+      </span>
+    </div>
+    <div class="svgwrap" id="treeWrap"><svg id="treeSvg"></svg></div>
+    <div class="legend">
+      <span class="item"><span class="swr" style="border-color:var(--wi-active);border-width:2.5px"></span> current call</span>
+      <span class="item"><span class="swr" style="background:#eef4ea;border-color:var(--wi-relax)"></span> <span class="mt">$E = \emptyset$</span>: return <span class="mt">$\emptyset$</span></span>
+      <span class="item"><span class="swr" style="background:#f7e4de;border-color:var(--wi-active)"></span> <span class="mt">$k = 0$</span>, edges left: truncated</span>
+      <span class="item" id="lgBase"><span class="swr" style="background:#e3efec;border-color:var(--wi-queue)"></span> degree <span class="mt">$\le 2$</span>: solved directly</span>
+      <span class="item"><span class="swl" style="border-color:var(--wi-relax)"></span> smaller cover chosen</span>
+    </div>
+  </div>
+</div>
+<div class="hsplit" id="hsplit" title="Drag to resize; double-click to reset"></div>
+
+<div class="lowrow">
+  <div class="col-side">
+    <div class="sim-box">
+      <div class="sim-title"><span>What just happened</span><span class="rhs" id="phaseName"></span></div>
+      <div class="status" id="statusBox"></div>
+    </div>
+    <div class="sim-box">
+      <div class="sim-title"><span>Variables of the current call</span><span class="rhs" id="depthMeta"></span></div>
+      <div class="vars" id="varsBox"></div>
+    </div>
+    <div class="sim-box">
+      <div class="sim-title"><span>Size of the search tree</span></div>
+      <div id="countBox"></div>
+    </div>
+  </div>
+  <details class="code" id="codeBox" open>
+    <summary>Pseudocode</summary>
+    <div class="codewrap"><div class="codebody" id="codeBody"></div></div>
+    <div class="codenote" id="codeNote"></div>
+  </details>
+</div>
+
+<details class="editor" id="editor">
+  <summary>Input</summary>
+  <div class="editor-body">
+    <div>
+      <textarea id="inputText" spellcheck="false"></textarea>
+      <div style="margin-top:8px;display:flex;gap:8px"><button class="pri" id="loadBtn">Load</button></div>
+      <div class="err" id="parseErr"></div>
+    </div>
+    <div class="hint">
+      The <a href="https://algs4.cs.princeton.edu/41graph/">algs4</a> graph format, as written by the graph editor:
+      the number of vertices <i>V</i>, the number of edges <i>E</i>, then <i>E</i> lines <code>v w</code>
+      (vertices are <code>0</code>…<code>V−1</code>; anything after the two endpoints, such as a weight, is ignored).
+      Optionally <i>V</i> more lines <code>x y</code> give the drawing: any scale, <i>y</i> pointing down, the
+      picture keeps its aspect ratio. Without them the graph is laid out automatically.
+      <br><br>
+      A line <code>k 5</code> (or <code>k = 5</code>) anywhere sets the parameter; lines starting with
+      <code>#</code> are comments. Parallel edges are merged, self-loops are refused.
+      <br><br>
+      The tree is computed in full before it is shown, so very large instances are refused:
+      at most 60 vertices and 4000 recursive calls.
+    </div>
+  </div>
+</details>
+
+<div class="tooltip" id="tooltip"></div>
+<div id="texHost" aria-hidden="true" style="position:absolute;left:-9999px;top:0;visibility:hidden;font-size:19px;font-family:var(--wi-font-body)"></div>
+<script>
+const PRESETS = [
+  { key: "haus", name: "Haus vom Nikolaus (k = 3)", text: "# Haus vom Nikolaus (graphs/haus.txt without weights)\nk 3\n5\n8\n0 1\n1 2\n2 3\n3 0\n4 0\n4 3\n3 1\n0 2\n0.200 0.420\n0.200 1.000\n0.780 1.000\n0.780 0.420\n0.490 0.050\n" },
+  { key: "petersen", name: "Petersen graph (k = 6)", text: "# Petersen graph: 3-regular, minimum vertex cover 6\nk 6\n10\n15\n0 1\n0 4\n0 5\n1 2\n1 6\n2 3\n2 7\n3 4\n3 8\n4 9\n5 7\n5 8\n6 8\n6 9\n7 9\n0.500 0.050\n0.950 0.377\n0.778 0.906\n0.222 0.906\n0.050 0.377\n0.500 0.296\n0.716 0.453\n0.633 0.707\n0.367 0.707\n0.284 0.453\n" },
+  { key: "random", name: "Random sparse graph, 15 vertices (k = 7)", text: "# random sparse planar graph; minimum vertex cover has size 7\nk 7\n15\n18\n0 2\n0 4\n1 6\n2 6\n2 8\n3 9\n4 5\n4 14\n5 6\n5 7\n5 10\n5 11\n7 8\n8 9\n9 12\n10 14\n12 13\n13 14\n0.216 0.050\n0.348 0.145\n0.681 0.159\n0.904 0.134\n0.050 0.498\n0.267 0.470\n0.359 0.328\n0.511 0.445\n0.674 0.408\n0.950 0.435\n0.121 0.691\n0.295 0.706\n0.629 0.591\n0.658 0.764\n0.063 0.925\n" },
+  { key: "lollipop", name: "Lollipop Flower G₅ (k = 5)", text: "# Lollipop Flower G_5: head 16, star centres 17-19 with 3 leaves each, tail path 0-15 (tail numbered first)\nk 5\n29\n28\n0 1\n1 2\n2 3\n3 4\n4 5\n5 6\n6 7\n7 8\n8 9\n9 10\n10 11\n11 12\n12 13\n13 14\n14 15\n15 16\n16 17\n16 18\n16 19\n17 20\n17 21\n17 22\n18 23\n18 24\n18 25\n19 26\n19 27\n19 28\n0.950 0.282\n0.913 0.170\n0.876 0.282\n0.838 0.170\n0.801 0.282\n0.764 0.170\n0.727 0.282\n0.689 0.170\n0.652 0.282\n0.615 0.170\n0.578 0.282\n0.540 0.170\n0.503 0.282\n0.466 0.170\n0.429 0.282\n0.391 0.170\n0.224 0.213\n0.188 0.114\n0.118 0.213\n0.188 0.312\n0.222 0.055\n0.164 0.050\n0.124 0.091\n0.074 0.161\n0.050 0.213\n0.074 0.266\n0.124 0.336\n0.164 0.377\n0.222 0.372\n" },
+  { key: "grid", name: "3 × 4 grid (k = 6)", text: "# 3 x 4 grid; minimum vertex cover 6\nk 6\n12\n17\n0 1\n0 4\n1 2\n1 5\n2 3\n2 6\n3 7\n4 5\n4 8\n5 6\n5 9\n6 7\n6 10\n7 11\n8 9\n9 10\n10 11\n0.050 0.050\n0.350 0.050\n0.650 0.050\n0.950 0.050\n0.050 0.350\n0.350 0.350\n0.650 0.350\n0.950 0.350\n0.050 0.650\n0.350 0.650\n0.650 0.650\n0.950 0.650\n" },
+  { key: "paths", name: "Paths and cycles only (k = 6)", text: "# maximum degree 2: betterFptVertexCover solves this directly; minimum vertex cover 6\nk 6\n13\n11\n0 1\n0 4\n1 2\n2 3\n3 4\n5 6\n6 7\n7 8\n8 9\n10 11\n11 12\n0.194 0.050\n0.338 0.154\n0.283 0.324\n0.105 0.324\n0.050 0.154\n0.446 0.113\n0.572 0.151\n0.698 0.113\n0.824 0.151\n0.950 0.113\n0.509 0.289\n0.635 0.327\n0.761 0.289\n" },
+  { key: "oversize", name: "Large neighbourhood: |D| > k (k = 2)", text: "# v = 0 with N(v) = {1,2,3}; five more vertices adjacent to all of 1,2,3. Minimum vertex cover 3, so k = 2 is a No-instance\nk 2\n9\n18\n0 1\n0 2\n0 3\n1 4\n1 5\n1 6\n1 7\n1 8\n2 4\n2 5\n2 6\n2 7\n2 8\n3 4\n3 5\n3 6\n3 7\n3 8\n0.050 0.396\n0.465 0.119\n0.465 0.396\n0.465 0.673\n0.950 0.050\n0.950 0.119\n0.950 0.188\n0.950 0.258\n0.950 0.327\n" },
+];
+"use strict";
+const el = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const NP = "NOT_POSSIBLE";
+const LSKEY = "vc-search-tree:";
+
+/* ======================================================================
+   Math: MathJax 2 (SVG output, Neo-Euler) renders every TeX snippet once
+   into a hidden host; the resulting <svg> is cached and reused, inline in
+   HTML ($...$ markup) and nested inside the drawings. Until MathJax is
+   ready, a plain-text fallback is shown and the page re-renders when the
+   cache fills.
+   ====================================================================== */
+const TEX = new Map();
+const texPending = new Set();
+let texBusy = false;
+function texReady() { return !!(window.MathJax && MathJax.isReady && MathJax.Hub); }
+function texReq(t) {
+  if (TEX.has(t) || texPending.has(t)) return;
+  texPending.add(t); setTimeout(kickTex, 0);
+}
+function kickTex() {
+  if (texBusy || !texPending.size || !texReady()) return;
+  texBusy = true;
+  const batch = [...texPending]; texPending.clear();
+  const host = el("texHost"); host.innerHTML = "";
+  const spans = batch.map(t => {
+    const s = document.createElement("span"); s.textContent = "\\(" + t + "\\)";
+    host.appendChild(s); host.appendChild(document.createTextNode(" ")); return s;
+  });
+  MathJax.Hub.Queue(["Typeset", MathJax.Hub, host], () => {
+    batch.forEach((t, i) => {
+      const svg = spans[i].querySelector("svg");
+      if (!svg || !svg.getAttribute("viewBox")) { TEX.set(t, false); return; }
+      const vb = svg.getAttribute("viewBox").trim().split(/[\s,]+/).map(Number);
+      TEX.set(t, { html: svg.outerHTML, vb });
+    });
+    host.innerHTML = "";
+    texBusy = false;
+    scheduleRender();
+    if (texPending.size) kickTex();
+  });
+}
+(function pollTex() { if (texReady()) kickTex(); else setTimeout(pollTex, 120); })();
+
+const FALLBACK = [[/\\emptyset/g, "∅"], [/\\le(q)?/g, "≤"], [/\\ge(q)?/g, "≥"], [/\\cup/g, "∪"], [/\\bigcup/g, "∪"],
+  [/\\in/g, "∈"], [/\\setminus/g, "∖"], [/\\gets/g, "←"], [/\\ne(q)?/g, "≠"], [/\\ldots/g, "…"],
+  [/\\approx/g, "≈"], [/\\cdot/g, "·"], [/\\bigl|\\bigr|\\left|\\right/g, ""], [/\\mathrel\{(.*?)\}/g, "$1"],
+  [/\\[{}]/g, m => m[1]], [/\\,|\\;|\\!/g, " "], [/[{}]/g, ""], [/\\([a-zA-Z]+)/g, "$1"]];
+function texFallback(t) { let s = t; for (const [a, b] of FALLBACK) s = s.replace(a, b); return s; }
+
+/* $...$ in a string -> cached inline svg, or the fallback */
+function mh(s) {
+  return String(s).replace(/\$([^$]+)\$/g, (m, t) => {
+    const c = TEX.get(t);
+    if (c) return '<span class="mj">' + c.html + "</span>";
+    texReq(t);
+    return '<i class="mjf">' + escapeHtml(texFallback(t)) + "</i>";
+  });
+}
+function escapeHtml(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+/* TeX inside a drawing: (x, y) is the baseline point, size the em size in px */
+function svgTex(parent, t, x, y, size, anchor = "middle", color = null) {
+  const c = TEX.get(t);
+  const g = document.createElementNS(NS, "g");
+  if (color) g.style.color = color;
+  if (c) {
+    g.innerHTML = c.html;
+    const s = g.firstElementChild;
+    const [mx, my, w, h] = c.vb;
+    const W = w / 1000 * size, H = h / 1000 * size;
+    const left = anchor === "middle" ? x - W / 2 : anchor === "end" ? x - W : x;
+    s.removeAttribute("style");
+    s.setAttribute("x", left); s.setAttribute("y", y + my / 1000 * size);
+    s.setAttribute("width", W); s.setAttribute("height", H);
+    s.setAttribute("overflow", "visible");
+    g._w = W;
+  } else {
+    texReq(t);
+    const tx = document.createElementNS(NS, "text");
+    tx.setAttribute("x", x); tx.setAttribute("y", y); tx.setAttribute("class", "tfallback");
+    tx.setAttribute("font-size", size); tx.setAttribute("text-anchor", anchor);
+    if (color) tx.setAttribute("fill", color);
+    tx.textContent = texFallback(t);
+    g.appendChild(tx);
+    g._w = texFallback(t).length * size * 0.5;
+  }
+  parent.appendChild(g);
+  return g;
+}
+
+const setTex = a => a === NP ? NP : (a.length ? "\\{" + a.slice().sort((x, y) => x - y).join(",") + "\\}" : "\\emptyset");
+const setM = a => a === NP ? '<span class="tt">NOT_POSSIBLE</span>' : "$" + setTex(a) + "$";
+
+/* ======================================================================
+   Input: algs4 Graph format (+ optional coordinates, + "k <value>")
+   ====================================================================== */
+function parseInput(text) {
+  const raw = text.split(/\r?\n/).map(l => l.replace(/#.*$/, "").trim()).filter(l => l.length);
+  let k = null; const lines = [];
+  for (const l of raw) {
+    const m = l.match(/^k\s*(?:=|:)?\s*(-?\d+)$/i);
+    if (m) k = parseInt(m[1], 10); else lines.push(l);
+  }
+  if (lines.length < 2) throw new Error("Expected the number of vertices and the number of edges.");
+  const n = parseInt(lines[0], 10), m = parseInt(lines[1], 10);
+  if (!(n >= 1)) throw new Error("The first line must be the number of vertices (at least 1).");
+  if (n > 60) throw new Error("At most 60 vertices, please; the search tree would be unreadable anyway.");
+  if (!(m >= 0)) throw new Error("The second line must be the number of edges.");
+  if (lines.length < 2 + m) throw new Error(`Expected ${m} edge lines, found ${lines.length - 2}.`);
+  const seen = new Set(), edges = [];
+  for (let i = 0; i < m; i++) {
+    const t = lines[2 + i].split(/[\s,]+/).map(Number);
+    const [a, b] = t;
+    if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0 || a >= n || b >= n)
+      throw new Error(`Edge line ${i + 1} ("${lines[2 + i]}") must name two vertices in 0…${n - 1}.`);
+    if (a === b) throw new Error(`Self-loop at vertex ${a}: not allowed.`);
+    const u = Math.min(a, b), v = Math.max(a, b), key = u + "," + v;
+    if (!seen.has(key)) { seen.add(key); edges.push([u, v]); }
+  }
+  edges.sort((e, f) => e[0] - f[0] || e[1] - f[1]);
+  let pos = null;
+  const rest = lines.slice(2 + m);
+  if (rest.length) {
+    if (rest.length < n) throw new Error(`Expected ${n} coordinate lines "x y", found ${rest.length}.`);
+    pos = rest.slice(0, n).map((l, i) => {
+      const t = l.split(/[\s,]+/).map(Number);
+      if (t.length < 2 || !isFinite(t[0]) || !isFinite(t[1])) throw new Error(`Coordinate line ${i + 1} must be "x y".`);
+      return { x: t[0], y: t[1] };
+    });
+  }
+  return { n, edges, pos: pos || forceLayout(n, edges), k };
+}
+
+function forceLayout(n, edges) {
+  let rnd = 12345; const R = () => (rnd = (rnd * 16807) % 2147483647) / 2147483647;
+  const p = Array.from({ length: n }, (_, i) => ({ x: Math.cos(2 * Math.PI * i / n) + (R() - .5) * .02,
+                                                   y: Math.sin(2 * Math.PI * i / n) + (R() - .5) * .02 }));
+  const K = Math.sqrt(4 / n); let temp = 0.2;
+  for (let it = 0; it < 600; it++) {
+    const d = p.map(() => ({ x: 0, y: 0 }));
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const dx = p[i].x - p[j].x, dy = p[i].y - p[j].y, r = Math.hypot(dx, dy) || 1e-4, f = K * K / r;
+      d[i].x += dx / r * f; d[i].y += dy / r * f; d[j].x -= dx / r * f; d[j].y -= dy / r * f;
+    }
+    for (const [a, b] of edges) {
+      const dx = p[a].x - p[b].x, dy = p[a].y - p[b].y, r = Math.hypot(dx, dy) || 1e-4, f = r * r / K;
+      d[a].x -= dx / r * f; d[a].y -= dy / r * f; d[b].x += dx / r * f; d[b].y += dy / r * f;
+    }
+    for (let i = 0; i < n; i++) {
+      const r = Math.hypot(d[i].x, d[i].y) || 1e-4, l = Math.min(r, temp);
+      p[i].x += d[i].x / r * l; p[i].y += d[i].y / r * l;
+    }
+    temp *= 0.99;
+  }
+  return p;
+}
+
+/* ======================================================================
+   The algorithms. Both run to completion first and record
+     nodes: one per recursive call (the search tree)
+     steps: one per highlighted pseudocode line(s)
+   "Arbitrary" choices are made by lowest vertex number.
+   ====================================================================== */
+const MAX_CALLS = 4000;
+
+function liveEdges(G, alive) { return G.edges.filter(([a, b]) => alive[a] && alive[b]); }
+function degrees(G, alive) {
+  const d = new Array(G.n).fill(0);
+  for (const [a, b] of liveEdges(G, alive)) { d[a]++; d[b]++; }
+  return d;
+}
+const sorted = a => a.slice().sort((x, y) => x - y);
+
+function run(G, K, alg) {
+  const nodes = [], steps = [];
+  const S = o => { steps.push(o); return steps.length - 1; };
+
+  function newNode(parent, alive, k, D) {
+    if (nodes.length >= MAX_CALLS) throw new Error(`The search tree has more than ${MAX_CALLS} calls; choose a smaller k or graph.`);
+    const id = nodes.length;
+    const P = parent < 0 ? null : nodes[parent];
+    const nd = { id, parent, depth: P ? P.depth + 1 : 0, k, alive, D, branches: [], vars: [],
+                 cov: P ? P.cov.concat(D) : [], m: liveEdges(G, alive).length,
+                 nAlive: alive.reduce((s, x) => s + x, 0) };
+    nodes.push(nd);
+    if (P) P.branches.push({ type: "call", id, D });
+    return nd;
+  }
+  const vset = (nd, key, tex, val, step) => nd.vars.push({ key, tex, val, step });
+
+  function simple(parent, alive, k, D) {
+    const nd = newNode(parent, alive, k, D), id = nd.id;
+    const tag = String.raw`$k = ${k}$`;
+    nd.enter = S({ node: id, lines: ["s1"], kind: "enter", coarse: parent < 0,
+      msg: parent < 0 ? String.raw`Initial call with ${tag}: the whole graph, ${nd.m} edges.`
+                      : String.raw`Recursive call with ${tag}: ${nd.nAlive} vertices and ${nd.m} edges remain.` });
+    vset(nd, "k", "k", String.raw`$${k}$`, nd.enter);
+    if (nd.m === 0) {
+      nd.ret = []; nd.leaf = "empty";
+      nd.retStep = S({ node: id, lines: ["s2"], kind: "ret", coarse: true,
+        msg: String.raw`$E = \emptyset$: every edge is covered already. Return $\emptyset$.` });
+      return nd.ret;
+    }
+    if (k === 0) {
+      nd.ret = NP; nd.leaf = "trunc";
+      nd.retStep = S({ node: id, lines: ["s3"], kind: "ret", coarse: true,
+        msg: String.raw`$k = 0$, but ${nd.m} edge${nd.m > 1 ? "s are" : " is"} left: the budget is used up. Truncate the search and return <span class="tt">NOT_POSSIBLE</span>.` });
+      return nd.ret;
+    }
+    const [v, w] = liveEdges(G, alive)[0];
+    nd.choice = { type: "edge", v, w }; nd.vec = [1, 1];
+    nd.choose = S({ node: id, lines: ["s4"], kind: "choose", coarse: true,
+      msg: String.raw`$E \ne \emptyset$ and $k = ${k} > 0$. Branch on the edge $\{v,w\} = \{${v},${w}\}$ (the lowest-numbered edge): every cover contains $${v}$ or $${w}$.` });
+    vset(nd, "vw", String.raw`\{v,w\}`, String.raw`$\{${v},${w}\}$`, nd.choose);
+    const C = {};
+    for (const u of [v, w]) {
+      const a2 = alive.slice(); a2[u] = 0;
+      const deg = degrees(G, alive)[u];
+      S({ node: id, lines: ["s5", "s6"], kind: "remove", D: [u],
+        msg: String.raw`$u = ${u}$: take $${u}$ into the cover, i.e. remove it and its ${deg} edge${deg > 1 ? "s" : ""}; this gives $G_{${u}}$.` });
+      const r = simple(id, a2, k - 1, [u]);
+      const child = nd.branches[nd.branches.length - 1].id;
+      C[u] = r;
+      const st = S({ node: id, lines: ["s7"], kind: "got", child, D: [u], val: r,
+        msg: String.raw`The call on $G_{${u}}$ with $k = ${k - 1}$ returned: $C_{${u === v ? "v" : "w"}} = $ ${setM(r)}.` });
+      vset(nd, u === v ? "Cv" : "Cw", u === v ? "C_v" : "C_w", setM(r), st);
+    }
+    let ret, line, win = null, why;
+    if (C[v] === NP) {
+      line = "s8";
+      if (C[w] === NP) { ret = NP; why = String.raw`Both branches failed: $C_v$ is <span class="tt">NOT_POSSIBLE</span>, and $C_w \cup \{w\}$ is <span class="tt">NOT_POSSIBLE</span> as well. No cover of size $\le ${k}$ here.`; }
+      else { ret = sorted(C[w].concat([w])); win = 1; why = String.raw`$C_v$ is <span class="tt">NOT_POSSIBLE</span>, so return $C_w \cup \{w\} = ${setTex(ret)}$.`; }
+    } else if (C[w] === NP) {
+      line = "s9"; ret = sorted(C[v].concat([v])); win = 0;
+      why = String.raw`$C_w$ is <span class="tt">NOT_POSSIBLE</span>, so return $C_v \cup \{v\} = ${setTex(ret)}$.`;
+    } else if (C[v].length <= C[w].length) {
+      line = "s10"; ret = sorted(C[v].concat([v])); win = 0;
+      why = String.raw`Both branches succeeded and $|C_v| = ${C[v].length} \le ${C[w].length} = |C_w|$: return $C_v \cup \{v\} = ${setTex(ret)}$.`;
+    } else {
+      line = "s10"; ret = sorted(C[w].concat([w])); win = 1;
+      why = String.raw`Both branches succeeded and $|C_v| = ${C[v].length} > ${C[w].length} = |C_w|$: return $C_w \cup \{w\} = ${setTex(ret)}$.`;
+    }
+    nd.ret = ret; nd.win = win;
+    nd.retStep = S({ node: id, lines: [line], kind: "ret", coarse: true, msg: why });
+    return ret;
+  }
+
+  function baseCase(nd, alive, k) {
+    const id = nd.id, adj = Array.from({ length: G.n }, () => []);
+    for (const [a, b] of liveEdges(G, alive)) { adj[a].push(b); adj[b].push(a); }
+    adj.forEach(l => l.sort((x, y) => x - y));
+    const seen = new Array(G.n).fill(false), comps = [];
+    for (let s = 0; s < G.n; s++) {
+      if (!alive[s] || seen[s]) continue;
+      const comp = [], st = [s]; seen[s] = true;
+      while (st.length) { const x = st.pop(); comp.push(x); for (const y of adj[x]) if (!seen[y]) { seen[y] = true; st.push(y); } }
+      comps.push(sorted(comp));
+    }
+    nd.leaf = "base";
+    const withEdges = comps.filter(c => c.length > 1), isolated = comps.length - withEdges.length;
+    nd.base = { comps: [], picks: [] };
+    S({ node: id, lines: ["b4", "b5"], kind: "base", comp: -1, picks: [],
+      msg: String.raw`Every vertex has degree $\le 2$, so the graph is a disjoint union of paths and cycles: ${withEdges.length} component${withEdges.length === 1 ? "" : "s"} with edges` +
+           (isolated ? `, plus ${isolated} isolated vertex${isolated > 1 ? "es" : ""} (no edges, nothing to pick)` : "") + "." });
+    const picks = [];
+    withEdges.forEach((c, ci) => {
+      const ones = c.filter(x => adj[x].length === 1);
+      let seq = [], pick = [], kind;
+      if (ones.length) {
+        kind = "path"; let prev = -1, cur = ones[0];
+        while (cur !== undefined) { seq.push(cur); const nx = adj[cur].find(y => y !== prev); prev = cur; cur = nx; }
+        pick = seq.filter((_, i) => i % 2 === 1);
+      } else {
+        kind = "cycle"; let prev = -1, cur = c[0];
+        for (;;) {   // first step towards the smaller neighbour, then onwards
+          seq.push(cur);
+          const nx = adj[cur][0] !== prev ? adj[cur][0] : adj[cur][1];
+          prev = cur; cur = nx;
+          if (cur === c[0] || seq.length > c.length) break;
+        }
+        pick = seq.filter((_, i) => i % 2 === 0);
+      }
+      picks.push(...pick);
+      nd.base.comps.push({ verts: c, seq, pick, kind });
+      const desc = kind === "path"
+        ? String.raw`a path with ${c.length} vertices; start at the neighbour $${seq[1]}$ of the degree-one vertex $${seq[0]}$`
+        : String.raw`a cycle with ${c.length} vertices and no degree-one vertex; start at $${seq[0]}$`;
+      S({ node: id, lines: ["b6", "b7", "b8"], kind: "fill", comp: ci, picks: picks.slice(),
+        msg: String.raw`Component $G_{${ci + 1}}$ is ${desc} and pick every other vertex: $C_{${ci + 1}} = ${setTex(pick)}$.` });
+    });
+    const C = sorted(picks);
+    nd.base.picks = C;
+    S({ node: id, lines: ["b9"], kind: "union", comp: -2, picks: C,
+      msg: String.raw`$C = \bigcup C_i = ${setTex(C)}$, so $|C| = ${C.length}$ (a minimum cover of these paths and cycles).` });
+    vset(nd, "C", "C", setM(C), steps.length - 1);
+    const ok = C.length <= k;
+    nd.ret = ok ? C : NP;
+    nd.retStep = S({ node: id, lines: ["b10"], kind: "ret", coarse: true, picks: C,
+      msg: ok ? String.raw`$|C| = ${C.length} \le k = ${k}$: return $C$.`
+              : String.raw`$|C| = ${C.length} > k = ${k}$: return <span class="tt">NOT_POSSIBLE</span>.` });
+    return nd.ret;
+  }
+
+  function better(parent, alive, k, D) {
+    const nd = newNode(parent, alive, k, D), id = nd.id;
+    const tag = String.raw`$k = ${k}$`;
+    nd.enter = S({ node: id, lines: ["b1"], kind: "enter", coarse: parent < 0,
+      msg: parent < 0 ? String.raw`Initial call with ${tag}: the whole graph, ${nd.m} edges.`
+                      : String.raw`Recursive call with ${tag}: ${nd.nAlive} vertices and ${nd.m} edges remain.` });
+    vset(nd, "k", "k", String.raw`$${k}$`, nd.enter);
+    if (nd.m === 0) {
+      nd.ret = []; nd.leaf = "empty";
+      nd.retStep = S({ node: id, lines: ["b2"], kind: "ret", coarse: true,
+        msg: String.raw`$E = \emptyset$: every edge is covered already. Return $\emptyset$.` });
+      return nd.ret;
+    }
+    if (k <= 0) {
+      nd.ret = NP; nd.leaf = "trunc";
+      nd.retStep = S({ node: id, lines: ["b3"], kind: "ret", coarse: true,
+        msg: String.raw`$k = ${k} \le 0$, but ${nd.m} edge${nd.m > 1 ? "s are" : " is"} left: truncate the search and return <span class="tt">NOT_POSSIBLE</span>.` });
+      return nd.ret;
+    }
+    const deg = degrees(G, alive);
+    const maxd = Math.max(...deg.filter((_, i) => alive[i]));
+    if (maxd <= 2) return baseCase(nd, alive, k);
+    const v = deg.findIndex((d, i) => alive[i] && d === maxd);
+    const N = sorted(liveEdges(G, alive).filter(e => e[0] === v || e[1] === v).map(e => e[0] === v ? e[1] : e[0]));
+    nd.choice = { type: "vertex", v, N }; nd.vec = [1, N.length];
+    nd.choose = S({ node: id, lines: ["b4", "b11"], kind: "choose", coarse: true,
+      msg: String.raw`Some vertex has degree $> 2$. Choose $v = ${v}$ of maximal degree $d = ${N.length}$ (lowest number among ties), with neighbours $${N.join(",")}$. Every cover contains $v$ or all of its neighbours: branching vector $(1,${N.length})$.` });
+    vset(nd, "v", "v", String.raw`$${v}$`, nd.choose);
+    vset(nd, "N", String.raw`w_1,\ldots,w_d`, String.raw`$${N.join(",")}$`, nd.choose);
+    const found = [];
+    [[v], N].forEach((Dset, bi) => {
+      const name = bi === 0 ? String.raw`\{v\}` : String.raw`N(v)`;
+      if (Dset.length > k) {
+        const st = S({ node: id, lines: ["b12"], kind: "skip", D: Dset,
+          msg: String.raw`$D = ${setTex(Dset)}$ has $|D| = ${Dset.length} > k = ${k}$: this branch cannot lead to a cover of size $\le ${k}$ and is skipped.` });
+        nd.branches.push({ type: "skip", D: Dset, step: st });
+        vset(nd, "C" + bi, bi === 0 ? String.raw`C_{\{v\}}` : String.raw`C_{N(v)}`, '<span class="tt">skipped</span>', st);
+        return;
+      }
+      const a2 = alive.slice(); for (const x of Dset) a2[x] = 0;
+      S({ node: id, lines: ["b12", "b13"], kind: "remove", D: Dset,
+        msg: String.raw`$D = ${setTex(Dset)}$ ($|D| = ${Dset.length} \le k$): take ${Dset.length > 1 ? "all of $D$" : "$D$"} into the cover, i.e. remove ${Dset.length > 1 ? "them" : "it"} from $G$; recurse with $k - |D| = ${k - Dset.length}$.` });
+      const r = better(id, a2, k - Dset.length, Dset);
+      const child = nd.branches[nd.branches.length - 1].id;
+      let msg, val;
+      if (r === NP) { msg = String.raw`The call returned $C'_D = $ <span class="tt">NOT_POSSIBLE</span>: no $C_D$ for $D = ${setTex(Dset)}$.`; val = NP; }
+      else { val = sorted(Dset.concat(r)); found.push({ bi, val });
+             msg = String.raw`The call returned $C'_D = ${setTex(r)}$, so $C_D = D \cup C'_D = ${setTex(val)}$, of size ${val.length}.`; }
+      const st = S({ node: id, lines: ["b14", "b15"], kind: "got", child, D: Dset, val: r, msg });
+      vset(nd, "C" + bi, bi === 0 ? String.raw`C_{\{v\}}` : String.raw`C_{N(v)}`, setM(val), st);
+    });
+    let ret = NP, win = null, msg;
+    if (!found.length) msg = String.raw`No $C_D$ was found: return <span class="tt">NOT_POSSIBLE</span>.`;
+    else {
+      let best = found[0]; for (const f of found) if (f.val.length < best.val.length) best = f;
+      ret = best.val; win = best.bi;
+      msg = found.length === 2
+        ? String.raw`Both branches found a cover; the smaller one is $C_{${best.bi === 0 ? String.raw`\{v\}` : "N(v)"}} = ${setTex(ret)}$` + (found[0].val.length === found[1].val.length ? " (a tie: the first one found)." : ".")
+        : String.raw`Only one branch found a cover: return $${setTex(ret)}$.`;
+    }
+    nd.ret = ret; nd.win = win;
+    nd.retStep = S({ node: id, lines: ["b16"], kind: "ret", coarse: true, msg });
+    return ret;
+  }
+
+  const all = new Array(G.n).fill(1);
+  const res = (alg === "better" ? better : simple)(-1, all, K, []);
+  // a last frame with only the output, on the original graph
+  S({ node: 0, lines: [], kind: "output", coarse: true,
+    msg: res === NP
+      ? String.raw`<b>Output:</b> <span class="tt">NOT_POSSIBLE</span>. $G$ has no vertex cover of size $\le ${K}$, so $(G, ${K})$ is a No-instance.`
+      : String.raw`<b>Output:</b> $C = ${setTex(res)}$, a vertex cover of size ${res.length} $\le ${K}$` +
+        (res.length < K ? " (and a minimum one: the search returns the smallest cover it finds)." : ".") });
+  return { nodes, steps };
+}
+
+/* leaves of the worst-case search tree, from the recurrences on the slides */
+function bound(alg, k) {
+  if (alg === "simple") return Math.pow(2, k);
+  const B = [1, 1, 1];
+  for (let i = 3; i <= k; i++) B.push(B[i - 1] + B[i - 3]);
+  return B[k];
+}
+
+/* ======================================================================
+   Pseudocode, exactly as on the slides
+   ====================================================================== */
+const NPS = '<span class="tt">NOT_POSSIBLE</span>';
+const KW = s => "<b>" + s + "</b>";
+const CM = s => '<span class="cm">// ' + s + "</span>";
+const CODE = {
+  simple: [
+    ["s1", 0, KW("procedure") + " simpleFptVertexCover($G=(V,E)$, $k$):"],
+    ["s2", 1, KW("if") + String.raw` $E \mathrel{==} \emptyset$ ` + KW("then return") + String.raw` $\emptyset$`],
+    ["s3", 1, KW("if") + String.raw` $k \mathrel{==} 0$ ` + KW("then return") + " " + NPS + CM("truncate search")],
+    ["s4", 1, String.raw`Choose $\{v,w\} \in E$ (arbitrarily)`],
+    ["s5", 1, KW("for") + String.raw` $u$ in $\{v,w\}$ ` + KW("do") + ":"],
+    ["s6", 2, String.raw`$G_u := \bigl(V\setminus \{u\},\, E\setminus \{\{u,x\}\in E\} \bigr)$` + CM("Remove $u$ from $G$")],
+    ["s7", 2, String.raw`$C_u \gets$ simpleFptVertexCover($G_u$, $k-1$)`],
+    ["s8", 1, KW("if") + String.raw` $C_v \mathrel{==}$ ` + NPS + " " + KW("then return") + String.raw` $C_w \cup \{w\}$`],
+    ["s9", 1, KW("if") + String.raw` $C_w \mathrel{==}$ ` + NPS + " " + KW("then return") + String.raw` $C_v \cup \{v\}$`],
+    ["s10", 1, KW("if") + String.raw` $|C_v| \le |C_w|$ ` + KW("then return") + String.raw` $C_v \cup \{v\}$ ` + KW("else return") + String.raw` $C_w \cup \{w\}$`]
+  ],
+  better: [
+    ["b1", 0, KW("procedure") + " betterFptVertexCover($G=(V,E)$, $k$):"],
+    ["b2", 1, KW("if") + String.raw` $E = \emptyset$ ` + KW("then return") + String.raw` $\emptyset$`],
+    ["b3", 1, KW("if") + String.raw` $k \le 0$ ` + KW("then return") + " " + NPS + CM("truncate search")],
+    ["b4", 1, KW("if") + String.raw` all nodes have degree $\le 2$ ` + KW("then")],
+    ["b5", 2, "Find connected components of $G$"],
+    ["b6", 2, KW("for") + " each component $G_i$ " + KW("do")],
+    ["b7", 3, "Fill $C_i$ by picking every other node,"],
+    ["b8", 3, "starting with the neighbor of a degree-one node if one exists"],
+    ["b9", 2, String.raw`$C := \bigcup C_i$`],
+    ["b10", 2, KW("if") + String.raw` $|C|\le k$ ` + KW("then return") + " $C$ " + KW("else return") + " " + NPS],
+    ["b11", 1, String.raw`Choose $v$ with maximal degree, let $w_1,\ldots, w_d$ be its neighbors` + CM(String.raw`$d\ge 3$`)],
+    ["b12", 1, KW("for") + String.raw` $D$ in $\{\{v\},\{w_1,\ldots,w_d\}\}$ with $|D| \le k$ ` + KW("do") + ":"],
+    ["b13", 2, String.raw`$G_D := G[V\setminus D]$` + CM("Remove $D$ from $G$")],
+    ["b14", 2, String.raw`$C'_D :=$ betterFptVertexCover($G_D$, $k-|D|$)`],
+    ["b15", 2, KW("if") + String.raw` $C'_D \ne$ ` + NPS + " " + KW("then") + String.raw` $C_D := D \cup C'_D$`],
+    ["b16", 1, KW("return") + " smallest $C_D$ found, or " + NPS + " if none"]
+  ]
+};
+const CODENOTE = {
+  simple: String.raw`The arbitrary choice in line 4 is made by number: the edge $\{v,w\}$ with the smallest $v$, then the smallest $w$; the branch for $v$ runs first. When both branches fail, line 8 returns <span class="tt">NOT_POSSIBLE</span> (it absorbs the $\cup\,\{w\}$).`,
+  better: String.raw`Ties for the maximal degree go to the lowest number; the branch $D = \{v\}$ runs first, and a tie for the smallest $C_D$ keeps the first one. In the base case a path starts at its lowest-numbered degree-one vertex, a cycle at its lowest-numbered vertex (towards the smaller neighbour); a component without edges contributes nothing.`
+};
+
+/* ======================================================================
+   State
+   ====================================================================== */
+let G = null, RUN = null, alg = "simple", K = 3, coarse = false;
+let ACT = [], pos = 0, timer = null;
+let PH = [], PHX = [], PHW = [];
+let TL = null;                      // tree layout
+let view = { z: 1, tx: 0, ty: 0, ys: 1 };  // tree zoom/pan; ys stretches the rows (overview)
+const ny = d => d * TL.ROW * view.ys;
+const treeHeight = () => ny(TL.maxD) + TL.BH + 8;
+let gfit = null;                    // graph drawing transform
+
+const curStep = () => RUN.steps[ACT[pos]];
+const fineIdx = () => ACT[pos];
+
+function build(keepFine) {
+  RUN = run(G, K, alg);
+  ACT = RUN.steps.map((s, i) => i).filter(i => !coarse || RUN.steps[i].coarse);
+  pos = 0;
+  if (keepFine != null) { while (pos + 1 < ACT.length && ACT[pos + 1] <= keepFine) pos++; }
+  computePhases();
+  layoutTree();
+  defaultView();
+  buildCode();
+  el("lgPick").style.display = alg === "better" ? "" : "none";
+  el("lgBase").style.display = alg === "better" ? "" : "none";
+  layoutPhases();
+  renderAll();
+}
+
+/* ---------- phases: top-level branches of the search tree ---------- */
+function computePhases() {
+  const root = RUN.nodes[0];
+  const branchOf = st => {
+    if (st.node === 0) {
+      if (["remove", "got", "skip"].includes(st.kind))
+        return root.branches.findIndex(b => b.D.length === st.D.length && b.D[0] === st.D[0]);
+      if (st.kind === "ret") return "ret";
+      if (st.kind === "output") return "out";
+      return "root";
+    }
+    let nd = RUN.nodes[st.node];
+    while (nd.parent !== 0) nd = RUN.nodes[nd.parent];
+    return root.branches.findIndex(b => b.type === "call" && b.id === nd.id);
+  };
+  const label = key => {
+    if (key === "root") return root.leaf === "base" ? "Base case" : "Root call";
+    if (key === "ret") return "Result";
+    if (key === "out") return "Output";
+    const b = root.branches[key];
+    if (alg === "simple") return `{${b.D[0]}} in cover`;
+    const name = b.D.length === 1 && b.D[0] === root.choice.v ? `{${b.D[0]}}` : `N(${root.choice.v})`;
+    return b.type === "skip" ? `${name} skipped` : `${name} in cover`;
+  };
+  PH = [];
+  ACT.forEach((fi, p) => {
+    const key = branchOf(RUN.steps[fi]);
+    if (PH.length && PH[PH.length - 1].key === key) PH[PH.length - 1].end = p + 1;
+    else PH.push({ key, label: label(key), start: p, end: p + 1 });
+  });
+}
+
+/* widths proportional to step counts, but at least MINW px (water filling);
+   if that is impossible, all equal */
+const MINW = 30;
+function layoutPhases() {
+  const bar = el("phaseBar"), W = bar.clientWidth;
+  if (!W || !PH.length) return;
+  const cnt = PH.map(p => p.end - p.start), n = PH.length;
+  let w;
+  if (n * MINW >= W) w = new Array(n).fill(W / n);
+  else {
+    const fixed = new Set();
+    for (;;) {
+      const free = cnt.map((_, i) => i).filter(i => !fixed.has(i));
+      const lam = (W - fixed.size * MINW) / free.reduce((s, i) => s + cnt[i], 0);
+      let changed = false;
+      for (const i of free) if (cnt[i] * lam < MINW) { fixed.add(i); changed = true; }
+      if (!changed) { w = cnt.map((c, i) => fixed.has(i) ? MINW : c * lam); break; }
+    }
+  }
+  PHW = w; PHX = []; let x = 0; for (const v of w) { PHX.push(x); x += v; }
+  bar.innerHTML = "";
+  const ctx = document.createElement("canvas").getContext("2d");
+  PH.forEach((p, i) => {
+    const b = document.createElement("button");
+    b.className = "phasebtn"; b.style.width = w[i] + "px"; b.title = p.label;
+    b.innerHTML = '<span class="fill"></span><span class="lab"></span>';
+    bar.appendChild(b);
+    const cs = getComputedStyle(b);
+    ctx.font = `bold ${cs.fontSize} ${cs.fontFamily}`;
+    const first = p.label.split(/\s+/)[0];
+    const cand = [p.label, first, p.label[0]];
+    const fit = cand.find(c => ctx.measureText(c).width + 6 <= w[i]) || "";
+    b.querySelector(".lab").textContent = fit;
+    b.addEventListener("click", () => { stopPlay(); go(p.start); });
+  });
+  syncTransport();
+}
+function phaseOfPos(p) { return PH.findIndex(ph => p >= ph.start && p < ph.end); }
+function posToX(p) {
+  const j = phaseOfPos(p), ph = PH[j], c = ph.end - ph.start;
+  return PHX[j] + (p - ph.start + 0.5) / c * PHW[j];
+}
+function xToPos(x) {
+  let j = PHX.findIndex((x0, i) => x >= x0 && x < x0 + PHW[i]);
+  if (j < 0) j = x < 0 ? 0 : PH.length - 1;
+  const ph = PH[j], c = ph.end - ph.start;
+  const t = Math.max(0, Math.min(c - 1, Math.floor((x - PHX[j]) / PHW[j] * c)));
+  return ph.start + t;
+}
+const barWidth = () => el("phaseBar").clientWidth;
+function syncTransport() {
+  if (!PH.length || !PHW.length) return;
+  const Wb = barWidth();
+  el("scrubber").value = Math.round(posToX(pos) / Wb * 100000);
+  el("stepNo").textContent = `${pos + 1} / ${ACT.length}`;
+  const j = phaseOfPos(pos);
+  [...el("phaseBar").children].forEach((b, i) => {
+    const ph = PH[i], f = b.querySelector(".fill");
+    b.classList.toggle("on", i === j); b.classList.toggle("past", i < j);
+    const frac = i < j ? 1 : i > j ? 0 : (pos - ph.start + 1) / (ph.end - ph.start);
+    f.style.width = (frac * 100) + "%"; f.classList.toggle("empty", frac === 0);
+  });
+  el("phaseName").textContent = PH[j] ? PH[j].label : "";
+  el("backBtn").disabled = pos === 0; el("stepBtn").disabled = pos >= ACT.length - 1;
+}
+
+function go(p) { pos = Math.max(0, Math.min(ACT.length - 1, p)); renderAll(); }
+function stopPlay() { if (timer) { clearInterval(timer); timer = null; } el("playBtn").innerHTML = "&#x25B6;&#xFE0E;"; el("playBtn").setAttribute("aria-label", "Play"); }
+function togglePlay() {
+  if (timer) { stopPlay(); return; }
+  if (pos >= ACT.length - 1) go(0);
+  el("playBtn").innerHTML = "&#x23F8;&#xFE0E;"; el("playBtn").setAttribute("aria-label", "Pause");
+  timer = setInterval(() => { if (pos >= ACT.length - 1) stopPlay(); else go(pos + 1); }, Number(el("speed").value));
+}
+
+/* ======================================================================
+   Rendering
+   ====================================================================== */
+let renderQueued = false;
+function scheduleRender() {
+  if (renderQueued) return; renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; renderStatic(); buildCode(); if (RUN) renderAll(); });
+}
+function renderStatic() {
+  document.querySelectorAll(".mt").forEach(s => {
+    if (s.dataset.tex == null) s.dataset.tex = s.textContent;
+    s.innerHTML = mh(s.dataset.tex);
+  });
+}
+function renderAll() {
+  if (!RUN) return;
+  syncTransport();
+  renderGraph(); renderTree(); renderStatus(); renderVars(); renderCounts(); renderCodeHl();
+}
+
+function svgEl(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+/* ---------- graph of the current call ---------- */
+function renderGraph() {
+  const wrap = el("graphWrap"), svg = el("graphSvg");
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  svg.setAttribute("width", W); svg.setAttribute("height", H);
+  svg.innerHTML = "";
+  if (!W || !H) return;
+  const R = 13, pad = R + 12;
+  // while a vertex is dragged the fit is frozen, so the picture does not jump
+  if (!gdrag || !gfit) {
+    const xs = G.pos.map(p => p.x), ys = G.pos.map(p => p.y);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const s = Math.min((W - 2 * pad) / Math.max(x1 - x0, 1e-9), (H - 2 * pad) / Math.max(y1 - y0, 1e-9));
+    gfit = { x0, y0, s, ox: (W - (x1 - x0) * s) / 2, oy: (H - (y1 - y0) * s) / 2, W, H, pad };
+  }
+  const { x0, y0, s, ox, oy } = gfit;
+  const P = G.pos.map(p => ({ x: ox + (p.x - x0) * s, y: oy + (p.y - y0) * s }));
+  gfit.P = P;
+
+  const fi = fineIdx(), st = curStep(), nd = RUN.nodes[st.node];
+  const alive = nd.alive;
+  const out = st.kind === "output";
+  const chosen = !out && nd.choose != null && fi >= nd.choose;
+  const hotE = new Set(), nbrE = new Set(), compE = new Set();
+  const vcls = new Array(G.n).fill("");
+  let ring = new Set();
+  if (chosen) {
+    const c = nd.choice;
+    if (c.type === "edge") { hotE.add(c.v + "," + c.w); vcls[c.v] = vcls[c.w] = "hot"; }
+    else { vcls[c.v] = "hot"; for (const w of c.N) { vcls[w] = "nbr"; nbrE.add(Math.min(c.v, w) + "," + Math.max(c.v, w)); } }
+  }
+  if (st.kind === "remove") for (const x of st.D) vcls[x] = "taking";
+  if (st.kind === "got" && st.val !== NP) ring = new Set(st.val.concat(st.D));
+  if ((st.kind === "ret" || out) && nd.ret !== NP) ring = new Set(nd.ret);
+  if (out) for (const x of ring) vcls[x] = "outc";
+  if (st.picks) for (const x of st.picks) vcls[x] = "pick";
+  if (st.kind === "fill") for (const [a, b] of liveEdges(G, alive)) if (nd.base.comps[st.comp].verts.includes(a)) compE.add(a + "," + b);
+  const trunc = st.kind === "ret" && nd.leaf === "trunc";
+  const deg = degrees(G, alive);
+
+  const ge = svgEl("g", {}, svg);
+  for (const [a, b] of G.edges) {
+    const key = a + "," + b, live = alive[a] && alive[b];
+    let cls = "e";
+    if (!live) cls += " gone";
+    else if (hotE.has(key)) cls += " hot";
+    else if (nbrE.has(key)) cls += " nbr";
+    else if (compE.has(key)) cls += " comp";
+    else if (trunc) cls += " left";
+    svgEl("line", { x1: P[a].x, y1: P[a].y, x2: P[b].x, y2: P[b].y, class: cls }, ge);
+  }
+  const gv = svgEl("g", {}, svg);
+  for (let v = 0; v < G.n; v++) {
+    const cls = !alive[v] ? "cov" : vcls[v];
+    const g = svgEl("g", { class: "vx " + cls, "data-v": v }, gv);
+    svgEl("circle", { cx: P[v].x, cy: P[v].y, r: R }, g);
+    if (ring.has(v)) svgEl("circle", { cx: P[v].x, cy: P[v].y, r: R + 4.5, class: "ring" }, g);
+    const t = svgEl("text", { x: P[v].x, y: P[v].y + .5 }, g); t.textContent = v;
+    if (alg === "better" && alive[v] && deg[v] > 0) {
+      const d = svgEl("text", { x: P[v].x + R + 3, y: P[v].y - R + 1, class: "deg", "text-anchor": "start" }, g);
+      d.textContent = deg[v]; d.setAttribute("text-anchor", "start");
+    }
+  }
+  el("graphMeta").innerHTML = mh(String.raw`$k = ${nd.k}$`) + `<span style="font-size:.85em">${nd.nAlive} vertices, ${nd.m} edges</span>`;
+}
+
+/* ---------- search tree ---------- */
+function layoutTree() {
+  const mini = el("miniChk").checked;
+  const BW = mini ? 104 : 54, BH = mini ? 78 : 38, GAP = mini ? 16 : 12, ROW = BH + 60;
+  const SW = BW * 0.72, SH = Math.round(BH * 0.5);
+  const P = []; let cursor = 0, maxD = 0;
+  const lay = id => {
+    const nd = RUN.nodes[id]; const xs = [];
+    maxD = Math.max(maxD, nd.depth);
+    for (const b of nd.branches) {
+      if (b.type === "call") { lay(b.id); xs.push(P[b.id].x); }
+      else { b.x = cursor + SW / 2; b.d = nd.depth + 1; cursor += SW + GAP; xs.push(b.x); maxD = Math.max(maxD, nd.depth + 1); }
+    }
+    if (!xs.length) { P[id] = { x: cursor + BW / 2, d: nd.depth }; cursor += BW + GAP; }
+    else P[id] = { x: (xs[0] + xs[xs.length - 1]) / 2, d: nd.depth };
+  };
+  lay(0);
+  TL = { P, BW, BH, ROW, SW, SH, mini, maxD, width: cursor - GAP };
+  // the mini drawing: the original layout fitted into the node's picture area
+  computeMini();
+}
+function computeMini() {
+  const { BW, BH } = TL;
+  const xs = G.pos.map(p => p.x), ys = G.pos.map(p => p.y);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const aw = BW - 12, ah = BH - 30;
+  const s = Math.min(aw / Math.max(x1 - x0, 1e-9), ah / Math.max(y1 - y0, 1e-9));
+  const ox = 6 + (aw - (x1 - x0) * s) / 2, oy = 5 + (ah - (y1 - y0) * s) / 2;
+  TL.mp = G.pos.map(p => ({ x: ox + (p.x - x0) * s, y: oy + (p.y - y0) * s }));
+}
+const MARGIN = 28;
+function treeWH() { const w = el("treeWrap"); return [w.clientWidth, w.clientHeight]; }
+function fitView(noRender) {
+  const [W, H] = treeWH();
+  view.ys = 1;
+  let z = Math.min(1.25, (W - 2 * MARGIN) / Math.max(TL.width, 1), (H - 2 * MARGIN) / treeHeight());
+  // a wide, flat tree: stretch the rows so that the overview fills the pane
+  if (TL.maxD > 0) view.ys = Math.max(1, ((H - 2 * MARGIN) / z - TL.BH - 8) / (TL.maxD * TL.ROW));
+  view.z = z; view.tx = (W - TL.width * z) / 2; view.ty = MARGIN;
+  if (!noRender) renderTree(); applyView(true);
+}
+function oneView() {
+  view.z = 1; view.ys = 1; renderTree();
+  centerOn(RUN.nodes[curStep().node].id, true, true);
+}
+function defaultView() {
+  const [W, H] = treeWH();
+  const zf = Math.min((W - 2 * MARGIN) / Math.max(TL.width, 1), (H - 2 * MARGIN) / treeHeight());
+  if (zf >= 0.45) fitView(true);
+  else { view = { z: 0.7, tx: W / 2 - TL.P[0].x * 0.7, ty: MARGIN, ys: 1 }; applyView(false); }
+}
+function applyView(anim) {
+  const g = el("treeSvg").querySelector("#treeView");
+  if (!g) return;
+  g.style.transition = anim ? "transform .3s ease" : "none";
+  g.style.transform = `translate(${view.tx}px,${view.ty}px) scale(${view.z})`;
+}
+function centerOn(id, anim, force) {
+  const [W, H] = treeWH(), p = TL.P[id], py = ny(p.d);
+  const sx = view.tx + p.x * view.z, sy = view.ty + py * view.z;
+  const bw = TL.BW * view.z, bh = TL.BH * view.z, m = 24;
+  if (!force && sx - bw / 2 >= m && sx + bw / 2 <= W - m && sy >= m && sy + bh <= H - m) return;
+  if (force || sx - bw / 2 < m || sx + bw / 2 > W - m) view.tx = W / 2 - p.x * view.z;
+  if (force || sy < m || sy + bh > H - m) view.ty = Math.min(MARGIN, H / 2 - (py + TL.BH / 2) * view.z);
+  applyView(anim);
+}
+
+function resultTex(nd) {
+  if (nd.ret === NP) return null;
+  return nd.ret.length ? String.raw`|C| = ${nd.ret.length}` : String.raw`\emptyset`;
+}
+
+function renderTree() {
+  const svg = el("treeSvg"), [W, H] = treeWH();
+  svg.setAttribute("width", W); svg.setAttribute("height", H);
+  svg.innerHTML = "";
+  const g = svgEl("g", { id: "treeView" }, svg);
+  g.style.transformOrigin = "0 0";
+  const fi = fineIdx(), st = curStep(), cur = st.kind === "output" ? -1 : st.node;
+  const N = RUN.nodes, { P, BW, BH, SW, SH, mini } = TL;
+  const onPath = new Set(); for (let x = cur; x >= 0; x = N[x].parent) onPath.add(x);
+  const vis = nd => nd.enter <= fi;
+  const done = nd => nd.retStep <= fi;
+  const ge = svgEl("g", {}, g), gl = svgEl("g", {}, g), gn = svgEl("g", {}, g);
+  const detail = view.z * BW >= 34;   // level of detail: tiny boxes get no text and no picture
+  lastDetail = detail;
+
+  for (const nd of N) {
+    if (!vis(nd)) continue;
+    const p = P[nd.id];
+    nd.branches.forEach((b, bi) => {
+      let cx, cy, cls = "te", show;
+      if (b.type === "call") { const c = N[b.id]; show = vis(c); cx = P[c.id].x; cy = ny(P[c.id].d);
+        if (onPath.has(c.id)) cls += " path";
+        if (done(nd) && nd.win === bi) cls += " win"; }
+      else { show = b.step <= fi; cx = b.x; cy = ny(b.d) + (BH - SH) / 2; cls += " skip"; }
+      if (!show) return;
+      const x1 = p.x, y1 = ny(p.d) + BH, bend = Math.min(30, (cy - y1) * 0.45);
+      svgEl("path", { d: `M${x1},${y1} C${x1},${y1 + bend} ${cx},${cy - bend} ${cx},${cy}`, class: cls }, ge);
+      if (!detail) {
+        if (b.type === "skip") svgEl("rect", { x: cx - SW / 2, y: cy, width: SW, height: SH, rx: 4, class: "lod" }, svgEl("g", { class: "tskip" }, gn));
+        return;
+      }
+      // label: the set D taken into the cover
+      const left = cx < x1 - 1, right = cx > x1 + 1;
+      const t = 0.62, lx = x1 + (cx - x1) * t + (left ? -7 : right ? 7 : 8), ly = y1 + (cy - y1) * t + 4;
+      const lab = alg === "simple" ? "+" + b.D[0] : "+" + setTex(b.D);
+      svgTex(gl, lab, lx, ly, 14, left ? "end" : "start",
+             onPath.has(b.id) ? "var(--wi-accent)" : b.type === "skip" ? "var(--wi-ink-faint)" : "var(--wi-ink-soft)");
+      if (b.type === "skip") {
+        const sg = svgEl("g", { class: "tskip" }, gn);
+        svgEl("rect", { x: cx - SW / 2, y: cy, width: SW, height: SH, rx: 4 }, sg);
+        svgTex(sg, String.raw`|D| > k`, cx, cy + SH / 2 + 5, 13, "middle", "var(--wi-ink-faint)");
+      }
+    });
+  }
+  for (const nd of N) {
+    if (!vis(nd)) continue;
+    const p = P[nd.id], x = p.x - BW / 2, y = ny(p.d);
+    let cls = "tn";
+    if (nd.id === cur) cls += " cur"; else if (onPath.has(nd.id)) cls += " path";
+    if (nd.leaf && done(nd)) cls += " l-" + nd.leaf + " done";
+    const ng = svgEl("g", { class: cls, "data-id": nd.id }, gn);
+    svgEl("rect", { class: "box", x, y, width: BW, height: BH, rx: 4 }, ng);
+    const chosen = nd.choose != null && nd.choose <= fi;
+    if (!detail) continue;
+    if (mini) {
+      const mp = TL.mp, c = nd.choice;
+      const hotV = new Set(), nbrV = new Set();
+      if (chosen) { if (c.type === "edge") { hotV.add(c.v); hotV.add(c.w); } else { hotV.add(c.v); c.N.forEach(w => nbrV.add(w)); } }
+      for (const [a, b] of G.edges) {
+        if (!nd.alive[a] || !nd.alive[b]) continue;
+        const hot = chosen && (c.type === "edge" ? (a === c.v && b === c.w) : (a === c.v || b === c.v));
+        svgEl("line", { x1: x + mp[a].x, y1: y + mp[a].y, x2: x + mp[b].x, y2: y + mp[b].y, class: "me" + (hot ? " hot" : "") }, ng);
+      }
+      const r = G.n <= 16 ? 2.3 : 1.7;
+      for (let v = 0; v < G.n; v++) if (nd.alive[v])
+        svgEl("circle", { cx: x + mp[v].x, cy: y + mp[v].y, r: hotV.has(v) || nbrV.has(v) ? r + 0.8 : r,
+                          class: "mv" + (hotV.has(v) ? " hot" : nbrV.has(v) ? " nbr" : "") }, ng);
+      svgEl("line", { x1: x + 4, x2: x + BW - 4, y1: y + BH - 21, y2: y + BH - 21, class: "sep" }, ng);
+      svgTex(ng, `k = ${nd.k}`, x + 7, y + BH - 6, 14, "start", "var(--wi-ink-strong)");
+      if (done(nd)) {
+        const rt = resultTex(nd);
+        if (rt) svgTex(ng, rt, x + BW - 7, y + BH - 6, 14, "end", "var(--wi-relax)");
+        else { const t = svgEl("text", { x: x + BW - 8, y: y + BH - 6, class: "np", "font-size": 15, "text-anchor": "end" }, ng); t.textContent = "✗"; }
+      }
+    } else {
+      svgTex(ng, `k = ${nd.k}`, p.x, y + 16, 14, "middle", "var(--wi-ink-strong)");
+      if (done(nd)) {
+        const rt = resultTex(nd);
+        if (rt) svgTex(ng, rt, p.x, y + BH - 6, 12, "middle", "var(--wi-relax)");
+        else { const t = svgEl("text", { x: p.x, y: y + BH - 6, class: "np", "font-size": 13, "text-anchor": "middle" }, ng); t.textContent = "✗"; }
+      }
+    }
+    if (chosen) svgTex(ng, `(${nd.vec.join(",")})`, x + BW + 4, y + 12, 12, "start", "var(--wi-ink-faint)");
+  }
+  applyView(false);
+  if (el("followChk").checked && !panning && cur >= 0) centerOn(cur, true, false);
+}
+
+/* ---------- status, variables, counts, code ---------- */
+function renderStatus() {
+  const st = curStep();
+  let h = mh(st.msg);
+  el("statusBox").innerHTML = h;
+}
+function renderVars() {
+  const fi = fineIdx(), nd = RUN.nodes[curStep().node];
+  let keys;
+  if (nd.leaf === "base") keys = [["k", "k"], ["C", "C"]];
+  else if (alg === "simple") keys = [["k", "k"], ["vw", String.raw`\{v,w\}`], ["Cv", "C_v"], ["Cw", "C_w"]];
+  else keys = [["k", "k"], ["v", "v"], ["N", String.raw`w_1,\ldots,w_d`], ["C0", String.raw`C_{\{v\}}`], ["C1", String.raw`C_{N(v)}`]];
+  let h = "";
+  for (const [key, tex] of keys) {
+    const v = nd.vars.filter(x => x.key === key && x.step <= fi).pop();
+    const cls = !v ? "none" : (v.val.includes("NOT_POSSIBLE") || v.val.includes("skipped") ? "np" : "") + (v.step === fi ? " fresh" : "");
+    h += `<span class="vk">${mh("$" + tex + "$")}</span><span class="vv ${cls}">${v ? mh(v.val) : "—"}</span>`;
+  }
+  el("varsBox").innerHTML = h;
+  el("depthMeta").textContent = `call ${nd.id + 1}, depth ${nd.depth}`;
+}
+function renderCounts() {
+  const fi = fineIdx(), N = RUN.nodes;
+  const calls = N.filter(n => n.enter <= fi).length, leaves = N.filter(n => n.leaf && n.retStep <= fi).length;
+  const totL = N.filter(n => n.leaf).length;
+  const b = bound(alg, K), b2 = bound("simple", K);
+  let h = '<div class="counts"><span></span><span class="h">so far</span><span class="h">whole tree</span>' +
+    `<span>calls</span><span class="n">${calls}</span><span class="n">${N.length}</span>` +
+    `<span>leaves</span><span class="n">${leaves}</span><span class="n">${totL}</span></div>`;
+  if (alg === "simple")
+    h += '<div class="countnote">' + mh(String.raw`Every internal node has two children, and $k$ drops by one per level: at most $2^{k} = 2^{${K}} = ${b2}$ leaves.`) + "</div>";
+  else
+    h += '<div class="countnote">' + mh(String.raw`Worst case: $B_k = B_{k-1} + B_{k-3}$ with $B_0 = B_1 = B_2 = 1$, so at most $B_{${K}} = ${b}$ leaves; $B_k = O(1.4656^k)$. For comparison, $2^{${K}} = ${b2}$.`) + "</div>";
+  el("countBox").innerHTML = h;
+}
+function buildCode() {
+  const L = CODE[alg];
+  el("codeBody").innerHTML = L.map(([key, ind, html], i) =>
+    `<div class="cline" data-k="${key}"><span class="ln">${i + 1}</span><span class="ind" style="width:${ind * 1.6}em"></span><span>${mh(html)}</span></div>`).join("");
+  el("codeNote").innerHTML = mh(CODENOTE[alg]);
+  if (RUN) renderCodeHl();
+}
+function renderCodeHl() {
+  const on = new Set(curStep().lines);
+  el("codeBody").querySelectorAll(".cline").forEach(c => c.classList.toggle("on", on.has(c.dataset.k)));
+}
+
+/* ---------- tooltip on tree nodes ---------- */
+function showTip(ev, html) { const t = el("tooltip"); t.innerHTML = html; t.style.display = "block"; moveTip(ev); }
+function moveTip(ev) {
+  const t = el("tooltip"), w = t.offsetWidth, h = t.offsetHeight;
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - 14;
+  if (y + h > innerHeight - 8) y = ev.clientY - h - 14;
+  t.style.left = x + "px"; t.style.top = y + "px";
+}
+const hideTip = () => { el("tooltip").style.display = "none"; };
+function nodeTip(nd) {
+  const fi = fineIdx();
+  let h = `<div class="tt-h">Call ${nd.id + 1} (depth ${nd.depth})</div>`;
+  h += mh(String.raw`$k = ${nd.k}$; ${nd.nAlive} vertices and ${nd.m} edges left.`) + "<br>";
+  h += mh(String.raw`Taken on this branch: $${setTex(nd.cov)}$.`) + "<br>";
+  if (nd.retStep <= fi) h += "Returned " + mh(setM(nd.ret)) + ".";
+  else h += "Not returned yet.";
+  h += '<br><span style="color:var(--wi-ink-faint)">Click to jump to this call.</span>';
+  return h;
+}
+
+/* ---------- dragging vertices of the graph ---------- */
+let gdrag = null;
+function initGraphDrag() {
+  const svg = el("graphSvg");
+  svg.addEventListener("pointerdown", ev => {
+    // nearest vertex within reach (generous for fingers)
+    if (!gfit || !gfit.P) return;
+    const r = svg.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top;
+    let best = -1, bd = ev.pointerType === "touch" ? 30 : 18;
+    gfit.P.forEach((q, v) => { const d = Math.hypot(q.x - mx, q.y - my); if (d < bd) { bd = d; best = v; } });
+    if (best < 0) return;
+    ev.preventDefault();
+    gdrag = { v: best, id: ev.pointerId, moved: false };
+    svg.setPointerCapture(ev.pointerId);
+    svg.classList.add("dragging");
+  });
+  svg.addEventListener("pointermove", ev => {
+    if (!gdrag || !gfit) return;
+    const r = svg.getBoundingClientRect(), f = gfit;
+    const sx = Math.max(f.pad, Math.min(f.W - f.pad, ev.clientX - r.left));
+    const sy = Math.max(f.pad, Math.min(f.H - f.pad, ev.clientY - r.top));
+    G.pos[gdrag.v] = { x: f.x0 + (sx - f.ox) / f.s, y: f.y0 + (sy - f.oy) / f.s };
+    gdrag.moved = true;
+    renderGraph();
+  });
+  const end = () => {
+    if (!gdrag) return;
+    const moved = gdrag.moved; gdrag = null; svg.classList.remove("dragging");
+    if (moved) { gfit = null; computeMini(); el("inputText").value = withCoords(el("inputText").value); renderAll(); }
+  };
+  svg.addEventListener("pointerup", end);
+  svg.addEventListener("pointercancel", end);
+}
+/* replace the coordinate lines of the input text by the current drawing (normalised to [0,1]) */
+function withCoords(text) {
+  const xs = G.pos.map(p => p.x), ys = G.pos.map(p => p.y);
+  const x0 = Math.min(...xs), y0 = Math.min(...ys);
+  const sc = Math.max(Math.max(...xs) - x0, Math.max(...ys) - y0, 1e-9);
+  const coords = G.pos.map(p => `${(0.05 + 0.9 * (p.x - x0) / sc).toFixed(3)} ${(0.05 + 0.9 * (p.y - y0) / sc).toFixed(3)}`);
+  const lines = text.split(/\r?\n/);
+  const out = []; let data = 0, m = null;
+  for (const l of lines) {
+    const t = l.replace(/#.*$/, "").trim();
+    if (!t || /^k\s*(=|:)?\s*-?\d+$/i.test(t)) { out.push(l); continue; }
+    if (data === 1) m = parseInt(t, 10);
+    if (m !== null && data >= 2 + m) { data++; continue; }   // old coordinates: dropped
+    out.push(l); data++;
+  }
+  while (out.length && !out[out.length - 1].trim()) out.pop();
+  return out.concat(coords).join("\n") + "\n";
+}
+
+/* ---------- tree pan and zoom ---------- */
+let panning = false, lastDetail = true, wheelT = null;
+function initTreeNav() {
+  const wrap = el("treeWrap");
+  let drag = null;
+  wrap.addEventListener("pointerdown", ev => {
+    drag = { x: ev.clientX, y: ev.clientY, tx: view.tx, ty: view.ty, moved: false, id: ev.pointerId };
+  });
+  wrap.addEventListener("pointermove", ev => {
+    const n = ev.target.closest && ev.target.closest(".tn");
+    if (n && !drag) showTip(ev, nodeTip(RUN.nodes[+n.dataset.id])); else if (!drag) hideTip();
+    if (!drag) return;
+    const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) > 4) { drag.moved = true; panning = true; wrap.classList.add("panning"); wrap.setPointerCapture(drag.id); hideTip(); }
+    if (drag.moved) { view.tx = drag.tx + dx; view.ty = drag.ty + dy; applyView(false); }
+  });
+  const end = ev => {
+    if (drag && !drag.moved) {
+      const n = ev.target.closest && ev.target.closest(".tn");
+      if (n) { stopPlay(); jumpToNode(+n.dataset.id); }
+    }
+    drag = null; panning = false; wrap.classList.remove("panning");
+  };
+  wrap.addEventListener("pointerup", end);
+  wrap.addEventListener("pointercancel", () => { drag = null; panning = false; wrap.classList.remove("panning"); });
+  wrap.addEventListener("pointerleave", () => { if (!drag) hideTip(); });
+  wrap.addEventListener("wheel", ev => {
+    ev.preventDefault();
+    const r = wrap.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top;
+    const f = Math.exp(-ev.deltaY * (ev.ctrlKey ? 0.01 : 0.0015));
+    const z = Math.max(0.02, Math.min(3, view.z * f));
+    view.tx = mx - (mx - view.tx) * z / view.z; view.ty = my - (my - view.ty) * z / view.z; view.z = z;
+    applyView(false);
+    clearTimeout(wheelT);
+    wheelT = setTimeout(() => { if ((view.z * TL.BW >= 34) !== lastDetail) renderTree(); }, 120);
+  }, { passive: false });
+  el("fitBtn").addEventListener("click", () => fitView());
+  el("oneBtn").addEventListener("click", oneView);
+}
+function jumpToNode(id) {
+  const nd = RUN.nodes[id];
+  let p = ACT.findIndex(fi => fi >= nd.enter);
+  if (p < 0) p = ACT.length - 1;
+  go(p);
+}
+
+/* ---------- splitters ---------- */
+function initSplitters() {
+  const root = document.documentElement.style, row = el("mainRow");
+  const gw = localStorage.getItem(LSKEY + "gw"), rh = localStorage.getItem(LSKEY + "rowh");
+  if (gw) root.setProperty("--gw", gw);
+  root.setProperty("--rowh", rh || Math.round(Math.max(420, Math.min(700, innerHeight * 0.66))) + "px");
+  const drag = (handle, onMove, onReset) => {
+    handle.addEventListener("pointerdown", ev => {
+      ev.preventDefault(); handle.setPointerCapture(ev.pointerId); handle.classList.add("drag");
+      const mv = e => onMove(e), up = () => { handle.classList.remove("drag"); handle.removeEventListener("pointermove", mv); handle.removeEventListener("pointerup", up); };
+      handle.addEventListener("pointermove", mv); handle.addEventListener("pointerup", up);
+    });
+    handle.addEventListener("dblclick", onReset);
+  };
+  drag(el("vsplit"), e => {
+    const r = row.getBoundingClientRect();
+    const f = Math.max(18, Math.min(80, (e.clientX - r.left) / r.width * 100)).toFixed(1) + "%";
+    root.setProperty("--gw", f); localStorage.setItem(LSKEY + "gw", f);
+  }, () => { root.setProperty("--gw", "42%"); localStorage.removeItem(LSKEY + "gw"); });
+  drag(el("hsplit"), e => {
+    const r = row.getBoundingClientRect();
+    const h = Math.round(Math.max(240, Math.min(1800, e.clientY - r.top))) + "px";
+    root.setProperty("--rowh", h); localStorage.setItem(LSKEY + "rowh", h);
+  }, () => { localStorage.removeItem(LSKEY + "rowh"); root.setProperty("--rowh", Math.round(Math.max(420, Math.min(700, innerHeight * 0.66))) + "px"); });
+  let t = null;
+  const ro = new ResizeObserver(() => { clearTimeout(t); t = setTimeout(() => { if (RUN) { layoutPhases(); renderAll(); } }, 30); });
+  ro.observe(el("graphWrap")); ro.observe(el("treeWrap")); ro.observe(el("phaseBar"));
+}
+
+/* ======================================================================
+   Input and controls
+   ====================================================================== */
+function setInstance(text, fromPreset) {
+  const g = parseInput(text);
+  G = g; gfit = null; if (g.k != null) K = Math.max(0, g.k);
+  el("kIn").value = K;
+  el("inputText").value = text;
+  if (!fromPreset) el("presetSel").value = "custom";
+  stopPlay(); build();
+}
+function withK(text, k) {
+  return /^\s*k\s*(=|:)?\s*-?\d+\s*$/im.test(text) ? text.replace(/^\s*k\s*(=|:)?\s*-?\d+\s*$/im, "k " + k) : "k " + k + "\n" + text;
+}
+function initControls() {
+  const sel = el("presetSel");
+  for (const p of PRESETS) { const o = document.createElement("option"); o.value = p.key; o.textContent = p.name; sel.appendChild(o); }
+  const oc = document.createElement("option"); oc.value = "custom"; oc.textContent = "(your input)"; sel.appendChild(oc);
+  sel.addEventListener("change", () => {
+    const p = PRESETS.find(q => q.key === sel.value); if (!p) return;
+    localStorage.setItem(LSKEY + "preset", p.key);
+    el("parseErr").textContent = ""; setInstance(p.text, true);
+  });
+  const setAlg = a => {
+    alg = a; el("algSimple").classList.toggle("on", a === "simple"); el("algBetter").classList.toggle("on", a === "better");
+    localStorage.setItem(LSKEY + "alg", a);
+  };
+  el("algSimple").addEventListener("click", () => { setAlg("simple"); stopPlay(); safeBuild(); });
+  el("algBetter").addEventListener("click", () => { setAlg("better"); stopPlay(); safeBuild(); });
+  setAlg(localStorage.getItem(LSKEY + "alg") === "better" ? "better" : "simple");
+  el("kIn").addEventListener("change", () => {
+    const k = Math.max(0, Math.min(14, parseInt(el("kIn").value, 10) || 0));
+    el("kIn").value = k;
+    const oldK = K; K = k; stopPlay();
+    if (!safeBuild()) { K = oldK; el("kIn").value = oldK; safeBuild(); return; }
+    el("inputText").value = withK(el("inputText").value, k);
+  });
+  const setDet = c => {
+    const keep = RUN ? fineIdx() : null;
+    coarse = c; el("detFine").classList.toggle("on", !c); el("detCoarse").classList.toggle("on", c);
+    if (RUN) { ACT = RUN.steps.map((s, i) => i).filter(i => !coarse || RUN.steps[i].coarse);
+      pos = 0; while (pos + 1 < ACT.length && ACT[pos + 1] <= keep) pos++;
+      computePhases(); layoutPhases(); renderAll(); }
+  };
+  el("detFine").addEventListener("click", () => setDet(false));
+  el("detCoarse").addEventListener("click", () => setDet(true));
+  el("miniChk").addEventListener("change", () => { layoutTree(); defaultView(); renderAll(); });
+  el("loadBtn").addEventListener("click", () => {
+    try { el("parseErr").textContent = ""; setInstance(el("inputText").value, false); }
+    catch (e) { el("parseErr").textContent = e.message; }
+  });
+  el("resetBtn").addEventListener("click", () => { stopPlay(); go(0); });
+  el("backBtn").addEventListener("click", () => { stopPlay(); go(pos - 1); });
+  el("stepBtn").addEventListener("click", () => { stopPlay(); go(pos + 1); });
+  el("playBtn").addEventListener("click", togglePlay);
+  el("speed").addEventListener("input", () => {
+    el("speedVal").textContent = el("speed").value + "ms";
+    if (timer) { stopPlay(); togglePlay(); }
+  });
+  el("scrubber").addEventListener("input", () => {
+    stopPlay();
+    const x = Number(el("scrubber").value) / 100000 * barWidth();
+    go(xToPos(x));
+  });
+  document.addEventListener("keydown", ev => {
+    if (ev.target.closest && ev.target.closest("input[type=text], input[type=number], textarea, select")) return;
+    if (ev.key === "ArrowRight") { stopPlay(); go(pos + 1); ev.preventDefault(); }
+    else if (ev.key === "ArrowLeft") { stopPlay(); go(pos - 1); ev.preventDefault(); }
+    else if (ev.key === "Home") { stopPlay(); go(0); ev.preventDefault(); }
+    else if (ev.key === "End") { stopPlay(); go(ACT.length - 1); ev.preventDefault(); }
+    else if (ev.key === " " && !(ev.target.closest && ev.target.closest("button"))) { togglePlay(); ev.preventDefault(); }
+  });
+}
+function safeBuild() {
+  try { el("parseErr").textContent = ""; build(); return true; }
+  catch (e) { el("parseErr").textContent = e.message; el("editor").open = true; return false; }
+}
+
+function init() {
+  renderStatic();
+  initSplitters();
+  initControls();
+  initTreeNav();
+  initGraphDrag();
+  const key = localStorage.getItem(LSKEY + "preset");
+  const p = PRESETS.find(q => q.key === key) || PRESETS[0];
+  el("presetSel").value = p.key;
+  setInstance(p.text, true);
+}
+init();
+</script>
+</body>
+</html>

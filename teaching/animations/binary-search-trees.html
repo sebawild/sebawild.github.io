@@ -412,6 +412,7 @@ body { font-family: var(--wi-font-body); }
   </div>
   <label class="chk" title="Fade the parts of the tree and of the sorted keys that are no longer searched"><input type="checkbox" id="fadeChk" checked> fade outside the search range</label>
   <label class="chk" title="Show the values inside the nodes"><input type="checkbox" id="valsChk" checked> show values</label>
+  <button id="linkBtn" title="Copy a link that opens exactly this view" style="margin-left:auto">copy link</button>
 </div>
 
 <div class="opbar">
@@ -778,7 +779,7 @@ function setGran(g) {
 }
 
 /* ---- stack-operation scripts (tobe.txt format, plus an optional init: line) ---- */
-const MAXKEY = 4, MAXINIT = 8;
+const MAXKEY = 4;
 function parseStackOps(text, maxN) {
   const script = { init: [], ops: [] };
   const lines = text.split(/\r?\n/).map(l => l.replace(/#.*$/, ""));
@@ -789,7 +790,7 @@ function parseStackOps(text, maxN) {
     else body.push(l);
   }
   for (const k of script.init) if (k.length > MAXKEY || k === "-") throw new Error("Initial key '" + k + "' is not allowed (at most " + MAXKEY + " characters).");
-  if (script.init.length > MAXINIT) throw new Error("The initial array has capacity " + MAXINIT + ": at most " + MAXINIT + " initial elements.");
+  if (script.init.length > maxN) throw new Error("At most " + maxN + " initial elements here.");
   let n = script.init.length;
   const toks = body.join(" ").split(/[\s,]+/).filter(Boolean);
   toks.forEach((t, i) => {
@@ -812,6 +813,8 @@ function stackOpsToText(script) {
   return lines.join("\n");
 }
 function sizeAfter(script, k) { let n = script.init.length; for (let i = 0; i < k; i++) n += script.ops[i].t === "push" ? 1 : -1; return n; }
+/* the starting capacity for n0 prefilled elements: the smallest power of two >= max(8, n0) */
+function initialCapacity(n0) { let c = 8; while (c < n0) c *= 2; return c; }
 /* push n keys, then pop them all again, with a few random operations mixed in */
 function genPushPop(n, init) {
   const toks = [], noise = Math.max(1, Math.round(n / 8));
@@ -886,7 +889,44 @@ function initZoom(redraw) {
 
 const WORDS = ("to be or not that is the q all we see seem a dream in it my so far it was oak elm ash yew fir " +
   "cat dog owl fox elk bee ant emu yak").split(" ");
-function randomWord() { return WORDS[Math.floor(Math.random() * WORDS.length)]; }
+/* random keys must respect the key length limit (the cells are only that wide) */
+function randomWord() { const ok = WORDS.filter(w => w.length <= MAXKEY); return ok[Math.floor(Math.random() * ok.length)]; }
+
+/* ---- URL parameters: prepare a view, and link to the current one ----------------------------
+   Read from both ?query and #fragment (the fragment wins); written to the #fragment only, so it
+   also works for local files. Pages provide urlState() -> {name: value} (null/"" = default) and
+   apply their parameters at start-up. */
+function readParams() {
+  const p = new URLSearchParams(location.search);
+  for (const [k, v] of new URLSearchParams(location.hash.replace(/^#/, ""))) p.set(k, v);
+  const o = {}; for (const [k, v] of p) o[k] = v;
+  return o;
+}
+let urlTimer = null, urlReady = false;
+function syncURL() {
+  if (!urlReady || typeof urlState !== "function") return;
+  clearTimeout(urlTimer);
+  urlTimer = setTimeout(() => {
+    const st = urlState(), p = new URLSearchParams();
+    for (const k in st) if (st[k] != null && st[k] !== "") p.set(k, st[k]);
+    const h = p.toString();
+    try { history.replaceState(null, "", location.pathname + location.search + (h ? "#" + h : "")); } catch (e) { /* e.g. sandboxed */ }
+  }, 200);
+}
+/* the step to show: a raw step index (independent of the detail level) -> the nearest visible step */
+function visFromRaw(raw) { let k = 0; vis.forEach((s, i) => { if (s <= raw) k = i; }); return k; }
+function initLinkButton() {
+  const b = el("linkBtn"); if (!b) return;
+  b.addEventListener("click", () => {
+    clearTimeout(urlTimer);
+    const st = urlState(), p = new URLSearchParams();
+    for (const k in st) if (st[k] != null && st[k] !== "") p.set(k, st[k]);
+    const url = location.href.replace(/#.*$/, "") + (p.toString() ? "#" + p.toString() : "");
+    const done = () => { b.textContent = "link copied"; setTimeout(() => b.textContent = "copy link", 1600); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => prompt("Link to this view:", url));
+    else prompt("Link to this view:", url);
+  });
+}
 
 
 /* =====================================================================
@@ -2036,6 +2076,7 @@ function showCode(kind) {
    Side panels
    ===================================================================== */
 function renderSide(B) {
+  syncURL();
   const ph = phases[B.phase] || {};
   showCode(ph.kind);
   el("statusBox").innerHTML = B.txt || "";
@@ -2241,8 +2282,33 @@ function init() {
     tip.style.left = Math.min(window.innerWidth - tip.offsetWidth - 8, ev.clientX + 14) + "px"; tip.style.top = (ev.clientY + 16) + "px";
   });
   svg.addEventListener("pointerleave", () => tip.style.display = "none");
-  const hp = location.hash.replace("#", "");
-  setTab(hp.indexOf("tab=aug") >= 0 ? "aug" : "bst");
+  // prepared view from the URL: tab, value mode, toggles, an example or an input, and a step
+  const hp = readParams();
+  setTab(hp.tab === "aug" ? "aug" : "bst");
+  if (hp.fade === "0") { S.fade = false; el("fadeChk").checked = false; }
+  if (hp.vals === "0") { S.showVals = false; el("valsChk").checked = false; }
+  if (hp.detail === "op") { UI.gran = "op"; segOn("granSeg", "op"); }
+  if (hp.values && ["set", "kv", "rope"].includes(hp.values) && !(hp.values === "rope" && S.tab !== "aug")) setVmode(hp.values);
+  if (hp.input) loadText(hp.input, "parseErr");
+  else if (hp.preset && PRESETS[S.tab][+hp.preset - 1]) loadPreset(PRESETS[S.tab][+hp.preset - 1]);
+  else { computeVis(); renderPhases(); }
+  if (hp.step) go(visFromRaw(+hp.step), false);
+  initLinkButton();
+  urlReady = true; syncURL();
+}
+/* the state that a link reproduces (defaults are left out) */
+function urlState() {
+  const list = PRESETS[S.tab], txt = scriptToText(scripts[S.tab]);
+  let pi = -1;
+  list.forEach((p, i) => {
+    if (pi >= 0 || p.rnd || p.vmode !== S.vmode) return;
+    try { if (scriptToText(parseScript(presetText(p), S.tab, p.vmode)) === txt) pi = i; } catch (e) { /* ignore */ }
+  });
+  const dflt = list.findIndex(p => p.vmode === S.vmode);
+  return { tab: S.tab === "aug" ? "aug" : null, values: S.vmode !== "set" ? S.vmode : null,
+           detail: UI.gran === "op" ? "op" : null, fade: S.fade ? null : "0", vals: S.showVals ? null : "0",
+           preset: pi >= 0 && pi !== dflt ? pi + 1 : null, input: pi < 0 ? txt : null,
+           step: vis.length && vis[cur] > 0 ? vis[cur] : null };
 }
 function phaseTitle(ph) {
   const k = ph.kind;

@@ -365,6 +365,7 @@ body { font-family: var(--wi-font-body); }
     <input type="number" id="genN" min="4" value="24" aria-label="n">
     <button id="genBtn">Generate</button>
   </div>
+  <button id="linkBtn" title="Copy a link that opens exactly this view" style="margin-left:auto">copy link</button>
 </div>
 
 <div class="opbar">
@@ -836,6 +837,42 @@ const WORDS = ("to be or not that is the q all we see seem a dream in it my so f
 /* random keys must respect the key length limit (the cells are only that wide) */
 function randomWord() { const ok = WORDS.filter(w => w.length <= MAXKEY); return ok[Math.floor(Math.random() * ok.length)]; }
 
+/* ---- URL parameters: prepare a view, and link to the current one ----------------------------
+   Read from both ?query and #fragment (the fragment wins); written to the #fragment only, so it
+   also works for local files. Pages provide urlState() -> {name: value} (null/"" = default) and
+   apply their parameters at start-up. */
+function readParams() {
+  const p = new URLSearchParams(location.search);
+  for (const [k, v] of new URLSearchParams(location.hash.replace(/^#/, ""))) p.set(k, v);
+  const o = {}; for (const [k, v] of p) o[k] = v;
+  return o;
+}
+let urlTimer = null, urlReady = false;
+function syncURL() {
+  if (!urlReady || typeof urlState !== "function") return;
+  clearTimeout(urlTimer);
+  urlTimer = setTimeout(() => {
+    const st = urlState(), p = new URLSearchParams();
+    for (const k in st) if (st[k] != null && st[k] !== "") p.set(k, st[k]);
+    const h = p.toString();
+    try { history.replaceState(null, "", location.pathname + location.search + (h ? "#" + h : "")); } catch (e) { /* e.g. sandboxed */ }
+  }, 200);
+}
+/* the step to show: a raw step index (independent of the detail level) -> the nearest visible step */
+function visFromRaw(raw) { let k = 0; vis.forEach((s, i) => { if (s <= raw) k = i; }); return k; }
+function initLinkButton() {
+  const b = el("linkBtn"); if (!b) return;
+  b.addEventListener("click", () => {
+    clearTimeout(urlTimer);
+    const st = urlState(), p = new URLSearchParams();
+    for (const k in st) if (st[k] != null && st[k] !== "") p.set(k, st[k]);
+    const url = location.href.replace(/#.*$/, "") + (p.toString() ? "#" + p.toString() : "");
+    const done = () => { b.textContent = "link copied"; setTimeout(() => b.textContent = "copy link", 1600); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => prompt("Link to this view:", url));
+    else prompt("Link to this view:", url);
+  });
+}
+
 
 /* =====================================================================
    Deamortized doubling array. Port of the corrected
@@ -1128,6 +1165,7 @@ function draw(u) {
    Side panels
    ===================================================================== */
 function renderSide(B) {
+  syncURL();
   el("statusBox").innerHTML = B.txt || "";
   const ph = phases[B.phase];
   el("phaseName").textContent = ph ? phaseTitle(ph) : "";
@@ -1374,10 +1412,28 @@ function init() {
   });
   svg.addEventListener("pointerleave", () => tip.style.display = "none");
   initTransport(); initSplitters(redraw);
-  script = parseStackOps(presetText(PRESETS[0]), MAXN);
+  // prepared view from the URL: detail level, an example or an input, and a step
+  const hp = readParams();
+  if (hp.detail === "op") { UI.gran = "op"; segOn("granSeg", "op"); }
+  if (hp.n) el("genN").value = Math.max(4, Math.min(MAXN - INIT3.length, +hp.n || DEFAULT_N));
+  let txt = presetText(PRESETS[0]);
+  if (hp.input) txt = hp.input; else if (hp.preset && PRESETS[+hp.preset - 1]) txt = presetText(PRESETS[+hp.preset - 1]);
+  try { script = parseStackOps(txt, MAXN); } catch (e) { el("parseErr").textContent = e.message; script = parseStackOps(presetText(PRESETS[0]), MAXN); }
   rebuild(false);
+  if (hp.step) go(visFromRaw(+hp.step), false);
+  initLinkButton();
+  urlReady = true; syncURL();
 }
 document.addEventListener("DOMContentLoaded", init);
+
+/* the state that a link reproduces (defaults are left out; random examples are linked by their input) */
+function urlState() {
+  const txt = stackOpsToText(script);
+  let pi = -1;
+  PRESETS.forEach((p, i) => { if (pi < 0 && !p.rnd && !p.gen && stackOpsToText(parseStackOps(presetText(p), MAXN)) === txt) pi = i; });
+  return { detail: UI.gran === "op" ? "op" : null, preset: pi >= 0 ? pi + 1 : null, input: pi < 0 ? txt : null,
+           step: vis.length && vis[cur] > 0 ? vis[cur] : null };
+}
 
 </script>
 </body>

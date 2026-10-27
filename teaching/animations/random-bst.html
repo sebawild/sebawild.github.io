@@ -238,6 +238,11 @@
   .xmark.emp { stroke:var(--wi-ink-strong); }
   .xlab { font-family:var(--wi-font-body); font-size:12px; }
   .xlab.exact { fill:var(--wi-accent); } .xlab.emp { fill:var(--wi-ink-strong); }
+  .bar.cap { fill:var(--wi-ink-strong); stroke:none; }
+  .oneinm { stroke:var(--wi-ink-soft); stroke-width:1.2; stroke-dasharray:6 3; }
+  .xlab.oneinm { fill:var(--wi-ink-soft); stroke:none; font-style:italic; }
+  .xmark.case { stroke:var(--wi-ink-faint); stroke-width:1.2; stroke-dasharray:2 3; }
+  .xlab.case { fill:var(--wi-ink-soft); font-style:italic; }
   .pmfdot { fill:var(--wi-accent); }
   .pmfline { fill:none; stroke:var(--wi-accent); stroke-width:1.5; }
   .pmfstep { fill:none; stroke:var(--wi-accent); stroke-width:1.6; stroke-dasharray:4 3; }
@@ -452,6 +457,18 @@ body { font-family: var(--wi-font-body); }
         <button data-m="auto" class="on" title="trees while they fit, bars afterwards">auto</button><button data-m="trees">trees</button><button data-m="bars">frequencies</button>
       </span>
     </div>
+    <div class="ctl">
+      <span class="lbl">Range</span>
+      <span class="seg" id="t2Range">
+        <button data-r="typical" class="on" title="where the probability is not negligible">typical</button><button data-r="full" title="from the best to the worst case">full</button>
+      </span>
+    </div>
+    <div class="ctl">
+      <span class="lbl">y</span>
+      <span class="seg" id="t2YScale">
+        <button data-y="linear" class="on">linear</button><button data-y="log">log</button>
+      </span>
+    </div>
     <label class="chk"><input type="checkbox" id="t2Exact" checked> exact distribution</label>
   </div>
 
@@ -497,7 +514,7 @@ body { font-family: var(--wi-font-body); }
       <div class="hint">
         One setting per line: <code>n 7</code>, <code>seed 42</code>, <code>samples 30</code> (random trees to draw
         right away), <code>measure C</code> (or <code>h</code>, <code>leaves</code>, <code>leftmost</code>),
-        <code>show auto</code> (or <code>trees</code>, <code>frequencies</code>), <code>scale normalized</code> (or <code>raw</code>).
+        <code>show auto</code> (or <code>trees</code>, <code>frequencies</code>), <code>scale normalized</code> (or <code>raw</code>), <code>range full</code> (or <code>typical</code>), <code>y log</code> (or <code>linear</code>).
         Normalized means \(C(T)/(n\lg n)\), \(h(T)/\lg n\), leaves\(/n\) and leftmost depth\(/\lg n\).
         Any other line is a permutation of <code>1 … n</code>, inserted as a sample of its own — so a lecture
         example can be fixed exactly (try listing all 24 permutations of 4). Lines starting with <code>#</code>
@@ -1484,7 +1501,9 @@ const T2_PRESETS = [
   { name: "n = 7: 150 random trees", text: "n 7\nseed 7\nsamples 150" },
   { name: "n = 10: 1500 random trees", text: "n 10\nseed 10\nsamples 1500" },
   { name: "n = 100: 20 000 trees", text: "n 100\nseed 100\nsamples 20000\nshow frequencies" },
-  { name: "n = 1000: height", text: "n 1000\nseed 1\nsamples 3000\nmeasure h" }
+  { name: "n = 1000: height", text: "n 1000\nseed 1\nsamples 3000\nmeasure h" },
+  { name: "n = 100: far from the worst case (full range, log scale)", text: "# the whole range from best to worst case;\n# on the log scale, the exact tail probabilities\nn 100\nseed 3\nsamples 20000\nrange full\ny log\nshow frequencies" },
+  { name: "n = 2000: full range", text: "n 2000\nseed 2\nsamples 2000\nrange full" }
 ];
 
 const t2 = {
@@ -1493,7 +1512,7 @@ const t2 = {
   kept: [],                      // first TREE_KEEP samples: {perm, shape, v:[4]}
   shapes: [], shapeMap: new Map(),
   conv: [[], [], [], []], nextCk: 1,
-  scale: "norm",
+  scale: "norm", range: "typical", ylog: false,
   queue: 0, playing: false, acc: 0, lastT: 0, raf: 0,
   last: null, dirty: true, rendered: null, ymax: 0, hoverShape: -1
 };
@@ -1549,9 +1568,10 @@ function niceStep(range, target) {
   const raw = range / Math.max(1, target), p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
   return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
 }
-function t2Range(id) {
+function t2Range(id, mode) {
   const n = t2.n, k = MIDX[id], [rlo, rhi] = metricRange(id, n);
   const d = exactPmf(id, n);
+  if ((mode || t2.range) === "full") return [rlo, rhi, d];
   let a, b;
   if (d) {
     let mx = 0; for (const p of d.p) mx = Math.max(mx, p);
@@ -1568,98 +1588,147 @@ function t2Range(id) {
   return [Math.max(rlo, a), Math.min(rhi, b), d];
 }
 
-function t2Draw() {
-  const id = METRICS[t2.metric].id, k = t2.metric, n = t2.n;
+/* plot geometry, binning, counts ------------------------------------------- */
+function t2Geom() {
   const wrap = el("t2Wrap"), W = Math.max(320, wrap.clientWidth), H = Math.max(200, wrap.clientHeight);
+  const ml = 58, mr = 18, mt = 26, mb = 50;
+  return { W: W, H: H, ml: ml, mr: mr, mt: mt, mb: mb, PW: W - ml - mr, PH: H - mt - mb, baseY: H - mb };
+}
+function t2Bins(xlo, xhi, PW) {
+  const nv = xhi - xlo + 1; let bw = 1;
+  if (PW / nv < 5) bw = Math.ceil(nv / (PW / 7));
+  return { lo: xlo, bw: bw, nb: Math.ceil(nv / bw) };
+}
+/* the continuous value window a static view shows: bin edges at v - 1/2 for single values */
+const t2Shown = B => B.bw === 1 ? [B.lo - 0.5, B.lo + B.nb - 0.5] : [B.lo, B.lo + B.nb * B.bw];
+function t2Count(B, k, d) {
+  const cnt = new Array(B.nb).fill(0), ex = new Array(B.nb).fill(0);
+  const binOf = v => Math.floor((v - B.lo) / B.bw);
+  for (const [v, c] of t2.counts[k]) { const b = binOf(v); if (b >= 0 && b < B.nb) cnt[b] += c; }
+  if (d) for (let i = 0; i < d.p.length; i++) { const b = binOf(d.lo + i); if (b >= 0 && b < B.nb) ex[b] += d.p[i]; }
+  return { cnt: cnt, ex: ex, binOf: binOf };
+}
+function t2YScales(C) {         // linear ymax and log decades for these counts
+  let need = 0, pmax = 0, pmin = 1;
+  for (let b = 0; b < C.cnt.length; b++) {
+    const f = t2.m ? C.cnt[b] / t2.m : 0;
+    need = Math.max(need, f, C.ex[b]);
+    for (const p of [f, C.ex[b]]) if (p > 0) { pmax = Math.max(pmax, p); pmin = Math.min(pmin, p); }
+  }
+  if (pmax === 0) { pmax = 1; pmin = 1e-3; }
+  const lmax = Math.ceil(Math.log10(pmax) + 1e-9), lmin = Math.min(lmax - 1, Math.max(-305, Math.floor(Math.log10(pmin))));
+  return { ymax: Math.max(need, 1e-9) * 1.08, lmin: lmin, lmax: lmax };
+}
+/* the static view for the current settings */
+function t2Spec() {
+  const G = t2Geom(), id = METRICS[t2.metric].id, [xlo, xhi, dRaw] = t2Range(id);
+  const d = t2.exact ? dRaw : null, B = t2Bins(xlo, xhi, G.PW), C = t2Count(B, t2.metric, d);
+  const colW = G.PW / B.nb, maxCnt = Math.max(1, ...C.cnt);
+  const treesOk = t2.n <= THUMB_MAX_N && B.bw === 1 && t2.m <= t2.kept.length && !t2.ylog;
+  const s = Math.min(colW - 2, 46, G.PH / maxCnt);
+  const trees = t2.mode === "trees" ? treesOk && s >= 2.5 : t2.mode === "bars" ? false : treesOk && s >= 9;
+  return { G: G, B: B, shown: t2Shown(B), yb: t2.ylog ? 1 : 0, trees: trees, d: d, dRaw: dRaw };
+}
+
+/* A = null: the static view.  A = {B, shown:[va,vb], yb, trees, ymax, lmin, lmax}: one animation frame */
+function t2Draw(A) {
+  const id = METRICS[t2.metric].id, k = t2.metric, n = t2.n;
+  const sp = A ? null : t2Spec();
+  const G = A ? t2Geom() : sp.G, { W, H, ml, mt, PW, PH, baseY } = G;
+  const dRaw = exactPmf(id, n), d = t2.exact ? dRaw : null;
+  const B = A ? A.B : sp.B, shown = A ? A.shown : sp.shown, yb = A ? A.yb : sp.yb, trees = A ? A.trees : sp.trees;
+  const { lo: xlo, bw, nb } = B, [va, vb] = shown;
   const svg = el("t2Svg");
   svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
-  const ml = 58, mr = 18, mt = 26, mb = 50, PW = W - ml - mr, PH = H - mt - mb, baseY = mt + PH;
-  const [xlo, xhi, dRaw] = t2Range(id);
-  const d = t2.exact ? dRaw : null;
-  const nv = xhi - xlo + 1;
-  let bw = 1; if (PW / nv < 5) bw = Math.ceil(nv / (PW / 7));
-  const nb = Math.ceil(nv / bw), colW = PW / nb;
-  const binOf = v => Math.floor((v - xlo) / bw);
-  const cnt = new Array(nb).fill(0);
-  for (const [v, c] of t2.counts[k]) { const b = binOf(v); if (b >= 0 && b < nb) cnt[b] += c; }
-  const ex = new Array(nb).fill(0);
-  if (d) for (let i = 0; i < d.p.length; i++) { const b = binOf(d.lo + i); if (b >= 0 && b < nb) ex[b] += d.p[i]; }
+
+  const X = v => ml + (v - va) / (vb - va) * PW;
+  const edge = b => xlo + b * bw - (bw === 1 ? 0.5 : 0);
+  const C = t2Count(B, k, d), cnt = C.cnt, ex = C.ex;
   const maxCnt = Math.max(1, ...cnt);
+  const colW1 = X(edge(1)) - X(edge(0));
+  let s = trees ? Math.min(colW1 - 2, 46, PH / maxCnt) : 0;
+  if (trees && t2.m === 0) s = Math.min(colW1 - 2, 46);
 
-  /* trees or bars? */
-  const treesOk = n <= THUMB_MAX_N && bw === 1 && t2.m <= t2.kept.length;
-  let s = Math.min(colW - 2, 46, PH / maxCnt);
-  let trees = t2.mode === "trees" ? treesOk && s >= 2.5 : t2.mode === "bars" ? false : treesOk && s >= 9;
-  if (trees && t2.m === 0) s = Math.min(colW - 2, 46);
-
-  const sig = [trees, W, H, xlo, xhi, trees ? s.toFixed(3) : bw, k, n].join("|");
-  const full = !t2.rendered || t2.rendered.sig !== sig;
+  const sig = A ? null : [trees, W, H, xlo, nb, trees ? s.toFixed(3) : bw, k, n, t2.ylog].join("|");
+  const full = !!A || !t2.rendered || t2.rendered.sig !== sig;
   let gAxes, gData, gTop;
   if (full) {
-    svg.innerHTML = "";
-    S("defs", null, svg);
-    gAxes = S("g", { class: "g-axes" }, svg); gData = S("g", { class: "g-data" }, svg); gTop = S("g", { class: "g-top" }, svg);
     const prevDrawn = t2.rendered && t2.rendered.trees ? t2.rendered.drawn : (t2.rendered ? t2.rendered.prevM : 0);
-    t2.rendered = { sig: sig, drawn: 0, colH: new Array(nb).fill(0), symbols: new Set(), trees: trees, prevDrawn: prevDrawn };
+    svg.innerHTML = "";
+    const defs = S("defs", null, svg);
+    const cp = S("clipPath", { id: "t2clip" }, defs); S("rect", { x: ml, y: 0, width: PW, height: H }, cp);
+    gAxes = S("g", { class: "g-axes" }, svg);
+    gData = S("g", { class: "g-data", "clip-path": "url(#t2clip)" }, svg);
+    gTop = S("g", { class: "g-top" }, svg);
+    t2.rendered = { sig: sig, drawn: 0, colH: new Array(nb).fill(0), symbols: new Set(), trees: trees, prevDrawn: A ? 0 : prevDrawn };
   } else {
     gAxes = svg.querySelector(".g-axes"); gData = svg.querySelector(".g-data"); gTop = svg.querySelector(".g-top");
   }
-  const xOfBin = b => ml + b * colW;
-  const xOfVal = v => ml + ((v - xlo) / bw + (bw === 1 ? 0.5 : 0)) / nb * PW;
   const Z = t2.scale === "norm" ? normOf(id, n) : 1, nd = Z === 1 ? 2 : 3;
 
-  /* --- axes (always redrawn) --- */
+  /* --- x axis --- */
   gAxes.innerHTML = "";
   const ax = S("g", { class: "axis" }, gAxes);
   S("line", { x1: ml, y1: baseY + .5, x2: ml + PW, y2: baseY + .5 }, ax);
-  if (Z === 1) {
-    const xst = Math.max(bw, niceStep(nv, Math.max(2, PW / 70)));
-    for (let v = Math.ceil(xlo / xst) * xst; v <= xhi; v += xst) {
-      const x = xOfVal(v);
-      S("line", { x1: x, y1: baseY, x2: x, y2: baseY + 5 }, ax);
-      S("text", { x: x, y: baseY + 18, "text-anchor": "middle" }, ax).textContent = String(v);
-    }
-  } else if (bw === 1 && colW >= 36) {                    // few columns: label each with its normalized value
-    for (let v = xlo; v <= xhi; v++) {
-      const x = xOfVal(v);
-      S("line", { x1: x, y1: baseY, x2: x, y2: baseY + 5 }, ax);
-      S("text", { x: x, y: baseY + 18, "text-anchor": "middle" }, ax).textContent = (v / Z).toFixed(2);
-    }
+  const xtick = (x, lab) => {
+    if (x < ml - 0.5 || x > ml + PW + 0.5) return;
+    S("line", { x1: x, y1: baseY, x2: x, y2: baseY + 5 }, ax);
+    S("text", { x: x, y: baseY + 18, "text-anchor": "middle" }, ax).textContent = lab;
+  };
+  if (Z !== 1 && bw === 1 && colW1 >= 36 && !A) {
+    for (let v = xlo; v <= xlo + nb - 1; v++) xtick(X(v), (v / Z).toFixed(2));
   } else {
-    const ulo = (xlo - (bw === 1 ? 0.5 : 0)) / Z, uhi = (xhi + 0.5) / Z, ust = niceStep(uhi - ulo, Math.max(2, PW / 70)), dd = decimalsFor(ust);
-    for (let u = Math.ceil(ulo / ust) * ust; u <= uhi + 1e-12; u += ust) {
-      const x = xOfVal(u * Z); if (x < ml - 0.5 || x > ml + PW + 0.5) continue;
-      S("line", { x1: x, y1: baseY, x2: x, y2: baseY + 5 }, ax);
-      S("text", { x: x, y: baseY + 18, "text-anchor": "middle" }, ax).textContent = u.toFixed(dd);
-    }
+    const ulo = va / Z, uhi = vb / Z;
+    let ust = niceStep(uhi - ulo, Math.max(2, PW / 70));
+    if (Z === 1) ust = Math.max(1, Math.round(ust));
+    const dd = Z === 1 ? 0 : decimalsFor(ust);
+    for (let u = Math.ceil(ulo / ust - 1e-9) * ust; u <= uhi + 1e-9; u += ust) xtick(X(u * Z), u.toFixed(dd));
   }
-  let yUnit, ylab;
+
+  /* --- y axis: count (trees), or a blend of linear and log probability --- */
+  let ylab, yOf = null, ysc = null;
   if (trees) {
-    yUnit = s; ylab = "number of trees";
+    ylab = "number of trees";
     const ymaxC = PH / s, st = Math.max(1, niceStep(ymaxC, PH / 45));
     for (let c = 0; c <= ymaxC + 1e-9; c += st) {
       const y = baseY - c * s;
       if (c > 0) S("line", { class: "grid", x1: ml, y1: y, x2: ml + PW, y2: y }, gAxes);
-      const t = S("text", { x: ml - 7, y: y + 4, "text-anchor": "end" }, ax); t.textContent = String(Math.round(c));
+      S("text", { x: ml - 7, y: y + 4, "text-anchor": "end" }, ax).textContent = String(Math.round(c));
     }
   } else {
-    let need = 0;
-    for (let b = 0; b < nb; b++) need = Math.max(need, t2.m ? cnt[b] / t2.m : 0, ex[b]);
-    need = Math.max(need, 1e-9) * 1.08;
-    if (!t2.ymax || need > t2.ymax || need < 0.55 * t2.ymax || t2.rendered.ylock !== sig) { t2.ymax = need; t2.rendered.ylock = sig; }
-    const ymax = t2.ymax; yUnit = PH / ymax;
-    ylab = bw === 1 ? "relative frequency" : "relative frequency (bins of " + bw + " values)";
-    const st = niceStep(ymax, PH / 45);
-    for (let f = 0; f <= ymax + 1e-12; f += st) {
-      const y = baseY - f * yUnit;
-      if (f > 0) S("line", { class: "grid", x1: ml, y1: y, x2: ml + PW, y2: y }, gAxes);
-      const t = S("text", { x: ml - 7, y: y + 4, "text-anchor": "end" }, ax);
-      t.textContent = st >= 0.1 ? f.toFixed(1) : st >= 0.01 ? f.toFixed(2) : st >= 0.001 ? f.toFixed(3) : f.toExponential(0);
+    ysc = A ? A : t2YScales(C);
+    if (!A) {     // keep the linear scale steady while sampling
+      if (!t2.ymax || ysc.ymax > t2.ymax || ysc.ymax < 0.55 * t2.ymax || t2.rendered.ylock !== sig) { t2.ymax = ysc.ymax; t2.rendered.ylock = sig; }
+      ysc = { ymax: t2.ymax, lmin: ysc.lmin, lmax: ysc.lmax };
+    }
+    const { ymax, lmin, lmax } = ysc;
+    const yLin = f => f / ymax, yLog = f => f > 0 ? Math.max(-0.03, (Math.log10(f) - lmin) / (lmax - lmin)) : -0.03;
+    yOf = f => baseY - PH * ((1 - yb) * yLin(f) + yb * yLog(f));
+    const binTxt = bw === 1 ? "" : " (bins of " + bw + " values)";
+    ylab = yb < 0.5 ? "relative frequency" + binTxt : "probability, log scale" + binTxt;
+    if (yb < 0.98) {                                     // linear ticks
+      const gl = S("g", { opacity: (1 - yb).toFixed(3) }, gAxes), st = niceStep(ymax, PH / 45);
+      for (let f = 0; f <= ymax + 1e-12; f += st) {
+        const y = yOf(f); if (y < mt - 8) continue;
+        if (f > 0) S("line", { class: "grid", x1: ml, y1: y, x2: ml + PW, y2: y }, gl);
+        S("text", { class: "axis", x: ml - 7, y: y + 4, "text-anchor": "end" }, gl).textContent = f.toFixed(decimalsFor(st));
+      }
+      gl.querySelectorAll("text").forEach(t => { t.style.font = "12.5px var(--wi-font-body)"; t.style.fill = "var(--wi-ink-soft)"; });
+    }
+    if (yb > 0.02) {                                     // log ticks
+      const gl = S("g", { opacity: yb.toFixed(3) }, gAxes);
+      const dec = Math.max(1, Math.ceil((lmax - lmin) / Math.max(2, PH / 26)));
+      const sup = e => String(e).replace("-", "⁻").replace(/\d/g, c => "⁰¹²³⁴⁵⁶⁷⁸⁹"[c]);
+      for (let e = lmax; e >= lmin; e -= dec) {
+        const y = yOf(Math.pow(10, e)); if (y < mt - 8 || y > baseY + 1) continue;
+        S("line", { class: "grid", x1: ml, y1: y, x2: ml + PW, y2: y }, gl);
+        const t = S("text", { x: ml - 7, y: y + 4, "text-anchor": "end" }, gl);
+        t.textContent = e === 0 ? "1" : "10" + sup(e); t.style.font = "12.5px var(--wi-font-body)"; t.style.fill = "var(--wi-ink-soft)";
+      }
     }
   }
   S("line", { x1: ml + .5, y1: mt - 6, x2: ml + .5, y2: baseY }, ax);
-  const yl = S("text", { x: 14, y: mt + PH / 2, "text-anchor": "middle", transform: "rotate(-90 14 " + (mt + PH / 2) + ")" }, ax);
-  yl.textContent = ylab;
+  S("text", { x: 14, y: mt + PH / 2, "text-anchor": "middle", transform: "rotate(-90 14 " + (mt + PH / 2) + ")" }, ax).textContent = ylab;
 
   /* --- data --- */
   if (trees) {
@@ -1668,15 +1737,15 @@ function t2Draw() {
     const from = R.drawn, to = Math.min(t2.m, t2.kept.length);
     const animate = !full && to - from <= 40, freshFrom = full ? R.prevDrawn : from;
     for (let j = from; j < to; j++) {
-      const smp = t2.kept[j], v = smp.v[k], b = binOf(v);
+      const smp = t2.kept[j], v = smp.v[k], b = C.binOf(v);
       if (b < 0 || b >= nb) continue;
       const h = R.colH[b]++;
-      const bwid = Math.max(s, Math.min(colW - 4, 2 * s, 46));
-      const x = xOfBin(b) + (colW - bwid) / 2, y = baseY - (h + 1) * s;
+      const bwid = Math.max(s, Math.min(colW1 - 4, 2 * s, 46));
+      const x = X(v) - bwid / 2, y = baseY - (h + 1) * s;
       const sh = smp.shape;
       if (!R.symbols.has(sh)) { R.symbols.add(sh); t2Symbol(defs, sh); }
       const outer = S("g", { transform: "translate(" + x.toFixed(2) + "," + y.toFixed(2) + ")" }, gData);
-      const g = S("g", { class: "box" + (j >= freshFrom && to - freshFrom <= 10 ? " new" : "") + (animate ? " pop" : ""),
+      const g = S("g", { class: "box" + (!A && j >= freshFrom && to - freshFrom <= 10 ? " new" : "") + (animate ? " pop" : ""),
                          "data-j": j, "data-s": sh }, outer);
       S("rect", { class: "bg", x: .5, y: .5, width: Math.max(1, bwid - 1), height: Math.max(1, s - 1), rx: s > 10 ? 2 : 0 }, g);
       if (s >= 7) S("use", { href: "#shp" + sh, x: 1, y: 1, width: bwid - 2, height: s - 2 }, g);
@@ -1685,46 +1754,71 @@ function t2Draw() {
     R.drawn = to;
   } else {
     gData.innerHTML = "";
+    const gBar = yb < 0.98 ? S("g", { opacity: (1 - yb).toFixed(3) }, gData) : null;
+    const gCap = yb > 0.02 ? S("g", { opacity: yb.toFixed(3) }, gData) : null;
     for (let b = 0; b < nb; b++) {
       if (!cnt[b]) continue;
-      const f = cnt[b] / t2.m, h = f * yUnit;
-      S("rect", { class: "bar", x: xOfBin(b) + (colW > 6 ? 1 : 0), y: baseY - h, width: Math.max(1, colW - (colW > 6 ? 2 : 0)), height: h,
-                  "data-b": b }, gData);
+      const x0 = X(edge(b)), x1 = X(edge(b + 1));
+      if (x1 < ml || x0 > ml + PW) continue;
+      const f = cnt[b] / t2.m, y = yOf(f), pad = x1 - x0 > 6 ? 1 : 0;
+      if (gBar) S("rect", { class: "bar", x: x0 + pad, y: y, width: Math.max(1, x1 - x0 - 2 * pad), height: Math.max(0, baseY - y), "data-b": b }, gBar);
+      if (gCap) S("rect", { class: "bar cap", x: x0, y: y - 2, width: Math.max(2, x1 - x0), height: 4, "data-b": b }, gCap);
+    }
+    if (gCap && t2.m) {
+      const y = yOf(1 / t2.m);
+      S("line", { class: "oneinm", x1: ml, y1: y, x2: ml + PW, y2: y }, gCap);
+      S("text", { class: "xlab oneinm", x: ml + PW - 4, y: y - 5, "text-anchor": "end" }, gCap).textContent =
+        "1/m: one tree in m = " + t2.m.toLocaleString("en-US") + " — rarer values are hardly ever seen";
     }
     t2.rendered.drawn = 0; t2.rendered.prevM = t2.m;
   }
 
-  /* --- exact distribution and means (always redrawn) --- */
+  /* --- exact distribution, best/worst case, means --- */
   gTop.innerHTML = "";
   if (d) {
-    const scale = trees ? t2.m * s : yUnit;            // expected count (trees) or probability (bars)
-    if (trees || colW >= 4) {
+    const gp = S("g", { "clip-path": "url(#t2clip)" }, gTop);
+    const yP = trees ? (p => baseY - p * t2.m * s) : yOf;
+    if (trees || colW1 >= 4) {
       for (let b = 0; b < nb; b++) {
         if (ex[b] <= 0) continue;
-        const y = baseY - ex[b] * scale;
-        S("line", { class: "pmfstep", x1: xOfBin(b) + 1, y1: y, x2: xOfBin(b) + colW - 1, y2: y }, gTop);
+        const x0 = X(edge(b)), x1 = X(edge(b + 1)); if (x1 < ml || x0 > ml + PW) continue;
+        const y = yP(ex[b]);
+        S("line", { class: "pmfstep", x1: x0 + 1, y1: y, x2: x1 - 1, y2: y }, gp);
       }
     } else {
       let pts = [];
-      for (let b = 0; b < nb; b++) pts.push((xOfBin(b) + colW / 2).toFixed(1) + "," + (baseY - ex[b] * scale).toFixed(1));
-      S("polyline", { class: "pmfline", points: pts.join(" ") }, gTop);
+      const flush = () => { if (pts.length) S("polyline", { class: "pmfline", points: pts.join(" ") }, gp); pts = []; };
+      for (let b = 0; b < nb; b++) {
+        if (ex[b] > 0) pts.push(((X(edge(b)) + X(edge(b + 1))) / 2).toFixed(1) + "," + yP(ex[b]).toFixed(1));
+        else flush();
+      }
+      flush();
     }
+  }
+  if (n > 1) {
+    const [blo, bhi] = metricRange(id, n), bc = id === "leaves" ? ["fewest", "most"] : ["best case", "worst case"];
+    [[blo, bc[0], "start", 4], [bhi, bc[1], "end", -4]].forEach(([v, lab, anc, off]) => {
+      const x = X(v);
+      if (x < ml - 0.5 || x > ml + PW + 0.5 || (t2.range !== "full" && !A)) return;
+      S("line", { class: "xmark case", x1: x, y1: mt + 10, x2: x, y2: baseY + 6 }, gTop);
+      S("text", { class: "xlab case", x: x + off, y: mt + 24, "text-anchor": anc }, gTop).textContent = lab;
+    });
   }
   const mo = exactMoments(id, n);
   const marks = [];
   if (mo) marks.push({ v: mo.mean, cls: "exact", lab: "exact mean " + fmt(mo.mean / Z, nd) });
   if (t2.m) marks.push({ v: t2.sum[k] / t2.m, cls: "emp", lab: "sample mean " + fmt(t2.sum[k] / t2.m / Z, nd) });
-  if (marks.length === 2 && xOfVal(marks[1].v) < xOfVal(marks[0].v)) marks.reverse();
+  if (marks.length === 2 && X(marks[1].v) < X(marks[0].v)) marks.reverse();
+  const stack = marks.length === 2 && X(marks[0].v) - 115 < 4;
   marks.forEach((mk, i) => {
-    const x = xOfVal(mk.v);
-    if (x < ml || x > ml + PW) return;
+    const x = X(mk.v);
+    if (x < ml - 1 || x > ml + PW + 1) return;
     S("line", { class: "xmark " + mk.cls, x1: x, y1: mt - 4, x2: x, y2: baseY }, gTop);
-    const t = S("text", { class: "xlab " + mk.cls, x: x + (i === 0 && marks.length === 2 ? -4 : 4), y: mt - 9,
-                          "text-anchor": i === 0 && marks.length === 2 ? "end" : "start" }, gTop);
-    t.textContent = mk.lab;
+    const left = i === 0 && marks.length === 2 && !stack, atEnd = x > ml + PW - 130;
+    S("text", { class: "xlab " + mk.cls, x: x + (left || atEnd ? -4 : 4), y: stack && i === 1 ? mt + 6 : mt - 9,
+                "text-anchor": left || atEnd ? "end" : "start" }, gTop).textContent = mk.lab;
   });
 
-  /* x-axis title (MathJax overlay) */
   const axisHtml = Z === 1 ? METRICS[k].axis
     : "\\(" + NORM[id].tex + "\\) &nbsp;(" + METRICS[k].label + ", normalized; tends to " + NORM[id].limTex + " ≈ " + NORM[id].lim.toFixed(3) + ")";
   setMath(el("t2Over"), '<div class="olab" style="left:' + (ml + PW / 2) + "px;top:" + (baseY + 24) + 'px">' + axisHtml + "</div>");
@@ -1735,10 +1829,40 @@ function t2Draw() {
   t2Legend(trees, !!d, dRaw);
 }
 
+/* ---------- animated zoom (range) and linear <-> log (y) -------------------- */
+function t2Animate(change) {
+  const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce || !el("tab2").classList.contains("on") || t2.anim) { change(); t2.rendered = null; t2Redraw(); return; }
+  const S0 = t2Spec(); change(); const S1 = t2Spec();
+  const xSame = S0.B.lo === S1.B.lo && S0.B.bw === S1.B.bw && S0.B.nb === S1.B.nb;
+  if ((S0.trees || S1.trees) && (S0.yb !== S1.yb || S0.trees !== S1.trees)) { t2.rendered = null; t2Redraw(); return; }
+  let B = S0.B;
+  if (!xSame) {     // a common, fine binning covering both windows, aligned with the start
+    const bw = Math.min(S0.B.bw, S1.B.bw);
+    const hi = Math.max(S0.B.lo + S0.B.nb * S0.B.bw, S1.B.lo + S1.B.nb * S1.B.bw) - 1;
+    const lo = S0.B.lo - Math.ceil(Math.max(0, S0.B.lo - S1.B.lo) / bw) * bw;
+    B = { lo: lo, bw: bw, nb: Math.ceil((hi - lo + 1) / bw) };
+  }
+  const ys = t2YScales(t2Count(B, t2.metric, S1.d));
+  t2.anim = { from: S0, to: S1, B: B, trees: S0.trees, ymax: ys.ymax, lmin: ys.lmin, lmax: ys.lmax, t0: performance.now(), dur: 750 };
+  requestAnimationFrame(t2AnimFrame);
+}
+function t2AnimFrame(now) {
+  const a = t2.anim; if (!a) return;
+  const t = Math.min(1, (now - a.t0) / a.dur), e = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const [a0, b0] = a.from.shown, [a1, b1] = a.to.shown, w0 = b0 - a0, w1 = b1 - a1;
+  const w = Math.pow(w0, 1 - e) * Math.pow(w1, e), p = Math.abs(w1 - w0) < 1e-9 ? e : (w - w0) / (w1 - w0);
+  t2Draw({ B: a.B, shown: [a0 + p * (a1 - a0), b0 + p * (b1 - b0)], yb: a.from.yb + (a.to.yb - a.from.yb) * e,
+           trees: a.trees, ymax: a.ymax, lmin: a.lmin, lmax: a.lmax });
+  if (t < 1) requestAnimationFrame(t2AnimFrame);
+  else { t2.anim = null; t2.rendered = null; t2.ymax = 0; t2Draw(); }
+}
+
 function t2Legend(trees, exactShown, dRaw) {
   const id = METRICS[t2.metric].id;
   let h = trees
     ? '<span class="item"><span class="sw" style="background:var(--wi-panel-2)"></span> one sampled tree (hover: enlarge, click: open in the first tab)</span>'
+    : t2.ylog ? '<span class="item"><span class="swl" style="border-top-width:4px;border-color:var(--wi-ink-strong)"></span> fraction of the sampled trees</span>'
     : '<span class="item"><span class="sw" style="background:#e3c8bd;border-color:var(--wi-accent-soft)"></span> fraction of the sampled trees</span>';
   if (exactShown) h += '<span class="item"><span class="swl" style="border-color:var(--wi-accent);border-top-style:dashed"></span> '
     + (trees ? "expected number of trees" : "exact probability") + "</span>";
@@ -1879,7 +2003,7 @@ function t2Frame(now) {
     if ((i & 15) === 15 && performance.now() - t0 > 22) { t2.queue += todo - i - 1; break; }
   }
   if (t2.m >= MAX_SAMPLES && t2.playing) t2Pause();
-  if (t2.dirty && el("tab2").classList.contains("on")) { t2.dirty = false; t2Draw(); t2DrawLast(); t2DrawConv(); t2DrawStats(); }
+  if (t2.dirty && el("tab2").classList.contains("on")) { t2.dirty = false; if (!t2.anim) t2Draw(); t2DrawLast(); t2DrawConv(); t2DrawStats(); }
   if (t2.playing || t2.queue > 0) t2.raf = requestAnimationFrame(t2Frame); else t2.lastT = 0;
 }
 function t2Kick() { if (!t2.raf) t2.raf = requestAnimationFrame(t2Frame); }
@@ -1904,6 +2028,14 @@ function t2ParseInput(text) {
       const v = (w[1] || "").toLowerCase();
       cfg.mode = v === "trees" ? "trees" : v.startsWith("freq") || v === "bars" ? "bars" : v === "auto" ? "auto" : null;
       if (!cfg.mode) throw new Error("unknown display: " + w[1]);
+    } else if (key === "range") {
+      const v = (w[1] || "").toLowerCase();
+      cfg.range = v === "full" ? "full" : v === "typical" ? "typical" : null;
+      if (!cfg.range) throw new Error("unknown range: " + w[1]);
+    } else if (key === "yscale" || key === "y") {
+      const v = (w[1] || "").toLowerCase();
+      cfg.ylog = v === "log" ? true : v === "linear" ? false : null;
+      if (cfg.ylog == null) throw new Error("unknown y scale: " + w[1]);
     } else if (key === "scale") {
       const v = (w[1] || "").toLowerCase();
       cfg.scale = v.startsWith("norm") ? "norm" : v === "raw" ? "raw" : null;
@@ -1926,6 +2058,7 @@ function t2Apply(cfg) {
   t2SetMetric(cfg.metric != null ? cfg.metric : 0);         // unspecified settings: back to the defaults
   t2SetMode(cfg.mode || "auto");
   t2SetScale(cfg.scale || "norm");
+  t2SetRange(cfg.range || "typical", !!cfg.ylog);
   for (const p of cfg.perms) t2AddSample(p);
   t2.queue = cfg.samples;
   t2Redraw();
@@ -1933,6 +2066,12 @@ function t2Apply(cfg) {
 function t2SetMetric(k) {
   t2.metric = k; t2.rendered = null; t2.ymax = 0;
   el("t2Metric").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === k));
+  t2Redraw();
+}
+function t2SetRange(r, ylog) {
+  t2.range = r; t2.ylog = ylog; t2.rendered = null; t2.ymax = 0;
+  el("t2Range").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.r === r));
+  el("t2YScale").querySelectorAll("button").forEach(b => b.classList.toggle("on", (b.dataset.y === "log") === ylog));
   t2Redraw();
 }
 function t2SetScale(sc) {
@@ -1975,6 +2114,18 @@ function t2Init() {
   el("t2Metric").querySelectorAll("button").forEach((b, i) => b.onclick = () => t2SetMetric(i));
   el("t2Mode").querySelectorAll("button").forEach(b => b.onclick = () => t2SetMode(b.dataset.m));
   el("t2Scale").querySelectorAll("button").forEach(b => b.onclick = () => t2SetScale(b.dataset.s));
+  const segOn = () => {
+    el("t2Range").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.r === t2.range));
+    el("t2YScale").querySelectorAll("button").forEach(b => b.classList.toggle("on", (b.dataset.y === "log") === t2.ylog));
+  };
+  el("t2Range").querySelectorAll("button").forEach(b => b.onclick = () => {
+    if (t2.range === b.dataset.r) return;
+    t2Animate(() => { t2.range = b.dataset.r; segOn(); });
+  });
+  el("t2YScale").querySelectorAll("button").forEach(b => b.onclick = () => {
+    const lg = b.dataset.y === "log"; if (t2.ylog === lg) return;
+    t2Animate(() => { t2.ylog = lg; segOn(); });
+  });
   el("t2Exact").onchange = () => { t2.exact = el("t2Exact").checked; t2.rendered = null; t2Redraw(); };
   document.querySelectorAll(".t2add").forEach(b => b.onclick = () => { t2.queue += +b.dataset.k; t2Kick(); });
   el("t2Play").onclick = () => t2.playing ? t2Pause() : t2Play();

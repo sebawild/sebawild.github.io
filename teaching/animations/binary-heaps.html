@@ -401,6 +401,7 @@ body { font-family: var(--wi-font-body); }
     <label for="presetSel">Example</label>
     <select id="presetSel"></select>
   </div>
+  <button id="linkBtn" title="Copy a link that opens exactly this view" style="margin-left:auto">copy link</button>
 </div>
 
 <!-- operation bar: one per tab -->
@@ -1299,6 +1300,7 @@ function draw(T, e, u) {
 }
 
 function setLayout(v, animate) {
+  if (typeof syncURL === "function") setTimeout(syncURL, 0);
   S.layout = v;
   const now = performance.now(), Tnow = layoutT(now);
   lay = { from: Tnow, to: v === "array" ? 1 : 0, t0: now, dur: (animate && !reducedMotion()) ? 750 : 0 };
@@ -1382,6 +1384,7 @@ function markCode(B) {
    Side panels
    ===================================================================== */
 function renderSide(B) {
+  syncURL();
   el("statusBox").innerHTML = B.txt || "";
   const ph = phases[B.phase];
   el("phaseName").textContent = ph ? ph.name : "";
@@ -2035,14 +2038,44 @@ function initSplitters() {
   vr.addEventListener("dblclick", () => sc.style.removeProperty("--canvas-h"));
 }
 
-function readHash() {
-  const h = {};
-  location.hash.replace(/^#/, "").split("&").forEach(kv => { const [k, v] = kv.split("="); if (k) h[k] = v; });
-  return h;
+/* ---- URL parameters: prepare a view, and link to the current one ----------------------------
+   Read from both ?query and #fragment (the fragment wins); written to the #fragment only, so it
+   also works for local files. Pages provide urlState() -> {name: value} (null/"" = default) and
+   apply their parameters at start-up. */
+function readParams() {
+  const p = new URLSearchParams(location.search);
+  for (const [k, v] of new URLSearchParams(location.hash.replace(/^#/, ""))) p.set(k, v);
+  const o = {}; for (const [k, v] of p) o[k] = v;
+  return o;
+}
+let urlTimer = null, urlReady = false;
+function syncURL() {
+  if (!urlReady || typeof urlState !== "function") return;
+  clearTimeout(urlTimer);
+  urlTimer = setTimeout(() => {
+    const st = urlState(), p = new URLSearchParams();
+    for (const k in st) if (st[k] != null && st[k] !== "") p.set(k, st[k]);
+    const h = p.toString();
+    try { history.replaceState(null, "", location.pathname + location.search + (h ? "#" + h : "")); } catch (e) { /* e.g. sandboxed */ }
+  }, 200);
+}
+/* the step to show: a raw step index (independent of the detail level) -> the nearest visible step */
+function visFromRaw(raw) { let k = 0; vis.forEach((s, i) => { if (s <= raw) k = i; }); return k; }
+function initLinkButton() {
+  const b = el("linkBtn"); if (!b) return;
+  b.addEventListener("click", () => {
+    clearTimeout(urlTimer);
+    const st = urlState(), p = new URLSearchParams();
+    for (const k in st) if (st[k] != null && st[k] !== "") p.set(k, st[k]);
+    const url = location.href.replace(/#.*$/, "") + (p.toString() ? "#" + p.toString() : "");
+    const done = () => { b.textContent = "link copied"; setTimeout(() => b.textContent = "copy link", 1600); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => prompt("Link to this view:", url));
+    else prompt("Link to this view:", url);
+  });
 }
 
 function init() {
-  const hp = readHash();
+  const hp = readParams();
   if (hp.order === "min") S.orient = "min";
   if (hp.layout === "array") S.layout = "array";
   if (hp.detail === "swap") S.gran = "swap";
@@ -2145,6 +2178,12 @@ function init() {
   let rzT = null;
   window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(() => { if (scene) applyZoom(); }, 80); });
   setTab(hp.tab === "build" ? "build" : "ops");
+  // prepared view from the URL: an example or an input, and a step
+  if (hp.input) loadText(hp.input, S.tab === "ops" ? "opErr" : "buildErr");
+  else if (hp.preset) loadPresetIdx(+hp.preset - 1);
+  if (hp.step) go(visFromRaw(+hp.step), false);
+  initLinkButton();
+  urlReady = true; syncURL();
 }
 function setManualZoom(z) {
   S.zoom = Math.max(0.05, Math.min(4, z)); S.fit = false; el("fitChk").checked = false;
@@ -2177,6 +2216,18 @@ function setTabKeep() {
   tryRebuild(false, "opErr");
 }
 document.addEventListener("DOMContentLoaded", init);
+
+/* the state that a link reproduces (defaults are left out) */
+function urlState() {
+  const list = S.tab === "ops" ? OPS_PRESETS : BUILD_PRESETS;
+  const txt = S.tab === "ops" ? opsToText(opsInput) : buildKeys.join(" ");
+  let pi = -1;
+  list.forEach((p, i) => { if (pi < 0 && !p.rnd && (S.tab === "ops" ? opsToText(parseOps(presetText(p))) : parseBuild(presetText(p)).join(" ")) === txt) pi = i; });
+  return { tab: S.tab === "build" ? "build" : null, order: S.orient === "min" ? "min" : null, layout: S.layout === "array" ? "array" : null,
+           detail: S.gran === "swap" ? "swap" : null, preset: pi > 0 ? pi + 1 : null,
+           input: pi < 0 ? txt.split("\n").filter(l => !/^\s*#/.test(l)).join("\n") : null,
+           step: vis.length && vis[cur] > 0 ? vis[cur] : null };
+}
 
 </script>
 </body>

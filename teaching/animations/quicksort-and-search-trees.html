@@ -1,0 +1,2012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quicksort &amp; search trees · same tree, same comparisons</title>
+<script type="text/x-mathjax-config">
+  var font = "Neo-Euler";
+  MathJax.Hub.Config({
+    tex2jax: { inlineMath: [['$','$'], ['\\(','\\)']], displayMath: [['\\[','\\]']], processEscapes: true },
+    TeX: { Macros: { wrel: ["\\mathrel{\\;#1\\;}", 1] } },
+    "SVG": { font: font },
+    "HTML-CSS": { webFont: font, imageFont: font, preferredFont: font, availableFonts: [],
+                  scale: 85, mtextFontInherit: true },
+    messageStyle: "none"
+  });
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<style>
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#9c866d;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-font-mono:ui-monospace, Menlo, Consolas, monospace;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    /* this page: Quicksort = the slides' pink arrays, tree process = teal */
+    --qs-fill:#f1ddd5; --qs-sample:#e2bdb1; --qs-sep:#d3aaa0; --qs-line:#d3958b;
+    --tr:#2a6a63; --tr-fill:#d9e8e4; --hov:#e0a800;
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; margin:0 0 6px; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 14px; max-width:100ch; line-height:1.5; }
+  .subtitle code, .hint code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; }
+
+  /* --- control chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:10px 18px; margin-bottom:12px; }
+  .ctl { display:flex; align-items:center; gap:8px; }
+  .ctl > label, .lbl { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer;
+           transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text;
+                font-size:1.02rem; line-height:1.1; padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  input[type=number] { width:4.2em; }
+  .seg { display:inline-flex; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 11px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+  .linkrow { display:none; width:100%; gap:8px; align-items:center; font-size:.78rem; color:var(--wi-ink-soft); }
+  .linkrow.show { display:flex; }
+  .linkrow input { flex:1; font-family:var(--wi-font-mono); font-size:.74rem; }
+
+  /* --- transport: slider + phase bar --- */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:14px; }
+  .transport-row { display:flex; flex-wrap:nowrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 auto; min-width:160px; }
+  /* custom slider: an exactly 16px thumb, whose centre travels from 8px to width-8px;
+     the phase bar is inset by the same 8px on both sides */
+  #scrubber { -webkit-appearance:none; appearance:none; display:block; width:100%; height:16px;
+              margin:0; padding:0; background:transparent; cursor:pointer; }
+  #scrubber::-webkit-slider-runnable-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  #scrubber::-moz-range-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  #scrubber::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; box-sizing:border-box;
+              width:16px; height:16px; margin-top:-6px; border-radius:50%; background:var(--wi-accent);
+              border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  #scrubber::-moz-range-thumb { box-sizing:border-box; width:16px; height:16px; border-radius:50%;
+              background:var(--wi-accent); border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  #scrubber::-moz-range-progress { background:transparent; }
+  .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint);
+            white-space:nowrap; text-align:right; padding-top:1px; flex:0 0 auto; width:9.5ch; }
+  .phasebar { display:flex; margin:5px 8px 0; width:calc(100% - 16px); }
+  .phasebtn { position:relative; overflow:hidden; flex:0 0 auto; min-width:0;
+              padding:3px 0; font-size:.68rem; line-height:1.3; text-align:center;
+              font-family:var(--wi-font-head); letter-spacing:.03em;
+              background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+              border-left-width:0; border-radius:0; color:var(--wi-ink-faint); cursor:pointer; white-space:nowrap; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn.ptr { background:#eef3f1; }
+  .phasebtn.pend { background:#f5efe2; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3;
+                    border-right:1px solid var(--wi-accent-soft); }
+  .phasebtn.ptr .fill { background:#d5e6e1; border-right-color:#7aa59c; }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.ptr.on { border-color:#7aa59c; color:var(--tr); }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+  #exitBtn { display:none; }
+
+  /* --- stage: the two drawings side by side, their comparison matrices below them --- */
+  .stage { display:grid; grid-template-columns:minmax(200px,var(--qw,1fr)) 16px minmax(200px,1fr); align-items:start; }
+  .col { min-width:0; }
+  .vsplit { align-self:stretch; cursor:col-resize; position:relative; touch-action:none; }
+  .vsplit::after { content:""; position:absolute; left:7px; top:8px; bottom:8px; width:2px;
+                   background:var(--wi-border-soft); border-radius:1px; }
+  .vsplit:hover::after, .vsplit.drag::after { background:var(--wi-accent-soft); }
+  .hsplit { grid-column:1 / -1; height:16px; cursor:row-resize; position:relative; touch-action:none; }
+  .hsplit::before, .hsplit::after { content:""; position:absolute; left:calc(50% - 26px); width:52px; height:2px;
+                   background:var(--wi-border); border-radius:1px; }
+  .hsplit::before { top:5px; } .hsplit::after { top:9px; }
+  .hsplit:hover::before, .hsplit:hover::after, .hsplit.drag::before, .hsplit.drag::after { background:var(--wi-accent-soft); }
+  .mxbox { grid-column:1 / -1; min-width:0; }
+  .stage.beside { grid-template-columns:minmax(150px,var(--qw,1fr)) 16px minmax(150px,1fr) auto; }
+  .stage.beside .hsplit { grid-column:1 / 4; grid-row:2; }
+  .stage.beside .mxbox { grid-column:4; grid-row:1 / span 2; margin-left:16px; }
+  .stage.beside .mxopts { display:none; }
+  @media (max-width:900px) {
+    .stage { grid-template-columns:1fr; }
+    .vsplit { display:none; }
+    #colT { margin-top:14px; }
+  }
+  .statusbar { margin:0 0 12px; }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+             border-radius:var(--wi-radius-lg); padding:10px 13px; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em;
+               color:var(--wi-ink-faint); margin:0 0 8px; display:flex; justify-content:space-between;
+               align-items:baseline; gap:10px; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--wi-font-body);
+                    font-size:1.05em; color:var(--wi-ink-soft); white-space:nowrap; }
+  .sim-title .t-q { color:var(--wi-accent); }
+  .sim-title .t-t { color:var(--tr); }
+  .svgwrap { overflow:auto; background:var(--wi-bg); border-radius:var(--wi-radius); }
+  .svgwrap svg { display:block; touch-action:manipulation; }
+  .status { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+            border-radius:var(--wi-radius-lg); padding:7px 14px; font-size:.86rem;
+            color:var(--wi-ink-strong); min-height:3.4em; line-height:1.5; }
+  .status .ph { display:inline; margin:0 .8em 0 0; }
+  .status .ph { display:block; font-family:var(--wi-font-head); font-size:.7rem; letter-spacing:.08em;
+                text-transform:uppercase; color:var(--wi-ink-faint); margin-bottom:3px; }
+  .status .ph.q { color:var(--wi-accent); } .status .ph.t { color:var(--tr); }
+  .status button { font-size:.74rem; padding:3px 9px; margin-top:6px; }
+  .key { font-weight:bold; color:var(--wi-ink-strong); }
+  .lst { white-space:nowrap; }
+  .ok { color:var(--wi-relax); font-weight:bold; }
+  .bad { color:var(--wi-active); font-weight:bold; }
+  .mxopts { display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; text-transform:none; letter-spacing:0; }
+  .mxopts .seg button { padding:3px 8px; font-size:.72rem; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:8px; font-size:.72rem; color:var(--wi-ink-soft); }
+  .legend .item { display:flex; align-items:center; gap:6px; }
+  .sw { width:.95em; height:.95em; border-radius:2px; border:1px solid var(--wi-border); display:inline-block; }
+  .mxnote { font-size:.74rem; color:var(--wi-ink-faint); margin-top:6px; line-height:1.45; }
+
+  /* --- input / background --- */
+  details.editor, details.about { margin-top:14px; background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+                   border-radius:var(--wi-radius-lg); }
+  details.editor > summary, details.about > summary { cursor:pointer; padding:10px 16px; font-family:var(--wi-font-head);
+                             font-size:.78rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,340px) 1fr; gap:16px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  .about-body { padding:0 18px 14px; font-size:.86rem; max-width:100ch; line-height:1.55; }
+  .about-body p { margin:0 0 10px; }
+  textarea { width:100%; height:130px; font-family:var(--wi-font-mono); font-size:.8rem;
+             background:var(--wi-panel-2); color:var(--wi-ink); border:1px solid var(--wi-border);
+             border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.78rem; color:var(--wi-ink-soft); line-height:1.5; }
+  .err { color:var(--wi-active); font-size:.8rem; min-height:1.2em; margin-top:6px; }
+
+  .tooltip { position:fixed; z-index:40; pointer-events:none; background:var(--wi-panel-2);
+             border:1px solid var(--wi-border-strong); border-radius:var(--wi-radius);
+             padding:6px 9px; font-size:.78rem; color:var(--wi-ink-strong);
+             box-shadow:0 3px 10px rgba(0,0,0,.12); max-width:290px; display:none; line-height:1.45; }
+  .tooltip .tt-q { color:var(--wi-accent); } .tooltip .tt-t { color:var(--tr); }
+  #fly { position:fixed; left:0; top:0; pointer-events:none; z-index:50; display:none; }
+
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls { gap:8px 12px; padding:10px 12px; }
+    .ctl { flex-wrap:wrap; gap:6px; }
+    .seg { flex-wrap:wrap; }
+    .seg button { padding:5px 8px; font-size:.74rem; }
+    .phasebtn { font-size:.6rem; }
+    .transport-row { flex-wrap:wrap; }
+    .progress { flex-basis:100%; order:5; }
+  }
+
+  /* --- presentation mode: only the drawings and the transport --- */
+  body.present { padding:10px 14px 10px; }
+  body.present .wi-topbar, body.present .titlebar, body.present .subtitle, body.present .controls,
+  body.present details.editor, body.present details.about, body.present .mxopts, body.present .legend,
+  body.present .mxnote, body.present #hs { display:none !important; }
+  body.present:not(.ptext) #statusBar { display:none; }
+  body.present .transport { position:sticky; top:0; z-index:20; padding:6px 12px 8px; margin-bottom:10px; }
+  body.present #exitBtn { display:inline-block; }
+
+  /* --- SVG --- */
+  svg text { font-family:var(--wi-font-body); }
+  .k { font-size:17px; fill:var(--wi-ink-strong); text-anchor:middle; dominant-baseline:central; }
+  .k.drop { fill:var(--wi-accent); }
+  .k.piv { font-weight:bold; }
+  .k.tr { fill:var(--tr); font-weight:bold; }
+  .box { fill:var(--qs-fill); stroke:var(--wi-ink-strong); stroke-width:1.2; filter:url(#wsh); }
+  .sep { stroke:var(--qs-sep); stroke-width:1; }
+  .smp { fill:var(--qs-sample); }
+  .pivring { fill:none; stroke:var(--wi-accent); stroke-width:1.8; }
+  .qact { fill:none; stroke:var(--wi-active); stroke-width:2.2; }
+  .qc { fill:none; stroke:var(--tr); stroke-width:2.4; }
+  .rec { stroke:var(--qs-line); stroke-width:2.6; stroke-linecap:round; fill:none; }
+  .tedge { stroke:var(--wi-accent); stroke-width:1.5; fill:none; }
+  .tedge.path { stroke:var(--tr); stroke-width:3; }
+  .nodec { fill:var(--wi-panel-2); stroke:var(--wi-accent); stroke-width:1.8; filter:url(#wsh); }
+  .nk { font-size:17px; fill:var(--wi-ink-strong); text-anchor:middle; dominant-baseline:central; }
+  .pill { fill:var(--wi-panel-2); stroke:var(--wi-accent); stroke-width:1.6; filter:url(#wsh); }
+  .pill.hot { stroke:var(--tr); stroke-width:2.4; }
+  .psep { stroke:#dcb9b0; stroke-width:1; }
+  .tq { fill:none; stroke:var(--tr); stroke-width:3; }
+  .tk { fill:none; stroke:var(--wi-active); stroke-width:2.4; stroke-dasharray:5 3; }
+  .badge rect { fill:var(--tr-fill); stroke:var(--tr); stroke-width:1.8; filter:url(#wsh); }
+  .badge text { font-size:17px; fill:var(--tr); font-weight:bold; text-anchor:middle; dominant-baseline:central; }
+  .hovr { fill:none; stroke:var(--hov); stroke-width:3; }
+  .mx-c { fill:var(--wi-panel-2); stroke:#e6dccb; stroke-width:1; }
+  .mxq { fill:#efd6cd; }
+  .mxr { fill:none; stroke:var(--tr); stroke-width:2; }
+  .mxtf { fill:rgba(42,106,99,.11); }
+  .mx-ct { fill:none; stroke:#e0d6c4; stroke-width:1; }
+  .mx-title { font-family:var(--wi-font-head); font-size:12.5px; letter-spacing:.08em; }
+  .mxo { fill:none; stroke:var(--wi-active); stroke-width:2.4; }
+  .mxt { font-size:14px; text-anchor:middle; dominant-baseline:central; fill:var(--wi-ink-strong); }
+  .mxt.eq { fill:var(--wi-accent); } .mxt.qo { fill:var(--wi-accent-dark); } .mxt.to { fill:var(--tr); }
+  .mx-lab { font-size:14px; fill:var(--wi-ink-strong); dominant-baseline:central; }
+  .mx-ix { font-size:10px; fill:var(--wi-ink-faint); }
+  .mx-hl { fill:rgba(224,168,0,.16); }
+  .flyedge { stroke:var(--wi-accent); stroke-width:2; fill:none; }
+  .flynode { fill:var(--wi-panel-2); stroke:var(--wi-accent); stroke-width:2.2; }
+  .flytext { fill:var(--wi-accent); font-weight:bold; text-anchor:middle; dominant-baseline:central; }
+  .flypulse { fill:none; stroke:var(--wi-relax); stroke-width:3; }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
+  font-family: var(--wi-font-head);
+  letter-spacing: .05em;
+}
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <filter id="wsh" x="-20%" y="-20%" width="150%" height="170%">
+    <feDropShadow dx="1.4" dy="1.6" stdDeviation="1" flood-color="#3b2a20" flood-opacity=".22"/></filter>
+</defs></svg>
+
+<div class="wi-topbar">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1>Quicksort &amp; search trees &nbsp;·&nbsp; same tree, same comparisons</h1>
+</div>
+
+<p class="subtitle">
+  Quicksort with a <b>stable</b> partitioning step builds as its recursion tree exactly the search tree you get
+  by inserting the input, left to right. Both processes even execute the <b>same set</b> of key comparisons,
+  only <b>in a different order</b>: Quicksort compares a whole sublist against one pivot at a time
+  (a <b>column</b> of the matrix), the tree compares one element at a time against the nodes on its search path
+  (a <b>row</b>). The correspondence survives <b>equal keys</b> (fat pivot) and <b>median-of-<i>k</i></b> pivots,
+  where the binary search tree becomes a <i>k</i>-fringe-balanced tree.
+  Hover any element or matrix cell to follow it through both pictures.
+</p>
+
+<div class="controls">
+  <div class="ctl">
+    <label for="presetSel">Example</label>
+    <select id="presetSel"></select>
+  </div>
+  <div class="ctl">
+    <span class="lbl">Pivot</span>
+    <span class="seg" id="kSeg">
+      <button data-k="1">first element</button>
+      <button data-k="3">median of 3</button>
+      <button data-k="5">of 5</button>
+      <button data-k="7">of 7</button>
+      <button data-k="9">of 9</button>
+    </span>
+  </div>
+  <div class="ctl">
+    <span class="lbl">Run first</span>
+    <span class="seg" id="orderSeg">
+      <button data-o="q">Quicksort</button>
+      <button data-o="t">Tree</button>
+    </span>
+  </div>
+  <div class="ctl">
+    <span class="lbl">Steps</span>
+    <span class="seg" id="detailSeg">
+      <button data-d="fine">every comparison</button>
+      <button data-d="coarse">per partition / insertion</button>
+    </span>
+  </div>
+  <div class="ctl">
+    <span class="lbl">Random</span>
+    <input type="number" id="randN" min="2" max="30" value="12" title="number of elements">
+    <label class="chk"><input type="checkbox" id="randDup"> duplicates</label>
+    <button id="randBtn">New</button>
+  </div>
+  <div class="ctl">
+    <button id="presentBtn" class="pri" title="Hide everything but the drawings and the play controls (P)">Present</button>
+    <button id="linkBtn" title="A link that opens exactly this setup in presentation mode">Presentation link</button>
+    <label class="chk" title="also show the explanations in presentation mode"><input type="checkbox" id="ptextChk"> with text</label>
+  </div>
+  <div class="linkrow" id="linkRow">
+    <span>Copied to the clipboard:</span><input type="text" id="linkOut" readonly>
+  </div>
+</div>
+
+<div class="transport">
+  <div class="transport-row">
+    <span class="ctl" style="gap:6px">
+      <button id="resetBtn" class="icon" title="Back to the first step (Home)" aria-label="Back to the first step">&#x21BA;</button>
+      <button id="backBtn" class="icon" title="One step back (←, PgUp)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+      <button id="stepBtn" class="icon pri" title="One step forward (→, PgDn)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+      <button id="playBtn" class="icon" title="Play / pause (space)" aria-label="Play">&#x25B6;&#xFE0E;</button>
+    </span>
+    <span class="progress">
+      <input type="range" id="scrubber" min="0" max="100000" step="1" value="0" aria-label="Step">
+      <div class="phasebar" id="phaseBar"></div>
+    </span>
+    <span class="stepno" id="stepNo">— / —</span>
+    <span class="ctl" style="gap:6px">
+      <span class="lbl">Speed</span>
+      <input type="range" id="speed" min="150" max="1800" value="700" style="width:84px; accent-color:var(--wi-accent); direction:rtl" title="animation speed">
+      <button id="exitBtn" class="icon" title="Leave presentation mode (Esc)" aria-label="Leave presentation mode">&#x2715;&#xFE0E;</button>
+    </span>
+  </div>
+</div>
+
+<div class="statusbar" id="statusBar"><div class="status" id="statusBox"></div></div>
+
+<div class="stage" id="stage">
+  <div class="col" id="colQ">
+    <div class="sim-box">
+      <div class="sim-title"><span class="t-q">Quicksort</span><span class="rhs" id="qMeta"></span></div>
+      <div class="svgwrap" id="qWrap"><svg id="qSvg"></svg></div>
+    </div>
+  </div>
+  <div class="vsplit" id="vs1" title="drag to resize"></div>
+  <div class="col" id="colT">
+    <div class="sim-box">
+      <div class="sim-title"><span class="t-t" id="tTitle">Binary search tree</span><span class="rhs" id="tMeta"></span></div>
+      <div class="svgwrap" id="tWrap"><svg id="tSvg"></svg></div>
+    </div>
+  </div>
+  <div class="hsplit" id="hs" title="drag to zoom the drawings"></div>
+  <div class="mxbox" id="mxBox">
+    <div class="sim-box">
+      <div class="sim-title"><span>Comparisons</span>
+        <span class="mxopts">
+          <span class="seg" id="labSeg" title="what to write into the cells">
+            <button data-l="res">outcome</button>
+            <button data-l="ord">order</button>
+          </span>
+          <span class="seg" id="sortSeg" title="order of rows and columns">
+            <button data-s="pos">input order</button>
+            <button data-s="key">by key</button>
+          </span>
+        </span>
+        <span class="rhs" id="mxMeta"></span></div>
+      <div class="svgwrap" id="mWrap" style="background:transparent"><svg id="mSvg"></svg></div>
+      <div class="legend">
+        <span class="item"><span class="sw" style="background:#efd6cd"></span> compared by Quicksort</span>
+        <span class="item"><span class="sw" style="background:#e3eeeb;border:2px solid var(--tr)"></span> compared by the tree</span>
+        <span class="item"><span class="sw" style="background:transparent;border:2px solid var(--wi-active)"></span> this step</span>
+      </div>
+      <div class="mxnote" id="mxNote"></div>
+    </div>
+  </div>
+</div>
+
+<details class="editor" id="editor">
+  <summary>Input</summary>
+  <div class="editor-body">
+    <div>
+      <textarea id="inputText" spellcheck="false"></textarea>
+      <div style="margin-top:8px; display:flex; gap:8px"><button class="pri" id="loadBtn">Load</button></div>
+      <div class="err" id="parseErr"></div>
+    </div>
+    <div class="hint">
+      The keys, separated by white space and in input order, possibly over several lines (as in the
+      <code>.txt</code> files of algs4, e.g. <code>S O R T E X A M P L E</code>). If all keys are numbers they
+      are compared numerically, otherwise as strings. Duplicates are allowed. At most 30 keys.
+      <br>
+      An optional line <code>k = 5</code> sets the sample size (odd, 1 to 9); without it, the current
+      setting is kept. Text after <code>#</code> is a comment.
+      <br><br>
+      <b>Preparing a lecture:</b> set everything up (input, pivot rule, order, step size, speed), then
+      <i>Presentation link</i> gives a URL that opens exactly this setup in presentation mode.
+      Parameters: <code>keys</code>, <code>k</code>, <code>order=q|t</code>, <code>detail=fine|coarse</code>,
+      <code>speed</code> (ms), <code>lab=res|ord</code>, <code>sort=pos|key</code>, <code>present=1</code>,
+      <code>text=1</code>. In presentation mode: → / PgDn step, ← / PgUp back, space plays, Esc leaves.
+    </div>
+  </div>
+</details>
+
+<details class="about" id="about">
+  <summary>Background: the two processes and how comparisons are counted</summary>
+  <div class="about-body" id="aboutBody">
+    <p><b>Quicksort</b> (on a sublist with $n$ elements): if $n \le k-1$, stop (the sublist would be left to
+    Insertionsort, whose comparisons we ignore here); otherwise the pivot $P$ is the median of the
+    <i>first $k$ elements</i> of the sublist (for $k=1$: simply the first element). Then every element of the
+    sublist is compared with $P$ and appended to one of three segments, <i>smaller</i>, <i>equal</i> and
+    <i>larger</i>, which keep the original relative order (<b>stable</b> partitioning). The <i>equal</i>
+    segment is done (the <i>fat pivot</i>); Quicksort recurses on <i>smaller</i>, then on <i>larger</i>.</p>
+    <p><b>Search tree</b> (insert the input left to right): an insertion compares the new key with the
+    inner nodes on its search path; if it finds its key in an inner node, it stops. Otherwise it reaches a
+    leaf. Leaves are <i>buffers</i> for up to $k-1$ elements (for $k=1$ they are always empty). When the
+    $k$th element arrives, the leaf is <b>split</b>: the buffer partitions itself around the median of its $k$
+    elements, which pops out as a new inner node; the smaller and larger elements become its two new leaves,
+    duplicates of the median are dropped. For $k=1$ this is the ordinary binary search tree; for $k\ge3$ it is a
+    <i>$k$-fringe-balanced tree</i>.</p>
+    <p>That both give the same tree and the same comparisons rests on the stable partitioning: the elements
+    reaching a subtree arrive there in the same relative order in both processes, so the first $k$ elements of
+    a sublist are exactly the first $k$ elements that land in the corresponding leaf. (With an in-place,
+    non-stable partitioning method the correspondence only holds in distribution for random inputs.)</p>
+    <p><b>Counting.</b> We count every comparison with the pivot, <i>including the pivot with itself</i>:
+    partitioning a sublist of $n$ elements costs exactly $n$ comparisons, and in the tree, an element is
+    compared with every inner node on its path, including the node it ends up in. Finding the median of
+    the sample is not counted (in either process). With this convention, for $k=1$ and a random permutation of
+    distinct keys, both processes satisfy
+    \[ C_n \wrel= n + \frac1n \sum_{r=1}^{n} \bigl(C_{r-1} + C_{n-r}\bigr)
+           \wrel= n + \frac2n\sum_{j=0}^{n-1} C_j, \qquad C_0 \wrel= 0 . \]
+    For $k=1$, the comparisons of either process are also exactly those needed to <i>search</i> each input
+    element in the final tree.</p>
+    <p>Further reading: the correspondence for equal keys and pivot sampling, and its use for the analysis of
+    Quicksort, is worked out in <a href="https://www.wild-inter.net/publications/wild-2018">Quicksort Is
+    Optimal for Many Equal Keys</a> (Section 2 and Lemma 6.1).</p>
+  </div>
+</details>
+
+<div class="tooltip" id="tooltip"></div>
+<svg id="fly"></svg>
+
+<script>
+"use strict";
+
+/* ==========================================================================
+   Quicksort  <->  (fringe-balanced) search trees
+
+   Quicksort_k(L): if |L| <= k-1: leave to Insertionsort (not counted)
+                   P := median of L[1..k]          (not counted)
+                   for U in L (in order): cmp(U, P) -> append to L1 / L2 / L3
+                   recurse on L1, then L3          (L2 is done: fat pivot)
+   Insert_k(T, x): at an inner node P: cmp(x, P); '=' stops, '<' left, '>' right
+                   at a leaf: append x; if the leaf now holds k elements:
+                       P := median of them; for U in leaf: cmp(U, P); the leaf
+                       becomes Inner(P, Leaf(smaller), Leaf(larger)), equal dropped
+
+   Elements are *instances* 0..n-1 (input positions); a comparison is the pair
+   (instance, pivot instance).  The median of a sample is the (t+1)-st element
+   of the sample sorted stably (ties by position in the sample), k = 2t+1; the
+   same rule picks the same instance in both processes.  A tree position is
+   addressed by its path ("", "L", "LR", ...), which is also the path of the
+   corresponding Quicksort call.
+
+   Drawing: every event of either process yields a *scene* (a keyed set of
+   items) for each of the three panels.  A step tweens from scene to scene,
+   item by item: an item that keeps its key moves, an item that appears may
+   spawn *from* another item (a number flies from its cell to its new place),
+   an item that disappears may fly *into* another (a duplicate merges into its
+   node).  Several events of one step overlap in time (a cascade); stepping
+   back plays the same animation in reverse.
+   ========================================================================== */
+
+const el = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const SVGNS = "http://www.w3.org/2000/svg";
+const REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------- presets ------------------------------------------------------ */
+
+const PRESETS = [
+  { name: "Lecture: 7 4 2 9 1 3 8 5 6",                k: 1, text: "7 4 2 9 1 3 8 5 6" },
+  { name: "Equal keys (fat pivot)",                    k: 1, text: "4 2 1 3 3 5 4 4 3 5 2" },
+  { name: "Equal keys, median of 5",                   k: 5, text: "4 2 1 3 3 5 4 4 3 5 2" },
+  { name: "Lecture input, median of 3",                k: 3, text: "7 4 2 9 1 3 8 5 6" },
+  { name: "algs4 tiny.txt: S O R T E X A M P L E",     k: 1, text: "S O R T E X A M P L E" },
+  { name: "Sorted input (degenerate)",                 k: 1, text: "1 2 3 4 5 6 7 8" },
+  { name: "Sorted input, median of 3",                 k: 3, text: "1 2 3 4 5 6 7 8 9 10 11 12" },
+  { name: "Few distinct keys, median of 3",            k: 3, text: "2 1 2 2 3 1 2 3 1 2 2 1 3 2" },
+  { name: "15 distinct keys",                          k: 1, text: "8 3 12 5 14 1 10 6 2 15 9 4 13 7 11" }
+];
+
+/* ---------- state -------------------------------------------------------- */
+
+let KEYS = [], N = 0, K = 1, NUMERIC = true;
+let runFirst = "q", detail = "fine", cellLab = "res", mxSort = "pos";
+let calls = [], byPath = {}, qsEv = [], trEv = [];
+let qsCmps = [], trCmps = [];             /* ordered lists of {x, P, res} */
+let cellInfo = new Map();                 /* "x,P" -> {x, P, res, qT, tT} (1-based ordinals) */
+let pivots = [];                          /* pivot instances (= inner nodes) */
+let finalT = {};                          /* path -> {kind:'leaf', elems} | {kind:'node', P} */
+let insEnd = [];                          /* per insertion: {eq, path} where it ends */
+let qsCmpPrefix = [], trCmpPrefix = [];   /* #comparisons among the first m events */
+let steps = [], phases = [], cur = 0;
+let canvasH = 360;
+let hoverInst = -1, hoverPiv = -1;
+let playing = false, playTimer = null;
+let verdict = null;
+let present = false;
+
+/* ---------- keys --------------------------------------------------------- */
+
+function cmpInst(a, b) {   /* sign of key(a) - key(b) */
+  const x = KEYS[a], y = KEYS[b];
+  if (NUMERIC) { const d = Number(x) - Number(y); return d < 0 ? -1 : d > 0 ? 1 : 0; }
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+function medianOf(list) {
+  const s = list.map((x, i) => [x, i]).sort((a, b) => cmpInst(a[0], b[0]) || a[1] - b[1]);
+  return s[(list.length - 1) >> 1][0];
+}
+const key = x => '<span class="key">' + esc(KEYS[x]) + "</span>";
+const lst = a => a.length ? '<span class="lst">⟨' + a.map(x => esc(KEYS[x])).join(" ") + "⟩</span>"
+                          : '<span class="lst">⟨⟩</span>';
+const rel = r => r < 0 ? "&lt;" : r > 0 ? "&gt;" : "=";
+
+/* ---------- input -------------------------------------------------------- */
+
+function parseInput(text) {
+  let k = null; const toks = [];
+  for (let line of text.split(/\r?\n/)) {
+    const h = line.indexOf("#"); if (h >= 0) line = line.slice(0, h);
+    line = line.trim(); if (!line) continue;
+    const m = line.match(/^k\s*[=:]\s*(\d+)$/i);
+    if (m) { k = Number(m[1]); continue; }
+    toks.push(...line.split(/\s+/));
+  }
+  if (!toks.length) throw new Error("No keys found.");
+  if (toks.length > 30) throw new Error("At most 30 keys, please (got " + toks.length + ").");
+  if (k !== null && (k < 1 || k > 9 || k % 2 === 0)) throw new Error("k must be odd and between 1 and 9.");
+  return { keys: toks, k: k };
+}
+
+/* ---------- the two processes ------------------------------------------- */
+
+function simulate() {
+  NUMERIC = KEYS.every(s => /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(s));
+  calls = []; byPath = {}; qsEv = []; trEv = []; qsCmps = []; trCmps = []; insEnd = [];
+
+  /* --- Quicksort_k --- */
+  function qs(elems, lo, depth, path, parent) {
+    if (!elems.length) return;
+    const c = { id: calls.length, elems: elems, lo: lo, hi: lo + elems.length, depth: depth, path: path,
+                parent: parent, kids: [] };
+    calls.push(c); byPath[path] = c;
+    if (parent) parent.kids.push(c);
+    if (elems.length <= K - 1) {
+      c.kind = "leaf";
+      qsEv.push({ t: "leaf", c: c, unit: c.id, stop: true, end: true });
+      return;
+    }
+    c.kind = "part";
+    c.sample = elems.slice(0, K);
+    c.P = medianOf(c.sample);
+    const single = elems.length === 1;
+    qsEv.push({ t: "pivot", c: c, unit: c.id, stop: !single });
+    c.L1 = []; c.L2 = []; c.L3 = []; c.res = {};
+    for (const x of elems) {
+      const r = cmpInst(x, c.P);
+      (r < 0 ? c.L1 : r > 0 ? c.L3 : c.L2).push(x);
+      c.res[x] = r;
+      qsCmps.push({ x: x, P: c.P, res: r });
+      qsEv.push({ t: "cmp", c: c, x: x, res: r, unit: c.id, stop: !single, cmpIdx: qsCmps.length - 1 });
+    }
+    c.childPos = {};
+    c.L1.forEach((x, i) => c.childPos[x] = lo + i);
+    c.L2.forEach((x, i) => c.childPos[x] = lo + c.L1.length + i);
+    c.L3.forEach((x, i) => c.childPos[x] = lo + c.L1.length + c.L2.length + i);
+    qsEv.push({ t: "done", c: c, unit: c.id, stop: true, end: true });
+    qs(c.L1, lo, depth + 1, path + "L", c);
+    qs(c.L3, lo + c.L1.length + c.L2.length, depth + 1, path + "R", c);
+  }
+  qs([...Array(N).keys()], 0, 0, "", null);
+  for (const c of calls) c.idx = new Map(c.elems.map((x, i) => [x, i]));
+
+  /* --- Insert_k, for x = input left to right --- */
+  const T = { "": { kind: "leaf", elems: [] } };
+  for (let x = 0; x < N; x++) {
+    const unit = x, evs = [];
+    const summary = [];
+    evs.push({ t: "start", x: x });
+    let p = "", stopped = false;
+    while (T[p].kind === "node") {
+      const P = T[p].P, r = cmpInst(x, P);
+      trCmps.push({ x: x, P: P, res: r });
+      evs.push({ t: "cmp", x: x, path: p, P: P, res: r, cmpIdx: trCmps.length - 1 });
+      summary.push(key(P) + " (" + rel(r) + ")");
+      if (r === 0) { stopped = true; break; }
+      p += r < 0 ? "L" : "R";
+    }
+    insEnd[x] = { eq: stopped, path: p };
+    if (!stopped) {
+      const leaf = T[p];
+      leaf.elems.push(x);
+      evs.push({ t: "append", x: x, path: p, len: leaf.elems.length });
+      if (leaf.elems.length === K) {
+        const buf = leaf.elems.slice(), P = medianOf(buf);
+        const L = [], E = [], R = [];
+        for (const u of buf) { const r = cmpInst(u, P); (r < 0 ? L : r > 0 ? R : E).push(u); }
+        const slot = {}; [...L, ...E, ...R].forEach((u, i) => slot[u] = i);
+        evs.push({ t: "full", x: x, path: p, P: P, buf: buf, L: L, E: E, R: R, slot: slot });
+        for (const u of buf) {
+          const r = cmpInst(u, P);
+          trCmps.push({ x: u, P: P, res: r });
+          evs.push({ t: "scmp", x: u, path: p, P: P, res: r, cmpIdx: trCmps.length - 1 });
+        }
+        evs.push({ t: "pop", x: x, path: p, P: P });
+        T[p] = { kind: "node", P: P };
+        T[p + "L"] = { kind: "leaf", elems: L.slice() };
+        T[p + "R"] = { kind: "leaf", elems: R.slice() };
+        evs.push({ t: "newnode", x: x, path: p, P: P, L: L, E: E, R: R });
+      }
+    }
+    /* step boundaries: a whole leaf split is one step, as on the slides */
+    for (let i = 0; i < evs.length; i++) {
+      const e = evs[i], nx = evs[i + 1];
+      e.unit = unit;
+      if (e.t === "start") e.stop = false;
+      else if (e.t === "append") e.stop = !(nx && nx.t === "full");
+      else if (e.t === "full" || e.t === "scmp" || e.t === "pop") e.stop = false;
+      else e.stop = true;
+    }
+    const last = evs[evs.length - 1];
+    last.end = true;
+    last.summary = trSummary(x, evs, summary);
+    trEv.push(...evs);
+  }
+  finalT = T;
+
+  /* --- the comparison matrix --- */
+  cellInfo = new Map();
+  qsCmps.forEach((c, i) => cellInfo.set(c.x + "," + c.P, { x: c.x, P: c.P, res: c.res, qT: i + 1, tT: 0 }));
+  trCmps.forEach((c, i) => {
+    const kk = c.x + "," + c.P;
+    if (!cellInfo.has(kk)) cellInfo.set(kk, { x: c.x, P: c.P, res: c.res, qT: 0, tT: i + 1 });
+    else cellInfo.get(kk).tT = i + 1;
+  });
+  pivots = calls.filter(c => c.kind === "part").map(c => c.P);
+
+  qsCmpPrefix = [0]; for (const e of qsEv) qsCmpPrefix.push(qsCmpPrefix[qsCmpPrefix.length - 1] + (e.t === "cmp" ? 1 : 0));
+  trCmpPrefix = [0]; for (const e of trEv) trCmpPrefix.push(trCmpPrefix[trCmpPrefix.length - 1] + (e.t === "cmp" || e.t === "scmp" ? 1 : 0));
+
+  verdict = verify();
+  layoutQS();
+  layoutTree();
+}
+
+function trSummary(x, evs, path) {
+  const last = evs[evs.length - 1];
+  let s = "Insert " + key(x) + ": ";
+  s += path.length ? "compared with " + path.join(", ") + ". " : "no inner node yet. ";
+  if (last.t === "cmp") return s + "Found " + key(last.P) + " in an inner node: it merges into it, nothing changes.";
+  const app = evs.find(e => e.t === "append");
+  if (last.t === "append")
+    return s + "It squeezes into a leaf buffer (" + app.len + " of " + (K - 1) + ").";
+  if (K === 1) return s + "It reaches an empty leaf and becomes a new node (compared with itself).";
+  return s + "It squeezes into a leaf, which overflows: the buffer partitions itself around its median (" + K +
+         " comparisons), " + key(last.P) + " pops out as a new node over leaves " + lst(last.L) + " and " + lst(last.R) + ".";
+}
+
+/* same tree shape, same pivots, same set of comparisons? */
+function verify() {
+  const qSet = new Set(qsCmps.map(c => c.x + "," + c.P));
+  const tSet = new Set(trCmps.map(c => c.x + "," + c.P));
+  let sameSet = qSet.size === tSet.size && qsCmps.length === qSet.size && trCmps.length === tSet.size;
+  if (sameSet) for (const s of qSet) if (!tSet.has(s)) { sameSet = false; break; }
+  let sameTree = true;
+  const nodes = Object.keys(finalT).filter(p => finalT[p].kind === "node");
+  const parts = calls.filter(c => c.kind === "part");
+  if (nodes.length !== parts.length) sameTree = false;
+  for (const c of parts) if (!finalT[c.path] || finalT[c.path].kind !== "node" || finalT[c.path].P !== c.P) sameTree = false;
+  for (const c of calls) if (c.kind === "leaf") {
+    const l = finalT[c.path];
+    if (!l || l.kind !== "leaf" || l.elems.join() !== c.elems.join()) sameTree = false;
+  }
+  return { sameSet: sameSet, sameTree: sameTree, q: qsCmps.length, t: trCmps.length, cells: qSet.size };
+}
+
+/* ---------- steps and phases -------------------------------------------- */
+
+function buildSteps() {
+  steps = []; phases = [];
+  steps.push({ q: 0, t: 0, proc: null, a: 0, b: 0, phase: 0 });
+  const order = runFirst === "q" ? ["q", "t"] : ["t", "q"];
+  let q = 0, t = 0;
+  for (const proc of order) {
+    const evs = proc === "q" ? qsEv : trEv;
+    let a = 0, unit = -1;
+    for (let i = 0; i < evs.length; i++) {
+      const e = evs[i];
+      if (e.unit !== unit) {
+        unit = e.unit;
+        phases.push(proc === "q" ? qsPhaseName(e.c) : trPhaseName(e.x));
+      }
+      const stop = detail === "fine" ? e.stop : e.end;
+      if (stop) {
+        const st = { q: q, t: t, proc: proc, a: a, b: i + 1, phase: phases.length - 1 };
+        if (proc === "q") st.q = i + 1; else st.t = i + 1;
+        steps.push(st);
+        a = i + 1;
+      }
+    }
+    if (proc === "q") q = evs.length; else t = evs.length;
+  }
+  phases.push({ name: "same tree?", short: "✓", proc: "end" });
+  steps.push({ q: qsEv.length, t: trEv.length, proc: "end", a: 0, b: 0, phase: phases.length - 1 });
+  phases.forEach(p => { p.from = Infinity; p.to = -1; });
+  steps.forEach((s, i) => { const p = phases[s.phase]; p.from = Math.min(p.from, i); p.to = Math.max(p.to, i + 1); });
+}
+function qsPhaseName(c) {
+  if (c.kind === "leaf") return { name: "leaf " + c.elems.map(x => KEYS[x]).join(" "), short: "leaf", proc: "q" };
+  return { name: "pivot " + KEYS[c.P], short: KEYS[c.P], proc: "q" };
+}
+function trPhaseName(x) { return { name: "insert " + KEYS[x], short: KEYS[x], proc: "t" }; }
+
+/* ---------- replay ------------------------------------------------------- */
+
+function qsReplay(m) {
+  const status = new Array(calls.length).fill(null);   /* null | number compared | 'done' | 'leaf' */
+  for (let i = 0; i < m; i++) {
+    const e = qsEv[i];
+    if (e.t === "pivot") status[e.c.id] = 0;
+    else if (e.t === "cmp") status[e.c.id]++;
+    else if (e.t === "done") status[e.c.id] = "done";
+    else if (e.t === "leaf") status[e.c.id] = "leaf";
+  }
+  return status;
+}
+function trReplay(m) {
+  const T = { "": { kind: "leaf", elems: [] } };
+  let ins = null, split = null;
+  for (let i = 0; i < m; i++) {
+    const e = trEv[i];
+    if (e.t === "start") ins = { x: e.x, path: "", at: "start", res: null };
+    else if (e.t === "cmp") { ins.path = e.path; ins.res = e.res; ins.P = e.P; ins.at = e.res === 0 ? "found" : "node"; }
+    else if (e.t === "append") { T[e.path].elems.push(e.x); ins.path = e.path; ins.at = "leaf"; }
+    else if (e.t === "full") { split = Object.assign({ j: 0, popped: false }, e); ins.at = "split"; }
+    else if (e.t === "scmp") split.j++;
+    else if (e.t === "pop") split.popped = true;
+    else if (e.t === "newnode") {
+      T[e.path] = { kind: "node", P: e.P };
+      T[e.path + "L"] = { kind: "leaf", elems: e.L.slice() };
+      T[e.path + "R"] = { kind: "leaf", elems: e.R.slice() };
+      split = null; ins.at = "placed";
+    }
+  }
+  return { T: T, ins: ins, split: split };
+}
+
+/* the events "current" in a state: {proc, a, b} -> lists */
+function curEvents(cur, proc) {
+  if (!cur || cur.proc !== proc) return [];
+  return (proc === "q" ? qsEv : trEv).slice(cur.a, cur.b);
+}
+function stepState(i) {
+  const s = steps[i];
+  return { q: s.q, t: s.t, end: s.proc === "end", cur: (s.proc === "q" || s.proc === "t") ? { proc: s.proc, a: s.a, b: s.b } : null };
+}
+
+/* ---------- geometry ----------------------------------------------------- */
+
+const CW = 30, CH = 26, RP = 46, QPX = 14, QPY = 12, GHOST = 0.3;
+const qX = p => QPX + p * CW, qY = r => QPY + r * RP;
+let QW = 0, QH = 0;
+function layoutQS() {
+  const maxRow = Math.max(0, ...calls.map(c => c.depth + 1));
+  QW = QPX * 2 + N * CW; QH = QPY * 2 + maxRow * RP + CH + 4;
+}
+const groupX = c => c.kind === "part" ? qX(c.lo + c.L1.length) + c.L2.length * CW / 2 : qX(c.lo) + c.elems.length * CW / 2;
+
+const NR = 17, LC = 22, LH = 26, TGAP = 7, TPX = 14, SEQY = 18, TOPY = 94, TP = 64;
+let tpos = {}, tspan = {}, tdepth = {}, TW = 0, TDEPTH = 0, TALLW = 0, TH = 0, TOFF = 0, SW = 20, SX0 = 0;
+function leafW() { return K === 1 ? 4 : (K - 1) * LC; }
+function layoutTree() {
+  tpos = {}; tspan = {}; tdepth = {}; TDEPTH = 0;
+  let x = TPX;
+  (function rec(p, d) {
+    const nd = finalT[p], s = x;
+    tdepth[p] = d; TDEPTH = Math.max(TDEPTH, d);
+    if (nd.kind === "leaf") { const w = leafW(); tpos[p] = s + w / 2; x += w + TGAP; }
+    else { rec(p + "L", d + 1); tpos[p] = x + NR; x += 2 * NR + TGAP; rec(p + "R", d + 1); }
+    tspan[p] = [s, x - TGAP];
+  })("", 0);
+  TW = x - TGAP + TPX;
+  SW = Math.max(20, ...KEYS.map(s => 9 * s.length + 10));
+  TALLW = Math.max(TW, N * SW + 2 * TPX);
+  TOFF = (TALLW - TW) / 2;
+  SX0 = (TALLW - N * SW) / 2;
+  TH = TY(TDEPTH) + LH / 2 + 14;
+}
+const leafCX = p => (tspan[p][0] + tspan[p][1]) / 2;
+const TY = d => TOPY + d * TP;
+const seqX = x => SX0 + x * SW + SW / 2;
+
+/* ---------- scenes ------------------------------------------------------- */
+
+function sceneQ(S) {
+  const M = new Map(), add = it => M.set(it.k, Object.assign({ op: 1, sc: 1, z: 2 }, it));
+  const status = qsReplay(S.q);
+  const cq = curEvents(S.cur, "q"), lastQ = cq[cq.length - 1], actC = lastQ ? lastQ.c : null;
+  const visCount = c => {
+    if (!c.parent) return c.elems.length;
+    const s = status[c.parent.id];
+    if (s === "done") return c.elems.length;
+    if (typeof s !== "number") return 0;
+    let n = 0; for (const x of c.elems) if (c.parent.idx.get(x) < s) n++;
+    return n;
+  };
+  for (const c of calls) {
+    const n = visCount(c);
+    if (!n) continue;
+    const s = status[c.id], y = qY(c.depth), x0 = qX(c.lo);
+    add({ k: "qb" + c.id, t: "rect", x: x0 + 1, y: y, w: n * CW - 2, h: CH, rx: 4, cls: "box", z: 1 });
+    for (let i = 1; i < n; i++)
+      add({ k: "qs" + c.id + "_" + i, t: "line", x1: x0 + i * CW, y1: y + 3, x2: x0 + i * CW, y2: y + CH - 3, cls: "sep", z: 1 });
+    if (c.kind === "part" && s === 0 && K > 1)
+      add({ k: "qm" + c.id, t: "rect", x: x0 + 2, y: y + 1.5, w: Math.min(K, n) * CW - 4, h: CH - 3, rx: 3, cls: "smp", z: 1 });
+    if (c.kind === "part" && typeof s === "number") {
+      const i = c.idx.get(c.P);
+      add({ k: "qr" + c.id, t: "rect", x: x0 + i * CW + 3, y: y + 2.5, w: CW - 6, h: CH - 5, rx: 5, cls: "pivring", z: 3, pop: true });
+    }
+    for (let i = 0; i < n; i++) {
+      /* compared elements leave a readable ghost until the whole sort is done */
+      const x = c.elems[i], ghost = S.q < qsEv.length && ((typeof s === "number" && i < s) || s === "done" || s === "leaf");
+      add({ k: "qt" + c.id + "_" + x, t: "text", x: x0 + i * CW + CW / 2, y: y + CH / 2, s: KEYS[x], cls: "k",
+            op: ghost ? GHOST : 1, inst: x, hb: [CW / 2, CH / 2], from: c.parent ? "qt" + c.parent.id + "_" + x : null });
+    }
+  }
+  for (const c of calls) {
+    const s = status[c.id];
+    if (c.kind === "part" && s !== null) {
+      const j = s === "done" ? Infinity : s;
+      for (const x of c.L2) if (c.idx.get(x) < j)
+        add({ k: "qe" + c.id + "_" + x, t: "text", x: qX(c.childPos[x]) + CW / 2, y: qY(c.depth + 1) + CH / 2, s: KEYS[x],
+              cls: "k drop" + (x === c.P ? " piv" : ""), inst: x, hb: [CW / 2, CH / 2], from: "qt" + c.id + "_" + x });
+    }
+    if (c.kind === "leaf" && s === "leaf")
+      c.elems.forEach((x, i) => add({ k: "ql" + c.id + "_" + x, t: "text", x: qX(c.lo + i) + CW / 2, y: qY(c.depth + 1) + CH / 2,
+              s: KEYS[x], cls: "k drop", inst: x, hb: [CW / 2, CH / 2], from: "qt" + c.id + "_" + x }));
+    if (c.parent && (s === "done" || s === "leaf")) {
+      const x1 = groupX(c.parent), y1 = qY(c.depth) + CH / 2 + 9;
+      const x2 = groupX(c), y2 = qY(c.depth + 1) + CH / 2 - 10;
+      add({ k: "qx" + c.id, t: "line", x1: x1, y1: y1, x2: x2, y2: y2, cls: "rec", z: 0, grow: true });
+    }
+  }
+  if (actC && visCount(actC) === actC.elems.length)
+    add({ k: "qa", t: "rect", x: qX(actC.lo) - 2, y: qY(actC.depth) - 3, w: actC.elems.length * CW + 4, h: CH + 6, rx: 6, cls: "qact", z: 3 });
+  /* the tree's current comparison, where Quicksort did it */
+  const ct = curEvents(S.cur, "t").filter(e => e.t === "cmp" || e.t === "scmp"), lt = ct[ct.length - 1];
+  if (lt) {
+    const c = byPath[lt.path];
+    if (c && c.kind === "part" && visCount(c) === c.elems.length) {
+      const s = status[c.id], i = c.idx.get(lt.x);
+      if (s === "done" || (typeof s === "number" && s > i)) {
+        add({ k: "qc", t: "rect", x: qX(c.lo) - 3, y: qY(c.depth) - 4, w: c.elems.length * CW + 6, h: CH + 8, rx: 6, cls: "qc", z: 3 });
+        add({ k: "qcx", t: "rect", x: qX(c.lo + i) + 2, y: qY(c.depth) + 2, w: CW - 4, h: CH - 4, rx: 4, cls: "qc", z: 3 });
+      }
+    }
+  }
+  return M;
+}
+
+function sceneT(S) {
+  const M = new Map(), add = it => M.set(it.k, Object.assign({ op: 1, sc: 1, z: 2 }, it));
+  const R = trReplay(S.t), T = R.T, ins = R.ins, split = R.split;
+  const ct = curEvents(S.cur, "t"), lastT = ct[ct.length - 1];
+
+  for (let x = 0; x < N; x++)
+    add({ k: "ts" + x, t: "text", x: seqX(x), y: SEQY, s: KEYS[x], cls: "k", op: ins && x <= ins.x ? GHOST : 1, inst: x, hb: [SW / 2, 12] });
+
+  const parentOf = p => p.slice(0, -1);
+  const isVis = p => T[p] && (p === "" || (T[parentOf(p)] && T[parentOf(p)].kind === "node"));
+  const spl = p => split && split.path === p;
+  const nodeXY = p => [TOFF + tpos[p], TY(tdepth[p])];
+  const leafXY = p => [TOFF + leafCX(p), TY(tdepth[p])];
+  /* where a node sits right now: just popped out of its pill, or in its place */
+  const nodeShown = p => T[p] && (T[p].kind === "node" || (spl(p) && split.popped));
+  const nodeNow = p => {
+    if (T[p].kind === "node" || K === 1) return nodeXY(p);
+    const [cx, cy] = leafXY(p), x0 = cx - K * LC / 2;
+    return [x0 + (split.L.length + split.E.length / 2) * LC, cy];
+  };
+  const onPath = new Set();
+  if (lastT && ins) for (let i = 1; i <= ins.path.length; i++) onPath.add(ins.path.slice(0, i));
+  const hotLeaf = lastT && lastT.t === "append" ? lastT.path : null;
+
+  const pill = (key, path, x0, cy, cells, cls) => {
+    add({ k: "tl" + key, t: "rect", x: x0, y: cy - LH / 2, w: cells * LC, h: LH, rx: LH / 2, cls: "pill" + (cls || ""), z: 1, pop: true });
+    for (let i = 1; i < cells; i++)
+      add({ k: "tp" + key + "_" + i, t: "line", x1: x0 + i * LC, y1: cy - LH / 2 + 4, x2: x0 + i * LC, y2: cy + LH / 2 - 4, cls: "psep", z: 1 });
+  };
+  const cell = (u, x, y, p, cls) =>
+    add({ k: "tc" + u, t: "text", x: x, y: y, s: KEYS[u], cls: "k" + (cls || ""), inst: u, hb: [LC / 2, LH / 2],
+          from: "tf" + u, to: "tn" + p });
+
+  for (const p of Object.keys(T)) {
+    if (!isVis(p)) continue;
+    const nd = T[p];
+    if (nodeShown(p)) {
+      const [x, y] = nodeNow(p), P = nd.kind === "node" ? nd.P : split.P;
+      add({ k: "tn" + p, t: "node", x: x, y: y, s: KEYS[P], z: 3, inst: P, piv: P, from: "tc" + P, pop: true });
+    }
+    if (nd.kind === "leaf") {
+      if (K === 1) {
+        if (!spl(p) || !split.popped) for (const u of nd.elems) { const [x, y] = nodeXY(p); cell(u, x, y, p, " tr"); }
+      } else if (spl(p)) {
+        const [cx, cy] = leafXY(p), x0 = cx - K * LC / 2;
+        const at = (u, i) => (i < split.j ? split.slot[u] : i);
+        if (!split.popped) {
+          pill(p, p, x0, cy, K, " hot");
+          split.buf.forEach((u, i) => cell(u, x0 + at(u, i) * LC + LC / 2, cy, p, u === split.P ? " drop piv" : ""));
+          const iP = split.buf.indexOf(split.P), sP = at(split.P, iP);
+          add({ k: "tm" + p, t: "rect", x: x0 + sP * LC + 2, y: cy - LH / 2 + 2, w: LC - 4, h: LH - 4, rx: 5, cls: "pivring", z: 3, pop: true });
+        } else {
+          /* the pill has split around the median: two halves, the node in between */
+          const nl = split.L.length, ne = split.E.length;
+          if (nl) pill(p + "L", p + "L", x0, cy, nl, "");
+          if (split.R.length) pill(p + "R", p + "R", x0 + (nl + ne) * LC, cy, split.R.length, "");
+          split.L.forEach(u => cell(u, x0 + split.slot[u] * LC + LC / 2, cy, p, ""));
+          split.R.forEach(u => cell(u, x0 + split.slot[u] * LC + LC / 2, cy, p, ""));
+        }
+      } else {
+        const [cx, cy] = leafXY(p), cells = Math.max(K - 1, nd.elems.length), x0 = cx - cells * LC / 2;
+        pill(p, p, x0, cy, cells, hotLeaf === p ? " hot" : "");
+        nd.elems.forEach((u, i) => cell(u, x0 + i * LC + LC / 2, cy, p, lastT && lastT.t === "append" && lastT.x === u ? " tr" : ""));
+      }
+    }
+    /* the edge from the parent */
+    if (p !== "") {
+      const q = parentOf(p);
+      const leafHere = !nodeShown(p);
+      if (!(K === 1 && leafHere)) {
+        const [x1, y1] = nodeXY(q);
+        let x2, y2, r2;
+        if (!leafHere) { [x2, y2] = nodeNow(p); r2 = NR; } else { [x2, y2] = leafXY(p); y2 -= LH / 2; r2 = 0; }
+        const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1;
+        add({ k: "te" + p, t: "line", x1: x1 + dx * NR / L, y1: y1 + dy * NR / L, x2: x2 - dx * r2 / L, y2: y2 - dy * r2 / L,
+              cls: "tedge" + (onPath.has(p) ? " path" : ""), z: 0, grow: true });
+      }
+    }
+  }
+
+  /* the element being inserted travels down the edges */
+  if (ins && (ins.at === "start" || ins.at === "node")) {
+    let fx, fy;
+    if (ins.at === "start") {
+      const [x, y] = T[""].kind === "node" ? nodeXY("") : (K === 1 ? nodeXY("") : leafXY(""));
+      fx = x; fy = y - 54;
+    } else { const [x, y] = nodeXY(ins.path); fx = x + ins.res * 22; fy = y - NR - 17; }
+    const end = insEnd[ins.x];
+    add({ k: "tf" + ins.x, t: "badge", x: fx, y: fy, s: KEYS[ins.x], z: 4, inst: ins.x, hb: [12, 12],
+          from: "ts" + ins.x, to: end.eq ? "tn" + end.path : "tc" + ins.x });
+  }
+  if (lastT && (lastT.t === "cmp" || lastT.t === "scmp") && nodeShown(lastT.path)) {
+    const [x, y] = nodeNow(lastT.path);
+    add({ k: "tq", t: "ring", x: x, y: y, r: NR + 4, cls: "tq", z: 4 });
+  } else if (lastT && lastT.t === "cmp" && T[lastT.path] && T[lastT.path].kind === "node") {
+    const [x, y] = nodeXY(lastT.path);
+    add({ k: "tq", t: "ring", x: x, y: y, r: NR + 4, cls: "tq", z: 4 });
+  }
+  /* Quicksort's current comparison, where the tree did it */
+  const cq = curEvents(S.cur, "q"), lq = cq[cq.length - 1];
+  if (lq) {
+    const c = lq.c, p = c.path;
+    if (c.kind === "part" && T[p] && T[p].kind === "node") {
+      const [x, y] = nodeXY(p);
+      add({ k: "tk", t: "ring", x: x, y: y, r: NR + 4, cls: "tk", z: 4 });
+      if (lq.t === "cmp" && lq.x !== c.P) {
+        let it = M.get("tc" + lq.x);
+        if (!it) for (const v of M.values()) if (v.t === "node" && v.piv === lq.x) it = v;
+        if (it && it.t === "node") add({ k: "tkx", t: "ring", x: it.x, y: it.y, r: NR + 4, cls: "tk", z: 4 });
+        else if (it) add({ k: "tkx", t: "rect", x: it.x - LC / 2, y: it.y - LH / 2 - 2, w: LC, h: LH + 4, rx: 4, cls: "tk", z: 4 });
+      }
+    }
+    if (c.kind === "leaf" && T[p] && T[p].kind === "leaf" && isVis(p)) {
+      const it = M.get("tl" + p);
+      if (it) add({ k: "tk", t: "rect", x: it.x - 4, y: it.y - 4, w: it.w + 8, h: it.h + 8, rx: LH / 2 + 4, cls: "tk", z: 4 });
+    }
+  }
+  return M;
+}
+
+let MX = null;
+/* two copies of the matrix -- Quicksort's comparisons and the tree's -- side by side
+   when they fit, stacked otherwise; on the last step the tree's copy glides onto
+   Quicksort's */
+function layoutMatrix() {
+  const rows = [...Array(N).keys()], cols = pivots.slice();
+  if (mxSort === "key") { rows.sort((a, b) => cmpInst(a, b) || a - b); cols.sort((a, b) => cmpInst(a, b) || a - b); }
+  else cols.sort((a, b) => a - b);
+  /* drawn in fixed units (like the drawings) and scaled by the common SCALE */
+  const cs = 26, top = 66, nc = Math.max(1, cols.length);
+  const lw = 16 + 10 * Math.max(...KEYS.map(s => s.length)) + 14;
+  const titleW = 9.6 * Math.max(9, ("= TREE · " + N * N).length);
+  MX = { rows, cols, lw, cs, top, W1: Math.max(lw + nc * cs + 6, lw + titleW), H1: top + N * cs + 6, arr: "below",
+         rowOf: new Map(rows.map((x, i) => [x, i])), colOf: new Map(cols.map((p, j) => [p, j])), fs: 14,
+         qPos: { x: 0, y: 0 }, tPos: { x: 0, y: 0 } };
+  const base = (colColor, cellCls) => {
+    const out = [];
+    const lab = (x, tx, ty, anchor, extra) => '<text class="mx-lab" x="' + tx + '" y="' + ty + '" text-anchor="' + anchor + '"' + (extra || "") + ">" +
+      esc(KEYS[x]) + '<tspan class="mx-ix" dy="4">' + (x + 1) + "</tspan></text>";
+    rows.forEach((x, i) => out.push(lab(x, lw - 8, top + i * cs + cs / 2 - 1, "end")));
+    cols.forEach((p, j) => out.push(lab(p, lw + j * cs + cs / 2, top - 14, "middle", ' style="fill:' + colColor + '"')));
+    rows.forEach((x, i) => cols.forEach((p, j) =>
+      out.push('<rect class="' + cellCls + '" x="' + (lw + j * cs) + '" y="' + (top + i * cs) + '" width="' + cs + '" height="' + cs + '"/>')));
+    return out.join("");
+  };
+  PANELS.m.base.innerHTML = base("var(--wi-accent)", "mx-c");
+  /* the tree's copy has a see-through grid, so it can lie on top of Quicksort's */
+  PANELS.n.base.innerHTML = base("var(--tr)", "mx-ct");
+  el("mxMeta").textContent = N + " elements × " + cols.length + " pivots";
+  el("mxNote").innerHTML = "Row <i>x</i>, column <i>P</i>: has <i>x</i> been compared with the pivot / inner node <i>P</i>? " +
+    "Small numbers are input positions. " +
+    (mxSort === "pos" ? "Quicksort fills its matrix column by column, the tree fills its matrix row by row; " +
+                        "with <i>order</i> as cell labels, both show their order of comparisons." :
+                        "Sorted by key, the filled cells of row <i>x</i> are the ancestors of <i>x</i> in the tree.");
+}
+/* each matrix below its drawing (or next to each other / stacked on narrow screens) */
+let STACKED = false;
+function matricesSideBySide(s) { return !STACKED || 2 * MX.W1 * s + 24 <= Math.max(160, el("mWrap").clientWidth); }
+function placeMatrices() {
+  const s = SCALE, wrap = el("mWrap"), wr = wrap.getBoundingClientRect(), rowW = Math.max(160, wrap.clientWidth);
+  const w = MX.W1 * s, h = MX.H1 * s, gap = 24;
+  let qp, tp, H;
+  if (MX.arr === "side") { qp = { x: 0, y: 0 }; tp = { x: w + gap, y: 0 }; H = h; }
+  else if (MX.arr === "stack") { qp = { x: 0, y: 0 }; tp = { x: 0, y: h + gap }; H = 2 * h + gap; }
+  else if (!STACKED) {
+    const q = el("qWrap").getBoundingClientRect(), t = el("tWrap").getBoundingClientRect();
+    qp = { x: Math.max(0, q.left - wr.left + (q.width - w) / 2), y: 0 };
+    tp = { x: Math.max(qp.x + w + 12, t.left - wr.left + (t.width - w) / 2), y: 0 };
+    H = h;
+  } else if (matricesSideBySide(s)) {
+    const x0 = (rowW - 2 * w - gap) / 2; qp = { x: x0, y: 0 }; tp = { x: x0 + w + gap, y: 0 }; H = h;
+  } else {
+    const x0 = Math.max(0, (rowW - w) / 2); qp = { x: x0, y: 0 }; tp = { x: x0, y: h + gap }; H = 2 * h + gap;
+  }
+  const W = MX.arr === "below" ? Math.max(rowW, tp.x + w + 2) : Math.max(qp.x, tp.x) + w + 2;
+  const svg = PANELS.m.svg;
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  MX.qPos = qp; MX.tPos = tp;
+  PANELS.m.g.setAttribute("transform", "translate(" + f2(qp.x) + "," + f2(qp.y) + ") scale(" + f2(s) + ")");
+  setNPose(nPose(cur));
+}
+/* the tree's matrix: in its own place, or on top of Quicksort's (last step) */
+function nPose(i) {
+  return steps[i] && steps[i].proc === "end" ? { x: MX.qPos.x, y: MX.qPos.y, op: 0 } : { x: MX.tPos.x, y: MX.tPos.y, op: 1 };
+}
+function setNPose(p) {
+  PANELS.n.g.setAttribute("transform", "translate(" + f2(p.x) + "," + f2(p.y) + ") scale(" + f2(SCALE) + ")");
+  PANELS.n.base.style.opacity = p.op;
+}
+
+function matrixScene(S, proc) {
+  const M = new Map(), add = it => M.set(it.k, Object.assign({ op: 1, sc: 1, z: 2 }, it));
+  const done = proc === "q" ? qsCmpPrefix[S.q] : trCmpPrefix[S.t];
+  const curCells = new Set();
+  for (const e of curEvents(S.cur, proc))
+    if (e.t === "cmp" || e.t === "scmp") curCells.add(e.x + "," + (proc === "q" ? e.c.P : e.P));
+  const cs = MX.cs;
+  const tot = cellInfo.size;
+  const col = proc === "q" ? "var(--wi-accent)" : "var(--tr)", op = proc === "t" && S.end ? 0 : 1;
+  add({ k: "mT", t: "text", x: MX.lw, y: 11, s: proc === "q" ? "QUICKSORT" : "TREE", cls: "mx-title", z: 3, anchor: "start", fill: col, op: op });
+  add({ k: "mC", t: "text", x: MX.lw, y: 28, s: proc === "q" && S.end ? "= TREE · " + tot : done + " / " + tot,
+        cls: "mx-title", z: 3, anchor: "start", fill: col, op: op });
+  for (const [kk, ci] of cellInfo) {
+    if (!MX.rowOf.has(ci.x) || !MX.colOf.has(ci.P)) continue;
+    const T_ = proc === "q" ? ci.qT : ci.tT;
+    if (!T_ || T_ > done) continue;
+    const cx = MX.lw + MX.colOf.get(ci.P) * cs, cy = MX.top + MX.rowOf.get(ci.x) * cs;
+    if (proc === "q") add({ k: "mf" + kk, t: "rect", x: cx + 0.5, y: cy + 0.5, w: cs - 1, h: cs - 1, rx: 0, cls: "mxq", z: 0, pop: true });
+    else {
+      add({ k: "mf" + kk, t: "rect", x: cx + 0.5, y: cy + 0.5, w: cs - 1, h: cs - 1, rx: 0, cls: "mxtf", z: 0, pop: true });
+      add({ k: "mg" + kk, t: "rect", x: cx + 2.5, y: cy + 2.5, w: cs - 5, h: cs - 5, rx: 3, cls: "mxr", z: 1, pop: true });
+    }
+    let s = "", cls = "mxt";
+    if (cellLab === "res") { s = ci.res < 0 ? "<" : ci.res > 0 ? ">" : "="; if (ci.res === 0) cls += " eq"; }
+    else { s = String(T_); cls += proc === "q" ? " qo" : " to"; }
+    /* on top of each other, only one set of order labels stays readable */
+    if (proc === "t" && S.end && cellLab !== "res") s = "";
+    if (s) add({ k: "ml" + kk, t: "text", x: cx + cs / 2, y: cy + cs / 2, s: s, cls: cls, fs: s.length > 2 ? MX.fs * 0.8 : MX.fs, z: 2 });
+    if (curCells.has(kk)) add({ k: "mo" + kk, t: "rect", x: cx + 0.5, y: cy + 0.5, w: cs - 1, h: cs - 1, rx: 2, cls: "mxo", z: 3, pop: true });
+  }
+  return M;
+}
+
+function sceneAll(S) { return { q: sceneQ(S), t: sceneT(S), m: matrixScene(S, "q"), n: matrixScene(S, "t") }; }
+
+/* ---------- drawing keyed items ------------------------------------------ */
+
+const PANELS = {};
+function makePanel(name, svgId, wrapId, keep) {
+  const svg = el(svgId); if (!keep) svg.innerHTML = "";
+  const mk = t => document.createElementNS(SVGNS, t);
+  const g = mk("g"); svg.appendChild(g);
+  const base = mk("g"); g.appendChild(base);
+  const layers = []; for (let i = 0; i < 5; i++) { const l = mk("g"); g.appendChild(l); layers.push(l); }
+  const hov = mk("g"); g.appendChild(hov);
+  PANELS[name] = { name, svg, wrap: el(wrapId), g, base, layers, hov, els: new Map(), scene: new Map(), fit: { s: 1, tx: 0, ty: 0 } };
+}
+function createEl(it) {
+  const mk = t => document.createElementNS(SVGNS, t);
+  let e;
+  if (it.t === "node") {
+    e = mk("g"); const c = mk("circle"); c.setAttribute("r", NR); c.setAttribute("class", "nodec");
+    const t = mk("text"); t.setAttribute("class", "nk"); e.appendChild(c); e.appendChild(t);
+  } else if (it.t === "badge") {
+    e = mk("g"); e.setAttribute("class", "badge");
+    const r = mk("rect"); r.setAttribute("rx", 5); const t = mk("text"); e.appendChild(r); e.appendChild(t);
+  } else if (it.t === "ring") e = mk("circle");
+  else e = mk(it.t);
+  e._t = it.t;
+  return e;
+}
+const f2 = v => Math.round(v * 100) / 100;
+function updateEl(e, it) {
+  const sc = it.sc == null ? 1 : it.sc;
+  switch (it.t) {
+    case "rect":
+      e.setAttribute("x", f2(it.x)); e.setAttribute("y", f2(it.y));
+      e.setAttribute("width", f2(Math.max(0, it.w))); e.setAttribute("height", f2(Math.max(0, it.h)));
+      e.setAttribute("rx", it.rx == null ? 4 : it.rx);
+      if (sc !== 1) { const cx = it.x + it.w / 2, cy = it.y + it.h / 2;
+        e.setAttribute("transform", "translate(" + f2(cx) + "," + f2(cy) + ") scale(" + f2(sc) + ") translate(" + f2(-cx) + "," + f2(-cy) + ")"); }
+      else e.removeAttribute("transform");
+      break;
+    case "text":
+      e.setAttribute("transform", "translate(" + f2(it.x) + "," + f2(it.y) + ")" + (sc !== 1 ? " scale(" + f2(sc) + ")" : ""));
+      if (e._s !== it.s) { e.textContent = it.s; e._s = it.s; }
+      e.style.fontSize = it.fs ? it.fs + "px" : "";
+      if (it.anchor) e.style.textAnchor = it.anchor;
+      if (it.fill) e.style.fill = it.fill;
+      break;
+    case "line":
+      e.setAttribute("x1", f2(it.x1)); e.setAttribute("y1", f2(it.y1)); e.setAttribute("x2", f2(it.x2)); e.setAttribute("y2", f2(it.y2));
+      break;
+    case "ring":
+      e.setAttribute("cx", f2(it.x)); e.setAttribute("cy", f2(it.y)); e.setAttribute("r", f2(Math.max(0, it.r * sc)));
+      break;
+    case "node": case "badge": {
+      e.setAttribute("transform", "translate(" + f2(it.x) + "," + f2(it.y) + ") scale(" + f2(Math.max(0.01, sc)) + ")");
+      const t = e.lastChild;
+      if (t._s !== it.s) {
+        t.textContent = it.s; t._s = it.s;
+        if (it.t === "badge") { const w = 14 + 10 * it.s.length; const r = e.firstChild;
+          r.setAttribute("x", -w / 2); r.setAttribute("y", -13); r.setAttribute("width", w); r.setAttribute("height", 26); }
+      }
+      break;
+    }
+  }
+  if (it.t !== "node" && it.t !== "badge") { const c = it.cls || ""; if (e._c !== c) { e.setAttribute("class", c); e._c = c; } }
+  e.style.opacity = it.op >= 0.999 ? "" : f2(Math.max(0, it.op));
+}
+function drawState(P, key, it) {
+  let e = P.els.get(key);
+  if (!it || it.op <= 0.004) { if (e) e.style.display = "none"; return; }
+  if (!e) { e = createEl(it); P.layers[it.z || 0].appendChild(e); P.els.set(key, e); }
+  e.style.display = "";
+  updateEl(e, it);
+}
+function applyScene(P, scene) {
+  for (const [k, it] of scene) drawState(P, k, it);
+  for (const [k, e] of P.els) if (!scene.has(k)) { e.remove(); P.els.delete(k); }
+  P.scene = scene;
+}
+
+/* ---------- panel fitting ---------------------------------------------- */
+
+/* One scale for all drawings (and the matrices), so that all labels have the same
+   size: 1 = the page's own text size.  Normal mode: the user's zoom (drag the bar
+   below the drawings), shrunk if the drawings would not fit the width; presentation
+   mode: as large as fits the screen. */
+let SCALE = 1, ZOOM = 1;
+function fitPanel(P, W, H) {
+  const s = SCALE, aw = Math.max(120, P.wrap.clientWidth), ah = canvasH;
+  const sw = Math.max(aw, W * s), sh = Math.max(ah, H * s);
+  P.svg.setAttribute("width", sw); P.svg.setAttribute("height", sh);
+  P.svg.setAttribute("viewBox", "0 0 " + sw + " " + sh);
+  P.wrap.style.height = ah + "px";
+  const tx = Math.max(0, (sw - W * s) / 2), ty = 4;
+  P.g.setAttribute("transform", "translate(" + f2(tx) + "," + f2(ty) + ") scale(" + f2(s) + ")");
+  P.fit = { s, tx, ty };
+}
+/* where do the matrices go?  Below the drawings, or in a column beside them (the
+   two matrices next to each other or stacked): whatever allows the largest common
+   scale in the window -- tall narrow matrices (few pivots) usually go beside */
+let userSplit = false;
+function arrangementScales() {
+  const W = el("stage").clientWidth, HD = Math.max(QH, TH), dW = QW + TALLW;
+  const Hav = window.innerHeight - el("qWrap").getBoundingClientRect().top - 34;
+  const panelX = 2 * 28 + 16, mxX = 16 + 28;
+  return {
+    below: Math.min((W - panelX) / dW, (W - panelX) * Math.min(QW, TALLW) / dW / MX.W1, (Hav - 60) / (HD + MX.H1)),
+    side: Math.min((W - panelX - mxX - 24) / (dW + 2 * MX.W1), Hav / HD, (Hav - 10) / MX.H1),
+    stack: Math.min((W - panelX - mxX) / (dW + MX.W1), Hav / HD, (Hav - 34) / (2 * MX.H1))
+  };
+}
+function layoutAll() {
+  const stage = el("stage");
+  if (!userSplit) stage.style.setProperty("--qw", (QW / TALLW).toFixed(3) + "fr");
+  MX.arr = "below"; stage.classList.remove("beside");
+  STACKED = el("colT").getBoundingClientRect().top > el("colQ").getBoundingClientRect().top + 20;
+  let sc = null;
+  if (present && !STACKED && window.innerWidth > 900) {
+    sc = arrangementScales();
+    const best = Math.max(sc.below, sc.side, sc.stack);
+    MX.arr = sc.below >= best * 0.98 ? "below" : sc.side >= sc.stack ? "side" : "stack";
+  }
+  const beside = MX.arr !== "below";
+  stage.classList.toggle("beside", beside);
+  const HD = Math.max(QH, TH);
+  let s;
+  if (beside) {
+    s = Math.max(0.5, Math.min(2.6, sc[MX.arr]));
+    const mw = MX.arr === "side" ? 2 * MX.W1 * s + 24 : MX.W1 * s, mh = MX.arr === "stack" ? (2 * MX.H1 + 24) * s : MX.H1 * s;
+    el("mSvg").setAttribute("width", mw); el("mSvg").setAttribute("height", mh);
+    s = Math.min(s, el("qWrap").clientWidth / QW, el("tWrap").clientWidth / TALLW);
+  } else {
+    const aq = el("qWrap").clientWidth, at = el("tWrap").clientWidth, rowW = Math.max(160, el("mWrap").clientWidth);
+    let sw = Math.min(aq / QW, at / TALLW);
+    sw = STACKED ? Math.min(sw, rowW / MX.W1) : Math.min(sw, aq / MX.W1, at / MX.W1);
+    if (present) {
+      const qTop = el("qWrap").getBoundingClientRect().top;
+      const between = el("mWrap").getBoundingClientRect().top - el("qWrap").getBoundingClientRect().bottom;
+      const avail = window.innerHeight - qTop - between - 34 - (STACKED ? 40 : 0);
+      let sh = avail / (HD + MX.H1);
+      if (STACKED && !matricesSideBySide(sh)) sh = avail / (HD + 2 * MX.H1 + 24);
+      s = Math.min(sw, sh);
+    } else s = Math.min(ZOOM, sw);
+  }
+  s = present ? Math.max(0.5, Math.min(2.6, s)) : Math.max(0.6, s);
+  SCALE = s;
+  canvasH = Math.ceil(HD * s) + 10;
+  fitPanel(PANELS.q, QW, QH);
+  fitPanel(PANELS.t, TALLW, TH);
+  placeMatrices();
+}
+
+/* ---------- the tween engine -------------------------------------------- */
+
+const NUMF = ["x", "y", "w", "h", "x1", "y1", "x2", "y2", "op", "sc", "r"];
+const easeIO = u => u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+const backOut = u => { const c1 = 1.6, c3 = c1 + 1; return 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2); };
+function sameItem(a, b) {
+  if (a.s !== b.s || a.cls !== b.cls) return false;
+  for (const f of NUMF) { const p = a[f], q = b[f]; if (p !== q && (p == null || q == null || Math.abs(p - q) > 1e-6)) return false; }
+  return true;
+}
+function lerpItem(a, b, u) {
+  const o = Object.assign({}, u < 0.5 ? a : b);
+  const e = easeIO(u);
+  for (const f of NUMF) {
+    const p = a[f], q = b[f];
+    if (typeof p !== "number" || typeof q !== "number") continue;
+    const w = f === "sc" ? (q > p ? backOut(u) : e) : f === "op" ? (q > p ? Math.min(1, u * 1.6) : e) : e;
+    o[f] = p + (q - p) * w;
+  }
+  return o;
+}
+function spawnFrom(b, prev) {
+  const f = Object.assign({}, b);
+  const src = b.from ? prev.get(b.from) : null;
+  if (src && src.x != null && (b.t === "text" || b.t === "node" || b.t === "badge")) {
+    f.x = src.x; f.y = src.y; f.op = Math.max(b.op, src.op);
+    if (b.t === "node") f.sc = 0.35;
+  } else if (b.grow) { f.x2 = b.x1; f.y2 = b.y1; }
+  else { f.op = 0; if (b.pop) f.sc = 0.4; }
+  return f;
+}
+function despawnTo(a, next) {
+  const g = Object.assign({}, a);
+  const dst = a.to ? next.get(a.to) : null;
+  g.op = 0;
+  if (dst && dst.x != null && (a.t === "text" || a.t === "badge")) { g.x = dst.x; g.y = dst.y; g.sc = 0.7; }
+  else if (a.pop) g.sc = 0.5;
+  return g;
+}
+/* event timings, as multiples of the base duration */
+function weight(e, proc) {
+  if (proc === "q") return { pivot: 0.8, cmp: 0.9, done: 0.6, leaf: 1 }[e.t] || 1;
+  if (K === 1) return { start: 0.7, cmp: 0.9, append: 0.7, full: 0.05, scmp: 0.25, pop: 0.55, newnode: 0.45 }[e.t] || 1;
+  return { start: 0.7, cmp: 0.9, append: 0.75, full: 0.55, scmp: 0.7, pop: 0.6, newnode: 0.9 }[e.t] || 1;
+}
+function overlap(e, nx, proc) {
+  if (!nx) return 1;
+  if (proc === "q" && e.t === "cmp" && nx.t === "cmp") return detail === "coarse" ? 0.28 : 1;
+  if (proc === "t" && e.t === "scmp" && nx.t === "scmp") return 0.14;
+  return 1;
+}
+const SEQKEY = k => k.startsWith("tf") || k === "tq" || k === "qa";
+function baseD() { return Number(el("speed").value); }
+
+function buildAnim(lo, hi) {
+  const A = steps[lo], B = steps[hi];
+  const scenes = [sceneAll(stepState(lo))], wins = [];
+  const D = baseD();
+  if (B.proc === "q" || B.proc === "t") {
+    const evs = B.proc === "q" ? qsEv : trEv;
+    let s0 = 0;
+    for (let i = B.a; i < B.b; i++) {
+      const S = { q: A.q, t: A.t, cur: i === B.b - 1 ? { proc: B.proc, a: B.a, b: B.b } : { proc: B.proc, a: i, b: i + 1 } };
+      S[B.proc] = i + 1;
+      scenes.push(sceneAll(S));
+      const d = Math.max(1, D * weight(evs[i], B.proc));
+      wins.push([s0, s0 + d]);
+      s0 += d * overlap(evs[i], i + 1 < B.b ? evs[i + 1] : null, B.proc);
+    }
+  } else { scenes.push(sceneAll(stepState(hi))); wins.push([0, B.proc === "end" ? Math.max(1500, D * 2.2) : D * 0.5]); }
+  const segs = { q: new Map(), t: new Map(), m: new Map(), n: new Map() };
+  const keys = { q: new Set(), t: new Set(), m: new Set(), n: new Set() };
+  let T = 0;
+  for (const pn of ["q", "t", "m", "n"]) {
+    for (const sc of scenes) for (const k of sc[pn].keys()) keys[pn].add(k);
+    for (let i = 1; i < scenes.length; i++) {
+      const P = scenes[i - 1][pn], Nx = scenes[i][pn], [w0, w1] = wins[i - 1];
+      for (const k of new Set([...P.keys(), ...Nx.keys()])) {
+        const a = P.get(k), b = Nx.get(k);
+        if (a && b && sameItem(a, b)) continue;
+        const seg = { t0: w0, t1: w1, from: a || spawnFrom(b, P), to: b || despawnTo(a, Nx), spawn: !a };
+        let list = segs[pn].get(k);
+        if (!list) segs[pn].set(k, list = []);
+        const prev = list[list.length - 1];
+        if (prev && seg.t0 < prev.t1) {
+          if (SEQKEY(k)) { const d = seg.t1 - seg.t0; seg.t0 = prev.t1; seg.t1 = prev.t1 + d; }
+          else { const v = evalSeg(prev, seg.t0); prev.t1 = seg.t0; prev.to = v; if (a) seg.from = v; }
+        }
+        list.push(seg);
+        T = Math.max(T, seg.t1);
+      }
+    }
+  }
+  const T_ = Math.max(T, 1, ...wins.map(w => w[1]));
+  return { segs, keys, first: scenes[0], last: scenes[scenes.length - 1], T: T_, pose0: nPose(lo), pose1: nPose(hi) };
+}
+function evalSeg(s, t) {
+  if (t <= s.t0) return s.from;
+  if (t >= s.t1) return s.to;
+  return lerpItem(s.from, s.to, (t - s.t0) / (s.t1 - s.t0));
+}
+function stateAt(A, pn, k, t) {
+  const list = A.segs[pn].get(k);
+  if (!list) return A.last[pn].get(k) || A.first[pn].get(k);
+  if (t < list[0].t0) return list[0].spawn ? null : list[0].from;
+  let s = list[0];
+  for (const x of list) if (x.t0 <= t) s = x;
+  return evalSeg(s, t);
+}
+let ANIM = null;
+function drawAt(A, t) {
+  const u = easeIO(Math.max(0, Math.min(1, t / A.T)));
+  setNPose({ x: A.pose0.x + (A.pose1.x - A.pose0.x) * u, y: A.pose0.y + (A.pose1.y - A.pose0.y) * u,
+             op: A.pose0.op + (A.pose1.op - A.pose0.op) * u });
+  for (const pn of ["q", "t", "m", "n"]) {
+    const P = PANELS[pn];
+    for (const k of A.keys[pn]) drawState(P, k, stateAt(A, pn, k, t));
+    for (const [k, e] of P.els) if (!A.keys[pn].has(k)) e.style.display = "none";
+  }
+}
+function frame(now) {
+  const A = ANIM; if (!A) return;
+  const el_ = now - A.start, t = Math.min(A.T, el_);
+  drawAt(A, A.dir > 0 ? t : A.T - t);
+  if (el_ >= A.T) finishAnim(true); else requestAnimationFrame(frame);
+}
+function finishAnim(natural) {
+  const A = ANIM; if (!A) return;
+  ANIM = null;
+  renderStatic();
+  if (natural && A.onEnd) A.onEnd();
+}
+
+/* ---------- static render, hover ---------------------------------------- */
+
+function renderStatic() {
+  const sc = sceneAll(stepState(cur));
+  applyScene(PANELS.q, sc.q); applyScene(PANELS.t, sc.t); applyScene(PANELS.m, sc.m); applyScene(PANELS.n, sc.n);
+  setNPose(nPose(cur));
+  renderHover(); renderCounts();
+}
+let hoverCell = null;      /* [x, P] while a matrix cell is hovered */
+function renderHover() {
+  const rectAround = (it, pad) => {
+    if (it.t === "node") return '<circle class="hovr" cx="' + it.x + '" cy="' + it.y + '" r="' + (NR + 3) + '"/>';
+    if (it.t === "rect") return '<rect class="hovr" x="' + (it.x - pad) + '" y="' + (it.y - pad) + '" width="' + (it.w + 2 * pad) +
+                                '" height="' + (it.h + 2 * pad) + '" rx="6"/>';
+    const [hw, hh] = it.hb || [11, 12];
+    return '<rect class="hovr" x="' + (it.x - hw + 1) + '" y="' + (it.y - hh - 1) + '" width="' + (2 * hw - 2) + '" height="' + (2 * hh + 2) + '" rx="4"/>';
+  };
+  const callOf = p => calls.find(c => c.kind === "part" && c.P === p);
+  /* Quicksort */
+  { const P = PANELS.q, keys = new Set();
+    if (hoverCell) {
+      const [x, p] = hoverCell, c = callOf(p);
+      if (c) { keys.add("qt" + c.id + "_" + x); keys.add("qt" + c.id + "_" + p); keys.add("qe" + c.id + "_" + p); }
+    } else {
+      if (hoverPiv >= 0) { const c = callOf(hoverPiv); if (c) { keys.add("qb" + c.id); keys.add("qe" + c.id + "_" + hoverPiv); } }
+      if (hoverInst >= 0) for (const [k, it] of P.scene) if (it.inst === hoverInst) keys.add(k);
+    }
+    const out = [];
+    for (const k of keys) { const it = P.scene.get(k); if (it && it.op >= 0.2) out.push(rectAround(it, 3)); }
+    P.hov.innerHTML = out.join(""); }
+  /* tree: for a cell, the node of the pivot and where the element is now */
+  { const P = PANELS.t, out = [];
+    for (const [k, it] of P.scene) {
+      if (it.inst == null || it.op < 0.2) continue;
+      const hit = hoverCell
+        ? (it.t === "node" && (it.piv === hoverCell[1] || it.piv === hoverCell[0])) || k === "tc" + hoverCell[0] || k === "tf" + hoverCell[0]
+        : it.inst === hoverInst || (it.piv != null && it.piv === hoverPiv);
+      if (hit) out.push(rectAround(it, 3));
+    }
+    P.hov.innerHTML = out.join(""); }
+  /* both matrices: the row of the element, the column of the pivot */
+  const row = hoverCell ? hoverCell[0] : hoverInst, col = hoverCell ? hoverCell[1] : hoverPiv;
+  const out = [];
+  if (MX) {
+    if (row >= 0 && MX.rowOf.has(row))
+      out.push('<rect class="mx-hl" x="0" y="' + (MX.top + MX.rowOf.get(row) * MX.cs) + '" width="' + MX.W1 + '" height="' + MX.cs + '"/>');
+    if (col >= 0 && MX.colOf.has(col))
+      out.push('<rect class="mx-hl" x="' + (MX.lw + MX.colOf.get(col) * MX.cs) + '" y="' + (MX.top - 28) + '" width="' + MX.cs + '" height="' + (MX.H1 - MX.top + 28) + '"/>');
+  }
+  PANELS.m.hov.innerHTML = out.join("");
+  PANELS.n.hov.innerHTML = steps[cur] && steps[cur].proc === "end" ? "" : out.join("");
+}
+function setHover(inst, piv, cell) {
+  const ck = cell ? cell.join(",") : "", ok = hoverCell ? hoverCell.join(",") : "";
+  if (inst === hoverInst && piv === hoverPiv && ck === ok) return;
+  hoverInst = inst; hoverPiv = piv; hoverCell = cell || null;
+  if (!ANIM) renderHover();
+}
+function hitTest(P, ev) {
+  const m = P.g.getScreenCTM(); if (!m) return null;
+  const pt = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(m.inverse());
+  let best = null;
+  for (const it of P.scene.values()) {
+    if (it.inst == null || it.op < 0.2) continue;
+    if (it.t === "node") { if (Math.hypot(pt.x - it.x, pt.y - it.y) <= NR + 2) best = it; }
+    else { const [hw, hh] = it.hb || [11, 12]; if (Math.abs(pt.x - it.x) <= hw && Math.abs(pt.y - it.y) <= hh) best = best && best.t === "node" ? best : it; }
+  }
+  return best;
+}
+
+/* ---------- the two trees on top of each other ---------------------------- */
+
+let FLY = null;
+function stopFly() { if (FLY) { cancelAnimationFrame(FLY.raf); FLY = null; } el("fly").style.display = "none"; el("fly").innerHTML = ""; }
+function flyTrees() {
+  stopFly();
+  if (REDUCED) return;
+  const svg = el("fly");
+  const qm = PANELS.q.g.getScreenCTM(), tm = PANELS.t.g.getScreenCTM();
+  if (!qm || !tm) return;
+  const sq = PANELS.q.fit.s, st = PANELS.t.fit.s;
+  const toS = (m, x, y) => ({ x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f });
+  const items = [], idOf = new Map();
+  for (const c of calls) {
+    const par = c.parent ? idOf.get(c.parent.id) : -1;
+    if (c.kind === "part") {
+      const to = toS(tm, TOFF + tpos[c.path], TY(tdepth[c.path]));
+      items.push({ f: toS(qm, groupX(c), qY(c.depth + 1) + CH / 2), t: to, s: KEYS[c.P], d: c.depth, par: par, type: "node" });
+      idOf.set(c.id, items.length - 1);
+      for (const x of c.L2) if (x !== c.P)
+        items.push({ f: toS(qm, qX(c.childPos[x]) + CW / 2, qY(c.depth + 1) + CH / 2), t: to, s: KEYS[x], d: c.depth, par: -1, type: "dup" });
+    } else {
+      const leaf = finalT[c.path], cells = Math.max(K - 1, leaf.elems.length);
+      const x0 = TOFF + leafCX(c.path) - cells * LC / 2, y = TY(tdepth[c.path]);
+      items.push({ f: toS(qm, groupX(c), qY(c.depth + 1) + CH / 2), t: toS(tm, TOFF + leafCX(c.path), y - LH / 2), s: "", d: c.depth, par: par, type: "grp" });
+      c.elems.forEach((x, i) => items.push({ f: toS(qm, qX(c.lo + i) + CW / 2, qY(c.depth + 1) + CH / 2),
+        t: toS(tm, x0 + leaf.elems.indexOf(x) * LC + LC / 2, y), s: KEYS[x], d: c.depth, par: -1, type: "leafel" }));
+    }
+  }
+  const W = window.innerWidth, H = window.innerHeight;
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.style.display = "block";
+  const D = 1700, STAG = 110, HOLD = 900, FADE = 600;
+  const maxD = Math.max(0, ...items.map(i => i.d));
+  const TOT = D + maxD * STAG + HOLD + FADE;
+  const t0 = performance.now();
+  const step = now => {
+    const t = now - t0;
+    const pos = items.map(it => {
+      const u = Math.max(0, Math.min(1, (t - it.d * STAG) / D)), e = easeIO(u);
+      return { x: it.f.x + (it.t.x - it.f.x) * e, y: it.f.y + (it.t.y - it.f.y) * e - Math.sin(Math.PI * u) * 40, u: u };
+    });
+    const land = t - (D + maxD * STAG);
+    const fade = land > HOLD ? Math.max(0, 1 - (land - HOLD) / FADE) : 1;
+    const out = ['<g style="opacity:' + fade + '">'];
+    items.forEach((it, i) => {
+      if (it.par < 0) return;
+      const a = pos[it.par], b = pos[i];
+      out.push('<line class="flyedge" x1="' + a.x + '" y1="' + a.y + '" x2="' + b.x + '" y2="' + b.y + '" style="opacity:' + (0.35 + 0.65 * b.u) + '"/>');
+    });
+    items.forEach((it, i) => {
+      const p = pos[i], sc = sq + (st - sq) * easeIO(p.u);
+      if (it.type === "grp") return;
+      if (it.type === "node") out.push('<circle class="flynode" cx="' + p.x + '" cy="' + p.y + '" r="' + (NR * sc) + '" style="opacity:' + Math.min(1, p.u * 2) + '"/>');
+      const op = it.type === "dup" ? Math.max(0, 1 - Math.max(0, p.u - 0.55) / 0.45) : 1;
+      out.push('<text class="flytext" x="' + p.x + '" y="' + p.y + '" style="font-size:' + (17 * sc) + 'px;opacity:' + op + '">' + esc(it.s) + "</text>");
+    });
+    if (land > 0 && land < HOLD + FADE) {
+      const u = Math.min(1, land / HOLD);
+      items.forEach((it, i) => { if (it.type === "node")
+        out.push('<circle class="flypulse" cx="' + it.t.x + '" cy="' + it.t.y + '" r="' + (NR * st * (1 + 0.9 * u)) + '" style="opacity:' + (1 - u) + '"/>'); });
+    }
+    out.push("</g>");
+    svg.innerHTML = out.join("");
+    if (t < TOT) FLY.raf = requestAnimationFrame(step); else stopFly();
+  };
+  FLY = { raf: requestAnimationFrame(step) };
+}
+
+/* ---------- status & counters ------------------------------------------- */
+
+function qsMsg(e) {
+  const c = e.c, n = c.elems.length;
+  if (e.t === "leaf")
+    return "Sublist " + lst(c.elems) + " has only <i>n</i> = " + n + " ≤ <i>k</i> − 1 = " + (K - 1) +
+           " elements: Quicksort stops and leaves it to Insertionsort (whose comparisons we ignore). " +
+           "In the tree, these elements form a leaf buffer.";
+  if (e.t === "pivot") {
+    const pre = c.parent ? "Recursive call on " : "Call on the whole input ";
+    if (K === 1) return pre + lst(c.elems) + " (<i>n</i> = " + n + "): the pivot is its first element, <i>P</i> = " + key(c.P) + ".";
+    return pre + lst(c.elems) + " (<i>n</i> = " + n + " ≥ <i>k</i>): the sample is its first " + K + " elements " +
+           lst(c.sample) + ", whose median <i>P</i> = " + key(c.P) + " becomes the pivot (finding the median is not counted).";
+  }
+  if (e.t === "cmp") {
+    if (e.x === c.P) return "The pivot itself: " + key(e.x) + " = " + key(c.P) + ". We count this one too, so partitioning " +
+                            "<i>n</i> elements costs exactly <i>n</i> comparisons.";
+    if (e.res === 0) return "Compare " + key(e.x) + " with <i>P</i> = " + key(c.P) + ": equal, so it joins the pivot in the middle segment and is finished for good.";
+    return "Compare " + key(e.x) + " with <i>P</i> = " + key(c.P) + ": " + key(e.x) + " " + rel(e.res) + " " + key(c.P) +
+           ", so it goes to the " + (e.res < 0 ? "left" : "right") + " segment.";
+  }
+  if (e.t === "done") {
+    let s = "Partitioning " + lst(c.elems) + " around " + key(c.P) + " is done (" + n + " comparison" + (n > 1 ? "s" : "") + "): " +
+            lst(c.L1) + " | " + (c.L2.length > 1 ? c.L2.length + " × " : "") + key(c.P) + " | " + lst(c.L3) +
+            ", each part in its original relative order. ";
+    const kids = [c.L1.length ? "left" : null, c.L3.length ? "right" : null].filter(Boolean);
+    s += kids.length === 2 ? "Recurse on the left part, then on the right part." :
+         kids.length === 1 ? "Recurse on the " + kids[0] + " part." : "Nothing left to recurse on.";
+    return s;
+  }
+  return "";
+}
+function trMsg(e) {
+  const x = e.x;
+  if (e.t === "start") return "Insert " + key(x) + " (input position " + (x + 1) + ").";
+  if (e.t === "cmp") {
+    if (e.res === 0) return "Compare with node " + key(e.P) + ": equal. The key is already an inner node, so the element merges into it and the tree is unchanged.";
+    return "Compare with node " + key(e.P) + ": " + key(x) + " " + rel(e.res) + " " + key(e.P) + ", go " + (e.res < 0 ? "left." : "right.");
+  }
+  if (K === 1) {
+    if (e.t === "append") return "It reaches an empty leaf, which (with <i>k</i> = 1) is full right away and splits: " +
+                                 key(x) + " is compared with itself (" + key(x) + " = " + key(x) + "), just like a pivot in Quicksort,";
+    if (e.t === "newnode") return "and pops out as a new node.";
+    return "";
+  }
+  if (e.t === "append") return "It squeezes into a leaf buffer (now " + e.len + " element" + (e.len > 1 ? "s" : "") +
+                               (e.len < K ? ", room for " + (K - 1) : "") + ").";
+  if (e.t === "full") return "The buffer overflows with <i>k</i> = " + K + " elements " + lst(e.buf) + ": it partitions itself around its median " +
+                             key(e.P) + " (" + K + " comparisons, the same pivot Quicksort picks from its sample): " +
+                             lst(e.L) + " | " + (e.E.length > 1 ? e.E.length + " × " : "") + key(e.P) + " | " + lst(e.R) + ".";
+  if (e.t === "newnode") return "The median pops out as a new inner node; the two halves become its leaves" +
+                                (e.E.length > 1 ? ", its duplicates are dropped." : ".");
+  return "";
+}
+
+function renderStatus() {
+  const st = steps[cur], ph = phases[st.phase];
+  let head, body;
+  if (st.proc === null) {
+    head = "start";
+    const first = runFirst === "q" ? "Quicksort runs first, then the tree is built" : "The tree is built first, then Quicksort runs";
+    body = "Input: " + lst([...Array(N).keys()]) + " (<i>n</i> = " + N + (K > 1 ? ", <i>k</i> = " + K : "") + "). " + first +
+           ". Watch the matrix on the right: both processes mark the same cells.";
+  } else if (st.proc === "end") {
+    head = "result";
+    const v = verdict;
+    body = (v.sameTree ? '<span class="ok">Same tree</span>' : '<span class="bad">Different trees?!</span>') +
+           ": the recursion tree of Quicksort lands exactly on the " + (K === 1 ? "binary search tree" : K + "-fringe-balanced tree") +
+           ". " + (v.sameSet ? '<span class="ok">Same set of ' + v.cells + " comparisons</span>" :
+                               '<span class="bad">The comparison sets differ!</span>') +
+           ": the tree's matrix lands exactly on Quicksort's. Only the order differs — go back a step " +
+           "with <i>order</i> as cell labels to compare the two matrices.<br><button id=\"flyAgain\">Overlay the trees again</button>";
+  } else {
+    const evs = st.proc === "q" ? qsEv : trEv, lastE = evs[st.b - 1];
+    head = (st.proc === "q" ? "Quicksort · " : "Tree · ") + ph.name;
+    if (detail === "coarse") body = st.proc === "q" ? qsMsg(lastE) : (lastE.summary || trMsg(lastE));
+    else body = evs.slice(st.a, st.b).map(e => st.proc === "q" ? qsMsg(e) : trMsg(e)).filter(Boolean).join(" ");
+  }
+  el("statusBox").innerHTML = '<span class="ph ' + (st.proc === "q" ? "q" : st.proc === "t" ? "t" : "") + '">' + esc(head) + "</span>" + body;
+  const fb = el("flyAgain"); if (fb) fb.addEventListener("click", replayFinale);
+}
+function renderCounts() {
+  const st = steps[cur], q = qsCmpPrefix[st.q], t = trCmpPrefix[st.t];
+  el("qMeta").textContent = (K === 1 ? "pivot: first element" : "pivot: median of first " + K) + " · " + q + " cmp";
+  el("tTitle").textContent = K === 1 ? "Binary search tree" : K + "-fringe-balanced tree";
+  el("tMeta").textContent = t + " cmp";
+}
+
+/* ---------- phase bar & scrubber ----------------------------------------- */
+
+const RES = 100000, MINW = 30;
+let PB = { w: [], X: [], W: 1 };
+
+function waterFill(c, W, mn) {
+  const n = c.length;
+  if (n * mn >= W) return c.map(() => W / n);
+  const fixed = new Array(n).fill(false), w = new Array(n).fill(0);
+  for (;;) {
+    let sum = 0, nf = 0;
+    for (let i = 0; i < n; i++) if (!fixed[i]) sum += c[i]; else nf++;
+    const free = W - nf * mn;
+    let changed = false;
+    for (let i = 0; i < n; i++) if (!fixed[i]) {
+      w[i] = c[i] / sum * free;
+      if (w[i] < mn) { fixed[i] = true; changed = true; }
+    }
+    if (!changed) break;
+  }
+  for (let i = 0; i < n; i++) if (fixed[i]) w[i] = mn;
+  return w;
+}
+let measureCtx = null;
+function textW(s, font) {
+  if (!measureCtx) measureCtx = document.createElement("canvas").getContext("2d");
+  measureCtx.font = font; return measureCtx.measureText(s).width;
+}
+function layoutPhasebar() {
+  const bar = el("phaseBar");
+  const W = Math.max(1, bar.clientWidth);
+  const counts = phases.map(p => p.to - p.from);
+  const w = waterFill(counts, W, MINW);
+  PB = { w: w, X: [], W: W };
+  let acc = 0; for (const x of w) { PB.X.push(acc); acc += x; }
+  bar.innerHTML = "";
+  phases.forEach((p, i) => {
+    const b = document.createElement("button");
+    b.className = "phasebtn " + (p.proc === "q" ? "pq" : p.proc === "t" ? "ptr" : "pend");
+    b.style.width = w[i] + "px";
+    b.title = (p.proc === "q" ? "Quicksort: " : p.proc === "t" ? "Tree: " : "") + p.name;
+    b.innerHTML = '<span class="fill"></span><span class="lab"></span>';
+    b.addEventListener("click", () => { stopPlay(); if (p.proc === "end") replayFinale(); else go(p.from, { animate: false }); });
+    bar.appendChild(b);
+  });
+  /* labels: the longest of full name / short name / first character that fits */
+  const btns = bar.children;
+  if (btns.length) {
+    const cs = getComputedStyle(btns[0]);
+    const fontN = "normal " + cs.fontSize + " " + cs.fontFamily, fontB = "bold " + cs.fontSize + " " + cs.fontFamily;
+    for (let i = 0; i < btns.length; i++) {
+      const p = phases[i], room = w[i] - 5;
+      const cands = [p.name, String(p.short), String(p.short).charAt(0)];
+      let lab = cands[2];
+      for (const c of cands) if (Math.max(textW(c, fontN), textW(c, fontB)) * 1.04 <= room) { lab = c; break; }
+      btns[i].querySelector(".lab").textContent = lab;
+    }
+  }
+}
+function stepToVal(s) {
+  const p = steps[s].phase, ph = phases[p], m = ph.to - ph.from;
+  const x = PB.X[p] + PB.w[p] * ((s - ph.from) + 0.5) / m;
+  return Math.round(RES * x / PB.W);
+}
+function valToStep(v) {
+  const x = v / RES * PB.W;
+  let p = 0;
+  while (p + 1 < phases.length && PB.X[p + 1] <= x) p++;
+  const ph = phases[p], m = ph.to - ph.from;
+  let j = Math.floor((x - PB.X[p]) / PB.w[p] * m);
+  j = Math.max(0, Math.min(m - 1, j));
+  return ph.from + j;
+}
+function renderTransport() {
+  el("scrubber").value = stepToVal(cur);
+  el("stepNo").textContent = cur + " / " + (steps.length - 1);
+  const btns = el("phaseBar").children, p = steps[cur].phase;
+  for (let i = 0; i < btns.length; i++) {
+    const ph = phases[i], b = btns[i], f = b.querySelector(".fill");
+    b.classList.toggle("on", i === p);
+    b.classList.toggle("past", i < p);
+    const frac = i < p ? 1 : i > p ? 0 : (cur - ph.from + 1) / (ph.to - ph.from);
+    f.style.width = (100 * frac) + "%";
+    f.classList.toggle("empty", frac === 0);
+  }
+  el("backBtn").disabled = cur === 0; el("resetBtn").disabled = cur === 0;
+  el("stepBtn").disabled = cur === steps.length - 1;
+}
+
+/* ---------- navigation --------------------------------------------------- */
+
+function go(s, opts) {
+  opts = opts || {};
+  s = Math.max(0, Math.min(steps.length - 1, s));
+  if (ANIM) finishAnim(false);
+  stopFly();
+  if (s === cur && !opts.force) { renderStatic(); return; }
+  const prev = cur; cur = s;
+  renderStatus(); renderTransport();
+  const animate = !REDUCED && opts.animate !== false && Math.abs(s - prev) === 1;
+  if (!animate) { renderStatic(); if (opts.onEnd) playTimer = setTimeout(opts.onEnd, baseD()); return; }
+  const A = buildAnim(Math.min(prev, s), Math.max(prev, s));
+  A.dir = s > prev ? 1 : -1;
+  A.onEnd = () => { if (opts.onEnd) opts.onEnd(); };
+  hoverInst = hoverPiv = -1;
+  for (const pn of ["q", "t", "m", "n"]) PANELS[pn].hov.innerHTML = "";
+  ANIM = A; A.start = performance.now();
+  requestAnimationFrame(frame);
+  if (A.dir > 0 && steps[s].proc === "end") flyTrees();
+}
+/* the last step, animated: matrices merge, trees fly onto each other */
+function replayFinale() { go(steps.length - 2, { animate: false }); go(steps.length - 1); }
+function playNext() {
+  if (!playing) return;
+  if (cur >= steps.length - 1) { stopPlay(); return; }
+  go(cur + 1, { onEnd: () => { if (playing) playTimer = setTimeout(playNext, baseD() * 0.35); } });
+}
+function stopPlay() {
+  playing = false; clearTimeout(playTimer);
+  el("playBtn").innerHTML = "&#x25B6;&#xFE0E;"; el("playBtn").setAttribute("aria-label", "Play");
+}
+function startPlay() {
+  playing = true;
+  el("playBtn").innerHTML = "&#x23F8;&#xFE0E;"; el("playBtn").setAttribute("aria-label", "Pause");
+  if (cur >= steps.length - 1) { go(0, { animate: false }); playTimer = setTimeout(playNext, 400); }
+  else playNext();
+}
+
+/* ---------- loading ----------------------------------------------------- */
+
+function setSegOn(segId, attr, val) {
+  for (const b of el(segId).querySelectorAll("button")) b.classList.toggle("on", b.dataset[attr] === String(val));
+}
+function rebuild() {
+  stopPlay();
+  if (ANIM) finishAnim(false);
+  stopFly();
+  simulate();
+  buildSteps();
+  cur = 0;
+  setSegOn("kSeg", "k", K);
+  for (const pn of ["q", "t", "m", "n"]) { PANELS[pn].els.forEach(e => e.remove()); PANELS[pn].els.clear(); }
+  layoutMatrix();
+  layoutAll();
+  layoutPhasebar();
+  renderStatus(); renderTransport(); renderStatic();
+}
+function loadText(text, kOverride) {
+  try {
+    const r = parseInput(text);
+    KEYS = r.keys; N = KEYS.length;
+    if (kOverride != null) K = kOverride; else if (r.k != null) K = r.k;
+    el("parseErr").textContent = "";
+    rebuild();
+    return true;
+  } catch (err) { el("parseErr").textContent = err.message; el("editor").open = true; return false; }
+}
+function loadPreset(i) {
+  const p = PRESETS[i];
+  el("inputText").value = (p.k > 1 ? "k = " + p.k + "\n" : "") + p.text;
+  el("presetSel").value = String(i);
+  loadText(el("inputText").value, p.k);
+}
+function randomInput() {
+  const n = Math.max(2, Math.min(30, Math.floor(Number(el("randN").value) || 12)));
+  el("randN").value = n;
+  let a;
+  if (el("randDup").checked) {
+    const u = Math.max(2, Math.round(n / 3));
+    a = Array.from({ length: n }, () => 1 + Math.floor(Math.random() * u));
+  } else {
+    a = [...Array(n).keys()].map(i => i + 1);
+    for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  }
+  el("inputText").value = (K > 1 ? "k = " + K + "\n" : "") + a.join(" ");
+  el("presetSel").value = "";
+  loadText(el("inputText").value, K);
+}
+
+/* ---------- presentation mode ------------------------------------------- */
+
+function setPresent(on, fullscreen) {
+  present = on;
+  document.body.classList.toggle("present", on);
+  document.body.classList.toggle("ptext", on && el("ptextChk").checked);
+  if (on && fullscreen && document.documentElement.requestFullscreen && !document.fullscreenElement)
+    document.documentElement.requestFullscreen().catch(() => {});
+  if (!on && document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+  window.scrollTo(0, 0);
+  relayout();
+}
+function relayout() {
+  if (ANIM) finishAnim(false);
+  stopFly();
+  layoutAll(); layoutPhasebar(); renderTransport(); renderStatic();
+}
+function presentationURL() {
+  const p = new URLSearchParams();
+  p.set("keys", KEYS.join(" "));
+  if (K > 1) p.set("k", K);
+  p.set("order", runFirst); p.set("detail", detail); p.set("speed", el("speed").value);
+  if (cellLab !== "res") p.set("lab", "ord");
+  if (mxSort !== "pos") p.set("sort", mxSort);
+  if (el("ptextChk").checked) p.set("text", "1");
+  p.set("present", "1");
+  return location.origin + location.pathname + "?" + p.toString();
+}
+function applyURL() {
+  const p = new URLSearchParams(location.search);
+  if (p.get("order") === "q" || p.get("order") === "t") runFirst = p.get("order");
+  if (p.get("detail") === "fine" || p.get("detail") === "coarse") detail = p.get("detail");
+  if (["ord", "q", "t"].includes(p.get("lab"))) cellLab = "ord";
+  if (["pos", "key"].includes(p.get("sort"))) mxSort = p.get("sort");
+  if (p.get("speed")) el("speed").value = Math.max(150, Math.min(1800, Number(p.get("speed")) || 700));
+  if (p.get("text") === "1") el("ptextChk").checked = true;
+  setSegOn("orderSeg", "o", runFirst); setSegOn("detailSeg", "d", detail);
+  setSegOn("labSeg", "l", cellLab); setSegOn("sortSeg", "s", mxSort);
+  let loaded = false;
+  if (p.get("keys")) {
+    const k = Number(p.get("k") || 1);
+    el("inputText").value = (k > 1 ? "k = " + k + "\n" : "") + p.get("keys").trim();
+    el("presetSel").value = "";
+    const m = PRESETS.findIndex(q => q.k === k && q.text === p.get("keys").trim());
+    if (m >= 0) el("presetSel").value = String(m);
+    loaded = loadText(el("inputText").value, k);
+  }
+  if (!loaded) loadPreset(0);
+  if (p.get("present") === "1") setPresent(true, false);
+}
+
+/* ---------- splitters --------------------------------------------------- */
+
+function initSplitters() {
+  const stage = el("stage");
+  const drag = (h, onMove) => {
+    let st = null;
+    h.addEventListener("pointerdown", ev => {
+      ev.preventDefault(); h.setPointerCapture(ev.pointerId); h.classList.add("drag");
+      if (ANIM) finishAnim(false);
+      st = { x: ev.clientX, y: ev.clientY, q: el("colQ").getBoundingClientRect().width, h: canvasH, z: SCALE };
+    });
+    h.addEventListener("pointermove", ev => { if (st) onMove(st, ev); });
+    const end = () => { st = null; h.classList.remove("drag"); };
+    h.addEventListener("pointerup", end); h.addEventListener("pointercancel", end);
+  };
+  drag(el("vs1"), (st, ev) => {
+    const total = stage.getBoundingClientRect().width;
+    const w = Math.max(200, Math.min(total - 16 - 200, st.q + ev.clientX - st.x));
+    stage.style.setProperty("--qw", w + "px"); userSplit = true;
+    layoutAll();
+  });
+  /* the bar below the drawings zooms everything */
+  drag(el("hs"), (st, ev) => {
+    ZOOM = Math.max(0.6, Math.min(2, st.z * Math.max(60, st.h + ev.clientY - st.y) / st.h));
+    layoutAll();
+  });
+}
+
+/* ---------- hover & tooltip --------------------------------------------- */
+
+function initHover() {
+  const tip = el("tooltip");
+  for (const pn of ["q", "t"]) {
+    const P = PANELS[pn];
+    P.svg.addEventListener("pointermove", ev => {
+      if (ANIM) return;
+      const it = hitTest(P, ev);
+      setHover(it ? it.inst : -1, it && it.piv != null ? it.piv : -1);
+    });
+    P.svg.addEventListener("pointerleave", () => setHover(-1, -1));
+  }
+  const m = PANELS.m.svg;
+  m.addEventListener("pointermove", ev => {
+    if (ANIM || !MX) return;
+    const loc = P => new DOMPoint(ev.clientX, ev.clientY).matrixTransform(P.g.getScreenCTM().inverse());
+    let pt = loc(PANELS.m);
+    if (steps[cur].proc !== "end" && !(pt.x >= 0 && pt.y >= 0 && pt.x <= MX.W1 && pt.y <= MX.H1)) pt = loc(PANELS.n);
+    const x = pt.x, y = pt.y;
+    const j = Math.floor((x - MX.lw) / MX.cs), i = Math.floor((y - MX.top) / MX.cs);
+    const inRow = i >= 0 && i < MX.rows.length, inCol = j >= 0 && j < MX.cols.length;
+    if (inRow && inCol) {
+      const xi = MX.rows[i], p = MX.cols[j];
+      setHover(-1, -1, [xi, p]);
+      const ci = cellInfo.get(xi + "," + p), st = steps[cur];
+      let h = "<b>" + esc(KEYS[xi]) + "</b> (position " + (xi + 1) + ") vs. pivot <b>" + esc(KEYS[p]) + "</b> (position " + (p + 1) + "): ";
+      if (!ci) h += "never compared — " + esc(KEYS[p]) + " is not on the search path of this element.";
+      else {
+        h += esc(KEYS[xi]) + " " + rel(ci.res) + " " + esc(KEYS[p]) + "<br>";
+        h += '<span class="tt-q">Quicksort comparison #' + ci.qT + (ci.qT <= qsCmpPrefix[st.q] ? "" : " (not yet)") + "</span><br>";
+        h += '<span class="tt-t">tree comparison #' + ci.tT + (ci.tT <= trCmpPrefix[st.t] ? "" : " (not yet)") + "</span>";
+      }
+      tip.innerHTML = h; tip.style.display = "block";
+      tip.style.left = Math.min(window.innerWidth - 300, ev.clientX + 14) + "px"; tip.style.top = (ev.clientY + 14) + "px";
+    } else {
+      tip.style.display = "none";
+      if (inRow && x < MX.lw) setHover(MX.rows[i], -1);
+      else if (inCol && y < MX.top) setHover(-1, MX.cols[j]);
+      else setHover(-1, -1);
+    }
+  });
+  m.addEventListener("pointerleave", () => { tip.style.display = "none"; setHover(-1, -1); });
+}
+
+/* ---------- init -------------------------------------------------------- */
+
+function init() {
+  makePanel("q", "qSvg", "qWrap"); makePanel("t", "tSvg", "tWrap"); makePanel("m", "mSvg", "mWrap"); makePanel("n", "mSvg", "mWrap", true);
+  const sel = el("presetSel");
+  const o0 = document.createElement("option"); o0.value = ""; o0.textContent = "(custom)"; o0.hidden = true; sel.appendChild(o0);
+  PRESETS.forEach((p, i) => { const o = document.createElement("option"); o.value = String(i); o.textContent = p.name; sel.appendChild(o); });
+  sel.addEventListener("change", e => { if (e.target.value !== "") loadPreset(Number(e.target.value)); });
+
+  for (const b of el("kSeg").querySelectorAll("button"))
+    b.addEventListener("click", () => {
+      K = Number(b.dataset.k);
+      const txt = el("inputText").value.replace(/^\s*k\s*[=:]\s*\d+\s*$/gim, "").trim();
+      el("inputText").value = (K > 1 ? "k = " + K + "\n" : "") + txt;
+      el("presetSel").value = "";
+      const match = PRESETS.findIndex(p => p.k === K && p.text === txt);
+      if (match >= 0) el("presetSel").value = String(match);
+      rebuild();
+    });
+  for (const b of el("orderSeg").querySelectorAll("button"))
+    b.addEventListener("click", () => { runFirst = b.dataset.o; setSegOn("orderSeg", "o", runFirst); rebuildSteps(true); });
+  for (const b of el("detailSeg").querySelectorAll("button"))
+    b.addEventListener("click", () => { detail = b.dataset.d; setSegOn("detailSeg", "d", detail); rebuildSteps(false); });
+  for (const b of el("labSeg").querySelectorAll("button"))
+    b.addEventListener("click", () => { cellLab = b.dataset.l; setSegOn("labSeg", "l", cellLab); if (ANIM) finishAnim(false); renderStatic(); });
+  for (const b of el("sortSeg").querySelectorAll("button"))
+    b.addEventListener("click", () => { mxSort = b.dataset.s; setSegOn("sortSeg", "s", mxSort); if (ANIM) finishAnim(false);
+      for (const pn of ["m", "n"]) { PANELS[pn].els.forEach(e => e.remove()); PANELS[pn].els.clear(); } layoutMatrix(); layoutAll(); renderStatic(); });
+  setSegOn("orderSeg", "o", runFirst); setSegOn("detailSeg", "d", detail);
+  setSegOn("labSeg", "l", cellLab); setSegOn("sortSeg", "s", mxSort);
+
+  el("randBtn").addEventListener("click", randomInput);
+  el("loadBtn").addEventListener("click", () => { el("presetSel").value = ""; loadText(el("inputText").value, null); });
+  el("resetBtn").addEventListener("click", () => { stopPlay(); go(0, { animate: false }); });
+  el("backBtn").addEventListener("click", () => { stopPlay(); go(cur - 1); });
+  el("stepBtn").addEventListener("click", () => { stopPlay(); go(cur + 1); });
+  el("playBtn").addEventListener("click", () => playing ? stopPlay() : startPlay());
+  el("scrubber").addEventListener("input", e => { stopPlay(); const s = valToStep(Number(e.target.value)); if (s !== cur) go(s, { animate: false }); else renderTransport(); });
+  el("scrubber").addEventListener("change", () => renderTransport());
+  el("presentBtn").addEventListener("click", () => setPresent(true, true));
+  el("exitBtn").addEventListener("click", () => setPresent(false));
+  el("ptextChk").addEventListener("change", () => document.body.classList.toggle("ptext", present && el("ptextChk").checked));
+  el("linkBtn").addEventListener("click", () => {
+    const u = presentationURL();
+    el("linkOut").value = u; el("linkRow").classList.add("show"); el("linkOut").select();
+    if (navigator.clipboard) navigator.clipboard.writeText(u).catch(() => {});
+  });
+  document.addEventListener("keydown", e => {
+    if (e.target.closest("textarea, input[type=text], input[type=number], select")) return;
+    const k = e.key;
+    if (k === "ArrowRight" || k === "PageDown") { e.preventDefault(); stopPlay(); go(cur + 1); }
+    else if (k === "ArrowLeft" || k === "PageUp") { e.preventDefault(); stopPlay(); go(cur - 1); }
+    else if (k === "Home") { e.preventDefault(); stopPlay(); go(0, { animate: false }); }
+    else if (k === "End") { e.preventDefault(); stopPlay(); go(steps.length - 1, { animate: false }); }
+    else if (k === " " && !e.target.closest("button")) { e.preventDefault(); playing ? stopPlay() : startPlay(); }
+    else if (k === "Escape" && present) { setPresent(false); }
+    else if ((k === "p" || k === "P") && !e.ctrlKey && !e.metaKey) { setPresent(!present, !present); }
+  });
+  document.addEventListener("fullscreenchange", () => { if (present) setTimeout(relayout, 80); });
+  initSplitters();
+  initHover();
+  let rt = null;
+  window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(relayout, 80); });
+  applyURL();
+}
+function rebuildSteps(reset) {
+  stopPlay();
+  if (ANIM) finishAnim(false);
+  const st = steps[cur];
+  buildSteps();
+  let best = 0;
+  if (!reset) for (let i = 0; i < steps.length; i++)
+    if ((steps[i].q <= st.q && steps[i].t <= st.t) || st.proc === "end") best = i;
+  cur = best;
+  layoutPhasebar(); renderStatus(); renderTransport(); renderStatic();
+}
+init();
+</script>
+</body>
+</html>

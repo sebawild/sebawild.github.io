@@ -1,0 +1,1961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+<script>
+window.MathJax = {
+  tex: { inlineMath: [["\\(", "\\)"]], displayMath: [["\\[", "\\]"]] },
+  options: { skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code", "svg"], ignoreHtmlClass: "cline|codebody|num" },
+  chtml: { scale: 1, matchFontHeight: true, mtextInheritFont: true },
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js" async></script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RSA &amp; Diffie–Hellman · public-key cryptography, step by step</title>
+<style>
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#8d897c;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-font-mono:"SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    /* the cast */
+    --alice:#4a7c3f; --alice-bg:#e8f0e2; --bob:#2a6a63; --bob-bg:#e0ecea;
+    --eve:#cc2f22; --eve-bg:#f6e6df; --pub:#b07d18; --pub-bg:#f7edd9;
+    --split:1.15fr;
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title,.wi-caption { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  h3 { font-size:.95rem; color:var(--wi-accent); margin:18px 0 4px; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:18px;
+              flex-wrap:wrap; margin:0 0 6px; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 14px; max-width:100ch; line-height:1.5; }
+  .subtitle code, .hint code, .explain code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; }
+  .subtitle .cast-alice, .explain .cast-alice, .status .cast-alice { color:var(--alice); font-weight:bold; }
+  .subtitle .cast-bob, .explain .cast-bob, .status .cast-bob { color:var(--bob); font-weight:bold; }
+  .subtitle .cast-eve, .explain .cast-eve, .status .cast-eve { color:var(--eve); font-weight:bold; }
+
+  /* --- tabs --- */
+  .tabs { display:inline-flex; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .tabs button { border:0; border-radius:0; padding:7px 18px; font-size:.95rem; background:var(--wi-panel);
+                 letter-spacing:.05em; }
+  .tabs button + button { border-left:1px solid var(--wi-border); }
+  .tabs button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+
+  /* --- background explanation --- */
+  details.explain { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+                    border-radius:var(--wi-radius-lg); margin:0 0 16px; }
+  details.explain > summary { cursor:pointer; padding:10px 16px; font-family:var(--wi-font-head);
+                              font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; color:var(--wi-ink-soft); }
+  details.explain[open] > summary { border-bottom:1px solid var(--wi-border-soft); color:var(--wi-accent); }
+  .explain-body { padding:4px 18px 18px; font-size:.9rem; line-height:1.55; columns:2; column-gap:34px; }
+  .explain-body h3 { break-after:avoid; }
+  .explain-body h3:first-child { margin-top:10px; }
+  .explain-body p { margin:6px 0 8px; }
+  .explain-body ul { margin:4px 0 8px 1.2em; padding:0; }
+  .explain-body li { margin:2px 0; }
+  .explain-body .ex { font-size:.95em; background:var(--wi-panel-2);
+                      border:1px solid var(--wi-border-soft); border-radius:3px; padding:6px 10px; margin:6px 0 10px;
+                      break-inside:avoid; line-height:1.55; }
+  @media (max-width:1080px) { .explain-body { columns:1; } }
+
+  /* --- control chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:14px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:12px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; }
+  .ctl > label, .lbl { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer;
+           transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text;
+                font-size:1.02rem; line-height:1.1; padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  input.str { font-family:var(--wi-font-mono); font-size:.8rem; width:17em; }
+  input[type=range] { accent-color:var(--wi-accent); cursor:pointer; vertical-align:middle; }
+  .seg { display:inline-flex; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+  .opnote { font-size:.78rem; color:var(--wi-ink-faint); }
+  .opnote b { color:var(--wi-accent); }
+
+  /* --- transport: slider + phase bar --- */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:18px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; --thumb:8px; }
+  .progress input[type=range] { display:block; width:100%; margin:0; }
+  .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint);
+            white-space:nowrap; text-align:right; padding-top:4px; }
+  .phasebar { display:flex; margin:5px var(--thumb) 0; width:calc(100% - var(--thumb) - var(--thumb)); }
+  .phasebtn { position:relative; overflow:hidden;
+              flex-grow:1; flex-basis:0; min-width:0; padding:3px 4px; font-size:.68rem; line-height:1.3;
+              font-family:var(--wi-font-head); letter-spacing:.03em;
+              background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+              border-left-width:0; border-radius:0; color:var(--wi-ink-faint); cursor:pointer;
+              text-overflow:ellipsis; white-space:nowrap; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3;
+                    border-right:1px solid var(--wi-accent-soft); transition:width .12s linear; }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+
+  /* --- stage with draggable splitter --- */
+  .stage { display:grid; grid-template-columns:minmax(300px,var(--split)) 10px minmax(320px,1fr); gap:0 12px; align-items:start; }
+  .splitter { align-self:stretch; cursor:col-resize; border-radius:3px; background:transparent; position:relative; }
+  .splitter::before { content:""; position:absolute; left:3px; right:3px; top:0; bottom:0;
+                      background:var(--wi-border-soft); border-radius:3px; transition:background .15s; }
+  .splitter:hover::before, .splitter.drag::before { background:var(--wi-accent-soft); }
+  body.dragging { cursor:col-resize; user-select:none; }
+  @media (max-width:1080px) { .stage { grid-template-columns:1fr; } .splitter { display:none; } }
+  .col { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+             border-radius:var(--wi-radius-lg); padding:12px 15px; min-width:0; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em;
+               color:var(--wi-ink-faint); margin:0 0 9px; display:flex; justify-content:space-between;
+               align-items:baseline; gap:10px; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--wi-font-mono);
+                    font-size:.9em; color:var(--wi-ink-soft); }
+  svg.stagesvg { display:block; background:var(--wi-bg); border-radius:var(--wi-radius); width:100%; }
+
+  /* --- status --- */
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+            border-radius:var(--wi-radius); padding:10px 13px; font-size:.9rem;
+            color:var(--wi-ink-strong); min-height:120px; line-height:1.5; }
+  .status p { margin:0 0 7px; }
+  .status p:last-child { margin-bottom:0; }
+  .status .ans { display:block; margin-top:8px; font-size:.95rem; color:var(--wi-accent); }
+  .status .note { font-size:.86em; color:var(--wi-ink-soft); }
+  .num { font-family:var(--wi-font-mono); font-size:.86em; background:var(--wi-panel-2);
+         padding:1px 4px; border-radius:3px; word-break:break-all; overflow-wrap:anywhere; }
+  .status .num, .work .num { color:var(--wi-ink-strong); }
+  .num.alice, .work .alice { color:var(--alice) !important; }
+  .num.bob, .work .bob { color:var(--bob) !important; }
+  .num.pub, .work .pub { color:var(--pub) !important; }
+  .num.eve, .work .eve { color:var(--eve) !important; }
+  .num.hot, .hot > .num { background:#f6e6df; outline:1px solid var(--wi-active); }
+  .eq { font-size:.95em; word-break:break-word; overflow-wrap:anywhere; }
+  mjx-container[jax="CHTML"] { font-size:1.02em !important; }
+  .status mjx-container, .work mjx-container, .explain mjx-container { color:var(--wi-ink-strong); }
+
+  /* --- the arithmetic panel --- */
+  .work { font-size:.86rem; max-height:60vh; overflow:auto; padding-right:4px; }
+  .work table { border-collapse:collapse; width:100%; font-size:.9em; }
+  .work th { text-align:left; font-family:var(--wi-font-head); font-size:.72rem; letter-spacing:.06em;
+             text-transform:uppercase; color:var(--wi-ink-faint); padding:3px 8px; border-bottom:1px solid var(--wi-border-soft);
+             font-weight:normal; }
+  .work td { padding:3px 8px; border-bottom:1px solid var(--wi-border-soft); vertical-align:top;
+             font-family:var(--wi-font-mono); font-size:.85em; word-break:break-all; overflow-wrap:anywhere; }
+  .work td.lab, .work td.txt { font-family:var(--wi-font-body); font-size:1em; word-break:normal; }
+  .work tr.cur td { background:#f6e6df; }
+  .work tr.done td { }
+  .work tr.todo td { opacity:.28; }
+  .work tr.ok td.res { color:var(--wi-relax); font-weight:bold; }
+  .work tr.bad td.res { color:var(--wi-active); }
+  .work .lines { display:flex; flex-direction:column; gap:4px; }
+  .work .line { padding:4px 9px; border-left:3px solid transparent; border-radius:3px; font-family:var(--wi-font-body);
+                font-size:1em; word-break:break-word; overflow-wrap:anywhere; line-height:1.55; }
+  .work .line.cur { background:#f6e6df; border-left-color:var(--wi-active); }
+  .work .line.todo { opacity:.28; }
+  .work .line .t { color:var(--wi-ink-soft); }
+  .work .prow { padding:6px 9px; border-left:3px solid transparent; border-bottom:1px solid var(--wi-border-soft);
+                font-family:var(--wi-font-mono); font-size:.82em; line-height:1.5; }
+  .work .prow.cur { background:#f6e6df; border-left-color:var(--wi-active); }
+  .work .prow.todo { opacity:.28; }
+  .work .prow .hd { font-family:var(--wi-font-head); font-size:.72rem; letter-spacing:.06em; text-transform:uppercase;
+                    color:var(--wi-ink-faint); display:flex; justify-content:space-between; }
+  .work .prow .hd b { color:var(--wi-accent); }
+  .work .prow .sub { padding:2px 0 0 8px; word-break:break-all; overflow-wrap:anywhere; }
+  .work .prow .sub.off { opacity:.35; }
+  .work .prow .sub.now { background:#fbeee8; border-radius:3px; }
+  .work .prow .expo { color:var(--wi-ink-soft); font-family:var(--wi-font-body); font-size:1.05em; text-transform:none; letter-spacing:0; }
+  .work .chips { display:flex; flex-wrap:wrap; gap:3px; margin:4px 0 8px; }
+  .work .chip { font-family:var(--wi-font-mono); font-size:.72rem; padding:1px 5px; border-radius:3px;
+                border:1px solid var(--wi-border-soft); background:var(--wi-panel-2); min-width:2.2em; text-align:center; }
+  .work .chiplab { font-family:var(--wi-font-head); font-size:.7rem; letter-spacing:.06em; text-transform:uppercase;
+                   color:var(--wi-ink-faint); margin-top:6px; }
+  .work canvas { display:block; max-width:100%; border:1px solid var(--wi-border-soft); border-radius:3px; }
+  .work .bits { display:inline-flex; gap:2px; flex-wrap:wrap; }
+  .work .bit { font-family:var(--wi-font-mono); font-size:.8em; padding:0 4px; border:1px solid var(--wi-border-soft);
+               border-radius:2px; background:var(--wi-panel-2); }
+  .work .bit.on { background:#f6e6df; border-color:var(--wi-active); font-weight:bold; }
+  .work .bit.done { background:var(--wi-controls); }
+  .work .bit.todo { opacity:.35; }
+  .placeholder { font-size:.82rem; color:var(--wi-ink-faint); line-height:1.5; }
+  .legend { display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:9px; font-size:.72rem; color:var(--wi-ink-soft); }
+  .legend .item { display:flex; align-items:center; gap:6px; }
+  .sw { width:.85em; height:.85em; border-radius:2px; border:1px solid var(--wi-border); display:inline-block; }
+
+  /* --- recipe (pseudocode) --- */
+  .codebody { padding:2px 0 4px; }
+  .cline { display:flex; gap:9px; padding:2px 9px; font-family:var(--wi-font-mono); font-size:.75rem;
+           line-height:1.55; color:var(--wi-ink-strong); border-left:3px solid transparent; white-space:pre-wrap; }
+  .cline .ln { color:var(--wi-ink-faint); min-width:1.4em; text-align:right; user-select:none; }
+  .cline.on { background:#f6e6df; border-left-color:var(--wi-active); }
+  .cline .kw { color:var(--wi-accent); }
+  .cline .cm { color:var(--wi-ink-faint); font-style:italic; }
+  .cline .who { font-family:var(--wi-font-head); font-size:.9em; letter-spacing:.05em; }
+  .cline .who.alice { color:var(--alice); } .cline .who.bob { color:var(--bob); } .cline .who.pub { color:var(--pub); }
+  .sublabel { font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.09em;
+              text-transform:uppercase; color:var(--wi-ink-faint); padding:10px 12px 3px;
+              border-top:1px solid var(--wi-border-soft); margin-top:6px; }
+  .sublabel:first-child { border-top:0; margin-top:0; padding-top:2px; }
+  .codenote { font-size:.72rem; color:var(--wi-ink-faint); padding:8px 6px 0; line-height:1.45; }
+
+  /* --- editor --- */
+  details.editor { margin-top:18px; background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+                   border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:11px 16px; font-family:var(--wi-font-head);
+                             font-size:.78rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,340px) 1fr; gap:16px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  textarea { width:100%; height:190px; font-family:var(--wi-font-mono); font-size:.78rem;
+             background:var(--wi-panel-2); color:var(--wi-ink); border:1px solid var(--wi-border);
+             border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.76rem; color:var(--wi-ink-soft); line-height:1.5; }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+
+  .tooltip { position:fixed; z-index:40; pointer-events:none; background:var(--wi-panel-2);
+             border:1px solid var(--wi-border-strong); border-radius:var(--wi-radius);
+             padding:6px 9px; font-size:.76rem; color:var(--wi-ink-strong);
+             box-shadow:0 3px 10px rgba(0,0,0,.12); max-width:340px; display:none; line-height:1.45; }
+  .tooltip .tt-h { font-family:var(--wi-font-head); letter-spacing:.04em; color:var(--wi-accent); }
+  .tooltip .tt-s { color:var(--wi-ink-faint); }
+  .tooltip .num { display:block; margin-top:3px; }
+
+  .mobile-note { display:none; background:var(--wi-controls); border:1px solid var(--wi-accent-soft);
+                 border-radius:var(--wi-radius-lg); padding:11px 15px; font-size:.82rem;
+                 color:var(--wi-ink-strong); margin-bottom:14px; }
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    .titlebar { flex-direction:column; align-items:flex-start; gap:8px; }
+    h1 { font-size:1.3rem; }
+    .controls { gap:8px 12px; padding:10px 12px; }
+    .ctl { flex-wrap:wrap; gap:6px; }
+    .phasebtn { font-size:.6rem; padding:3px 2px; }
+    .mobile-note { display:block; }
+    .desk-only { display:none !important; }
+  }
+
+  /* --- SVG scene classes --- */
+  .box { fill:var(--wi-panel-2); stroke:var(--wi-border-soft); stroke-width:1.2; }
+  .box.alice { fill:var(--alice-bg); stroke:var(--alice); }
+  .box.bob { fill:var(--bob-bg); stroke:var(--bob); }
+  .box.pub { fill:var(--pub-bg); stroke:var(--pub); }
+  .box.eve { fill:var(--eve-bg); stroke:var(--eve); }
+  .boxhd { font-family:var(--wi-font-head); font-size:15px; letter-spacing:.08em; text-transform:uppercase; }
+  .boxhd.alice { fill:var(--alice); } .boxhd.bob { fill:var(--bob); } .boxhd.pub { fill:var(--pub); } .boxhd.eve { fill:var(--eve); }
+  .boxsub { font-family:var(--wi-font-body); font-style:italic; font-size:12.5px; fill:var(--wi-ink-faint); }
+  .vname { font-family:var(--wi-font-body); font-style:italic; font-size:15px; fill:var(--wi-ink-strong); }
+  .vval { font-family:var(--wi-font-mono); font-size:13.5px; fill:var(--wi-ink-strong); }
+  .vval.secret { fill:var(--wi-ink); }
+  .vrow.hot .vhl { fill:#fbeee8; stroke:var(--wi-active); stroke-width:1.4; }
+  .vhl { fill:transparent; stroke:transparent; }
+  .vrow.fresh .vhl { animation:rowpop .4s ease-out both; }
+  .lock { font-size:12px; }
+  .chan { stroke:var(--wi-border-strong); stroke-width:1.5; fill:none; stroke-dasharray:5 4; }
+  .arrow { stroke-width:2.4; fill:none; }
+  .arrow.alice { stroke:var(--alice); } .arrow.bob { stroke:var(--bob); }
+  .envelope { fill:var(--wi-panel-2); stroke:var(--wi-ink-soft); stroke-width:1.3; }
+  .envlab { font-family:var(--wi-font-mono); font-size:13px; fill:var(--wi-ink-strong); text-anchor:middle; }
+  .msggrp { transition:transform .55s cubic-bezier(.3,.9,.4,1); }
+  .msggrp.nojump { transition:none; }
+  .empty { font-family:var(--wi-font-body); font-style:italic; font-size:13px; fill:var(--wi-ink-faint); }
+  .hit { fill:transparent; cursor:help; }
+  @keyframes rowpop { from { transform:translateX(-6px); opacity:0; } to { transform:none; opacity:1; } }
+  @media (prefers-reduced-motion:reduce) {
+    * { animation-duration:.001ms !important; transition-duration:.001ms !important; }
+  }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption { font-family: var(--wi-font-head); letter-spacing: .05em; }
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1>Public-key cryptography &nbsp;·&nbsp; RSA and Diffie–Hellman, step by step</h1>
+  <span class="tabs" id="tabs">
+    <button id="tabRSA" class="on">RSA</button>
+    <button id="tabDH">Diffie–Hellman</button>
+  </span>
+</div>
+
+<p class="subtitle" id="subtitleRSA">
+  <span class="cast-bob">Bob</span> builds a padlock out of two prime numbers and hangs it up in public: the pair
+  \((n, e)\). Anyone — here <span class="cast-alice">Alice</span> — can snap it shut on a message by computing
+  \(m^e \bmod n\). Only Bob's private number \(d\) opens it again. Every single number
+  below is computed in front of you; nothing is hidden behind "and then some maths happens". Switch between
+  <b>small</b> numbers (everything checkable by hand) and <b>large</b> ones (what a computer actually does), and
+  watch what <span class="cast-eve">Eve</span>, who reads everything on the wire, can and cannot do.
+</p>
+<p class="subtitle" id="subtitleDH" style="display:none">
+  <span class="cast-alice">Alice</span> and <span class="cast-bob">Bob</span> have never met and talk over a line that
+  <span class="cast-eve">Eve</span> is listening to. Each of them picks a secret exponent, they send each other
+  \(g^a \bmod p\) and \(g^b \bmod p\) — in the open — and both arrive
+  at the same secret number \(g^{a b} \bmod p\). Eve saw every message and still cannot compute it.
+  Every number is computed below; toggle between <b>small</b> and <b>large</b> numbers.
+</p>
+
+<details class="explain" id="explainBox" open>
+  <summary>Background — the problem, the arithmetic you need, and how to read this page</summary>
+  <div class="explain-body">
+    <h3>The problem</h3>
+    <p><span class="cast-alice">Alice</span> wants to send <span class="cast-bob">Bob</span> a private message, but every
+    message travels through a channel that <span class="cast-eve">Eve</span> can read — a postcard, a radio signal, the
+    internet. For thousands of years secret writing needed a <i>shared secret key</i> agreed in advance: a code word
+    exchanged in person, a courier with a sealed envelope. That does not scale to a world where you buy something from a
+    shop you have never visited, on a phone you took out of a box this morning.</p>
+    <p>In 1976 Whitfield Diffie and Martin Hellman (with an idea of Ralph Merkle) showed how two people can agree on a
+    secret number while <i>shouting everything they say across a crowded room</i>. In 1977 Ron Rivest, Adi Shamir and
+    Leonard Adleman found a scheme where Bob publishes a "padlock" anyone can use to lock a message that only Bob's
+    private key opens. (British government cryptographers had found the same ideas a few years earlier, in secret.) Both
+    rest on one trick: <b>arithmetic operations that are easy to do but seem impossible to undo.</b></p>
+
+    <h3>Remainders: clock arithmetic</h3>
+    <p>Everything here happens with <i>remainders</i>. \(a \bmod n\) means: divide \(a\) by \(n\), keep only
+    the remainder — a number from 0 to \(n-1\). On a 12-hour clock, 9 o'clock plus 5 hours is 2 o'clock: that is
+    \((9 + 5) \bmod 12 = 2\).</p>
+    <div class="ex">\(17 \bmod 5 = 2\) &nbsp; because \(17 = 3 \cdot 5 + 2\)<br>
+      \(65^2 \bmod 3233 = 4225 \bmod 3233 = 992\) &nbsp; because \(4225 = 1 \cdot 3233 + 992\)</div>
+    <p>The one rule that makes this page possible: <b>you may take the remainder whenever you like</b> in the middle of
+    a chain of additions and multiplications, and the final remainder does not change. Why? Write
+    \(a = a' + k n\) and \(b = b' + l n\), where \(a', b'\) are the remainders. Then
+    \[a \cdot b = a' b' + n\,(a' l + b' k + k l n).\]
+    The second part is a multiple of \(n\), so it contributes nothing to the remainder: \(a \cdot b\) and
+    \(a' \cdot b'\) leave the same remainder. Same story for addition.</p>
+    <p>Consequence: to compute \(x^k \bmod n\) we never need a number bigger than \(n^2\),
+    even when \(x^k\) itself would have millions of digits. Combined with <b>repeated squaring</b>
+    (square, square, square, and multiply in an extra factor where the binary digits of \(k\) say so) a power with a
+    77-digit exponent takes only about 250 multiplications. You will watch every one of them.</p>
+
+    <h3>Divisibility words</h3>
+    <ul>
+      <li>A <b>prime</b> is a whole number \(\ge 2\) whose only divisors are 1 and itself: 2, 3, 5, 7, 11, 13, …</li>
+      <li>The <b>greatest common divisor</b> \(\gcd(a, b)\) is the largest number dividing both. If it is 1 we
+        say \(a\) and \(b\) <b>share no factor</b>. Euclid's 2300-year-old algorithm finds it in a few lines.</li>
+      <li><b>The key fact about primes:</b> if a prime divides a product \(a \cdot b\), then it divides \(a\) or it
+        divides \(b\). (A composite number like 6 does not have this property: 6 divides \(4 \cdot 9 = 36\) but neither 4 nor
+        9.) The RSA tab proves this fact before using it.</li>
+    </ul>
+
+    <h3>One-way streets</h3>
+    <p>Multiplying two 39-digit primes takes a computer a microsecond. Given only the 77-digit product, finding the two
+    primes again — <i>factoring</i> — is enormously harder: this is what Eve would have to do to break RSA. Likewise,
+    computing \(g^a \bmod p\) is quick, but given the result, finding the exponent \(a\) —
+    the <i>discrete logarithm</i> — is hard: this is Eve's problem in Diffie–Hellman.</p>
+    <p>Honest fine print: nobody has <i>proved</i> that these problems are hard. What we know is that the best
+    mathematicians and the best computers have tried for decades and the fastest known methods still need astronomical
+    time when the numbers are large enough (real systems use 617-digit \(n\), not 77). The numbers this page calls
+    "large" are large enough to be impressive, but a laptop running a clever factoring algorithm would still crack them
+    in under an hour — the page tells you this again at the point where it matters. A large <i>quantum</i> computer
+    would change the picture entirely (Shor's algorithm, 1994); none large enough exists, which is why the world is
+    moving to "post-quantum" schemes right now.</p>
+
+    <h3>How to read this page</h3>
+    <ul>
+      <li><b>Tabs</b> at the top switch between RSA and Diffie–Hellman; <b>Numbers</b> switches between small and large
+        examples, and the <b>Example</b> menu holds fixed and random instances. <b>Input</b> at the bottom lets you type
+        your own numbers or message.</li>
+      <li>The <b>transport bar</b> steps through the story (also the ← → keys); the coloured strip under the slider shows
+        the phases — click one to jump there.</li>
+      <li>Left: <b>who knows what</b> — Alice's and Bob's private notebooks, the public channel, and Eve's notes — plus the
+        <b>arithmetic</b> of the current step. Right: what just happened in words, and the recipe with the current line
+        highlighted. Hover any number for its full value.</li>
+      <li>Drag the thin bar between the columns to resize them; double-click it to reset.</li>
+    </ul>
+  </div>
+</details>
+
+<div class="mobile-note">
+  <b>Small screen:</b> the columns stack; the recipe with live highlighting and the resizable layout are on the desktop version.
+</div>
+
+<div class="controls">
+  <div class="ctl">
+    <span class="lbl">Numbers</span>
+    <span class="seg" id="sizeSeg">
+      <button id="sizeSmall" class="on">Small</button>
+      <button id="sizeLarge">Large</button>
+    </span>
+  </div>
+  <div class="ctl">
+    <label for="presetSel">Example</label>
+    <select id="presetSel"></select>
+    <button id="randBtn">Random</button>
+  </div>
+  <div class="ctl" id="msgCtl">
+    <label for="msgIn">Message</label>
+    <input type="text" id="msgIn" class="str" spellcheck="false" placeholder="text, or a number">
+    <button id="msgBtn" class="pri">Encrypt this</button>
+  </div>
+  <span class="opnote" style="margin-left:auto">Arrow keys step · hover a number for its full value · click the phase strip to jump</span>
+</div>
+
+<div class="transport">
+  <div class="transport-row">
+    <span class="ctl" style="gap:6px">
+      <button id="resetBtn" class="icon" title="Back to the first step" aria-label="Back to the first step">&#x21BA;</button>
+      <button id="backBtn" class="icon" title="One step back  (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+      <button id="stepBtn" class="icon pri" title="One step forward  (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+      <button id="playBtn" class="icon" title="Play / pause" aria-label="Play">&#x25B6;&#xFE0E;</button>
+    </span>
+    <span class="progress">
+      <input type="range" id="scrubber" min="0" max="0" value="0">
+      <div class="phasebar" id="phaseBar"></div>
+    </span>
+    <span class="stepno" id="stepNo">— / —</span>
+    <span class="ctl" style="gap:6px">
+      <span class="lbl">Speed</span>
+      <input type="range" id="speed" min="120" max="2500" value="900" style="width:88px">
+      <span class="stepno" id="speedVal">900ms</span>
+    </span>
+  </div>
+</div>
+
+<div class="stage" id="stage">
+  <div class="col">
+    <div class="sim-box">
+      <div class="sim-title"><span>Who knows what</span><span class="rhs" id="sceneMeta"></span></div>
+      <svg id="scene" class="stagesvg"></svg>
+      <div class="legend">
+        <span class="item"><span class="sw" style="background:var(--alice-bg);border-color:var(--alice)"></span> Alice's private notebook</span>
+        <span class="item"><span class="sw" style="background:var(--bob-bg);border-color:var(--bob)"></span> Bob's private notebook</span>
+        <span class="item"><span class="sw" style="background:var(--pub-bg);border-color:var(--pub)"></span> public — everyone sees it</span>
+        <span class="item"><span class="sw" style="background:var(--eve-bg);border-color:var(--eve)"></span> Eve's notes</span>
+        <span class="item"><span class="sw" style="background:#fbeee8;border-color:var(--wi-active)"></span> changed in this step</span>
+      </div>
+    </div>
+    <div class="sim-box">
+      <div class="sim-title"><span>The arithmetic</span><span class="rhs" id="workMeta"></span></div>
+      <div class="work" id="work"></div>
+    </div>
+  </div>
+  <div class="splitter" id="splitter" title="drag to resize · double-click to reset"></div>
+  <div class="col">
+    <div class="sim-box">
+      <div class="sim-title"><span>What just happened</span><span class="rhs" id="phaseName"></span></div>
+      <div class="status" id="statusBox"></div>
+    </div>
+    <div class="sim-box desk-only">
+      <div class="sim-title"><span>The recipe</span><span class="rhs" id="codeMeta"></span></div>
+      <div class="codebody" id="codeBody"></div>
+      <div class="codenote" id="codeNote"></div>
+    </div>
+  </div>
+</div>
+
+<details class="editor" id="editorBox">
+  <summary>Input — your own numbers and messages</summary>
+  <div class="editor-body">
+    <div>
+      <textarea id="inputText" spellcheck="false"></textarea>
+      <div style="margin-top:8px"><button class="pri" id="loadBtn">Load</button>
+        <span class="opnote" style="margin-left:10px">missing values are drawn at random for the chosen size</span></div>
+      <div class="err" id="parseErr"></div>
+    </div>
+    <div class="hint" id="inputHint"></div>
+  </div>
+</details>
+
+<div class="tooltip" id="tooltip"></div>
+<script>
+"use strict";
+const el = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* =====================================================================
+   Number theory on BigInt.  Nothing here is clever: these are the
+   textbook algorithms, written so that they can also *report* what they
+   did (rows of a table) for the animation.
+   ===================================================================== */
+const B = x => BigInt(x);
+function modpow(b, e, m) {
+  b %= m; let r = 1n;
+  while (e > 0n) { if (e & 1n) r = r * b % m; b = b * b % m; e >>= 1n; }
+  return r;
+}
+function gcd(a, b) { while (b) { [a, b] = [b, a % b]; } return a; }
+function isqrt(n) {                       // floor square root
+  if (n < 2n) return n;
+  let x = B(Math.floor(Math.sqrt(Number(n))));
+  while (x * x > n) x--;
+  while ((x + 1n) * (x + 1n) <= n) x++;
+  return x;
+}
+const SMALL_PRIMES = (() => { const L = []; for (let i = 2; i < 2000; i++) if (L.every(p => i % p)) L.push(i); return L; })();
+function smallDivisor(n) {                // a prime < 2000 dividing n, or 0
+  for (const p of SMALL_PRIMES) { const P = B(p); if (P * P > n) return 0n; if (n % P === 0n) return P; }
+  return 0n;
+}
+function isProbablePrime(n) {
+  if (n < 2n) return false;
+  for (const p of SMALL_PRIMES) { const P = B(p); if (n === P) return true; if (n % P === 0n) return false; }
+  let d = n - 1n, s = 0; while ((d & 1n) === 0n) { d >>= 1n; s++; }
+  for (const a of [2n,3n,5n,7n,11n,13n,17n,19n,23n,29n,31n,37n,41n,43n,47n,53n]) {
+    let x = modpow(a, d, n); if (x === 1n || x === n - 1n) continue;
+    let ok = false; for (let r = 1; r < s; r++) { x = x * x % n; if (x === n - 1n) { ok = true; break; } }
+    if (!ok) return false;
+  }
+  return true;
+}
+function randBits(bits) {                 // random odd number with exactly `bits` bits
+  const bytes = new Uint8Array(Math.ceil(bits / 8)); crypto.getRandomValues(bytes);
+  let v = 0n; for (const b of bytes) v = (v << 8n) | B(b);
+  v &= (1n << B(bits)) - 1n; v |= (1n << B(bits - 1)) | 1n; return v;
+}
+function randBelow(n) {                   // uniform-ish random BigInt in [0, n)
+  const bits = n.toString(2).length + 16;
+  const bytes = new Uint8Array(Math.ceil(bits / 8)); crypto.getRandomValues(bytes);
+  let v = 0n; for (const b of bytes) v = (v << 8n) | B(b); return v % n;
+}
+function randInt(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+/* search for a random prime, remembering every candidate that was rejected */
+function randPrimeTrace(bits, avoid) {
+  const tried = [];
+  for (;;) {
+    const c = randBits(bits);
+    if (avoid && c === avoid) continue;
+    const d = smallDivisor(c);
+    if (d) { tried.push({ c, why: "divisible by " + d }); continue; }
+    if (!isProbablePrime(c)) { tried.push({ c, why: "fails the Fermat check" }); continue; }
+    return { p: c, tried };
+  }
+}
+function fermatWitnesses(p) { return [2n, 3n, 5n].map(a => ({ a, val: modpow(a, p - 1n, p) })); }
+/* divisors to try when checking a small number by hand: the primes up to √n */
+function trialRows(n) {
+  const lim = isqrt(n), rows = [];
+  for (const d of SMALL_PRIMES) { const D = B(d); if (D > lim) break; rows.push({ d: D, q: n / D, r: n % D }); }
+  return { rows, lim };
+}
+function euclidRows(a, b) {              // rows of Euclid's algorithm on (a, b)
+  const rows = [];
+  while (b !== 0n) { rows.push({ a, b, q: a / b, r: a % b }); [a, b] = [b, a % b]; }
+  return { rows, g: a };
+}
+/* every remainder written as  r = s·φ + t·e  (the extended Euclidean algorithm) */
+function extRows(phi, e) {
+  const rows = [{ r: phi, s: 1n, t: 0n, q: null }, { r: e, s: 0n, t: 1n, q: null }];
+  while (rows[rows.length - 1].r !== 1n && rows[rows.length - 1].r !== 0n) {
+    const p2 = rows[rows.length - 2], p1 = rows[rows.length - 1], q = p2.r / p1.r;
+    rows.push({ r: p2.r - q * p1.r, s: p2.s - q * p1.s, t: p2.t - q * p1.t, q });
+  }
+  const last = rows[rows.length - 1];
+  return { rows, ok: last.r === 1n, d: last.r === 1n ? ((last.t % phi) + phi) % phi : null };
+}
+/* repeated squaring, left to right over the binary digits of k */
+function powRows(x, k, n) {
+  const bits = k.toString(2), rows = [];
+  let r = 1n, ex = 0n;
+  for (let i = 0; i < bits.length; i++) {
+    const bit = bits[i] === "1", row = { i: bits.length - 1 - i, bit, rin: r, exIn: ex };
+    row.sq = r * r; r = row.sq % n; ex *= 2n; row.rsq = r; row.exSq = ex;
+    if (bit) { row.prod = r * x; r = row.prod % n; ex += 1n; row.rmul = r; row.exMul = ex; }
+    rows.push(row);
+  }
+  return { bits, rows, result: r };
+}
+
+/* ---- text ↔ number ---------------------------------------------------- */
+const TE = new TextEncoder(), TD = new TextDecoder();
+function blockBytes(n) { let b = 0; while ((1n << B(8 * (b + 1))) <= n) b++; return b; }
+function bytesToNum(bytes) { let v = 0n; for (const b of bytes) v = (v << 8n) | B(b); return v; }
+function numToBytes(m, len) { const out = []; for (let i = 0; i < len; i++) { out.unshift(Number(m & 255n)); m >>= 8n; } return out; }
+/* split the text into blocks of `bb` bytes; remember, for each byte, which character it came from */
+function textBlocks(text, bb) {
+  const bytes = [];
+  for (const ch of text) for (const b of TE.encode(ch)) bytes.push({ b, ch });
+  const blocks = [];
+  for (let i = 0; i < bytes.length; i += bb) {
+    const part = bytes.slice(i, i + bb);
+    blocks.push({ bytes: part, m: bytesToNum(part.map(x => x.b)), text: [...new Set(part.map(x => x.ch))].join("") });
+  }
+  return blocks;
+}
+
+/* ---- formatting --------------------------------------------------------- */
+function abbr(v) { const s = String(v); return s.length <= 14 ? s : s.slice(0, 7) + "…" + s.slice(-5); }
+function N(v, cls) { return '<span class="num' + (cls ? " " + cls : "") + '">' + esc(String(v)) + "</span>"; }
+function Q(s) { return '<span class="num">"' + esc(s) + '"</span>'; }
+const digits = v => String(v).length;
+function sci(x) {                          // 1.2·10^38 for a JS number
+  if (!isFinite(x)) return "∞";
+  const e = Math.floor(Math.log10(x)), m = x / 10 ** e;
+  return m.toFixed(1) + "·10<sup>" + e + "</sup>";
+}
+function bigToNum(v) { return Number(v); }
+function sciTex(x) {                       // 1.2 \cdot 10^{38} for MathJax
+  if (!isFinite(x)) return "\\infty";
+  const e = Math.floor(Math.log10(x)), m = x / 10 ** e;
+  return m.toFixed(1) + " \\cdot 10^{" + e + "}";
+}
+const sup = s => "<sup>" + s + "</sup>";
+const A_ = '<span class="cast-alice">Alice</span>', B_ = '<span class="cast-bob">Bob</span>', E_ = '<span class="cast-eve">Eve</span>';
+
+/* =====================================================================
+   Story: a linear list of steps, grouped into phases.  Each step carries
+   (a) what changed in "who knows what", (b) which recipe lines are live,
+   (c) the arithmetic panel and (d) the explanation.
+   ===================================================================== */
+class Story {
+  constructor() {
+    this.steps = []; this.phases = [];
+    this.sc = { alice: [], bob: [], pub: [], eve: [], hot: [], msg: null };
+  }
+  phase(name) { this.phases.push({ name, from: this.steps.length, to: this.steps.length - 1 }); }
+  /* mutate the scene: know(who, key) / hot([keys]) / msg(...) */
+  know(who, ...keys) { for (const k of keys) if (!this.sc[who].includes(k)) this.sc[who].push(k); }
+  forget(who, ...keys) { this.sc[who] = this.sc[who].filter(k => !keys.includes(k)); }
+  add(st) {
+    const s = this.sc;
+    st.scene = { alice: s.alice.slice(), bob: s.bob.slice(), pub: s.pub.slice(), eve: s.eve.slice(),
+                 hot: st.hot || [], msg: st.msg || null };
+    st.ph = this.phases.length - 1;
+    this.steps.push(st);
+    this.phases[this.phases.length - 1].to = this.steps.length - 1;
+  }
+}
+
+/* ---- MathJax helpers ----------------------------------------------------
+   Symbols and formulas are typeset by MathJax; concrete numbers stay in
+   monospace .num spans so that 77-digit values can wrap. */
+const M = s => "\\(" + s + "\\)";
+const TX = name => String(name).replace("φ", "\\varphi").replace("₁", "_1").replace("′", "'");
+/* x^E mod n with a concrete exponent: inside the formula if short, as a wrapping superscript if huge */
+function POW(x, E, n) {
+  const s = String(E);
+  return s.length <= 14 ? M(TX(x) + "^{" + s + "} \\bmod " + TX(n)) : M(TX(x)) + '<sup class="num">' + s + "</sup> mod " + M(TX(n));
+}
+
+/* Shared: the steps of one repeated-squaring computation ------------------ */
+function addPowSteps(S, opts) {
+  const { x, k, n, xName, kName, nName, resName, who } = opts;
+  const X = TX(xName), Kn = TX(kName), Nn = TX(nName), R = TX(resName);
+  const P = powRows(x, k, n);
+  const T = P.rows.length, nb = P.bits.length;
+  const whoTxt = who === "alice" ? A_ : B_;
+  const wcls = who;
+  const base = { kind: "pow", P, x, n, xName, kName, nName, resName, who };
+  S.add({
+    title: "Write " + kName + " in binary",
+    code: opts.code.concat(["p1", "p2", "p3"]),
+    work: Object.assign({}, base, { upto: -1 }),
+    txt: "<p>" + whoTxt + " needs " + M(X + "^{" + Kn + "} \\bmod " + Nn) + ", with " + M(X) + " = " + N(x, wcls) +
+         ". Multiplying " + M(X) + " by itself " + (nb > 30 ? "an astronomical number of" : N(k)) + " times is out of the question, but there is a shortcut: " +
+         "<b>squaring doubles the exponent</b>, and multiplying by " + M(X) + " once adds 1 to it. " +
+         "Reading the exponent in binary tells us exactly when to do which.</p>" +
+         "<p>" + M(Kn) + " = " + N(k) + " = " + N(P.bits) + " in binary (" + nb + " digits). We start with " + M("r = 1 = " + X + "^0") +
+         " and walk through the digits from the left. After every squaring we keep only the remainder mod " + M(Nn) +
+         ", so no number ever grows beyond " + M(Nn + "^2") + " — that is the rule from the background section.</p>" +
+         (opts.intro || ""),
+  });
+  P.rows.forEach((row, idx) => {
+    const first = idx === 0;
+    const digitsSq = digits(row.sq);
+    let t1 = "<p><b>Binary digit " + row.i + (first ? " (the leading digit)" : "") + " is " + (row.bit ? "1" : "0") + ".</b> ";
+    if (first) {
+      t1 += "So far " + M("r = 1 = " + X + "^0") + ". Squaring 1 gives 1 — nothing happens yet. ";
+      if (row.bit) t1 += "The leading digit of a binary number is always 1, so we multiply by " + M(X) + ": " + M("r") + " = " + N(x, wcls) + " = " + M(X + "^1") + ".";
+      t1 += "</p>";
+    } else {
+      t1 += "<b>Square:</b> " + M("r") + " was " + N(row.rin) + " = " + POW(X, row.exIn, Nn) + ". " +
+            "Its square is " + N(row.sq) + (digitsSq > 20 ? " (" + digitsSq + " digits — the only big number in the step)" : "") +
+            "; the remainder after dividing by " + M(Nn) + " is " + N(row.rsq) + ". Now " + M("r") + " = " + POW(X, row.exSq, Nn) + ".</p>";
+      if (row.bit) {
+        t1 += "<p><b>Multiply</b>, because this digit is 1: " + N(row.rsq) + " · " + N(x, wcls) + " = " + N(row.prod) +
+              ", remainder " + N(row.rmul) + ". Now " + M("r") + " = " + POW(X, row.exMul, Nn) + ".</p>";
+      } else {
+        t1 += "<p>The digit is 0, so no extra multiplication.</p>";
+      }
+    }
+    const exNow = row.bit ? row.exMul : row.exSq;
+    if (nb <= 24) t1 += "<p class=\"note\">Check: the digits read so far are " + N(P.bits.slice(0, idx + 1)) + " in binary = " + N(exNow) + " — exactly the exponent " + M("r") + " carries.</p>";
+    else t1 += "<p class=\"note\">Exponent reached: " + N(exNow) + " — the first " + (idx + 1) + " binary digits of " + M(Kn) + ".</p>";
+    const last = idx === T - 1;
+    const st = {
+      title: "Digit " + row.i,
+      code: opts.code.concat(["p4", "p5"].concat(row.bit ? ["p6"] : [])),
+      work: Object.assign({}, base, { upto: idx }),
+      txt: t1 + (last ? "<b class=\"ans\">" + M(R + " = " + X + "^{" + Kn + "} \\bmod " + Nn) + " = " + N(P.result, wcls) + "</b>" + (opts.outro || "") : ""),
+    };
+    if (last) { S.know(who, opts.resKey); st.hot = [opts.resKey]; st.code = opts.code.concat(["p4", "p5", "p6", "p7"]); }
+    S.add(st);
+  });
+  return P;
+}
+
+/* the steps in which one small number is shown to be prime by trial division */
+function addTrialSteps(S, who, name, key, n, codeLine) {
+  const T = trialRows(n), whoTxt = who === "bob" ? B_ : "Everyone", X = TX(name);
+  S.add({
+    title: "Is " + name + " prime?",
+    code: [codeLine], hot: [key],
+    work: { kind: "trial", n, name, T, upto: -1 },
+    txt: "<p>" + whoTxt + " picks " + M(X) + " = " + N(n, who === "bob" ? "bob" : "pub") + ". Is it really prime? " +
+         "If " + M(X) + " had a divisor other than 1 and itself, it would have one that is at most " + M("\\sqrt{" + X + "} \\approx " + T.lim) +
+         " (two divisors bigger than the square root would multiply to more than " + M(X) + "). " +
+         "And it is enough to try <i>prime</i> divisors: if a composite number divides " + M(X) + ", so do its prime factors. " +
+         "So we divide by every prime up to " + N(T.lim) + " and look at the remainders.</p>",
+  });
+  T.rows.forEach((row, idx) => {
+    const last = idx === T.rows.length - 1;
+    S.add({
+      title: name + " ÷ " + row.d, code: [codeLine], hot: [key],
+      work: { kind: "trial", n, name, T, upto: idx },
+      txt: "<p>" + N(n) + " = " + N(row.q) + " · " + N(row.d) + " + " + N(row.r) + ": the remainder is " + N(row.r) +
+           (row.r === 0n ? ", so " + M(X) + " is <b>not</b> prime!" : ", not 0, so " + N(row.d) + " does not divide " + M(X) + ".") + "</p>" +
+           (last ? "<b class=\"ans\">No prime up to " + M("\\sqrt{" + X + "}") + " divides " + M(X) + " — it is prime.</b>" : ""),
+    });
+  });
+}
+
+/* the steps for a large prime: candidates rejected quickly, then the Fermat check */
+function addLargePrimeSteps(S, who, name, key, n, trace, codeLine) {
+  const cls = who === "bob" ? "bob" : "pub", whoTxt = who === "bob" ? B_ : "Everyone", X = TX(name);
+  const W = fermatWitnesses(n);
+  const nRej = trace ? (trace.rejected != null ? trace.rejected : trace.tried.length) : 0;
+  if (trace && nRej) {
+    S.add({
+      title: "Searching for " + name, code: [codeLine], hot: [key],
+      work: { kind: "primegen", name, trace, n, W, upto: -2 },
+      txt: "<p>" + whoTxt + " wants a random prime with " + n.toString(2).length + " binary digits (" + digits(n) + " decimal digits). " +
+           "There is no formula that produces primes, but there are plenty of them: about one in " + Math.round(n.toString(2).length * 0.69) +
+           " numbers of this size is prime. So the computer draws random odd numbers and tests each one.</p>" +
+           "<p>" + nRej + " candidate" + (nRej === 1 ? " was" : "s were") + " rejected — most of them very cheaply, because a small prime like 3, 5 or 7 divides them " +
+           "(a remainder computation)" + (trace.note ? "; " + trace.note : "") + ". Candidate number " + (nRej + 1) + ", " + N(n, cls) + ", survived the small divisors. Now the real test.</p>",
+    });
+  } else {
+    S.add({
+      title: "The prime " + name, code: [codeLine], hot: [key],
+      work: { kind: "primegen", name, trace: null, n, W, upto: -2 },
+      txt: "<p>" + whoTxt + " uses " + M(X) + " = " + N(n, cls) + ", a " + digits(n) + "-digit number. Trying all divisors up to " +
+           M("\\sqrt{" + X + "} \\approx 10^{" + Math.floor(digits(n) / 2) + "}") + " is impossible, so how does anyone know it is prime?</p>",
+    });
+  }
+  W.forEach((w, i) => {
+    const last = i === W.length - 1;
+    S.add({
+      title: "Fermat check, base " + w.a, code: [codeLine], hot: [key],
+      work: { kind: "primegen", name, trace, n, W, upto: i },
+      txt: (i === 0 ? "<p><b>The Fermat check.</b> For a prime " + M(X) + " and any base " + M("a") + " not divisible by " + M(X) + ", " +
+            M("a^{" + X + "-1} \\bmod " + X + " = 1") + " always (the RSA tab proves this in <i>Why it works</i>; it is the heart of RSA too). " +
+            "For a non-prime this almost never happens. So: compute " + M("a^{" + X + "-1} \\bmod " + X) + " by repeated squaring — cheap — and see whether 1 comes out.</p>" : "") +
+           "<p>Base " + M("a = " + w.a) + ": " + M(w.a + "^{" + X + "-1} \\bmod " + X) + " = " + N(w.val) +
+           (w.val === 1n ? " ✓" : " ✗ — not prime!") + "</p>" +
+           (last ? "<b class=\"ans\">" + M(X) + " passes the check for every base tried — we accept it as prime.</b>" +
+                   "<p class=\"note\">Honest fine print: a handful of composite numbers pass the plain Fermat check for every base (the smallest is 561). Real software runs a slightly sharpened version of the same idea (Miller–Rabin) for which no such exceptions exist, and repeats it until the chance of a mistake is smaller than the chance of a cosmic ray flipping a bit in your computer. That is what decided the verdict here.</p>" : ""),
+    });
+  });
+}
+
+/* =====================================================================
+   RSA
+   ===================================================================== */
+function buildRSA(P) {
+  const S = new Story();
+  const { p, q, e, small } = P;
+  const n = p * q, phi = (p - 1n) * (q - 1n);
+  const V = S.vals = {};                                     // key -> {label, value, who}
+  V.p = { label: "p", value: p, who: "bob", secret: true };
+  V.q = { label: "q", value: q, who: "bob", secret: true };
+  V.n = { label: "n", value: n, who: "bob" };
+  V.phi = { label: "φ", value: phi, who: "bob", secret: true };
+  V.e = { label: "e", value: e, who: "bob" };
+  const PHI = "\\varphi";
+
+  /* ---- Phase: primes ---- */
+  S.phase("Primes p, q");
+  S.know("bob", "p");
+  if (small) addTrialSteps(S, "bob", "p", "p", p, "r1"); else addLargePrimeSteps(S, "bob", "p", "p", p, P.pTrace, "r1");
+  S.know("bob", "q");
+  if (small) addTrialSteps(S, "bob", "q", "q", q, "r1"); else addLargePrimeSteps(S, "bob", "q", "q", q, P.qTrace, "r1");
+
+  /* ---- Phase: n and φ ---- */
+  S.phase("n and φ");
+  S.know("bob", "n");
+  S.add({
+    title: "n = p · q", code: ["r2"], hot: ["n"],
+    work: { kind: "lines", lines: [
+      { h: M("n = p \\cdot q") + " = " + N(p, "bob") + " · " + N(q, "bob") + " = " + N(n, "bob"), cur: true },
+    ] },
+    txt: "<p>" + B_ + " multiplies his two primes: " + M("n") + " = " + N(n, "bob") + (small ? "" : " (" + digits(n) + " digits)") + ". This number will be <b>public</b>. " +
+         "Multiplying is easy; the whole security of RSA rests on the belief that <b>un</b>-multiplying — recovering " + M("p") + " and " + M("q") + " from " + M("n") + " — is hopelessly slow for large " + M("n") + ".</p>",
+  });
+  S.know("bob", "phi");
+  S.add({
+    title: "The secret count φ", code: ["r3"], hot: ["phi"],
+    work: { kind: "lines", lines: [
+      { h: M("n") + " = " + N(n, "bob") },
+      { h: M(PHI + " = (p-1)(q-1)") + " = " + N(p - 1n) + " · " + N(q - 1n) + " = " + N(phi, "bob"), cur: true },
+      { h: "<span class=\"t\">check:</span> " + M("n - p - q + 1") + " = " + N(n - p - q + 1n) },
+    ] },
+    txt: "<p>Now the number that makes everything work — and that Bob must keep secret. Count how many of the numbers " + M("1, 2, \\dots, n") + " share no factor with " + M("n") + ". " +
+         "Since " + M("n = p \\cdot q") + ", a number shares a factor with " + M("n") + " exactly when " + M("p") + " or " + M("q") + " divides it. Among " + M("1, \\dots, n") + " there are " + M("q") + " multiples of " + M("p") +
+         " (namely " + M("p, 2p, \\dots, q \\cdot p") + ") and " + M("p") + " multiples of " + M("q") + "; the number " + M("n") + " itself is in both lists. So we strike out " + M("q + p - 1") + " numbers and</p>" +
+         "<p>" + M("\\text{count} = n - q - p + 1 = (p-1)(q-1)") + " = " + N(phi, "bob") + ".</p>" +
+         "<p>We call this count " + M(PHI) + " (Greek <i>phi</i>, just a name). Why it matters becomes clear in <i>Why it works</i>: raising any number to the power " + M(PHI) + " (and then taking the remainder mod " + M("n") + ") gives 1 back, " +
+         "so exponents behave like clock arithmetic mod " + M(PHI) + " — and that is the lock that " + M("d") + " will open.</p>",
+  });
+  if (small) {
+    S.add({
+      title: "Picture of the count", code: ["r3"], hot: ["phi"],
+      work: { kind: "phigrid", p, q, n, phi },
+      txt: "<p>The picture lays out " + M("1, 2, \\dots, n") + " in rows of length " + M("p") + ". The multiples of " + M("p") + " fill the last column (" + N(q) + " of them); the multiples of " + M("q") +
+           " (" + N(p) + " of them) march diagonally, because " + M("q") + " is not a multiple of " + M("p") + "; the single cell where both meet is " + M("n") + " itself. " +
+           "Everything left uncoloured shares no factor with " + M("n") + ": " + N(n) + " − " + N(q) + " − " + N(p) + " + 1 = " + N(phi, "bob") + " cells.</p>",
+    });
+  }
+
+  /* ---- Phase: choose e ---- */
+  S.phase("Exponent e");
+  const eTries = (P.eTries && P.eTries.length ? P.eTries : []).concat([e]);
+  eTries.forEach((cand, ti) => {
+    const R = euclidRows(phi, cand), fail = R.g !== 1n, isFinal = ti === eTries.length - 1;
+    const key = isFinal ? "e" : "e_try" + ti;
+    if (!isFinal) V[key] = { label: "e?", value: cand, who: "bob" };
+    S.know("bob", key);
+    S.add({
+      title: "Try e = " + cand, code: ["r4", "g1"], hot: [key],
+      work: { kind: "euclid", a: phi, b: cand, an: "φ", bn: "e", R, upto: -1 },
+      txt: "<p>" + B_ + " needs a public exponent " + M("e") + " that <b>shares no factor with " + M(PHI) + "</b> — otherwise no " + M("d") + " will exist later. " +
+           (ti === 0 ? "He tries " + M("e") + " = " + N(cand, "bob") + ". " : "Next try: " + M("e") + " = " + N(cand, "bob") + ". ") +
+           "To find the greatest common divisor " + M("\\gcd(" + PHI + ", e)") + " we use <b>Euclid's algorithm</b>: divide the larger by the smaller, keep the remainder, and repeat with (smaller, remainder). " +
+           "Any common divisor of " + M(PHI) + " and " + M("e") + " also divides the remainder " + M(PHI + " - q \\cdot e") + ", and vice versa — so each row has the same common divisors as the one before. " +
+           "When the remainder hits 0, the last non-zero remainder is the gcd.</p>" +
+           (cand === 65537n ? "<p class=\"note\">" + M("65537 = 2^{16} + 1") + " is the exponent almost every real RSA system uses: it is prime (so it shares a factor with " + M(PHI) + " only if it divides " + M(PHI) + ", which is rare), and its binary form 10000000000000001 makes encryption need only 17 multiplications.</p>" : ""),
+    });
+    R.rows.forEach((row, idx) => {
+      const last = idx === R.rows.length - 1;
+      S.add({
+        title: "Euclid row " + (idx + 1), code: ["g2", "g3"].concat(last ? ["g4"] : []), hot: [key],
+        work: { kind: "euclid", a: phi, b: cand, an: "φ", bn: "e", R, upto: idx },
+        txt: "<p>" + N(row.a) + " = " + N(row.q) + " · " + N(row.b) + " + " + N(row.r) + ". " +
+             (row.r === 0n ? "The remainder is 0, so the algorithm stops: " + M("\\gcd(" + PHI + ", e)") + " = " + N(row.b) + "." :
+              "Continue with (" + N(row.b) + ", " + N(row.r) + ").") + "</p>" +
+             (last ? (fail ? "<b class=\"ans\">" + M("\\gcd(" + PHI + ", e)") + " = " + N(R.g) + " ≠ 1 — this " + M("e") + " is unusable.</b><p>" + M("e") + " and " + M(PHI) + " share the factor " + N(R.g) + ". Bob throws this " + M("e") + " away and tries another.</p>"
+                           : "<b class=\"ans\">" + M("\\gcd(" + PHI + ", e) = 1") + " — " + M("e") + " = " + N(cand, "bob") + " is a valid public exponent.</b>") : ""),
+      });
+    });
+    if (!isFinal) S.forget("bob", key);
+  });
+
+  /* ---- Phase: find d ---- */
+  S.phase("Private d");
+  const X = extRows(phi, e);
+  if (!X.ok) throw new Error("e = " + e + " shares a factor with φ");
+  const d = X.d, k = (e * d - 1n) / phi;
+  V.d = { label: "d", value: d, who: "bob", secret: true };
+  S.add({
+    title: "What d must do", code: ["r5", "x1", "x2"],
+    work: { kind: "ext", X, phi, e, upto: 1 },
+    txt: "<p>Bob now needs the number that <b>undoes</b> " + M("e") + ": a " + M("d") + " such that " + M("e \\cdot d") + " leaves remainder 1 when divided by " + M(PHI) + ", in other words " +
+         M("e \\cdot d = 1 + k \\cdot " + PHI) + " for some whole number " + M("k") + ". " +
+         "(Why exactly this: because then " + M("m^{e d} = m \\cdot (m^{" + PHI + "})^k") + ", and " + M("m^{" + PHI + "} \\bmod n = 1") + " — see <i>Why it works</i>.)</p>" +
+         "<p>How do you find such a " + M("d") + "? Run Euclid's algorithm on " + M("(" + PHI + ", e)") + " again, but this time <b>write every remainder as a combination " + M("s \\cdot " + PHI + " + t \\cdot e") + "</b>. " +
+         "The two starting rows are trivial: " + M(PHI + " = 1 \\cdot " + PHI + " + 0 \\cdot e") + " and " + M("e = 0 \\cdot " + PHI + " + 1 \\cdot e") + ". Every later remainder is <i>previous-but-one minus " + M("q") + " times previous</i>, so its " + M("s") + " and " + M("t") + " are obtained by the same subtraction. " +
+         "When the remainder reaches 1, we have " + M("1 = s \\cdot " + PHI + " + t \\cdot e") + ", i.e. " + M("t \\cdot e = 1 - s \\cdot " + PHI) + ", and " + M("t") + " is (up to adding " + M(PHI) + ") the " + M("d") + " we want.</p>",
+  });
+  X.rows.slice(2).forEach((row, i) => {
+    const idx = i + 2, last = idx === X.rows.length - 1;
+    const p2 = X.rows[idx - 2], p1 = X.rows[idx - 1];
+    const st = {
+      title: "Row " + idx, code: ["x3"].concat(last ? ["x4", "x5"] : []),
+      work: { kind: "ext", X, phi, e, upto: idx },
+      txt: "<p>" + N(p2.r) + " = " + N(row.q) + " · " + N(p1.r) + " + " + N(row.r) + ", so the new remainder is " + N(row.r) + " and</p>" +
+           "<p class=\"eq\">" + M("s") + " = " + N(p2.s) + " − " + N(row.q) + " · (" + N(p1.s) + ") = " + N(row.s) + "<br>" + M("t") + " = " + N(p2.t) + " − " + N(row.q) + " · (" + N(p1.t) + ") = " + N(row.t) + "</p>" +
+           "<p>Check: " + N(row.s) + " · " + M(PHI) + " + " + N(row.t) + " · " + M("e") + " = " + N(row.r) + ".</p>",
+    };
+    if (last) {
+      st.txt += "<b class=\"ans\">1 = " + N(row.s) + " · " + M(PHI) + " + " + N(row.t) + " · " + M("e") + "</b>" +
+                "<p>So " + M("t \\cdot e = 1 - s \\cdot " + PHI) + ", i.e. " + M("t \\cdot e") + " leaves remainder 1 when divided by " + M(PHI) + ". " +
+                (row.t < 0n ? M("t") + " is negative; adding " + M(PHI) + " once does not change the remainder: " + M("d") + " = " + N(row.t) + " + " + N(phi) + " = " + N(d, "bob") + "." :
+                              M("t") + " is already between 0 and " + M(PHI) + ": " + M("d") + " = " + N(d, "bob") + ".") +
+                "</p><p>Verify: " + M("e \\cdot d") + " = " + N(e) + " · " + N(d) + " = " + N(e * d) + " = 1 + " + N(k) + " · " + N(phi) + ", so " + M("k") + " = " + N(k) + ".</p>";
+      S.know("bob", "d"); st.hot = ["d"];
+    }
+    S.add(st);
+  });
+  // publish
+  S.know("pub", "n", "e"); S.know("alice", "n", "e"); S.know("eve", "n", "e");
+  S.add({
+    title: "Publish the padlock", code: ["r6"], hot: ["n", "e"],
+    work: { kind: "lines", lines: [
+      { h: "<span class=\"t\">public key:</span> " + M("(n, e)") + " = (" + N(n, "pub") + ", " + N(e, "pub") + ")", cur: true },
+      { h: "<span class=\"t\">private key:</span> " + M("d") + " = " + N(d, "bob") },
+      { h: "<span class=\"t\">to be destroyed:</span> " + M("p") + " = " + N(p, "bob") + ", " + M("q") + " = " + N(q, "bob") + ", " + M(PHI) + " = " + N(phi, "bob") },
+    ] },
+    txt: "<p>" + B_ + " posts " + M("(n, e)") + " where everyone — " + A_ + ", " + E_ + ", the whole world — can read it. That pair is the <b>padlock</b>. " +
+         "He keeps " + M("d") + ", the <b>key</b>, and should now erase " + M("p") + ", " + M("q") + " and " + M(PHI) + ": they are not needed any more, and anyone who learns them can recompute " + M("d") + " in the way we just did.</p>" +
+         "<p>Notice what Eve has: " + M("n") + " and " + M("e") + ". To get " + M("d") + " she would need " + M(PHI) + ", and to get " + M(PHI) + " she would need " + M("p") + " and " + M("q") + ". Everything hinges on " + M("n") + " being hard to factor.</p>",
+  });
+
+  /* ---- Phase: encode ---- */
+  S.phase("Encode");
+  const bb = blockBytes(n);
+  let blocks;
+  if (P.msg.kind === "text") blocks = textBlocks(P.msg.value, bb);
+  else blocks = [{ bytes: null, m: P.msg.value, text: null }];
+  P.blocks = blocks;
+  const m = blocks[0].m, multi = blocks.length > 1;
+  const mN = multi ? "m_1" : "m", cN = multi ? "c_1" : "c";
+  V.text = { label: "text", value: P.msg.kind === "text" ? '"' + P.msg.value + '"' : String(P.msg.value), who: "alice", secret: true, isText: true };
+  V.m = { label: multi ? "m₁" : "m", value: m, who: "alice", secret: true };
+  if (P.msg.kind === "text") {
+    S.know("alice", "text");
+    S.add({
+      title: "The message", code: ["r7"], hot: ["text"],
+      work: { kind: "encode", blocks, bb, n, upto: -1 },
+      txt: "<p>" + A_ + " wants to send " + Q(P.msg.value) + ". RSA encrypts <i>numbers</i>, so the text has to become a number first — one that is smaller than " + M("n") + " = " + N(n, "pub") + ".</p>" +
+           "<p>Every character has a standard code number (the ASCII/Unicode code: A is 65, B is 66, a space is 32, …). We write those codes as the digits of a number in <b>base 256</b>, just as 4-7-2 are the digits of 472 in base 10: " +
+           "the code of the first character is multiplied by " + M("256^{" + (bb - 1) + "}") + ", the next by " + M("256^{" + (bb - 2) + "}") + ", and so on.</p>" +
+           "<p>Since " + M("n") + " has " + digits(n) + " digits, " + (bb === 1 ? "only one character fits below " + M("n") + " at a time" : "up to " + bb + " characters fit below " + M("n")) +
+           " (" + M("256^{" + bb + "} \\le n < 256^{" + (bb + 1) + "}") + "). " +
+           (multi ? "The text is longer, so it is cut into " + blocks.length + " blocks; each block is encrypted separately with the same recipe. We follow the first block in detail." : "The whole message fits into one block.") + "</p>",
+    });
+    S.know("alice", "m");
+    S.add({
+      title: multi ? "Block 1 as a number" : "The message as a number", code: ["r7"], hot: ["m"],
+      work: { kind: "encode", blocks, bb, n, upto: 0 },
+      txt: "<p>" + (multi ? "Block 1, " + Q(blocks[0].text) + ", " : Q(P.msg.value) + " ") + "becomes</p>" +
+           "<p class=\"eq\">" + M(mN) + " = " + blocks[0].bytes.map((x, i) => N(x.b) + " · " + M("256^{" + (blocks[0].bytes.length - 1 - i) + "}")).join(" + ") + " = " + N(m, "alice") + "</p>" +
+           "<p>It is smaller than " + M("n") + ", as required" + (multi ? "; the other blocks are listed too" : "") + ".</p>",
+    });
+  } else {
+    S.know("alice", "m");
+    S.add({
+      title: "The message", code: ["r7"], hot: ["m"],
+      work: { kind: "lines", lines: [{ h: M("m") + " = " + N(m, "alice") + " &nbsp;<span class=\"t\">(must be below " + M("n") + " = " + N(n) + ")</span>", cur: true }] },
+      txt: "<p>" + A_ + "'s message is the number " + M("m") + " = " + N(m, "alice") + ". (Text would first be turned into a number — try a message with letters in the box above to see how.) " +
+           "It has to be smaller than " + M("n") + " = " + N(n, "pub") + ", because after encryption and decryption we only get back the remainder mod " + M("n") + ".</p>",
+    });
+  }
+
+  /* ---- Phase: encrypt ---- */
+  S.phase("Encrypt");
+  V.c = { label: multi ? "c₁" : "c", value: null, who: "alice" };
+  const Penc = addPowSteps(S, { x: m, k: e, n, xName: multi ? "m₁" : "m", kName: "e", nName: "n", resName: multi ? "c₁" : "c", who: "alice", code: ["r8"], resKey: "c",
+    outro: "<p>This is the ciphertext — the message with Bob's padlock snapped shut. Alice used only public information " + M("(n, e)") + " and her own message.</p>" });
+  const c = Penc.result; V.c.value = c;
+  blocks.forEach(bl => { bl.c = modpow(bl.m, e, n); });
+  if (multi) {
+    S.add({
+      title: "The other blocks", code: ["r8"], hot: ["c"],
+      work: { kind: "blocks", blocks, n, stage: "enc" },
+      txt: "<p>The remaining " + (blocks.length - 1) + " block" + (blocks.length > 2 ? "s go" : " goes") + " through exactly the same " + Penc.rows.length + " squaring steps each. The table lists all block numbers and their ciphertexts.</p>" +
+           "<p class=\"note\">Encrypting block by block like this is called \"textbook RSA\". It has a weakness Eve will exploit later: the same block always gives the same ciphertext.</p>",
+    });
+  }
+  S.know("pub", "c"); S.know("eve", "c"); S.know("bob", "c");
+  S.add({
+    title: "Send c", code: ["r9"], hot: ["c"], msg: [{ from: "alice", to: "bob", key: "c" }],
+    work: { kind: "lines", lines: [{ h: "<span class=\"t\">on the wire:</span> " + M(cN) + " = " + N(c, "pub") + (multi ? "&nbsp; <span class=\"t\">(and " + (blocks.length - 1) + " more)</span>" : ""), cur: true }] },
+    txt: "<p>" + A_ + " sends " + M(cN) + " to " + B_ + " over the open channel. " + E_ + " copies it, of course. She now holds " + M("n") + ", " + M("e") + " and " + M(cN) + " — and no way to reverse the exponentiation without " + M("d") + ".</p>",
+  });
+
+  /* ---- Phase: decrypt ---- */
+  S.phase("Decrypt");
+  V.m2 = { label: multi ? "m₁" : "m", value: m, who: "bob", secret: true };
+  const mBack = modpow(c, d, n);
+  const Pdec = addPowSteps(S, { x: c, k: d, n, xName: multi ? "c₁" : "c", kName: "d", nName: "n", resName: multi ? "m₁" : "m", who: "bob", code: ["r10"], resKey: "m2",
+    intro: small ? "" : "<p class=\"note\">" + M("d") + " has " + d.toString(2).length + " binary digits, so this will take " + d.toString(2).length + " squarings and roughly half as many extra multiplications. Drag the slider if you do not want to watch every one.</p>",
+    outro: "<p>" + (mBack === m ? "<b>The original message number is back.</b> Bob never needed to know how Alice encrypted; the private " + M("d") + " alone reversed it." : "Something went wrong — this should never happen.") + "</p>" });
+  if (Pdec.result !== m) console.warn("decryption mismatch");
+  if (P.msg.kind === "text") {
+    blocks.forEach(bl => { bl.m2 = modpow(bl.c, d, n); });
+    if (multi) S.add({
+      title: "The other blocks", code: ["r10"], hot: ["m2"],
+      work: { kind: "blocks", blocks, n, stage: "dec" },
+      txt: "<p>Bob decrypts the remaining blocks the same way — each one a " + Pdec.rows.length + "-step computation.</p>",
+    });
+    V.text2 = { label: "text", value: '"' + P.msg.value + '"', who: "bob", secret: true, isText: true };
+    S.know("bob", "text2");
+    S.add({
+      title: "Back to text", code: ["r11"], hot: ["text2"],
+      work: { kind: "encode", blocks, bb, n, upto: 0, reverse: true },
+      txt: "<p>Reading the digits of " + M(mN) + " in base 256 recovers the character codes: " +
+           blocks[0].bytes.map(x => N(x.b)).join(", ") + " → " + Q(blocks[0].text) + (multi ? ", and likewise for the other blocks" : "") + ".</p>" +
+           "<b class=\"ans\">Bob reads: " + Q(P.msg.value) + "</b>",
+    });
+  }
+
+  /* ---- Phase: why it works ---- */
+  S.phase("Why it works");
+  const ed = e * d;
+  S.add({
+    title: "The claim", code: ["r8", "r10"],
+    work: { kind: "lines", lines: [
+      { h: "<span class=\"t\">claim:</span> " + M("(m^e)^d \\bmod n = m") + " &nbsp;<span class=\"t\">for every " + M("m") + " below " + M("n") + "</span>", cur: true },
+      { h: M("e \\cdot d") + " = " + N(e) + " · " + N(d) + " = " + N(ed) },
+      { h: M("e \\cdot d - 1") + " = " + N(ed - 1n) + " = " + N(k) + " · " + N(phi) + " = " + M("k \\cdot " + PHI) },
+    ] },
+    txt: "<p>Decryption gave the message back. Luck? No — it always does, and here is the complete argument, with our numbers.</p>" +
+         "<p>" + M("(m^e)^d = m^{e d}") + ", and by construction " + M("e \\cdot d = 1 + k \\cdot " + PHI) + " with " + M("k") + " = " + N(k) + ". So the claim is</p>" +
+         "<p class=\"eq\">" + M("m^{\\,1 + k(p-1)(q-1)} \\bmod n = m.") + "</p>" +
+         "<p>The plan: show it separately for the remainder mod " + M("p") + " and mod " + M("q") + ", then glue the two together. We need one tool first.</p>",
+  });
+  S.add({
+    title: "The key fact about primes", code: ["x1"],
+    work: { kind: "lines", lines: [
+      { h: "<span class=\"t\">fact:</span> if a prime " + M("p") + " divides " + M("a \\cdot b") + ", then " + M("p") + " divides " + M("a") + " or " + M("p") + " divides " + M("b"), cur: true },
+      { h: "<span class=\"t\">proof:</span> suppose " + M("p") + " does not divide " + M("a") + ". Then " + M("\\gcd(a, p) = 1") + ", and the table method (as for " + M("d") + ") gives " + M("s, t") + " with " + M("1 = s a + t p") + "." },
+      { h: "multiply by " + M("b") + ": &nbsp; " + M("b = s \\cdot (ab) + (tb) \\cdot p") },
+      { h: "both terms on the right are multiples of " + M("p") + " &nbsp;⇒&nbsp; " + M("p") + " divides " + M("b") + ". ∎" },
+    ] },
+    txt: "<p><b>Fact.</b> If a prime divides a product, it divides one of the factors.</p>" +
+         "<p><b>Why.</b> Suppose " + M("p") + " divides " + M("a \\cdot b") + " but not " + M("a") + ". Then the only common divisor of " + M("a") + " and " + M("p") + " is 1 (the divisors of " + M("p") + " are just 1 and " + M("p") + "). " +
+         "Run the same table we used to find " + M("d") + " on the pair " + M("(a, p)") + ": it ends with " + M("1 = s a + t p") + " for some whole numbers " + M("s, t") + ". Multiply this equation by " + M("b") + ": " +
+         M("b = s \\cdot (ab) + (tb) \\cdot p") + ". The first term is a multiple of " + M("p") + " because " + M("p") + " divides " + M("ab") + "; the second is obviously a multiple of " + M("p") + ". So " + M("b") + " is a multiple of " + M("p") + ". ∎</p>" +
+         "<p>Two consequences we will use: (1) we may <b>cancel</b> a factor that is not divisible by " + M("p") + ": if " + M("p") + " divides " + M("c x - c y = c (x - y)") + " and " + M("p") + " does not divide " + M("c") + ", then " + M("p") + " divides " + M("x - y") +
+         ", i.e. " + M("c x") + " and " + M("c y") + " leave the same remainder only if " + M("x") + " and " + M("y") + " do. (2) If " + M("p") + " and " + M("q") + " are different primes and both divide a number, then so does " + M("p \\cdot q") + ".</p>",
+  });
+  // Fermat's little theorem by shuffling
+  let fp = p, fm = m % p;
+  if (fm === 0n && m % q !== 0n) { fp = q; fm = m % q; }
+  const F = fp === p ? "p" : "q";
+  if (fm !== 0n) {
+    const prodTx = small ? "1 \\cdot 2 \\cdots " + (fp - 1n) : "(" + F + "-1)!";
+    S.add({
+      title: "Multiply everything by m", code: ["r10"],
+      work: { kind: "shuffle", p: fp, m: fm, pName: F, small },
+      txt: "<p><b>Step 1: " + M("m^{" + F + "-1} \\bmod " + F + " = 1") + "</b> (Fermat's little theorem, 1640). Take the prime " + M(F) + " = " + N(fp) + " and " + M("a = m \\bmod " + F) + " = " + N(fm) + ", which is not 0.</p>" +
+           "<p>Write down the numbers " + M("1, 2, \\dots, " + F + "-1") + ". Multiply each by " + M("a") + " and take the remainder mod " + M(F) + ". " +
+           (small ? "The picture shows both lists, coloured by value: the second list contains <b>the same numbers, shuffled</b>." :
+                    M(F + "-1") + " has " + digits(fp - 1n) + " digits, so we cannot draw the list — but the argument does not need us to.") +
+           " Why is it a shuffle? No product " + M("a \\cdot i") + " is 0 mod " + M(F) + " (the key fact: " + M(F) + " divides neither " + M("a") + " nor " + M("i") + "). And two products " + M("a i") + " and " + M("a j") + " with " + M("i \\ne j") + " cannot leave the same remainder: " +
+           "by consequence (1) that would force " + M("i") + " and " + M("j") + " to leave the same remainder. So " + M(F + "-1") + " different non-zero remainders appear — all of them.</p>",
+    });
+    S.add({
+      title: "Cancel the factorial", code: ["r10"],
+      work: { kind: "lines", lines: [
+        { h: M("(a \\cdot 1)(a \\cdot 2) \\cdots (a \\cdot (" + F + "-1))") + " &nbsp;<span class=\"t\">leaves the same remainder mod " + M(F) + " as</span>&nbsp; " + M("1 \\cdot 2 \\cdots (" + F + "-1)") },
+        { h: M("a^{" + F + "-1} \\cdot (" + F + "-1)! \\equiv (" + F + "-1)! \\pmod{" + F + "}") },
+        { h: M(F) + " divides " + M("(a^{" + F + "-1} - 1) \\cdot (" + F + "-1)!") + ", &nbsp;<span class=\"t\">and " + M(F) + " does not divide " + M("(" + F + "-1)!") + " (a product of numbers below " + M(F) + ")</span>" },
+        { h: "⇒ " + M(F) + " divides " + M("a^{" + F + "-1} - 1") + ", &nbsp;<span class=\"t\">i.e.</span>&nbsp; " + M("a^{" + F + "-1} \\bmod " + F + " = 1"), cur: true },
+        { h: "<span class=\"t\">numerically:</span> " + M(fm + "^{" + (fp - 1n) + "} \\bmod " + fp) + " = " + N(modpow(fm, fp - 1n, fp)) },
+      ] },
+      txt: "<p>Multiply all the numbers in each list together. The lists contain the same numbers, so the products leave the same remainder mod " + M(F) + ". " +
+           "The left product is " + M("a^{" + F + "-1} \\cdot " + prodTx) + ", the right one is " + M(prodTx) + ".</p>" +
+           "<p>Now cancel " + M(prodTx) + " (allowed by consequence (1), because " + M(F) + " divides none of its factors): " + M("a^{" + F + "-1}") + " leaves remainder 1 mod " + M(F) + ". " +
+           "And since " + M("m") + " and " + M("a") + " differ by a multiple of " + M(F) + ", the same holds for " + M("m") + ": <b>" + M("m^{" + F + "-1} \\bmod " + F + " = 1") + "</b>. The computer confirms it in the last line.</p>",
+    });
+  }
+  // apply to p and q
+  const other = fp === p ? q : p, O = fp === p ? "q" : "p";
+  const kk = k * (other - 1n);
+  S.add({
+    title: "The exponent e·d, mod " + F, code: ["r10"],
+    work: { kind: "lines", lines: [
+      { h: M("e d - 1 = k " + PHI + " = k (" + O + "-1) \\cdot (" + F + "-1)") + " = " + N(kk) + " · " + M("(" + F + "-1)") },
+      { h: M("m^{e d} = m \\cdot (m^{" + F + "-1})^{" + kk + "}") },
+      { h: "<span class=\"t\">mod " + M(F) + ":</span> &nbsp;" + M("m^{e d} \\equiv m \\cdot 1^{" + kk + "} = m"), cur: true },
+      { h: "<span class=\"t\">check:</span> " + M("m^{e d} \\bmod " + F) + " = " + N(modpow(m, ed, fp)) + ", &nbsp;" + M("m \\bmod " + F) + " = " + N(m % fp) },
+    ] },
+    txt: "<p><b>Step 2.</b> " + M("e d - 1 = k (p-1)(q-1)") + " is a multiple of " + M(F + "-1") + ": it equals " + N(kk) + " · " + M("(" + F + "-1)") + ". So</p>" +
+         "<p class=\"eq\">" + M("m^{e d} = m \\cdot m^{e d - 1} = m \\cdot (m^{" + F + "-1})^{" + kk + "}.") + "</p>" +
+         "<p>Mod " + M(F) + ", the bracket is 1 by Step 1, and 1 to any power is 1. Hence " + M("m^{e d}") + " and " + M("m") + " leave the <b>same remainder when divided by " + M(F) + "</b>. " +
+         (fm === 0n ? "(Here " + M("m") + " happens to be divisible by " + M(F) + "; then both sides are 0 mod " + M(F) + " and the conclusion holds trivially.)" :
+                       "(If " + M("m") + " were divisible by " + M(F) + ", both sides would simply be 0 mod " + M(F) + ", and the conclusion holds anyway.)") + "</p>",
+  });
+  S.add({
+    title: "Same for " + O, code: ["r10"],
+    work: { kind: "lines", lines: [
+      { h: "<span class=\"t\">the same argument with the prime " + M(O) + " = " + N(other) + ":</span>" },
+      { h: M("e d - 1") + " = " + N(k * (fp - 1n)) + " · " + M("(" + O + "-1)") },
+      { h: M("m^{e d} \\equiv m \\cdot (m^{" + O + "-1})^{" + (k * (fp - 1n)) + "} \\equiv m \\cdot 1 = m \\pmod{" + O + "}"), cur: true },
+      { h: "<span class=\"t\">check:</span> " + M("m^{e d} \\bmod " + O) + " = " + N(modpow(m, ed, other)) + ", &nbsp;" + M("m \\bmod " + O) + " = " + N(m % other) },
+    ] },
+    txt: "<p><b>Step 3.</b> Nothing in Steps 1 and 2 used anything special about " + M(F) + " except that it is prime and appears in " + M(PHI) + ". Swap the roles: " + M("e d - 1") + " is also a multiple of " + M(O + "-1") + ", " +
+         "so " + M("m^{e d}") + " and " + M("m") + " leave the same remainder mod " + M(O) + " as well" +
+         (m % other === 0n ? " (here " + M("m") + " is divisible by " + M(O) + ", so both remainders are 0)" : "") + ".</p>",
+  });
+  S.add({
+    title: "Glue p and q together", code: ["r10"],
+    work: { kind: "lines", lines: [
+      { h: M("p") + " divides " + M("m^{e d} - m") + " &nbsp;<span class=\"t\">and</span>&nbsp; " + M("q") + " divides " + M("m^{e d} - m") },
+      { h: M("m^{e d} - m = p \\cdot t") + " &nbsp;<span class=\"t\">for some " + M("t") + ";</span>&nbsp; " + M("q") + " divides " + M("p \\cdot t") + " &nbsp;<span class=\"t\">and not " + M("p") + "</span>&nbsp; ⇒ " + M("q") + " divides " + M("t") },
+      { h: "⇒ " + M("m^{e d} - m = p q t' = n t'") + " &nbsp;<span class=\"t\">is a multiple of " + M("n") + "</span>" },
+      { h: "⇒ " + M("m^{e d} \\bmod n = m") + ". ∎", cur: true },
+      { h: "<span class=\"t\">our numbers:</span> " + M(cN + "^{\\,d} \\bmod n") + " = " + N(Pdec.result) + " = " + M(mN) + " ✓" },
+    ] },
+    txt: "<p><b>Step 4.</b> The difference " + M("m^{e d} - m") + " is divisible by " + M("p") + " and by " + M("q") + ". Write it as " + M("p \\cdot t") + ". Then " + M("q") + " divides " + M("p \\cdot t") + "; " + M("q") + " does not divide " + M("p") + " (different primes), so by the key fact " + M("q") + " divides " + M("t") + ". " +
+         "Hence " + M("m^{e d} - m") + " is a multiple of " + M("p \\cdot q = n") + " — which is exactly the statement that " + M("m^{e d}") + " and " + M("m") + " leave the same remainder mod " + M("n") + ". Since " + M("m < n") + ", that remainder <i>is</i> " + M("m") + ".</p>" +
+         "<b class=\"ans\">Decryption always returns the message — for every " + M("m") + " and every valid key pair.</b>" +
+         "<p class=\"note\">Everything used: the remainder rule, Euclid's table, and the key fact about primes. No hand-waving required.</p>",
+  });
+
+  /* ---- Phase: Eve ---- */
+  S.phase("Eve");
+  S.add({
+    title: "What Eve holds", code: ["r6", "r9"], hot: [],
+    work: { kind: "lines", lines: [
+      { h: "<span class=\"t\">Eve knows:</span> " + M("n") + " = " + N(n, "eve") + ", " + M("e") + " = " + N(e, "eve") + ", " + M(cN) + " = " + N(c, "eve"), cur: true },
+      { h: "<span class=\"t\">Eve wants:</span> " + M("m = c^d \\bmod n") + " &nbsp;— needs " + M("d") },
+      { h: "<span class=\"t\">" + M("d") + " needs:</span> " + M(PHI + " = (p-1)(q-1)") + " &nbsp;— needs " + M("p") + " and " + M("q") },
+      { h: "<span class=\"t\">" + M("p") + " and " + M("q") + " need:</span> factoring " + M("n") },
+    ] },
+    txt: "<p>" + E_ + " has copied everything that went over the wire: " + M("n") + ", " + M("e") + " and " + M(cN) + ". Could she simply run the decryption recipe? She lacks " + M("d") + ". " +
+         "Could she compute " + M("d") + " as Bob did? That needs " + M(PHI + " = (p-1)(q-1)") + ", and she knows neither prime. Could she get " + M(PHI) + " from " + M("n") + " some other way? " +
+         "Knowing " + M(PHI) + " is the same as knowing " + M("p") + " and " + M("q") + ": " + M("p + q = n - " + PHI + " + 1") + " and " + M("p q = n") + ", and a quadratic equation gives " + M("p") + " and " + M("q") + ". So <b>every road leads to factoring " + M("n") + "</b>.</p>",
+  });
+  if (small) {
+    const minP = p < q ? p : q;
+    const rows = []; for (const dd of SMALL_PRIMES) { const D = B(dd); rows.push({ d: D, r: n % D }); if (D === minP) break; }
+    rows.forEach((row, idx) => {
+      const last = idx === rows.length - 1;
+      S.add({
+        title: "Eve tries " + row.d, code: ["r1"],
+        work: { kind: "evetrial", n, rows, upto: idx },
+        txt: (idx === 0 ? "<p>With small numbers factoring is a joke. Eve divides " + M("n") + " by 2, 3, 5, 7, … and watches the remainders.</p>" : "") +
+             "<p>" + N(n) + " mod " + N(row.d) + " = " + N(row.r) + (row.r === 0n ? " — <b>found a factor!</b>" : ".") + "</p>" +
+             (last ? "<b class=\"ans\">" + M("n") + " = " + N(minP) + " · " + N(n / minP) + "</b><p>Eve now computes " + M(PHI) + " = " + N(phi) + ", runs the table to get " + M("d") + " = " + N(d) + ", and decrypts " + M(cN) + " exactly as Bob did. " +
+                     "The whole secret was the two primes.</p>" : ""),
+      });
+    });
+  }
+  const sq = Math.sqrt(bigToNum(n)), nprimes = sq / Math.log(sq), years = nprimes / 1e9 / 3.156e7;
+  S.add({
+    title: small ? "…and with large numbers?" : "Eve tries to factor n", code: ["r1"],
+    work: { kind: "lines", lines: [
+      { h: M("\\sqrt{n} \\approx " + sciTex(sq)) },
+      { h: "<span class=\"t\">primes up to " + M("\\sqrt n") + ":</span> about " + M(sciTex(nprimes)) },
+      { h: "<span class=\"t\">at a billion divisions per second:</span> " + M(sciTex(years)) + " years", cur: true },
+      { h: "<span class=\"t\">age of the universe:</span> " + M("1.4 \\cdot 10^{10}") + " years" },
+    ] },
+    txt: (small ? "<p>Switch <b>Numbers</b> to <b>Large</b> to watch the same story with 39-digit primes. There the picture changes completely.</p><p>For our " + M("n") + " = " + N(n) + ", Eve's trial division needs at most about " + M(sciTex(nprimes)) + " attempts — nothing. " :
+                  "<p>Eve's simplest attack is the one from the small example: divide " + M("n") + " by every prime up to " + M("\\sqrt n") + ". Here " + M("\\sqrt{n} \\approx " + sciTex(sq)) + ". There are about " + M(sciTex(nprimes)) + " primes below that; " +
+                  "at a billion divisions per second she would need roughly " + M(sciTex(years)) + " years. The universe is " + M("1.4 \\cdot 10^{10}") + " years old. ") +
+         "</p><p class=\"note\">Honesty compels two footnotes. First, mathematicians know far better factoring methods than trial division: with the <i>number field sieve</i>, a 77-digit " + M("n") + " like this one falls to a laptop in well under an hour — " +
+         "which is why real RSA keys have 617 digits (2048 bits), where even those methods need more time than the universe offers; the record factorisation is a 250-digit number (2020, roughly 2700 core-years). " +
+         "Second, a large quantum computer running Shor's algorithm would factor even those quickly. None exists yet; the world is switching to \"post-quantum\" cryptography in anticipation.</p>",
+  });
+  S.add({
+    title: "A cheaper trick for Eve", code: ["r8"],
+    work: { kind: "lines", lines: [
+      { h: "<span class=\"t\">Eve guesses the message " + M("m'") + " and encrypts it herself:</span> " + M("c' = (m')^e \\bmod n") },
+      { h: "<span class=\"t\">if " + M("c' = c") + ", the guess was right — no " + M("d") + " needed</span>", cur: true },
+      { h: "<span class=\"t\">defence:</span> pad each block with random bytes before encrypting (\"OAEP\")" },
+    ] },
+    txt: "<p>Eve does not always need to break the padlock: if the message is one of only a few possibilities (\"yes\"/\"no\", a PIN, " + (bb === 1 ? "a single character — as in our small blocks" : "a short word") + "), " +
+         "she can encrypt every candidate with the public key and compare with " + M("c") + ". The recipe on this page — <i>textbook RSA</i> — is deterministic, so the same block always gives the same ciphertext.</p>" +
+         "<p>Real systems therefore mix random padding into every block before encrypting and check it after decrypting, so that even the same message encrypts differently each time. " +
+         "And in practice RSA is mostly used to transport a key for a fast cipher (such as AES), which then encrypts the actual data — or, more and more, RSA is replaced by Diffie–Hellman-style key exchange, the other tab.</p>",
+  });
+
+  S.derived = { n, phi, d, k, c, blocks };
+  return S;
+}
+
+/* =====================================================================
+   Diffie–Hellman
+   ===================================================================== */
+function buildDH(P) {
+  const S = new Story();
+  const { p, g, a, b, small } = P;
+  const V = S.vals = {};
+  V.p = { label: "p", value: p, who: "pub" };
+  V.g = { label: "g", value: g, who: "pub" };
+  V.a = { label: "a", value: a, who: "alice", secret: true };
+  V.b = { label: "b", value: b, who: "bob", secret: true };
+  const A = modpow(g, a, p), Bv = modpow(g, b, p), s = modpow(Bv, a, p);
+  V.A = { label: "A", value: A, who: "alice" };
+  V.B = { label: "B", value: Bv, who: "bob" };
+  V.sA = { label: "s", value: s, who: "alice", secret: true };
+  V.sB = { label: "s", value: s, who: "bob", secret: true };
+
+  /* ---- public numbers ---- */
+  S.phase("Public p, g");
+  S.know("pub", "p"); S.know("alice", "p"); S.know("bob", "p"); S.know("eve", "p");
+  if (small) addTrialSteps(S, "pub", "p", "p", p, "d1"); else addLargePrimeSteps(S, "pub", "p", "p", p, P.pTrace, "d1");
+  S.know("pub", "g"); S.know("alice", "g"); S.know("bob", "g"); S.know("eve", "g");
+  if (small) {
+    const pw = []; let v = 1n; for (let i = 1n; i < p; i++) { v = v * g % p; pw.push(v); }
+    S.add({
+      title: "The base g", code: ["d1"], hot: ["g"],
+      work: { kind: "powers", g, p, pw },
+      txt: "<p>The second public number is the <b>base</b> " + M("g") + " = " + N(g, "pub") + ". Everything in this protocol is a power of " + M("g") + ", taken mod " + M("p") + ". " +
+           "The table lists " + M("g^1, g^2, \\dots, g^{p-1} \\bmod p") + (P.gGen === false ? "." : ": every number from 1 to " + M("p-1") + " shows up exactly once before the pattern repeats.") +
+           (P.gGen === false ? "" : " That is the property a good base should have — it means Eve's task later (find the exponent behind a given value) has as many possible answers as it can.</p>") +
+           "<p>Both numbers are public; they can even be the same for millions of users. Their only job is to set up the playing field.</p>",
+    });
+  } else {
+    const qq = (p - 1n) / 2n, g2 = modpow(g, 2n, p), gq = modpow(g, qq, p);
+    S.add({
+      title: "The base g", code: ["d1"], hot: ["g"],
+      work: { kind: "lines", lines: [
+        { h: M("p - 1 = 2 \\cdot q'") + " with " + M("q'") + " = " + N(qq) + " &nbsp;<span class=\"t\">— and " + M("q'") + " is prime too (a \"safe prime\" " + M("p") + ")</span>" },
+        { h: M("g^2 \\bmod p") + " = " + N(g2) + " ≠ 1", cur: true },
+        { h: M("g^{q'} \\bmod p") + " = " + N(gq) + " ≠ 1" },
+        { h: "⇒ <span class=\"t\">the powers " + M("g^1, g^2, \\dots, g^{p-1} \\bmod p") + " are all different</span>" },
+      ] },
+      txt: "<p>The base " + M("g") + " = " + N(g, "pub") + ". We want its powers " + M("g^1, g^2, \\dots \\bmod p") + " to run through as many different values as possible before repeating — ideally all " + M("p-1") + " of them, so that Eve's search later has the largest possible haystack.</p>" +
+           "<p>With a " + digits(p) + "-digit " + M("p") + " we cannot list the powers. But the length of the cycle always divides " + M("p-1") + " (this follows from the same shuffle argument as Fermat's little theorem on the RSA tab). " +
+           "Our " + M("p") + " was chosen so that " + M("p - 1 = 2 q'") + " with " + M("q'") + " prime; then the cycle length can only be " + M("1, 2, q'") + " or " + M("2q'") + ". Checking " + M("g^2 \\ne 1") + " and " + M("g^{q'} \\ne 1") + " rules out the first three, so the powers of " + M("g") + " visit <b>every</b> number from 1 to " + M("p-1") + ".</p>",
+    });
+  }
+
+  /* ---- secrets ---- */
+  S.phase("Secrets a, b");
+  S.know("alice", "a");
+  S.add({
+    title: "Alice's secret a", code: ["d2"], hot: ["a"],
+    work: { kind: "lines", lines: [{ h: M("a") + " = " + N(a, "alice") + " &nbsp;<span class=\"t\">(a random number between 2 and " + M("p-2") + ")</span>", cur: true }] },
+    txt: "<p>" + A_ + " rolls dice: a random exponent " + M("a") + " = " + N(a, "alice") + ". She writes it in her private notebook and tells <b>nobody</b> — not even Bob. It never leaves her machine.</p>",
+  });
+  S.know("bob", "b");
+  S.add({
+    title: "Bob's secret b", code: ["d3"], hot: ["b"],
+    work: { kind: "lines", lines: [{ h: M("a") + " = " + N(a, "alice") }, { h: M("b") + " = " + N(b, "bob"), cur: true }] },
+    txt: "<p>" + B_ + " does the same, independently: " + M("b") + " = " + N(b, "bob") + ". The two have not exchanged a single message so far, and Eve knows nothing but " + M("p") + " and " + M("g") + ".</p>",
+  });
+
+  /* ---- A and B ---- */
+  S.phase("Alice: A");
+  addPowSteps(S, { x: g, k: a, n: p, xName: "g", kName: "a", nName: "p", resName: "A", who: "alice", code: ["d4"], resKey: "A",
+    outro: "<p>" + M("A") + " is what Alice will send. It <i>depends</i> on her secret " + M("a") + ", but — as Eve will discover — does not reveal it.</p>" });
+  S.phase("Bob: B");
+  addPowSteps(S, { x: g, k: b, n: p, xName: "g", kName: "b", nName: "p", resName: "B", who: "bob", code: ["d5"], resKey: "B" });
+
+  /* ---- exchange ---- */
+  S.phase("Exchange");
+  S.know("pub", "A", "B"); S.know("eve", "A", "B"); S.know("bob", "A"); S.know("alice", "B");
+  S.add({
+    title: "Swap A and B in public", code: ["d6"], hot: ["A", "B"],
+    msg: [{ from: "alice", to: "bob", key: "A" }, { from: "bob", to: "alice", key: "B" }],
+    work: { kind: "lines", lines: [
+      { h: "<span class=\"t\">Alice → Bob:</span> " + M("A") + " = " + N(A, "alice"), cur: true },
+      { h: "<span class=\"t\">Bob → Alice:</span> " + M("B") + " = " + N(Bv, "bob"), cur: true },
+      { h: "<span class=\"t\">Eve's notes:</span> " + M("p, g, A, B") + " &nbsp;— <span class=\"t\">not " + M("a") + ", not " + M("b") + "</span>" },
+    ] },
+    txt: "<p>The only two messages of the whole protocol: " + A_ + " sends " + M("A") + ", " + B_ + " sends " + M("B") + ", both in the clear. " + E_ + " writes both down. She now has " + M("p, g, A") + " and " + M("B") + " — everything that was ever transmitted.</p>",
+  });
+
+  /* ---- shared secret ---- */
+  S.phase("Shared secret");
+  addPowSteps(S, { x: Bv, k: a, n: p, xName: "B", kName: "a", nName: "p", resName: "s", who: "alice", code: ["d7"], resKey: "sA",
+    intro: "<p>Alice takes <i>Bob's</i> public number " + M("B") + " and raises it to <i>her</i> secret " + M("a") + ".</p>" });
+  addPowSteps(S, { x: A, k: b, n: p, xName: "A", kName: "b", nName: "p", resName: "s", who: "bob", code: ["d8"], resKey: "sB",
+    intro: "<p>Bob takes <i>Alice's</i> " + M("A") + " and raises it to <i>his</i> secret " + M("b") + ".</p>",
+    outro: "<b class=\"ans\">The same number! Alice and Bob now share the secret " + M("s") + " = " + N(s) + " — and never sent it.</b>" });
+
+  /* ---- why they agree ---- */
+  S.phase("Why they agree");
+  const ab = a * b, gab = modpow(g, ab, p);
+  S.add({
+    title: "Both computed g^(a·b)", code: ["d9"],
+    work: { kind: "lines", lines: [
+      { h: "<span class=\"t\">Alice:</span> " + M("B^a = (g^b)^a = g^{b a}") },
+      { h: "<span class=\"t\">Bob:</span> &nbsp; " + M("A^b = (g^a)^b = g^{a b}") },
+      { h: M("a \\cdot b") + " = " + N(a) + " · " + N(b) + " = " + N(ab) },
+      { h: M("g") + "<sup class=\"num\">" + ab + "</sup> mod " + M("p") + " = " + N(gab) + " &nbsp;<span class=\"t\">(computed directly)</span>", cur: true },
+    ] },
+    txt: "<p>The power rule from school: " + M("(g^b)^a = g^{b a} = g^{a b} = (g^a)^b") + " — it is the same product of " + M("a \\cdot b") + " copies of " + M("g") + ", just grouped differently.</p>" +
+         "<p>The only question is whether taking remainders in between spoils it. It does not: " + M("B") + " is not " + M("g^b") + " itself but " + M("g^b \\bmod p") + ", and Alice computes " + M("B^a \\bmod p") + ". " +
+         "By the rule from the background section, replacing a number by its remainder anywhere in a chain of multiplications does not change the final remainder. So both really compute " + M("g^{a b} \\bmod p") + ". " +
+         "The last line does it the long way: " + M("a \\cdot b") + " = " + N(ab) + ", and " + M("g") + " to that power mod " + M("p") + " is indeed " + N(gab) + ".</p>" +
+         "<p class=\"note\">Why not send " + M("a") + " and " + M("b") + " and let each other compute? Because Eve reads everything. The whole point is that " + M("a") + " and " + M("b") + " never travel, yet " + M("g^{a b}") + " can be reached from either side.</p>",
+  });
+
+  /* ---- Eve ---- */
+  S.phase("Eve");
+  S.add({
+    title: "Eve's problem", code: ["d6"],
+    work: { kind: "lines", lines: [
+      { h: "<span class=\"t\">Eve knows:</span> " + M("p") + " = " + N(p, "eve") + ", " + M("g") + " = " + N(g, "eve") + ", " + M("A") + " = " + N(A, "eve") + ", " + M("B") + " = " + N(Bv, "eve"), cur: true },
+      { h: "<span class=\"t\">Eve wants:</span> " + M("s = B^a \\bmod p") + " &nbsp;— needs " + M("a") + " &nbsp;(or " + M("A^b") + " — needs " + M("b") + ")" },
+      { h: "<span class=\"t\">to get " + M("a") + ":</span> find the exponent " + M("x") + " with " + M("g^x \\bmod p = A") },
+    ] },
+    txt: "<p>" + E_ + " knows " + M("p, g, A") + " and " + M("B") + ". To compute " + M("s") + " she needs " + M("a") + " (then " + M("B^a") + ") or " + M("b") + " (then " + M("A^b") + "). Nobody told her either. " +
+         "What she can try: find the exponent " + M("x") + " for which " + M("g^x \\bmod p") + " equals " + M("A") + ". This is called the <b>discrete logarithm</b> problem, and it is the one-way street of Diffie–Hellman: going from " + M("x") + " to " + M("g^x \\bmod p") + " is the quick repeated-squaring recipe; going back has no known quick recipe.</p>" +
+         "<p class=\"note\">Could Eve combine " + M("A") + " and " + M("B") + " directly, without " + M("a") + " or " + M("b") + "? " + M("A \\cdot B = g^{a+b}") + ", not " + M("g^{a b}") + " — no help. Nobody knows a way to get " + M("g^{a b}") + " from " + M("g^a") + " and " + M("g^b") + " that is faster than finding an exponent.</p>",
+  });
+  if (small) {
+    const rows = []; let v = 1n;
+    for (let x = 1n; x < p; x++) { v = v * g % p; rows.push({ x, v }); if (v === A) break; }
+    rows.forEach((row, idx) => {
+      const last = idx === rows.length - 1;
+      S.add({
+        title: "Eve tries x = " + row.x, code: ["d4"],
+        work: { kind: "dlog", g, p, A, rows, upto: idx },
+        txt: (idx === 0 ? "<p>With small numbers Eve just tries every exponent in turn: " + M("g^1, g^2, g^3, \\dots \\bmod p") + ", each one a single multiplication more than the last, until " + M("A") + " appears.</p>" : "") +
+             "<p>" + M("g^{" + row.x + "} \\bmod p") + " = " + N(row.v) + (row.v === A ? " = " + M("A") + ". <b>Found: " + M("a") + " = " + N(row.x) + ".</b>" : " ≠ " + M("A") + ".") + "</p>" +
+             (last ? "<b class=\"ans\">Eve computes " + M("s = B^a \\bmod p") + " = " + N(modpow(Bv, row.x, p)) + " — the secret is hers.</b>" +
+                     "<p>" + rows.length + " tries. In the worst case she needs " + M("p-1") + " = " + N(p - 1n) + ". Now switch <b>Numbers</b> to <b>Large</b>.</p>" : ""),
+      });
+    });
+  }
+  const pn = bigToNum(p), yearsBrute = pn / 1e9 / 3.156e7, yearsBSGS = Math.sqrt(pn) / 1e9 / 3.156e7;
+  S.add({
+    title: small ? "…and with large numbers?" : "Eve's search space", code: ["d4"],
+    work: { kind: "lines", lines: [
+      { h: "<span class=\"t\">exponents to try:</span> up to " + M("p - 1 \\approx " + sciTex(pn)) },
+      { h: "<span class=\"t\">at a billion per second:</span> " + M(sciTex(yearsBrute)) + " years", cur: true },
+      { h: "<span class=\"t\">cleverest general method (meet in the middle, " + M("\\approx \\sqrt p") + " steps):</span> " + M(sciTex(yearsBSGS)) + " years" },
+      { h: "<span class=\"t\">age of the universe:</span> " + M("1.4 \\cdot 10^{10}") + " years" },
+    ] },
+    txt: (small ? "<p>For a " + digits(p) + "-digit " + M("p") + " the brute-force search is instant. Real systems use " + M("p") + " with 600 digits or more; with the <b>Large</b> setting you get a 39-digit " + M("p") + " and the numbers below.</p>" : "") +
+         "<p>Trying every exponent up to " + M("p - 1 \\approx " + sciTex(pn)) + " at a billion per second takes " + M(sciTex(yearsBrute)) + " years. " +
+         "There is a smarter general trick (compute a table of " + M("g^i") + " for the first " + M("\\sqrt p") + " exponents, then take giant steps of size " + M("\\sqrt p") + " and look for a match) that needs about " + M("\\sqrt p \\approx " + sciTex(Math.sqrt(pn))) + " steps — still " + M(sciTex(yearsBSGS)) + " years here.</p>" +
+         "<p class=\"note\">As on the RSA tab, honesty demands the footnote: for primes of this \"impressive\" 39-digit size, specialised algorithms (index calculus) would in fact succeed on a laptop, which is why real Diffie–Hellman uses primes with 600+ digits — or, today more commonly, the same idea on <i>elliptic curves</i>, where 78-digit numbers already suffice. And a large quantum computer would break both. The mathematics stays the same; only the numbers get bigger.</p>" +
+         "<p class=\"note\">One more real-world detail: " + M("s") + " itself is not the message. It becomes the key of a fast cipher (such as AES) that then encrypts the actual conversation — this is roughly what happens every time your browser opens a padlocked https page.</p>",
+  });
+
+  S.derived = { A, B: Bv, s };
+  return S;
+}
+</script>
+<script>
+"use strict";
+/* =====================================================================
+   The recipes (pseudocode) with line ids for live highlighting
+   ===================================================================== */
+const K = s => '<span class="kw">' + s + "</span>", CM = s => '<span class="cm">' + s + "</span>";
+const WHO = (w, s) => '<span class="who ' + w + '">' + s + "</span> ";
+const CODE_RSA = [
+  { sub: "Key generation — Bob, in private" },
+  { id: "r1", t: WHO("bob", "Bob:") + K("choose") + " two different primes p and q" },
+  { id: "r2", t: "n ← p · q                       " + CM("— the public modulus") },
+  { id: "r3", t: "φ ← (p − 1) · (q − 1)           " + CM("— how many of 1…n share no factor with n") },
+  { id: "r4", t: K("choose") + " e with 1 < e < φ and GCD(e, φ) = 1" },
+  { id: "r5", t: "d ← FIND-D(φ, e)                " + CM("— so that e·d = 1 + k·φ") },
+  { id: "r6", t: K("publish") + " (n, e);  " + K("keep") + " d secret;  " + K("destroy") + " p, q, φ" },
+  { sub: "Encryption — Alice, with Bob's public (n, e)" },
+  { id: "r7", t: WHO("alice", "Alice:") + "m ← the message as a number, 0 ≤ m < n" },
+  { id: "r8", t: "c ← POWER(m, e, n)              " + CM("— c = m^e mod n") },
+  { id: "r9", t: K("send") + " c to Bob" },
+  { sub: "Decryption — Bob, with his private d" },
+  { id: "r10", t: WHO("bob", "Bob:") + "m ← POWER(c, d, n)             " + CM("— m = c^d mod n") },
+  { id: "r11", t: "turn m back into text" },
+  { sub: "GCD(a, b) — Euclid's algorithm" },
+  { id: "g1", t: "GCD(a, b):" },
+  { id: "g2", t: "  " + K("while") + " b ≠ 0:" },
+  { id: "g3", t: "    (a, b) ← (b, a mod b)       " + CM("— write a = q·b + r, continue with (b, r)") },
+  { id: "g4", t: "  " + K("return") + " a" },
+  { sub: "FIND-D(φ, e) — Euclid with bookkeeping" },
+  { id: "x1", t: "FIND-D(φ, e):   " + CM("every row is  r = s·φ + t·e") },
+  { id: "x2", t: "  row₀: (r, s, t) = (φ, 1, 0);   row₁: (r, s, t) = (e, 0, 1)" },
+  { id: "x3", t: "  " + K("repeat") + ": q ← ⌊r₍prev₋₁₎ ÷ r₍prev₎⌋;  new row ← row₍prev₋₁₎ − q · row₍prev₎" },
+  { id: "x4", t: "  " + K("until") + " r = 1" },
+  { id: "x5", t: "  " + K("return") + " t mod φ                 " + CM("— then t·e = 1 − s·φ") },
+  { sub: "POWER(x, k, n) — repeated squaring" },
+  { id: "p1", t: "POWER(x, k, n):   " + CM("compute x^k mod n") },
+  { id: "p2", t: "  write k in binary: k = (bₜ … b₁ b₀)₂" },
+  { id: "p3", t: "  r ← 1" },
+  { id: "p4", t: "  " + K("for") + " i = t " + K("down to") + " 0:" },
+  { id: "p5", t: "    r ← r · r mod n             " + CM("— the exponent doubles") },
+  { id: "p6", t: "    " + K("if") + " bᵢ = 1:  r ← r · x mod n   " + CM("— the exponent grows by 1") },
+  { id: "p7", t: "  " + K("return") + " r" },
+];
+const CODE_DH = [
+  { sub: "Public set-up — visible to everyone" },
+  { id: "d1", t: WHO("pub", "Public:") + K("choose") + " a prime p and a base g with 1 < g < p" },
+  { sub: "Secrets — never sent" },
+  { id: "d2", t: WHO("alice", "Alice:") + K("pick") + " a random secret a, 1 < a < p − 1" },
+  { id: "d3", t: WHO("bob", "Bob:") + "  " + K("pick") + " a random secret b, 1 < b < p − 1" },
+  { sub: "Public values" },
+  { id: "d4", t: WHO("alice", "Alice:") + "A ← POWER(g, a, p)         " + CM("— A = g^a mod p") },
+  { id: "d5", t: WHO("bob", "Bob:") + "  B ← POWER(g, b, p)         " + CM("— B = g^b mod p") },
+  { id: "d6", t: "Alice " + K("sends") + " A to Bob;  Bob " + K("sends") + " B to Alice" },
+  { sub: "Shared secret" },
+  { id: "d7", t: WHO("alice", "Alice:") + "s ← POWER(B, a, p)         " + CM("— = g^(b·a) mod p") },
+  { id: "d8", t: WHO("bob", "Bob:") + "  s ← POWER(A, b, p)         " + CM("— = g^(a·b) mod p") },
+  { id: "d9", t: "both hold the same s = g^(a·b) mod p" },
+  { sub: "POWER(x, k, n) — repeated squaring" },
+  { id: "p1", t: "POWER(x, k, n):   " + CM("compute x^k mod n") },
+  { id: "p2", t: "  write k in binary: k = (bₜ … b₁ b₀)₂" },
+  { id: "p3", t: "  r ← 1" },
+  { id: "p4", t: "  " + K("for") + " i = t " + K("down to") + " 0:" },
+  { id: "p5", t: "    r ← r · r mod n             " + CM("— the exponent doubles") },
+  { id: "p6", t: "    " + K("if") + " bᵢ = 1:  r ← r · x mod n   " + CM("— the exponent grows by 1") },
+  { id: "p7", t: "  " + K("return") + " r" },
+];
+
+/* =====================================================================
+   State
+   ===================================================================== */
+let tab = "rsa", size = "small", story = null, params = null, cur = 0, prevCur = -1, timer = null;
+
+/* =====================================================================
+   Renderers
+   ===================================================================== */
+const SVGNS = "http://www.w3.org/2000/svg";
+function svgEl(name, attrs, parent) {
+  const e = document.createElementNS(SVGNS, name);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function txt(parent, x, y, s, cls, extra) {
+  const t = svgEl("text", Object.assign({ x, y, class: cls }, extra || {}), parent);
+  t.textContent = s; return t;
+}
+
+const WHO_NAME = { alice: "Alice", bob: "Bob", pub: "Public channel", eve: "Eve" };
+const WHO_SUB = { alice: "private notebook", bob: "private notebook", pub: "everyone can read this — including Eve", eve: "what she has copied" };
+
+function valueText(v) { if (v.isText) { const s = String(v.value); return s.length > 20 ? s.slice(0, 17) + "…\"" : s; } return abbr(v.value == null ? "?" : v.value); }
+
+function renderScene(step) {
+  const svg = el("scene"), sc = step.scene, V = story.vals;
+  const W = Math.max(420, svg.clientWidth || svg.parentElement.clientWidth - 30);
+  svg.innerHTML = "";
+  const pad = 8, gap = 14, sideW = Math.round(Math.min(300, Math.max(190, W * 0.3)));
+  const midW = W - 2 * sideW - 2 * gap - 2 * pad, midX = pad + sideW + gap;
+  const rowH = 24, hdrH = 42;
+  const boxH = who => hdrH + Math.max(3, sc[who].length) * rowH + 8;
+  const chanH = 66;
+  const pubH = hdrH + Math.max(1, sc.pub.length) * rowH + 8, eveH = hdrH + Math.max(1, sc.eve.length) * rowH + 8;
+  const H = Math.max(boxH("alice"), boxH("bob"), chanH + pubH + 10 + eveH) + 2 * pad;
+  svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+
+  function box(who, x, y, w, h, keys) {
+    const g = svgEl("g", {}, svg);
+    svgEl("rect", { x, y, width: w, height: h, rx: 5, class: "box " + who }, g);
+    txt(g, x + 12, y + 20, WHO_NAME[who], "boxhd " + who);
+    txt(g, x + 12, y + 35, WHO_SUB[who], "boxsub");
+    if (!keys.length) txt(g, x + 12, y + hdrH + 16, who === "eve" ? "nothing yet" : "—", "empty");
+    keys.forEach((k, i) => {
+      const v = V[k]; if (!v) return;
+      const ry = y + hdrH + i * rowH;
+      const row = svgEl("g", { class: "vrow" + (sc.hot.includes(k) ? " hot" : "") + (sc.hot.includes(k) && prevCur === cur - 1 ? " fresh" : "") }, g);
+      svgEl("rect", { x: x + 6, y: ry + 1, width: w - 12, height: rowH - 2, rx: 3, class: "vhl" }, row);
+      const nameT = txt(row, x + 12, ry + 17, v.label + (v.secret ? " 🔒" : ""), "vname");
+      if (v.secret) nameT.textContent = v.label; // lock drawn separately
+      const nx = x + 12 + (v.label.length > 1 ? 30 : 20);
+      txt(row, nx, ry + 17, "= " + valueText(v), "vval" + (v.secret ? " secret" : ""));
+      if (v.secret) txt(row, x + w - 20, ry + 17, "\uD83D\uDD12\uFE0E", "lock");
+      const hit = svgEl("rect", { x: x + 6, y: ry + 1, width: w - 12, height: rowH - 2, class: "hit" }, row);
+      hit.dataset.key = k;
+      hit.addEventListener("mousemove", ev => showTip(ev, k));
+      hit.addEventListener("mouseleave", hideTip);
+    });
+  }
+  const ay = pad, aliceX = pad, bobX = W - pad - sideW;
+  box("alice", aliceX, ay, sideW, boxH("alice"), sc.alice);
+  box("bob", bobX, ay, sideW, boxH("bob"), sc.bob);
+  // channel band
+  const cy = pad + chanH / 2;
+  svgEl("line", { x1: aliceX + sideW + 2, y1: cy, x2: bobX - 2, y2: cy, class: "chan" }, svg);
+  box("pub", midX, pad + chanH, midW, pubH, sc.pub);
+  box("eve", midX, pad + chanH + pubH + 10, midW, eveH, sc.eve);
+  // messages in flight
+  const msgs = sc.msg ? (Array.isArray(sc.msg) ? sc.msg : [sc.msg]) : [];
+  msgs.forEach((m, i) => {
+    const v = V[m.key], label = v.label + " = " + valueText(v);
+    const w = Math.max(80, label.length * 7.6 + 18), h = 22;
+    const fromX = m.from === "alice" ? aliceX + sideW + 4 : bobX - 4, toX = m.to === "bob" ? bobX - 4 : aliceX + sideW + 4;
+    const dir = toX > fromX ? 1 : -1;
+    const x0 = fromX + dir * (w / 2 + 4), x1 = toX - dir * (w / 2 + 10);      // the envelope stays on the wire
+    const yOff = msgs.length > 1 ? (i === 0 ? -15 : 15) : 0;
+    svgEl("line", { x1: fromX, y1: cy + yOff, x2: toX - dir * 6, y2: cy + yOff, class: "arrow " + m.from, "marker-end": "url(#arr-" + m.from + ")" }, svg);
+    const g = svgEl("g", { class: "msggrp nojump" }, svg);
+    svgEl("rect", { x: -w / 2, y: -h / 2, width: w, height: h, rx: 4, class: "envelope" }, g);
+    svgEl("path", { d: "M" + (-w / 2) + " " + (-h / 2) + " L0 -5 L" + (w / 2) + " " + (-h / 2), fill: "none", stroke: "var(--wi-border)", "stroke-width": 1 }, g);
+    txt(g, 0, 5, label, "envlab");
+    const place = t => { const x = x0 + (x1 - x0) * t; g.setAttribute("transform", "translate(" + x.toFixed(1) + "," + (cy + yOff) + ")"); };
+    if (prevCur === cur - 1) { place(0); void g.getBBox(); requestAnimationFrame(() => { g.classList.remove("nojump"); place(1); }); }
+    else { g.classList.remove("nojump"); place(1); }
+  });
+  // arrow markers
+  const defs = svgEl("defs", {}, svg);
+  for (const who of ["alice", "bob"]) {
+    const mk = svgEl("marker", { id: "arr-" + who, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 8, markerHeight: 8, orient: "auto-start-reverse" }, defs);
+    svgEl("path", { d: "M0 0 L10 5 L0 10 z", fill: "var(--" + who + ")" }, mk);
+  }
+}
+
+/* ---- the arithmetic panel ---- */
+function rowState(i, upto) { return i < upto ? "done" : i === upto ? "cur" : "todo"; }
+function renderWork(step) {
+  const w = step.work || {}, box = el("work");
+  let h = "", meta = "";
+  switch (w.kind) {
+    case "lines":
+      h = '<div class="lines">' + w.lines.map(l => '<div class="line' + (l.cur ? " cur" : "") + '">' + l.h + "</div>").join("") + "</div>";
+      break;
+    case "trial": {
+      meta = "is " + w.name + " = " + w.n + " prime?";
+      h = "<table><tr><th>divisor</th><th>" + esc(w.name) + " = q · divisor + remainder</th><th>remainder</th></tr>" +
+          w.T.rows.map((r, i) => '<tr class="' + rowState(i, w.upto) + (i <= w.upto ? (r.r === 0n ? " bad" : " ok") : "") + '"><td>' + r.d + "</td><td>" + w.n + " = " + r.q + " · " + r.d + " + " + r.r + '</td><td class="res">' + r.r + "</td></tr>").join("") +
+          "</table><div class=\"chiplab\">only primes up to " + M("\\sqrt{" + TX(w.name) + "} \\approx " + w.T.lim) + " need to be tried" +
+          (w.upto === w.T.rows.length - 1 ? " — <b>" + esc(w.name) + " is prime</b>" : "") + "</div>";
+      break;
+    }
+    case "primegen": {
+      meta = w.name + " has " + digits(w.n) + " digits";
+      if (w.trace) {
+        const tr = w.trace.tried, shown = tr.slice(0, 10), nRej = w.trace.rejected != null ? w.trace.rejected : tr.length;
+        h += "<div class=\"chiplab\">candidates rejected" + (w.trace.note ? " — " + w.trace.note : "") + "</div><table><tr><th>#</th><th>candidate</th><th>why rejected</th></tr>" +
+             shown.map((t, i) => "<tr class=\"done bad\"><td>" + (i + 1) + "</td><td>" + t.c + "</td><td class=\"txt\">" + esc(t.why) + "</td></tr>").join("") +
+             (nRej > shown.length ? "<tr class=\"done\"><td colspan=3 class=\"txt\">… and " + (nRej - shown.length) + " more</td></tr>" : "") +
+             "<tr class=\"" + (w.upto === -2 ? "cur" : "done") + " ok\"><td>" + (nRej + 1) + "</td><td>" + w.n + "</td><td class=\"txt res\">no small divisor → test properly</td></tr></table>";
+      } else {
+        h += "<div class=\"line" + (w.upto === -2 ? " cur" : "") + "\">" + M(TX(w.name)) + " = " + N(w.n) + "</div>";
+      }
+      h += "<div class=\"chiplab\" style=\"margin-top:10px\">Fermat check: " + M("a^{" + TX(w.name) + "-1} \\bmod " + TX(w.name) + " = 1") + " must hold</div><table><tr><th>base " + M("a") + "</th><th>" + M("a^{" + TX(w.name) + "-1} \\bmod " + TX(w.name)) + "</th><th></th></tr>" +
+           w.W.map((x, i) => "<tr class=\"" + rowState(i, w.upto) + (i <= w.upto ? (x.val === 1n ? " ok" : " bad") : "") + "\"><td>" + x.a + "</td><td>" + x.val + "</td><td class=\"res\">" + (i <= w.upto ? (x.val === 1n ? "✓" : "✗") : "") + "</td></tr>").join("") + "</table>";
+      break;
+    }
+    case "phigrid": {
+      meta = "1 … n in rows of p";
+      h = '<canvas id="phiCanvas"></canvas><div class="legend"><span class="item"><span class="sw" style="background:#d9b04a"></span> multiples of p (' + w.q + ')</span><span class="item"><span class="sw" style="background:#3f8b82"></span> multiples of q (' + w.p + ')</span><span class="item"><span class="sw" style="background:#902015"></span> n itself</span><span class="item"><span class="sw" style="background:#fcf9f3"></span> shares no factor with n: ' + w.phi + '</span></div>';
+      break;
+    }
+    case "euclid": {
+      meta = "gcd(" + w.an + ", " + w.bn + ") with " + w.bn + " = " + w.b;
+      h = "<table><tr><th>a = q · b + r</th><th>remainder</th></tr>" +
+          w.R.rows.map((r, i) => '<tr class="' + rowState(i, w.upto) + '"><td>' + r.a + " = " + r.q + " · " + r.b + " + " + r.r + '</td><td class="res">' + r.r + "</td></tr>").join("") +
+          "</table>" + (w.upto === w.R.rows.length - 1 ? '<div class="chiplab">' + M("\\gcd") + " = last non-zero remainder = <b>" + w.R.g + "</b>" + (w.R.g === 1n ? " ✓" : " ✗") + "</div>" : "");
+      break;
+    }
+    case "ext": {
+      meta = "every remainder as s·φ + t·e";
+      h = "<table><tr><th>row</th><th>" + M("q") + "</th><th>" + M("r") + "</th><th>" + M("s") + "</th><th>" + M("t") + "</th><th>check " + M("r = s " + TX("φ") + " + t e") + "</th></tr>" +
+          w.X.rows.map((r, i) => '<tr class="' + (i < w.upto ? "done" : i === w.upto ? "cur" : "todo") + '"><td>' + i + "</td><td>" + (r.q == null ? "—" : r.q) + "</td><td>" + r.r + "</td><td>" + r.s + "</td><td>" + r.t + "</td><td class=\"txt\">" +
+            (i <= w.upto ? r.s + "·φ + " + r.t + "·e = " + r.r + " ✓" : "") + "</td></tr>").join("") + "</table>" +
+          (w.upto === w.X.rows.length - 1 ? '<div class="chiplab">1 = ' + w.X.rows[w.X.rows.length - 1].s + "·φ + " + w.X.rows[w.X.rows.length - 1].t + "·e &nbsp;⇒&nbsp; " + M("d") + " = " + w.X.d + "</div>" : "");
+      break;
+    }
+    case "encode": {
+      const bl = w.blocks[0];
+      meta = w.bb + " byte" + (w.bb > 1 ? "s" : "") + " per block · n has " + digits(w.n) + " digits";
+      if (bl.bytes) {
+        h = "<div class=\"chiplab\">" + (w.blocks.length > 1 ? "block 1: " : "") + esc(JSON.stringify(bl.text)) + (w.reverse ? " — reading the base-256 digits back" : "") + "</div>" +
+            "<table><tr><th>character</th><th>code</th><th>place</th><th>value</th></tr>" +
+            bl.bytes.map((x, i) => "<tr class=\"" + (w.upto >= 0 ? "done" : "todo") + "\"><td>" + esc(x.ch === " " ? "␣" : x.ch) + "</td><td>" + x.b + "</td><td>256" + sup(bl.bytes.length - 1 - i) + "</td><td>" + (B(x.b) << B(8 * (bl.bytes.length - 1 - i))) + "</td></tr>").join("") +
+            "<tr class=\"" + (w.upto >= 0 ? "cur" : "todo") + "\"><td class=\"txt\" colspan=3>m = sum</td><td>" + bl.m + "</td></tr></table>";
+        if (w.blocks.length > 1) h += "<div class=\"chiplab\" style=\"margin-top:8px\">all blocks</div><table><tr><th>#</th><th>text</th><th>" + M("m") + "</th></tr>" +
+            w.blocks.map((b, i) => "<tr class=\"" + (w.upto >= 0 ? "done" : "todo") + "\"><td>" + (i + 1) + "</td><td class=\"txt\">" + esc(JSON.stringify(b.text)) + "</td><td>" + b.m + "</td></tr>").join("") + "</table>";
+      }
+      break;
+    }
+    case "pow": {
+      const P = w.P, nb = P.bits.length;
+      meta = w.xName + "^" + w.kName + " mod " + w.nName + " · " + nb + " binary digits";
+      h = '<div class="chiplab">' + esc(w.kName) + " in binary</div><div class=\"bits\">" +
+          P.bits.split("").map((b, i) => '<span class="bit ' + (i < w.upto ? "done" : i === w.upto ? "on" : "todo") + '">' + b + "</span>").join("") + "</div>" +
+          '<div class="chiplab" style="margin-top:8px">r after each digit</div>';
+      h += P.rows.map((r, i) => {
+        const st = rowState(i, w.upto), first = i === 0;
+        return '<div class="prow ' + st + '" data-row="' + i + '"><div class="hd"><span>digit ' + r.i + ' = <b>' + (r.bit ? 1 : 0) + "</b></span><span class=\"expo\">r = " + esc(w.xName) + sup(r.bit ? r.exMul : r.exSq) + " mod " + esc(w.nName) + "</span></div>" +
+               (first ? '<div class="sub">r = 1' + (r.bit ? " → r · " + esc(w.xName) + " = <b>" + r.rmul + "</b>" : "") + "</div>" :
+                 '<div class="sub">r² = ' + r.rin + "² = " + r.sq + " → mod " + esc(w.nName) + " = <b>" + r.rsq + "</b></div>" +
+                 (r.bit ? '<div class="sub">· ' + esc(w.xName) + " = " + r.prod + " → mod " + esc(w.nName) + " = <b>" + r.rmul + "</b></div>" : "")) + "</div>";
+      }).join("");
+      if (w.upto === P.rows.length - 1) h += '<div class="chiplab" style="margin-top:8px">result: ' + esc(w.resName) + " = <b>" + P.result + "</b></div>";
+      break;
+    }
+    case "blocks": {
+      meta = w.blocks.length + " blocks";
+      h = "<table><tr><th>#</th><th>text</th><th>" + M("m") + "</th><th>" + M("c = m^e \\bmod n") + "</th>" + (w.stage === "dec" ? "<th>" + M("c^d \\bmod n") + "</th>" : "") + "</tr>" +
+          w.blocks.map((b, i) => "<tr class=\"" + (i === 0 ? "done" : "cur") + "\"><td>" + (i + 1) + "</td><td class=\"txt\">" + esc(JSON.stringify(b.text)) + "</td><td>" + b.m + "</td><td>" + b.c + "</td>" + (w.stage === "dec" ? "<td>" + b.m2 + "</td>" : "") + "</tr>").join("") + "</table>";
+      break;
+    }
+    case "shuffle": {
+      meta = "a·i mod " + w.pName + " for i = 1 … " + w.pName + "−1";
+      if (w.small) {
+        const p = Number(w.p), m = Number(w.m), hue = v => "hsl(" + Math.round(360 * (v - 1) / (p - 1)) + " 55% 78%)";
+        const chips = f => Array.from({ length: p - 1 }, (_, i) => { const v = f(i + 1); return '<span class="chip" style="background:' + hue(v) + '">' + v + "</span>"; }).join("");
+        h = '<div class="chiplab">i = 1 … ' + (p - 1) + '</div><div class="chips">' + chips(i => i) + '</div>' +
+            '<div class="chiplab">' + m + ' · i mod ' + p + '</div><div class="chips">' + chips(i => (m * i) % p) + '</div>' +
+            '<div class="chiplab">same colours, shuffled: every remainder 1 … ' + (p - 1) + ' appears exactly once</div>';
+      } else {
+        h = '<div class="lines"><div class="line">1, 2, 3, …, ' + w.pName + '−1</div><div class="line">a·1, a·2, a·3, …, a·(' + w.pName + '−1) &nbsp;<span class="t">each taken mod ' + w.pName + '</span></div>' +
+            '<div class="line cur"><span class="t">the second list is a shuffle of the first — ' + (Number(w.p) - 1).toString().length + '-digit lists, so we argue instead of drawing</span></div></div>';
+      }
+      break;
+    }
+    case "evetrial": {
+      meta = "trial division of n = " + w.n;
+      h = "<table><tr><th>divisor</th><th>n mod divisor</th></tr>" + w.rows.map((r, i) => '<tr class="' + rowState(i, w.upto) + (i <= w.upto ? (r.r === 0n ? " ok" : "") : "") + '"><td>' + r.d + '</td><td class="res">' + r.r + (i <= w.upto && r.r === 0n ? " — a factor!" : "") + "</td></tr>").join("") + "</table>";
+      break;
+    }
+    case "powers": {
+      const p = Number(w.p), hue = v => "hsl(" + Math.round(360 * (v - 1) / (p - 1)) + " 55% 78%)";
+      meta = "g^x mod p for x = 1 … p−1";
+      h = '<div class="chiplab">' + M("g^1, g^2, \\dots, g^{p-1} \\bmod p") + '</div><div class="chips">' + w.pw.map(v => '<span class="chip" style="background:' + hue(Number(v)) + '">' + v + "</span>").join("") + "</div>" +
+          '<div class="chiplab">' + new Set(w.pw.map(String)).size + " different values out of " + (p - 1) + "</div>";
+      break;
+    }
+    case "dlog": {
+      meta = "looking for x with g^x mod p = A = " + w.A;
+      h = "<table><tr><th>" + M("x") + "</th><th>" + M("g^x \\bmod p") + "</th><th></th></tr>" + w.rows.map((r, i) => '<tr class="' + rowState(i, w.upto) + (i <= w.upto ? (r.v === w.A ? " ok" : "") : "") + '"><td>' + r.x + "</td><td>" + r.v + '</td><td class="res">' + (i <= w.upto ? (r.v === w.A ? "= A ✓" : "≠ A") : "") + "</td></tr>").join("") + "</table>";
+      break;
+    }
+    default:
+      h = '<div class="placeholder">—</div>';
+  }
+  box.innerHTML = h;
+  el("workMeta").innerHTML = meta;
+  if (w.kind === "phigrid") drawPhiGrid(w);
+  const c = box.querySelector(".cur, .prow.cur, tr.cur, .line.cur");
+  if (c && c.scrollIntoView) c.scrollIntoView({ block: "nearest" });
+}
+function drawPhiGrid(w) {
+  const cv = el("phiCanvas"), p = Number(w.p), q = Number(w.q), n = p * q;
+  const maxW = el("work").clientWidth - 4, cell = Math.max(2, Math.min(9, Math.floor(maxW / p)));
+  cv.width = cell * p; cv.height = cell * q;
+  cv.style.width = cv.width + "px"; cv.style.height = cv.height + "px";
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = "#fcf9f3"; ctx.fillRect(0, 0, cv.width, cv.height);
+  for (let k = 1; k <= n; k++) {
+    const r = Math.floor((k - 1) / p), c = (k - 1) % p;
+    let col = null;
+    if (k === n) col = "#902015"; else if (k % p === 0) col = "#d9b04a"; else if (k % q === 0) col = "#3f8b82";
+    if (col) { ctx.fillStyle = col; ctx.fillRect(c * cell, r * cell, cell - (cell > 3 ? 1 : 0), cell - (cell > 3 ? 1 : 0)); }
+  }
+}
+
+function renderStatus(step) {
+  el("statusBox").innerHTML = step.txt || "";
+  el("phaseName").textContent = (story.phases[step.ph] ? story.phases[step.ph].name : "") + " · " + (step.title || "");
+}
+function renderCode(step) {
+  const code = tab === "rsa" ? CODE_RSA : CODE_DH, on = new Set(step.code || []);
+  el("codeBody").innerHTML = code.map(l => l.sub ? '<div class="sublabel">' + l.sub + "</div>" :
+    '<div class="cline' + (on.has(l.id) ? " on" : "") + '"><span class="ln"></span><span>' + l.t + "</span></div>").join("");
+  el("codeMeta").textContent = tab === "rsa" ? "RSA" : "Diffie–Hellman";
+  el("codeNote").innerHTML = "<b>Notation.</b> <code>x mod n</code> is the remainder of x divided by n; <code>←</code> assigns; " +
+    (tab === "rsa" ? "GCD, FIND-D and POWER are the three sub-recipes below the main one. The recipe is the classic textbook RSA; real systems add random padding to each block (see the Eve phase)." :
+                     "POWER is the same repeated-squaring recipe as on the RSA tab. In practice s is fed into a fast cipher; the exchange itself is exactly this.");
+}
+function renderPhases() {
+  const bar = el("phaseBar"); bar.innerHTML = "";
+  story.phases.forEach(p => {
+    const span = p.to - p.from + 1;
+    const pct = cur > p.to ? 100 : cur < p.from ? 0 : ((cur - p.from + 1) / span) * 100;
+    const b = document.createElement("button");
+    b.className = "phasebtn" + (cur >= p.from && cur <= p.to ? " on" : (cur > p.to ? " past" : ""));
+    b.style.flexGrow = String(Math.max(6, Math.pow(span, 0.3) * 4));   // compressed scaling: long exponentiations must not squash the rest
+    b.innerHTML = '<span class="fill' + (pct === 0 ? " empty" : "") + '" style="width:' + pct.toFixed(2) + '%"></span><span class="lab">' + esc(p.name) + "</span>";
+    b.title = p.name + " — steps " + (p.from + 1) + "–" + (p.to + 1);
+    b.addEventListener("click", () => { stopPlay(); cur = p.from; render(); });
+    bar.appendChild(b);
+  });
+}
+function typeset(nodes) {
+  if (!(window.MathJax && MathJax.typesetPromise)) return;
+  try { MathJax.typesetClear(nodes); } catch (e) {}
+  MathJax.typesetPromise(nodes).catch(() => {});
+}
+function render() {
+  if (!story) return;
+  const st = story.steps[cur];
+  renderScene(st); renderWork(st); renderStatus(st); renderPhases();
+  if (window.innerWidth > 760) renderCode(st);
+  typeset([el("statusBox"), el("work")]);
+  el("scrubber").max = String(Math.max(0, story.steps.length - 1));
+  el("scrubber").value = String(cur);
+  el("stepNo").textContent = (cur + 1) + " / " + story.steps.length;
+  el("backBtn").disabled = cur <= 0;
+  el("stepBtn").disabled = cur >= story.steps.length - 1;
+  prevCur = cur;
+}
+
+/* ---- tooltips on the scene ---- */
+function showTip(ev, key) {
+  const v = story.vals[key]; if (!v) return;
+  const t = el("tooltip");
+  const whoName = { alice: "Alice", bob: "Bob", pub: "public", eve: "Eve" }[v.who];
+  t.innerHTML = '<span class="tt-h">' + esc(v.label) + "</span> <span class=\"tt-s\">" + (v.secret ? "secret · " : "") + esc(whoName) +
+                (v.isText ? "" : " · " + digits(v.value == null ? "" : v.value) + " digits") + "</span>" + N(v.isText ? v.value : (v.value == null ? "?" : v.value));
+  t.style.display = "block";
+  const x = Math.min(ev.clientX + 14, window.innerWidth - t.offsetWidth - 10);
+  const y = Math.min(ev.clientY + 16, window.innerHeight - t.offsetHeight - 10);
+  t.style.left = x + "px"; t.style.top = y + "px";
+}
+function hideTip() { el("tooltip").style.display = "none"; }
+
+/* =====================================================================
+   Transport
+   ===================================================================== */
+const PLAY = "\u25B6\uFE0E", PAUSE = "\u23F8\uFE0E";
+function stepFwd() { if (cur < story.steps.length - 1) { cur++; render(); } else stopPlay(); }
+function stepBack() { if (cur > 0) { cur--; render(); } }
+function stopPlay() {
+  if (timer) { clearInterval(timer); timer = null; el("playBtn").textContent = PLAY; el("playBtn").setAttribute("aria-label", "Play"); }
+}
+function togglePlay() {
+  if (timer) { stopPlay(); return; }
+  el("playBtn").textContent = PAUSE; el("playBtn").setAttribute("aria-label", "Pause");
+  timer = setInterval(stepFwd, Number(el("speed").value));
+}
+
+/* =====================================================================
+   Instances: presets, random generation, input parsing
+   ===================================================================== */
+const SMALL_PRIME_POOL = SMALL_PRIMES.filter(x => x >= 17 && x <= 199);
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function primeFactors(n) { const f = []; let d = 2n; while (d * d <= n) { if (n % d === 0n) { f.push(d); while (n % d === 0n) n /= d; } d++; } if (n > 1n) f.push(n); return f; }
+function isGenerator(g, p) { const fs = primeFactors(p - 1n); return fs.every(r => modpow(g, (p - 1n) / r, p) !== 1n); }
+
+function randomRSA(sz, bits) {
+  bits = bits || 128;
+  if (sz === "small") {
+    const p = B(pick(SMALL_PRIME_POOL)); let q; do q = B(pick(SMALL_PRIME_POOL)); while (q === p);
+    const phi = (p - 1n) * (q - 1n), cands = shuffle([3, 5, 7, 11, 13, 17, 19, 23, 29, 31]).map(B);
+    const e = cands.find(c => gcd(phi, c) === 1n), bad = cands.filter(c => gcd(phi, c) !== 1n);
+    // at most one failed attempt is kept for the story
+    return { p, q, e, eTries: bad.length && Math.random() < 0.7 ? [bad[0]] : [], small: true,
+             msg: { kind: "text", value: pick(["HI", "OK", "GO", "NO", "YES", "MEET", "RUN"]) } };
+  }
+  const T1 = randPrimeTrace(bits); let T2, phi;
+  do { T2 = randPrimeTrace(bits, T1.p); phi = (T1.p - 1n) * (T2.p - 1n); } while (gcd(phi, 65537n) !== 1n);
+  return { p: T1.p, q: T2.p, e: 65537n, eTries: [], small: false, pTrace: T1, qTrace: T2, msg: { kind: "text", value: "Meet at the old bridge at noon." } };
+}
+function randSafePrimeTrace(bits) {
+  const tried = []; let rejected = 0;
+  for (;;) {
+    const qq = randBits(bits - 1), p = 2n * qq + 1n;
+    const d = smallDivisor(p);
+    if (d) { rejected++; if (tried.length < 10) tried.push({ c: p, why: "divisible by " + d }); continue; }
+    if (!isProbablePrime(p)) { rejected++; if (tried.length < 10) tried.push({ c: p, why: "fails the Fermat check" }); continue; }
+    if (!isProbablePrime(qq)) { rejected++; if (tried.length < 10) tried.push({ c: p, why: "prime, but (p−1)/2 is not" }); continue; }
+    return { p, tried, rejected, note: "we also insist that (p−1)/2 is prime" };
+  }
+}
+function randomDH(sz, bits) {
+  bits = bits || 128;
+  if (sz === "small") {
+    const p = B(pick(SMALL_PRIMES.filter(x => x >= 23 && x <= 199)));
+    const gens = []; for (let g = 2n; g < p; g++) if (isGenerator(g, p)) gens.push(g);
+    const g = pick(gens.filter(x => x < 20n).length ? gens.filter(x => x < 20n) : gens);
+    const a = 2n + randBelow(p - 4n), b = 2n + randBelow(p - 4n);
+    return { p, g, a, b, small: true, gGen: true };
+  }
+  const tr = randSafePrimeTrace(bits), p = tr.p, qq = (p - 1n) / 2n;
+  let g = 2n; while (modpow(g, 2n, p) === 1n || modpow(g, qq, p) === 1n) g++;
+  return { p, g, a: 2n + randBelow(p - 4n), b: 2n + randBelow(p - 4n), small: false, pTrace: tr, gGen: true };
+}
+const FIXED = {
+  rsaP: 328127429179579057277157689004559378097n, rsaQ: 256753511767470532096513971051045366697n,
+  dhP: 205965519934475736268951254238018607903n, dhG: 5n,
+  dhA: 143221709877350063110268462539290130927n, dhB: 90735184623006159431271735421146284581n,
+};
+const PRESETS = {
+  rsa: {
+    small: [
+      { name: "Textbook: p = 61, q = 53, e = 17, m = 65", make: () => ({ p: 61n, q: 53n, e: 17n, eTries: [], small: true, msg: { kind: "num", value: 65n } }) },
+      { name: "Two letters: p = 61, q = 53, e = 17, \"HI\"", make: () => ({ p: 61n, q: 53n, e: 17n, eTries: [], small: true, msg: { kind: "text", value: "HI" } }) },
+      { name: "A failed e first: p = 47, q = 71, e = 7 then 11", make: () => ({ p: 47n, q: 71n, e: 11n, eTries: [7n], small: true, msg: { kind: "text", value: "OK" } }) },
+      { name: "Random small", make: () => randomRSA("small") },
+    ],
+    large: [
+      { name: "Fixed 39-digit primes, e = 65537, a sentence", make: () => ({ p: FIXED.rsaP, q: FIXED.rsaQ, e: 65537n, eTries: [], small: false, msg: { kind: "text", value: "Meet at the old bridge at noon." } }) },
+      { name: "Random large (128-bit primes)", make: () => randomRSA("large") },
+    ],
+  },
+  dh: {
+    small: [
+      { name: "Textbook: p = 23, g = 5, a = 6, b = 15", make: () => ({ p: 23n, g: 5n, a: 6n, b: 15n, small: true, gGen: true }) },
+      { name: "Random small", make: () => randomDH("small") },
+    ],
+    large: [
+      { name: "Fixed 39-digit safe prime, g = 5", make: () => ({ p: FIXED.dhP, g: FIXED.dhG, a: FIXED.dhA, b: FIXED.dhB, small: false, gGen: true }) },
+      { name: "Random large (128-bit safe prime)", make: () => randomDH("large") },
+    ],
+  },
+};
+
+function paramsToText(P) {
+  if (tab === "rsa") return "# RSA — lines are  name = value;  # starts a comment\np = " + P.p + "\nq = " + P.q + "\ne = " + P.e +
+    (P.eTries && P.eTries.length ? "\ntry = " + P.eTries.join(", ") + "      # exponents Bob tries first (for the story)" : "") +
+    "\nmessage = " + (P.msg.kind === "text" ? JSON.stringify(P.msg.value) : String(P.msg.value)) + "\n";
+  return "# Diffie–Hellman — lines are  name = value;  # starts a comment\np = " + P.p + "\ng = " + P.g + "\na = " + P.a + "\nb = " + P.b + "\n";
+}
+function parseInput(text) {
+  const kv = {};
+  for (let line of text.split("\n")) {
+    line = line.replace(/#.*$/, "").trim(); if (!line) continue;
+    const m = line.match(/^([A-Za-z_]+)\s*[=:]\s*(.*)$/); if (!m) throw new Error("cannot read the line: " + line);
+    kv[m[1].toLowerCase()] = m[2].trim();
+  }
+  const big = (k, opt) => {
+    if (kv[k] == null || kv[k] === "") { if (opt) return null; throw new Error(k + " is missing"); }
+    if (!/^\d+$/.test(kv[k])) throw new Error(k + " must be a whole number");
+    return B(kv[k]);
+  };
+  const bits = kv.bits ? Number(kv.bits) : null;
+  if (bits != null && !(bits >= 24 && bits <= 1024)) throw new Error("bits must be between 24 and 1024");
+  const rsz = bits ? "large" : size;
+  if (tab === "rsa") {
+    const R = randomRSA(rsz, bits);
+    let p = big("p", true), q = big("q", true), e = big("e", true);
+    if (p == null) p = R.p; if (q == null) q = R.q;
+    if (!isProbablePrime(p)) throw new Error("p = " + p + " is not prime");
+    if (!isProbablePrime(q)) throw new Error("q = " + q + " is not prime");
+    if (p === q) throw new Error("p and q must be different");
+    const phi = (p - 1n) * (q - 1n), n = p * q;
+    if (e == null) { e = 65537n; if (gcd(e, phi) !== 1n || e >= phi) { e = null; for (const c of [3n, 5n, 7n, 11n, 13n, 17n, 19n, 23n]) if (c < phi && gcd(c, phi) === 1n) { e = c; break; } } }
+    if (e <= 1n || e >= phi) throw new Error("e must be between 1 and φ = " + phi);
+    if (gcd(e, phi) !== 1n) throw new Error("e = " + e + " shares the factor " + gcd(e, phi) + " with φ = " + phi + " — choose another e");
+    const eTries = (kv.try || "").split(/[,\s]+/).filter(Boolean).map(x => { if (!/^\d+$/.test(x)) throw new Error("try: must be numbers"); return B(x); }).filter(x => x !== e);
+    let msg;
+    const raw = kv.message == null ? kv.m : kv.message;
+    if (raw == null || raw === "") msg = R.msg;
+    else msg = parseMessage(raw);
+    checkMessage(msg, n);
+    const small = p < 1000000n && q < 1000000n;
+    return { p, q, e, eTries, small, msg, pTrace: null, qTrace: null };
+  }
+  const R = randomDH(rsz, bits);
+  let p = big("p", true), g = big("g", true), a = big("a", true), b = big("b", true);
+  if (p == null) p = R.p;
+  if (!isProbablePrime(p)) throw new Error("p = " + p + " is not prime");
+  if (p < 5n) throw new Error("p is too small");
+  const small = p < 1000000n;
+  if (g == null) { if (small) { g = 2n; while (!isGenerator(g, p)) g++; } else { g = R.g; if (p !== R.p) { g = 2n; } } }
+  if (g <= 1n || g >= p) throw new Error("g must be between 1 and p");
+  if (a == null) a = 2n + randBelow(p - 4n); if (b == null) b = 2n + randBelow(p - 4n);
+  if (a < 1n || a >= p - 1n || b < 1n || b >= p - 1n) throw new Error("a and b must be between 1 and p − 2");
+  let gGen = null;
+  if (small) gGen = isGenerator(g, p);
+  else { const qq = (p - 1n) / 2n; gGen = isProbablePrime(qq) && modpow(g, 2n, p) !== 1n && modpow(g, qq, p) !== 1n; if (!gGen) throw new Error("for large p this page needs a \"safe\" prime (p−1)/2 prime, and a base g with g² ≠ 1 and g^((p−1)/2) ≠ 1 mod p — try the Random button"); }
+  return { p, g, a, b, small, gGen, pTrace: null };
+}
+function parseMessage(raw) {
+  raw = raw.trim();
+  if (/^".*"$/.test(raw) || /^'.*'$/.test(raw)) return { kind: "text", value: raw.slice(1, -1) };
+  if (/^\d+$/.test(raw)) return { kind: "num", value: B(raw) };
+  return { kind: "text", value: raw };
+}
+function checkMessage(msg, n) {
+  if (msg.kind === "num") { if (msg.value >= n) throw new Error("the message number must be smaller than n = " + n); }
+  else { if (!msg.value.length) throw new Error("the message is empty"); if (n < 256n) throw new Error("n = " + n + " is too small to hold even one character (needs n ≥ 256) — choose bigger primes or a numeric message"); if (msg.value.length > 400) throw new Error("please keep the message under 400 characters"); }
+}
+
+/* =====================================================================
+   Wiring
+   ===================================================================== */
+function load(P) {
+  params = P;
+  story = tab === "rsa" ? buildRSA(P) : buildDH(P);
+  cur = 0; prevCur = -1; stopPlay();
+  el("inputText").value = paramsToText(P);
+  el("parseErr").textContent = "";
+  if (tab === "rsa") el("msgIn").value = P.msg.kind === "text" ? P.msg.value : String(P.msg.value);
+  el("sceneMeta").textContent = tab === "rsa" ? "n has " + digits(P.p * P.q) + " digits · " + story.steps.length + " steps" : "p has " + digits(P.p) + " digits · " + story.steps.length + " steps";
+  render();
+}
+function fillPresets() {
+  const sel = el("presetSel"); sel.innerHTML = "";
+  PRESETS[tab][size].forEach((p, i) => { const o = document.createElement("option"); o.value = i; o.textContent = p.name; sel.appendChild(o); });
+}
+function applyPreset(i) { const pr = PRESETS[tab][size][i]; if (pr) load(pr.make()); }
+function setTab(t) {
+  tab = t;
+  el("tabRSA").classList.toggle("on", t === "rsa"); el("tabDH").classList.toggle("on", t === "dh");
+  el("subtitleRSA").style.display = t === "rsa" ? "" : "none"; el("subtitleDH").style.display = t === "dh" ? "" : "none";
+  el("msgCtl").style.display = t === "rsa" ? "" : "none";
+  el("inputHint").innerHTML = t === "rsa"
+    ? "One <code>name = value</code> per line; <code>#</code> starts a comment. Names: <code>p</code>, <code>q</code> (primes), <code>e</code> (public exponent), <code>message</code> — either a number below <i>n</i> or text (quotes optional). " +
+      "Optionally <code>try = 5, 9</code> lists exponents Bob should try and reject first. Any value you leave out is drawn at random for the current size setting; <code>bits = 200</code> asks for random primes of that many binary digits instead. " +
+      "The page decides between the hand-checkable small treatment and the large treatment by the size of the primes (below one million counts as small). " +
+      "Text is split into blocks that each fit below <i>n</i>; the first block is followed in detail."
+    : "One <code>name = value</code> per line; <code>#</code> starts a comment. Names: <code>p</code> (prime), <code>g</code> (base), <code>a</code>, <code>b</code> (the two secrets). " +
+      "Leave out anything you want drawn at random (<code>bits = 160</code> sets the size of a random <i>p</i>). For large <i>p</i> the page expects a <i>safe</i> prime — (<i>p</i>−1)/2 prime as well — so that the explanation of the base stays elementary; the Random button produces one.";
+  fillPresets(); applyPreset(0);
+}
+function setSize(s) {
+  size = s;
+  el("sizeSmall").classList.toggle("on", s === "small"); el("sizeLarge").classList.toggle("on", s === "large");
+  fillPresets(); applyPreset(0);
+}
+
+/* splitter between the two columns; the position is remembered */
+(function splitter() {
+  const stage = el("stage"), sp = el("splitter"), KEY = "wi-rsa-dh-split";
+  const apply = f => { document.documentElement.style.setProperty("--split", (f / (1 - f)).toFixed(3) + "fr"); };
+  const saved = parseFloat(localStorage.getItem(KEY) || ""); if (saved > 0.2 && saved < 0.8) apply(saved);
+  let dragging = false;
+  sp.addEventListener("pointerdown", ev => { dragging = true; sp.classList.add("drag"); document.body.classList.add("dragging"); sp.setPointerCapture(ev.pointerId); });
+  sp.addEventListener("pointermove", ev => {
+    if (!dragging) return;
+    const r = stage.getBoundingClientRect(), f = Math.min(0.78, Math.max(0.24, (ev.clientX - r.left) / (r.width - 34)));
+    apply(f); localStorage.setItem(KEY, f.toFixed(3));
+  });
+  const end = () => { if (!dragging) return; dragging = false; sp.classList.remove("drag"); document.body.classList.remove("dragging"); if (story) renderScene(story.steps[cur]); };
+  sp.addEventListener("pointerup", end); sp.addEventListener("pointercancel", end);
+  sp.addEventListener("dblclick", () => { document.documentElement.style.removeProperty("--split"); localStorage.removeItem(KEY); if (story) renderScene(story.steps[cur]); });
+  let raf = null;
+  new ResizeObserver(() => { if (raf) return; raf = requestAnimationFrame(() => { raf = null; if (story) { const s = story.steps[cur]; renderScene(s); if (s.work && s.work.kind === "phigrid") drawPhiGrid(s.work); } }); }).observe(el("scene").parentElement);
+})();
+
+el("tabRSA").addEventListener("click", () => setTab("rsa"));
+el("tabDH").addEventListener("click", () => setTab("dh"));
+el("sizeSmall").addEventListener("click", () => setSize("small"));
+el("sizeLarge").addEventListener("click", () => setSize("large"));
+el("presetSel").addEventListener("change", ev => applyPreset(Number(ev.target.value)));
+el("randBtn").addEventListener("click", () => {
+  const list = PRESETS[tab][size], i = list.findIndex(p => /^Random/.test(p.name));
+  el("presetSel").value = String(i); applyPreset(i);
+});
+function applyMessage() {
+  try {
+    const msg = parseMessage(el("msgIn").value); checkMessage(msg, params.p * params.q);
+    load(Object.assign({}, params, { msg })); el("parseErr").textContent = "";
+    cur = story.phases.find(p => p.name === "Encode").from; render();
+  } catch (e) { el("parseErr").textContent = e.message; el("editorBox").open = true; el("parseErr").scrollIntoView({ block: "nearest" }); }
+}
+el("msgBtn").addEventListener("click", applyMessage);
+el("msgIn").addEventListener("keydown", ev => { if (ev.key === "Enter") applyMessage(); });
+el("loadBtn").addEventListener("click", () => {
+  try { load(parseInput(el("inputText").value)); } catch (e) { el("parseErr").textContent = e.message; }
+});
+el("resetBtn").addEventListener("click", () => { stopPlay(); cur = 0; render(); });
+el("backBtn").addEventListener("click", () => { stopPlay(); stepBack(); });
+el("stepBtn").addEventListener("click", () => { stopPlay(); stepFwd(); });
+el("playBtn").addEventListener("click", togglePlay);
+el("scrubber").addEventListener("input", ev => { stopPlay(); cur = Number(ev.target.value); render(); });
+el("speed").addEventListener("input", ev => { el("speedVal").textContent = ev.target.value + "ms"; if (timer) { clearInterval(timer); timer = setInterval(stepFwd, Number(ev.target.value)); } });
+document.addEventListener("keydown", ev => {
+  if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) return;
+  if (ev.key === "ArrowRight") { stopPlay(); stepFwd(); ev.preventDefault(); }
+  else if (ev.key === "ArrowLeft") { stopPlay(); stepBack(); ev.preventDefault(); }
+  else if (ev.key === "Home") { stopPlay(); cur = 0; render(); ev.preventDefault(); }
+  else if (ev.key === "End") { stopPlay(); cur = story.steps.length - 1; render(); ev.preventDefault(); }
+  else if (ev.key === " ") { togglePlay(); ev.preventDefault(); }
+});
+
+setTab("rsa");
+</script>
+</body>
+</html>

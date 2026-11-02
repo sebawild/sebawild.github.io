@@ -1,0 +1,3031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The chronogram method · Fredman–Saks, as an experiment</title>
+<style>
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#8d897c;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --cp-mono:ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    --side-w:460px;
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title,.wi-caption { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; margin:0 0 6px; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 16px; max-width:100ch; line-height:1.5; }
+  code, .mono { font-family:var(--cp-mono); font-size:.86em; }
+  .subtitle code, .hint code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.82em; }
+
+  /* --- control chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:11px 18px; margin-bottom:12px; }
+  .ctl { display:flex; align-items:center; gap:8px; }
+  .ctl > label, .lbl { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer; transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text; font-size:1.02rem; line-height:1.1;
+                padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  input[type=number] { width:4.2em; }
+  input[type=range] { accent-color:var(--wi-accent); cursor:pointer; vertical-align:middle; }
+  .seg { display:inline-flex; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:4px 10px; font-size:.78rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+
+  /* --- tabs --- */
+  .tabs { display:flex; flex-wrap:wrap; gap:0; margin:0 0 12px; border-bottom:1px solid var(--wi-border); }
+  .tabbtn { border:1px solid var(--wi-border-soft); border-bottom:0; border-radius:var(--wi-radius) var(--wi-radius) 0 0;
+            margin-right:4px; padding:7px 14px 6px; font-size:.82rem; background:var(--wi-controls); color:var(--wi-ink-soft); }
+  .tabbtn.on { background:var(--wi-panel); color:var(--wi-accent); border-color:var(--wi-border);
+               font-weight:bold; position:relative; top:1px; }
+  .tabbtn:disabled { opacity:.45; }
+  .tabbtn .no { font-family:var(--wi-font-body); margin-right:5px; }
+
+  /* --- transport --- */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:16px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; --thumb:8px; }
+  .progress input[type=range] { display:block; width:100%; margin:0; }
+  .stepno { font-family:var(--cp-mono); font-size:.76rem; color:var(--wi-ink-faint); white-space:nowrap; text-align:right; padding-top:4px; }
+  .phasebar { display:flex; margin:5px var(--thumb) 0; width:calc(100% - var(--thumb) - var(--thumb)); }
+  .phasebtn { position:relative; overflow:hidden; flex-grow:1; flex-basis:0; min-width:0; padding:3px 4px;
+              font-size:.68rem; line-height:1.3; font-family:var(--wi-font-head); letter-spacing:.03em;
+              background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-left-width:0;
+              border-radius:0; color:var(--wi-ink-faint); cursor:pointer; text-overflow:ellipsis; white-space:nowrap; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3;
+                    border-right:1px solid var(--wi-accent-soft); transition:width .12s linear; }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+
+  /* --- stage with draggable splitter --- */
+  .stage { display:grid; grid-template-columns:minmax(0,1fr) 12px minmax(300px,var(--side-w)); gap:0; align-items:start; }
+  .splitter { align-self:stretch; cursor:col-resize; position:relative; touch-action:none; }
+  .splitter::before { content:""; position:absolute; left:5px; top:0; bottom:0; width:2px; border-radius:1px;
+                      background:var(--wi-border-soft); transition:background .15s; }
+  .splitter:hover::before, .splitter.drag::before { background:var(--wi-accent-soft); }
+  @media (max-width:1000px) { .stage { grid-template-columns:1fr; } .splitter { display:none; } .col-side { margin-top:14px; } }
+  .col-main, .col-side { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); padding:12px 15px; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--wi-ink-faint); margin:0 0 8px;
+               display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--cp-mono); font-size:.92em; color:var(--wi-ink-soft); }
+  svg.stagesvg { display:block; background:var(--wi-bg); border-radius:var(--wi-radius); touch-action:manipulation; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 14px; margin:2px 0 8px; font-size:.74rem; color:var(--wi-ink-soft); }
+  .legend .item { display:flex; align-items:center; gap:5px; }
+  .sw { width:.9em; height:.9em; border-radius:2px; border:1px solid rgba(0,0,0,.25); display:inline-block; }
+  .sw.hatch { background:repeating-linear-gradient(45deg,#fff 0 2px,transparent 2px 5px), var(--c,#999); }
+  .dsnote { font-size:.74rem; color:var(--wi-ink-soft); margin-top:8px; line-height:1.45; }
+  .dsnote .cl { font-family:var(--cp-mono); font-size:.68rem; color:var(--wi-ink-strong); display:block; padding-left:1em; text-indent:-1em; }
+  .epsel { display:inline-flex; align-items:center; gap:6px; }
+
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius);
+            padding:10px 13px; font-size:.88rem; color:var(--wi-ink-strong); min-height:120px; line-height:1.5; }
+  .status p { margin:0 0 6px; }
+  .status p:last-child { margin-bottom:0; }
+  .status code { background:var(--wi-panel-2); padding:1px 4px; border-radius:3px; }
+  .status b { color:var(--wi-accent); }
+  .status .ok { color:var(--wi-relax); font-weight:bold; }
+  .status .bad { color:var(--wi-active); font-weight:bold; }
+  .chip { display:inline-block; padding:0 6px; margin:1px 2px; border-radius:9px; font-size:.78rem; font-family:var(--cp-mono);
+          border:1px solid rgba(0,0,0,.18); color:#fff; line-height:1.5; }
+  .chip.light { color:var(--wi-ink-strong); }
+
+  /* --- the proof pane --- */
+  .proof { font-size:.8rem; line-height:1.45; }
+  .proof .sec { font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.09em; text-transform:uppercase;
+                color:var(--wi-ink-faint); padding:9px 6px 3px; border-top:1px solid var(--wi-border-soft); margin-top:6px; }
+  .proof .sec:first-child { border-top:0; margin-top:0; padding-top:0; }
+  .proof .cap { font-size:.72rem; color:var(--wi-ink-faint); padding:0 6px 4px; }
+  .pl { display:grid; grid-template-columns:2.2em minmax(0,1fr) auto; gap:4px 8px; padding:3px 6px;
+        border-left:3px solid transparent; border-radius:2px; cursor:pointer; }
+  .pl .pk { font-family:var(--cp-mono); font-size:.72rem; color:var(--wi-ink-faint); padding-top:1px; }
+  .pl .pm { color:var(--wi-ink-strong); }
+  .pl .pv { font-family:var(--cp-mono); font-size:.72rem; color:var(--wi-queue); white-space:nowrap; padding-top:1px; }
+  .pl .pw { grid-column:2 / 4; font-size:.74rem; color:var(--wi-ink-soft); display:none; }
+  .pl .pw .fix { color:var(--wi-accent); }
+  .pl .pw .rig { display:block; margin-top:3px; padding-left:8px; border-left:2px solid var(--wi-border-soft); color:var(--wi-ink-faint); }
+  .pl.on { background:#f6e6df; border-left-color:var(--wi-active); }
+  .pl.on .pw, .proof.allwhy .pl .pw, .pl.open .pw { display:block; }
+  .pl.later { opacity:.5; }
+  .pl.later .pk::after { content:"·"; }
+  .pl:hover { background:var(--wi-panel-2); }
+  .pl.on:hover { background:#f6e6df; }
+  .proofbar { display:flex; justify-content:flex-end; gap:10px; margin:-4px 0 4px; }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.74rem; color:var(--wi-ink-soft); cursor:pointer; }
+  .pm i, .pw i, .status i { font-style:italic; }
+  sub, sup { font-size:.72em; line-height:0; }
+
+  /* --- lockstep table --- */
+  table.lock { border-collapse:collapse; font-size:.76rem; width:100%; }
+  table.lock th { font-family:var(--wi-font-head); font-weight:normal; font-size:.68rem; letter-spacing:.06em;
+                  text-transform:uppercase; color:var(--wi-ink-faint); text-align:left; padding:3px 6px; border-bottom:1px solid var(--wi-border-soft); }
+  table.lock td { padding:2px 6px; border-bottom:1px solid #ece2d2; font-family:var(--cp-mono); color:var(--wi-ink-strong); white-space:nowrap; }
+  table.lock.wrap td { white-space:normal; font-family:var(--wi-font-body); font-size:.8rem; }
+  table.lock.wrap td:nth-child(2) { font-family:var(--cp-mono); white-space:nowrap; }
+  table.lock tr.hit td { background:#f6e6df; }
+  table.lock tr.ansrow td { border-top:1px solid var(--wi-border); font-weight:bold; }
+  table.lock td.diff { color:var(--wi-active); font-weight:bold; }
+  .lockwrap { overflow-x:auto; }
+
+  /* --- editor & notes --- */
+  details.editor, details.notes { margin-top:18px; background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.editor > summary, details.notes > summary { cursor:pointer; padding:11px 16px; font-family:var(--wi-font-head);
+                             font-size:.78rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,380px) 1fr; gap:16px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  textarea { width:100%; height:210px; font-family:var(--cp-mono); font-size:.76rem; background:var(--wi-panel-2);
+             color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.76rem; color:var(--wi-ink-soft); line-height:1.5; }
+  .hint dt { font-family:var(--cp-mono); font-size:.9em; color:var(--wi-ink-strong); margin-top:4px; }
+  .hint dd { margin:0 0 2px 1.2em; }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+  .banner { display:none; background:#f6e0da; border:1px solid var(--wi-active); color:var(--wi-accent-dark);
+            border-radius:var(--wi-radius); padding:8px 12px; font-size:.82rem; margin-bottom:12px; }
+  .notes-body { padding:0 18px 16px; font-size:.82rem; line-height:1.55; max-width:120ch; }
+  .notes-body h3 { font-size:.8rem; text-transform:uppercase; letter-spacing:.08em; margin:14px 0 6px; }
+  table.tr { border-collapse:collapse; font-size:.78rem; margin:4px 0 10px; }
+  table.tr th, table.tr td { border:1px solid var(--wi-border-soft); padding:3px 9px; text-align:left; vertical-align:top; }
+  table.tr th { font-family:var(--wi-font-head); font-weight:normal; letter-spacing:.05em; background:var(--wi-controls); }
+  .notes-body li { margin-bottom:5px; }
+
+  .tooltip { position:fixed; z-index:40; pointer-events:none; background:var(--wi-panel-2);
+             border:1px solid var(--wi-border-strong); border-radius:var(--wi-radius); padding:6px 9px;
+             font-size:.76rem; color:var(--wi-ink-strong); box-shadow:0 3px 10px rgba(0,0,0,.12);
+             max-width:300px; display:none; line-height:1.45; }
+  .tooltip .tt-h { font-family:var(--wi-font-head); letter-spacing:.04em; color:var(--wi-accent); }
+  .tooltip .tt-s { color:var(--wi-ink-faint); }
+  .tooltip code { font-family:var(--cp-mono); }
+
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls { gap:8px 12px; padding:10px 12px; }
+    .tabbtn { padding:5px 8px; font-size:.72rem; }
+  }
+
+  /* --- SVG classes --- */
+  .svlab { font-family:var(--wi-font-body); font-size:12.5px; fill:var(--wi-ink-soft); }
+  .svlab.r { text-anchor:end; }
+  .svsm { font-family:var(--cp-mono); font-size:10.5px; fill:var(--wi-ink-faint); }
+  .svnum { font-family:var(--cp-mono); font-size:10px; fill:var(--wi-ink-strong); text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  .svval { font-family:var(--cp-mono); font-size:11px; fill:var(--wi-ink-soft); }
+  .svhead { font-family:var(--wi-font-head); font-size:11px; letter-spacing:.06em; fill:var(--wi-ink-faint); }
+  @media (prefers-reduced-motion:reduce) { * { animation-duration:.001ms !important; transition-duration:.001ms !important; } }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption { font-family: var(--wi-font-head); letter-spacing: .05em; }
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1>The chronogram method &nbsp;·&nbsp; a lower bound, as an experiment</h1>
+</div>
+
+<p class="subtitle">
+  Dynamic prefix parity &mdash; maintain <i>x</i> ∈ {0,1}<sup><i>m</i></sup> under <code>Change(i,a)</code> and
+  <code>Prefix(j)</code> &mdash; and with it dynamic <b>rank</b> needs Ω(log <i>m</i> / log log <i>m</i>) probes per
+  operation in the cell probe model with <i>w</i> = log <i>m</i> (Fredman &amp; Saks 1989). The proof charges a query
+  one probe for every <b>epoch</b> of the past. On this page every object of the proof &mdash; stamps, the
+  &ldquo;forgetful&rdquo; memories DS<sup>(<i>i</i>)</sup>, their answer vectors &mdash; is <b>computed</b> from a real
+  data structure on a small instance. The argument on the right follows the presentation in Miltersen's survey
+  (§4.2), with its slips corrected; switch <b>Proof</b> to follow the original Fredman–Saks argument (amortized, a query after every
+  update) on the same kind of instances instead.
+  Arrow keys step; hover anything; click the picture to fix a query position <i>y</i>.
+</p>
+
+<div class="banner" id="banner"></div>
+
+<div class="controls">
+  <div class="ctl">
+    <span class="lbl">Proof</span>
+    <span class="seg" id="modeSeg">
+      <button data-mode="survey" class="on" title="Miltersen's survey: one query after k updates, worst case">Survey · worst case</button>
+      <button data-mode="fs" title="Fredman–Saks, Theorem 3′: a query after every update, amortized">Fredman–Saks · amortized</button>
+    </span>
+  </div>
+  <div class="ctl">
+    <label for="presetSel">Example</label>
+    <select id="presetSel"></select>
+  </div>
+  <div class="ctl">
+    <label for="dsSel">Data structure</label>
+    <select id="dsSel">
+      <option value="tree">B-ary tree</option>
+      <option value="fenwick">Fenwick tree</option>
+      <option value="bits">packed bit array</option>
+      <option value="prefix">packed prefix parities</option>
+      <option value="log">update log + rebuild</option>
+    </select>
+    <span id="cWrap" class="ctl" style="display:none"><label for="cIn"><i style="text-transform:none">C</i></label><input type="number" id="cIn" min="1" max="64" value="8"></span>
+    <span id="bWrap" class="ctl"><label for="bIn"><i style="text-transform:none">B</i></label><input type="number" id="bIn" min="2" max="24" value="2"></span>
+  </div>
+  <div class="ctl">
+    <label for="posSel">Positions</label>
+    <select id="posSel">
+      <option value="bitrev">bit-reversal (survey)</option>
+      <option value="golden">golden ratio (Fredman–Saks)</option>
+      <option value="sorted">sorted, left to right</option>
+      <option value="random">random</option>
+    </select>
+  </div>
+  <div class="ctl" id="jWrap" style="display:none">
+    <label for="jIn">Query <i style="text-transform:none">Q<sub>j</sub></i>, j =</label>
+    <button id="jDec" class="icon" style="width:1.8em" title="previous query">‹</button>
+    <input type="number" id="jIn" min="1" value="32">
+    <button id="jInc" class="icon" style="width:1.8em" title="next query">›</button>
+  </div>
+  <div class="ctl">
+    <button id="newBitsBtn" title="draw a fresh update vector a">New random <i style="text-transform:none">a</i></button>
+  </div>
+</div>
+
+<div class="tabs" id="tabs">
+  <button class="tabbtn on" data-tab="1"><span class="no">1</span>Hard input &amp; stamps</button>
+  <button class="tabbtn" data-tab="2"><span class="no">2</span>Charging a query</button>
+  <button class="tabbtn" data-tab="3"><span class="no">3</span>Forgetting an epoch</button>
+  <button class="tabbtn" data-tab="4"><span class="no">4</span>Few guesses</button>
+  <button class="tabbtn" data-tab="5"><span class="no">5</span>Far-apart answers</button>
+  <button class="tabbtn" disabled title="next stage"><span class="no">6</span>Ledger</button>
+</div>
+
+<div class="transport">
+  <div class="transport-row">
+    <span class="ctl" style="gap:6px">
+      <button id="resetBtn" class="icon" title="Back to the first step" aria-label="Back to the first step">&#x21BA;</button>
+      <button id="backBtn" class="icon" title="One step back  (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+      <button id="stepBtn" class="icon pri" title="One step forward  (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+      <button id="playBtn" class="icon" title="Play / pause" aria-label="Play">&#x25B6;&#xFE0E;</button>
+    </span>
+    <span class="progress">
+      <input type="range" id="scrubber" min="0" max="0" value="0" aria-label="step">
+      <div class="phasebar" id="phaseBar"></div>
+    </span>
+    <span class="stepno" id="stepNo">— / —</span>
+    <span class="ctl" style="gap:6px">
+      <span class="lbl">Speed</span>
+      <input type="range" id="speed" min="80" max="1600" value="520" style="width:88px" aria-label="speed">
+      <span class="stepno" id="speedVal">520ms</span>
+    </span>
+  </div>
+</div>
+
+<div class="stage" id="stage">
+  <div class="col-main" id="colMain">
+    <div class="sim-box">
+      <div class="sim-title"><span id="stackTitle">Positions, memory, stamps</span>
+        <span class="rhs" id="stackMeta"></span></div>
+      <div class="legend" id="legend"></div>
+      <svg id="stackSvg" class="stagesvg"></svg>
+      <div class="dsnote" id="dsNote"></div>
+    </div>
+    <div class="sim-box" id="chronoBox">
+      <div class="sim-title"><span>Chronogram &nbsp;·&nbsp; time × changed cells</span><span class="rhs" id="chronoMeta"></span></div>
+      <svg id="chronoSvg" class="stagesvg"></svg>
+      <div class="dsnote">One row per cell that is ever changed, one column per update. A square marks a change;
+        the <b>last</b> square in a row (outlined) is that cell's stamp. Epochs are counted backwards from the query:
+        epoch 1 is the most recent.</div>
+    </div>
+    <div class="sim-box" id="lemmaBox">
+      <div class="sim-title"><span>Amortization &nbsp;·&nbsp; writes along the whole sequence (Lemma 1)</span><span class="rhs" id="lemmaMeta"></span></div>
+      <div class="legend" id="lemmaLegend"></div>
+      <svg id="lemmaSvg" class="stagesvg"></svg>
+      <div class="dsnote">Top: the writes of each update <i>u<sub>d</sub></i> of the sequence <i>u</i><sub>1</sub><i>Q</i><sub>1</sub><i>u</i><sub>2</sub><i>Q</i><sub>2</sub>…
+        (the queries of these structures never write), with the epochs of the query <i>Q<sub>j</sub></i> underneath.
+        Bottom: for every query <i>Q<sub>j′</sub></i>, <i>j′</i> ≥ √<i>n</i>, the writes <i>w</i>(σ, <i>j′</i>, <i>i</i>) during its <i>i</i>−1 most recent epochs,
+        against the threshold 4<i>w̄</i>ℓ<sub><i>i</i>−1</sub>. Lemma 1 guarantees that at least half of the bars stay below it.</div>
+    </div>
+    <div class="sim-box" id="classBox">
+      <div class="sim-title"><span id="classTitle">All a₂ at once</span><span class="rhs" id="classMeta"></span></div>
+      <svg id="classSvg" class="stagesvg"></svg>
+      <div class="dsnote" id="classNote"></div>
+    </div>
+    <div class="sim-box" id="budgetBox">
+      <div class="sim-title"><span>Counting, in bits (log<sub>2</sub>)</span><span class="rhs" id="budgetMeta"></span></div>
+      <svg id="budgetSvg" class="stagesvg"></svg>
+      <div class="dsnote" id="budgetNote"></div>
+    </div>
+    <div class="sim-box" id="ballBox">
+      <div class="sim-title"><span>How many correct answer vectors fit into a ball</span><span class="rhs" id="ballMeta"></span></div>
+      <div id="ballWrap"></div>
+    </div>
+    <div class="sim-box" id="histBox">
+      <div class="sim-title"><span id="histTitle">Distance between the correct and the forgetful answers, over all a₂</span><span class="rhs" id="histMeta"></span></div>
+      <svg id="histSvg" class="stagesvg"></svg>
+      <div class="dsnote" id="histNote"></div>
+    </div>
+    <div class="sim-box" id="lockBox">
+      <div class="sim-title"><span id="lockTitle">Prefix(y) on both memories</span><span class="rhs" id="lockMeta"></span></div>
+      <div class="lockwrap" id="lockWrap"></div>
+    </div>
+  </div>
+  <div class="splitter" id="splitter" title="drag to resize"></div>
+  <div class="col-side" id="colSide">
+    <div class="sim-box">
+      <div class="sim-title"><span>What is going on</span><span class="rhs" id="phaseName"></span></div>
+      <div class="status" id="statusBox"></div>
+    </div>
+    <div class="sim-box">
+      <div class="sim-title"><span>The argument</span><span class="rhs" id="proofMeta"></span></div>
+      <div class="proofbar"><label class="chk"><input type="checkbox" id="allWhy"> all justifications</label></div>
+      <div class="proof" id="proof">
+       <div id="proofSurvey">
+        <div class="sec">Setting</div>
+        <div class="pl" id="pl-D1"><span class="pk">D1</span>
+          <span class="pm"><b>Dynamic prefix parity.</b> Maintain <i>x</i> ∈ {0,1}<sup><i>m</i></sup> under
+            Change(<i>i</i>,<i>a</i>): <i>x<sub>i</sub></i> ← <i>a</i>, and Prefix(<i>j</i>) = (<i>x</i><sub>1</sub>+⋯+<i>x<sub>j</sub></i>) mod 2.</span><span class="pv"></span>
+          <span class="pw">Cells of <i>w</i> bits, all 0 initially. An operation is a decision assignment tree: it pays one per
+            <i>probe</i> (read one cell, optionally overwrite it); all computation is free.
+            <span class="rig"><b>Rank.</b> With <i>S</i> = {<i>i</i> : <i>x<sub>i</sub></i> = 1}, Prefix(<i>j</i>) = Rank(<i>j</i>) mod 2
+            (Rank counting elements ≤ <i>j</i>), and Change(<i>i</i>,<i>a</i>) is an Insert, a Delete or nothing (Rank(<i>i</i>) − Rank(<i>i</i>−1)
+            tells which). So every bound on this page is a bound for dynamic rank.</span></span>
+        </div>
+        <div class="pl" id="pl-D2"><span class="pk">D2</span>
+          <span class="pm"><b>Hard input.</b> Change(<i>i<sub>k</sub></i>,<i>a<sub>k</sub></i>), …, Change(<i>i</i><sub>1</sub>,<i>a</i><sub>1</sub>),
+            Prefix(<i>y</i>) with <i>k</i> = √<i>m</i>; <i>a</i> ∈ {0,1}<sup><i>k</i></sup> and <i>y</i> ∈ {1,…,<i>m</i>} uniform.</span><span class="pv" id="pv-D2"></span>
+          <span class="pw">The positions <i>i<sub>u</sub></i> are fixed in advance; only the bits and the query position are random.
+            Update <i>u</i> is the <i>u</i>-th <b>most recent</b> one &mdash; indices run backwards in time.</span>
+        </div>
+        <div class="pl" id="pl-D3"><span class="pk">D3</span>
+          <span class="pm"><b>Spread.</b> <i>i</i><sub>1</sub> = <i>m</i>/2, <i>i</i><sub>2</sub> = <i>m</i>/4, <i>i</i><sub>3</sub> = 3<i>m</i>/4,
+            <i>i</i><sub>4</sub> = <i>m</i>/8, …: for every ℓ, the last ℓ updates are pairwise ≥ <i>m</i>/(2ℓ) apart and ≥ <i>m</i>/(2ℓ) from <i>m</i>.</span><span class="pv" id="pv-D3"></span>
+          <span class="pw">Needed only much later, for the Hamming-ball bound (tab 5): it makes the correct answers depend on the
+            recent bits in a <i>robust</i> way.
+            <span class="rig">The survey writes this with the letter <i>r</i> (&ldquo;<i>u</i>,<i>v</i> ≤ <i>r</i>&rdquo;), which later
+            denotes the number of epochs; any ℓ is meant. Fredman–Saks use the golden-ratio sequence instead, which spreads
+            <i>every</i> window of ℓ consecutive updates by ≥ <i>m</i>/(3ℓ) (select it above).</span></span>
+        </div>
+
+        <div class="sec">Chronograms</div>
+        <div class="pl" id="pl-D4"><span class="pk">D4</span>
+          <span class="pm"><b>Epochs.</b> Counting back from the query, epochs 1, …, <i>i</i> together are the last ℓ<sub><i>i</i></sub> updates;
+            ℓ<sub><i>i</i></sub> = log<sup>3<i>i</i></sup> <i>m</i>, and ℓ<sub><i>r</i></sub> = √<i>m</i>.</span><span class="pv" id="pv-D4"></span>
+          <span class="pw">So <i>r</i> = log <i>m</i> / (6 log log <i>m</i>) epochs, each log³<i>m</i> times longer than the next more recent one.
+            On this page the ratio is a parameter β (ℓ<sub><i>i</i></sub> = β<sup><i>i</i></sup>), because the survey's
+            epochs do not fit into any simulable instance: two epochs already need <i>m</i> ≈ 2<sup>75</sup>.</span>
+        </div>
+        <div class="pl" id="pl-D5"><span class="pk">D5</span>
+          <span class="pm"><b>Stamps.</b> When an update of epoch <i>i</i> changes the content of a cell, the cell's stamp becomes <i>i</i>.
+            A cell's stamp is the epoch of its <b>last</b> change.</span><span class="pv"></span>
+          <span class="pw">Pure bookkeeping for the analysis; the data structure knows nothing about stamps.
+            <span class="rig">A write that stores the value already present leaves the stamp alone. Stamping every write works
+            as well; the argument needs only (1) DS and DS<sup>(<i>i</i>)</sup> differ in stamp-<i>i</i> cells only, and
+            (2) a cell stamped &lt; <i>i</i> was written after epoch <i>i</i>.</span></span>
+        </div>
+        <div class="pl" id="pl-D6"><span class="pk">D6</span>
+          <span class="pm"><b>Forgetting.</b> DS(<i>a</i>) is the memory after all updates; DS<sup>(<i>i</i>)</sup>(<i>a</i>) is DS(<i>a</i>) with every
+            stamp-<i>i</i> cell restored to its content just before epoch <i>i</i> began.</span><span class="pv"></span>
+          <span class="pw">Everything written later, in epochs <i>i</i>−1, …, 1, is kept. DS<sup>(<i>i</i>)</sup>(<i>a</i>) is a
+            <b>fictitious</b> memory: no sequence of operations need produce it.</span>
+        </div>
+        <div class="pl" id="pl-D7"><span class="pk">D7</span>
+          <span class="pm"><b>Answer vectors.</b> <i>q</i>(<i>a</i>) ∈ {0,1}<sup><i>m</i></sup>: run Prefix(1), …, Prefix(<i>m</i>) on DS(<i>a</i>);
+            <i>q</i><sup>(<i>i</i>)</sup>(<i>a</i>): the same code run on DS<sup>(<i>i</i>)</sup>(<i>a</i>).</span><span class="pv"></span>
+          <span class="pw">Each query starts from its own copy of the memory. <i>q</i>(<i>a</i>) are the correct prefix parities;
+            <i>q</i><sup>(<i>i</i>)</sup>(<i>a</i>) is not the answer to anything &mdash; just what the query code outputs on the tampered memory.</span>
+        </div>
+
+        <div class="sec">Two counting facts</div>
+        <div class="pl" id="pl-K1"><span class="pk">K1</span>
+          <span class="pm"><b>Few guesses.</b> Fix <i>a</i><sub>1</sub>. Then |<i>B</i>| := #{ <i>q</i><sup>(<i>i</i>)</sup>(<i>a</i><sub>1</sub>∘<i>a</i><sub>2</sub>) } ≤ #{ DS<sup>(<i>i</i>)</sup>(<i>a</i><sub>1</sub>∘<i>a</i><sub>2</sub>) }
+            ≤ Σ<sub><i>j</i> ≤ <i>t</i>ℓ<sub><i>i</i>−1</sub></sub> C(<i>s</i>, <i>j</i>) 2<sup><i>wj</i></sup> ≤ 2<sup>0.01ℓ<sub><i>i</i></sub></sup>.</span><span class="pv" id="pv-K1"></span>
+          <span class="pw">DS<sup>(<i>i</i>)</sup> equals the memory at the start of epoch <i>i</i> (fixed by <i>a</i><sub>1</sub>), except in the cells written after
+            epoch <i>i</i>: at most <i>t</i>·ℓ<sub><i>i</i>−1</sub> of them, among the <i>s</i> ≤ 2<i>m</i>·2<sup><i>wt</i></sup> cells any Change tree can touch.
+            <span class="rig"><span class="fix">Survey:</span> the sum is printed up to &ldquo;<i>t</i>·<i>l<sub>i</sub></i> − 1&rdquo;; it is <i>t</i>·ℓ<sub><i>i</i>−1</sub>. And
+            &ldquo;<i>t</i> &lt; log <i>m</i>&rdquo; is not enough for the last step: log|<i>B</i>| ≈ (<i>t</i>/log <i>m</i>)²ℓ<sub><i>i</i></sub>, so <i>t</i> ≲ 0.09 log <i>m</i> is needed.</span></span>
+        </div>
+        <div class="pl" id="pl-K2"><span class="pk">K2</span>
+          <span class="pm"><b>Far-apart answers.</b> <i>A</i> := { <i>q</i>(<i>a</i><sub>1</sub>∘<i>a</i><sub>2</sub>) } has 2<sup>ℓ<sub><i>i</i></sub></sup> elements, and any ball of radius <i>m</i>/20
+            contains at most Σ<sub><i>j</i> ≤ ℓ<sub><i>i</i></sub>/5</sub> C(ℓ<sub><i>i</i></sub>, <i>j</i>) ≤ 2<sup>0.95ℓ<sub><i>i</i></sub></sup> of them.</span><span class="pv" id="pv-K2"></span>
+          <span class="pw">Between consecutive recent positions, an element of <i>A</i> equals the centre's segment or its complement; a complement costs
+            ≥ <i>m</i>/(2ℓ<sub><i>i</i></sub>) (D3). A ball of radius <i>m</i>/20 lies in a ball of radius <i>m</i>/10 around one of its elements
+            (triangle inequality), which allows ≤ ℓ<sub><i>i</i></sub>/5 complemented segments.</span>
+        </div>
+
+        <div class="sec">The chain</div>
+        <div class="cap" id="chainCap">Right: the value of each line on this instance (average over random <i>a</i>, all <i>y</i>).</div>
+        <div class="pl" id="pl-C1"><span class="pk">C1</span>
+          <span class="pm">WC(Prefix) ≥ max<sub><i>a</i>, <i>y</i></sub> time of Prefix(<i>y</i>) on DS(<i>a</i>)</span><span class="pv" id="pv-C1"></span>
+          <span class="pw">The worst case is at least the cost of any single input.
+            <span class="rig"><span class="fix">Survey:</span> &ldquo;<i>y</i> ∈ {0,1}<sup><i>m</i></sup>&rdquo; &mdash; the query position ranges over {1,…,<i>m</i>}.</span></span>
+        </div>
+        <div class="pl" id="pl-C2"><span class="pk">C2</span>
+          <span class="pm">≥ <sup>1</sup>⁄<sub>2<sup><i>k</i></sup><i>m</i></sub> Σ<sub><i>a</i></sub> Σ<sub><i>y</i></sub> time of Prefix(<i>y</i>) on DS(<i>a</i>)</span><span class="pv" id="pv-C2"></span>
+          <span class="pw">A maximum is at least the average. From here on the argument is about the <b>average</b> query: it is an
+            average-case bound for the input distribution D2, which implies the worst-case one.</span>
+        </div>
+        <div class="pl" id="pl-C3"><span class="pk">C3</span>
+          <span class="pm">≥ <sup>1</sup>⁄<sub>2<sup><i>k</i></sup><i>m</i></sub> Σ<sub><i>a</i></sub> Σ<sub><i>y</i></sub> Σ<sub><i>i</i>=1</sub><sup><i>r</i></sup> [Prefix(<i>y</i>) reads a stamp-<i>i</i> cell of DS(<i>a</i>)]</span><span class="pv" id="pv-C3"></span>
+          <span class="pw">Each probe reads one cell, and each cell carries one stamp, so the number of probes is at least the number of
+            <b>distinct</b> epochs whose stamps the query reads. Cells never changed, or last changed before epoch <i>r</i>, are not counted.
+            <span class="rig">A query tree may write. A probe of a cell the query has already overwritten itself reads the query's own
+            value, not a stamped one. (Fredman–Saks assume w.l.o.g. that a query does all its reads before its writes.)</span></span>
+        </div>
+        <div class="pl" id="pl-C4"><span class="pk">C4</span>
+          <span class="pm">= <sup>1</sup>⁄<sub>2<sup><i>k</i></sup><i>m</i></sub> Σ<sub><i>i</i></sub> Σ<sub><i>a</i></sub> #{ <i>y</i> : Prefix(<i>y</i>) reads a stamp-<i>i</i> cell of DS(<i>a</i>) }</span><span class="pv" id="pv-C4"></span>
+          <span class="pw">Exchange the order of summation. In the picture: sum the 0/1 matrix <i>R</i> (epochs × queries) row by row &mdash; one
+            <b>epoch</b> at a time &mdash; instead of column by column, one query at a time.</span>
+        </div>
+        <div class="pl" id="pl-C5"><span class="pk">C5</span>
+          <span class="pm">≥ <sup>1</sup>⁄<sub>2<sup><i>k</i></sup><i>m</i></sub> Σ<sub><i>i</i></sub> Σ<sub><i>a</i></sub> #{ <i>y</i> : <i>q</i>(<i>a</i>)<sub><i>y</i></sub> ≠ <i>q</i><sup>(<i>i</i>)</sup>(<i>a</i>)<sub><i>y</i></sub> }</span><span class="pv" id="pv-C5"></span>
+          <span class="pw">If Prefix(<i>y</i>) reads no stamp-<i>i</i> cell, then DS(<i>a</i>) and DS<sup>(<i>i</i>)</sup>(<i>a</i>) agree on every cell it
+            reads (they differ in stamp-<i>i</i> cells only), so the tree follows the same path and returns the same answer.
+            Contrapositive: every mismatch lies in row <i>i</i> of <i>R</i>.
+            <span class="rig">Only this direction is used. After its first stamp-<i>i</i> read the query may go anywhere on DS<sup>(<i>i</i>)</sup>.</span></span>
+        </div>
+        <div class="pl" id="pl-C6"><span class="pk">C6</span>
+          <span class="pm">= <sup>1</sup>⁄<sub>2<sup><i>k</i></sup><i>m</i></sub> Σ<sub><i>i</i></sub> Σ<sub><i>a</i></sub> dist(<i>q</i>(<i>a</i>), <i>q</i><sup>(<i>i</i>)</sup>(<i>a</i>))</span><span class="pv" id="pv-C6"></span>
+          <span class="pw">Hamming distance on {0,1}<sup><i>m</i></sup>. The rest of the proof shows that each epoch contributes at least 1/40 here,
+            <i>whatever</i> the data structure &mdash; provided its updates are cheap.</span>
+        </div>
+        <div class="pl" id="pl-C7"><span class="pk">C7</span>
+          <span class="pm">= <sup>1</sup>⁄<sub>2<sup><i>k</i></sup><i>m</i></sub> Σ<sub><i>i</i></sub> Σ<sub><i>a</i><sub>1</sub></sub> Σ<sub><i>a</i><sub>2</sub></sub> dist(<i>q</i>(<i>a</i><sub>1</sub>∘<i>a</i><sub>2</sub>), <i>q</i><sup>(<i>i</i>)</sup>(<i>a</i><sub>1</sub>∘<i>a</i><sub>2</sub>))</span><span class="pv"></span>
+          <span class="pw">Split <i>a</i> at epoch <i>i</i>: <i>a</i><sub>1</sub> ∈ {0,1}<sup><i>k</i>−ℓ<sub><i>i</i></sub></sup> are the updates before epoch <i>i</i>,
+            <i>a</i><sub>2</sub> ∈ {0,1}<sup>ℓ<sub><i>i</i></sub></sup> those of epochs <i>i</i>, …, 1. (Tabs 4, 5.)</span>
+        </div>
+        <div class="pl" id="pl-C8"><span class="pk">C8</span>
+          <span class="pm">≥ <sup>1</sup>⁄<sub>2<sup><i>k</i></sup><i>m</i></sub> Σ<sub><i>i</i></sub> Σ<sub><i>a</i><sub>1</sub></sub> <sup><i>m</i></sup>⁄<sub>20</sub> · #{ <i>a</i><sub>2</sub> : dist ≥ <i>m</i>/20 }</span><span class="pv"></span>
+          <span class="pw">Keep only the <i>a</i><sub>2</sub> for which the two answer vectors are far apart (tab 5, histogram).</span>
+        </div>
+        <div class="pl" id="pl-C9"><span class="pk">C9</span>
+          <span class="pm">= <sup>1</sup>⁄<sub>20·2<sup><i>k</i></sup></sub> Σ<sub><i>i</i></sub> Σ<sub><i>a</i><sub>1</sub></sub> ( 2<sup>ℓ<sub><i>i</i></sub></sup> − #{ <i>a</i><sub>2</sub> : dist &lt; <i>m</i>/20 } )</span><span class="pv"></span>
+          <span class="pw">Complement count. The survey writes ≥; it is an equality.</span>
+        </div>
+        <div class="pl" id="pl-C10"><span class="pk">C10</span>
+          <span class="pm">≥ <sup>1</sup>⁄<sub>20·2<sup><i>k</i></sup></sub> Σ<sub><i>i</i></sub> Σ<sub><i>a</i><sub>1</sub></sub> ( 2<sup>ℓ<sub><i>i</i></sub></sup> − |<i>B</i>| · max<sub><i>c</i></sub> |<i>A</i> ∩ Ball(<i>c</i>, <i>m</i>/20)| )</span><span class="pv"></span>
+          <span class="pw">Pigeonhole: if dist(<i>q</i>, <i>q</i><sup>(<i>i</i>)</sup>) &lt; <i>m</i>/20, then <i>q</i> lies in the ball of radius <i>m</i>/20 around the guess
+            <i>q</i><sup>(<i>i</i>)</sup> ∈ <i>B</i>; and <i>a</i><sub>2</sub> ↦ <i>q</i>(<i>a</i><sub>1</sub>∘<i>a</i><sub>2</sub>) is injective.</span>
+        </div>
+        <div class="pl" id="pl-C11"><span class="pk">C11</span>
+          <span class="pm">≥ <sup>1</sup>⁄<sub>20·2<sup><i>k</i></sup></sub> Σ<sub><i>i</i></sub> Σ<sub><i>a</i><sub>1</sub></sub> ( 2<sup>ℓ<sub><i>i</i></sub></sup> − 2<sup>0.01ℓ<sub><i>i</i></sub></sup> · 2<sup>0.95ℓ<sub><i>i</i></sub></sup> )</span><span class="pv"></span>
+          <span class="pw">K1 and K2.</span>
+        </div>
+        <div class="pl later" id="pl-C12"><span class="pk">C12</span>
+          <span class="pm">≥ <sup>1</sup>⁄<sub>20·2<sup><i>k</i></sup></sub> Σ<sub><i>i</i></sub> 2<sup><i>k</i>−ℓ<sub><i>i</i></sub></sup> · 2<sup>ℓ<sub><i>i</i></sub></sup>/2 = <i>r</i>/40 = log <i>m</i> / (240 log log <i>m</i>)</span><span class="pv"></span>
+          <span class="pw">2<sup>0.96ℓ<sub><i>i</i></sub></sup> ≤ 2<sup>ℓ<sub><i>i</i></sub></sup>/2 as ℓ<sub><i>i</i></sub> ≥ 25; so each epoch contributes 1/40. (Tab 6, next stage.)</span>
+        </div>
+       </div>
+       <div id="proofFS" style="display:none">
+        <div class="cap">Fredman &amp; Saks, Theorem 3′, in their letters: <i>n</i> = page's <i>m</i>, <i>b</i> = page's <i>w</i>, <i>w</i> = amortized writes,
+          <i>q</i> = number of epochs, <i>L<sub>i</sub></i> = page's ℓ<sub><i>i</i></sub>.</div>
+        <div class="sec">Setting</div>
+        <div class="pl" id="pl-F1"><span class="pk">1</span>
+          <span class="pm"><b>PS(<i>n</i>, 2).</b> An array <i>A</i>[1..<i>n</i>] mod 2 under <i>A</i>[<i>i</i>] ← <i>A</i>[<i>i</i>] + δ and sum(<i>j</i>) = Σ<sub><i>i</i>≤<i>j</i></sub> <i>A</i>[<i>i</i>] mod 2.</span><span class="pv"></span>
+          <span class="pw">The survey's problem, with toggles for assignments. Here every position is updated at most once, from 0, so a toggle by
+            <i>x</i> and an assignment of <i>x</i> coincide.</span>
+        </div>
+        <div class="pl" id="pl-F2"><span class="pk">(1)</span>
+          <span class="pm"><b>Sequences</b> <i>u</i><sub>1</sub><i>Q</i><sub>1</sub><i>u</i><sub>2</sub><i>Q</i><sub>2</sub> … <i>u<sub>m</sub>Q<sub>m</sub></i>, <i>m</i> ≥ 2√<i>n</i>:
+            <i>u<sub>d</sub></i> adds <i>x<sub>d</sub></i> ∈ {0,1} at ⌊<i>n</i>·(<i>d</i>φ<sup>−1</sup> mod 1)⌋; each <i>Q<sub>d</sub></i> is a sum query with arbitrary input. Uniform distribution.</span><span class="pv" id="pv-F2"></span>
+          <span class="pw">A query after every update. Here: <i>M</i> = ops updates. The queries of these four structures never write, so they do not
+            change the memory and are not simulated between the updates.
+            <span class="rig">As printed in the scan, the position reads &ldquo;⌊<i>i</i>φ<sup>−1</sup>⌋ mod <i>n</i>&rdquo;; Lemma 2 needs the version above.</span></span>
+        </div>
+        <div class="pl" id="pl-F3"><span class="pk">(2)</span>
+          <span class="pm"><i>W</i> = max #writes, <i>w</i> = <i>W</i>/<i>m</i>; <i>R</i> = max #query probes, <i>r</i> = <i>R</i>/<i>m</i>, over all sequences (1).
+            Goal: <i>r</i> = Ω(log <i>n</i> / log(<i>bw</i> log <i>n</i>)).</span><span class="pv" id="pv-F3"></span>
+          <span class="pw">Only totals are bounded: the bound is amortized, and it is a tradeoff between writes and reads. Here <i>w̄</i> = writes of this
+            sequence / <i>M</i>.</span>
+        </div>
+        <div class="pl" id="pl-F4"><span class="pk">L2</span>
+          <span class="pm"><b>Lemma 2.</b> <i>x<sub>d</sub></i> = <i>d</i>φ<sup>−1</sup> mod 1 satisfy |<i>x<sub>d</sub></i> − <i>x<sub>e</sub></i>| ≥ 1/(3|<i>d</i>−<i>e</i>|): the positions updated during
+            the <i>i</i> most recent epochs are ≥ <i>n</i>/(3<i>L<sub>i</sub></i>) apart.</span><span class="pv" id="pv-F4"></span>
+          <span class="pw">By the three-distance theorem. <i>Every</i> window of <i>L</i> consecutive updates is spread &mdash; the recent window slides with the query.</span>
+        </div>
+        <div class="sec">Chronograms</div>
+        <div class="pl" id="pl-F5"><span class="pk">ch</span>
+          <span class="pm"><b>Chronograms.</b> A register changed during the <i>d</i>-th update is relabeled <i>d</i>.</span><span class="pv"></span>
+          <span class="pw">A label is a <i>time</i>. Which epoch it belongs to depends on the query one looks at; the colours on this page are the epochs
+            of the selected query <i>Q<sub>j</sub></i>.</span>
+        </div>
+        <div class="pl" id="pl-F6"><span class="pk">(3)</span>
+          <span class="pm"><b>Epochs of <i>Q<sub>j</sub></i></b>, <i>j</i> ≥ √<i>n</i>: backwards from <i>Q<sub>j</sub></i>, the <i>i</i> most recent epochs contain
+            <i>L<sub>i</sub></i> = (α<i>w</i>)<sup><i>i</i></sup> updates; <i>q</i> = ⌊log √<i>n</i> / log(α<i>w</i>)⌋ epochs.</span><span class="pv" id="pv-F6"></span>
+          <span class="pw">The ratio α<i>w</i> grows with the update cost &mdash; the source of the tradeoff. Toy: <i>L<sub>i</sub></i> = β<sup><i>i</i></sup> ≤ √<i>n</i>.</span>
+        </div>
+        <div class="pl" id="pl-F7"><span class="pk">(4)</span>
+          <span class="pm"><b>Lemma 1.</b> With <i>w</i>(σ,<i>j</i>,<i>i</i>) = #writes during the <i>i</i>−1 most recent epochs before <i>Q<sub>j</sub></i>:
+            <i>w</i>(σ,<i>j</i>,<i>i</i>) ≤ 4<i>wL</i><sub><i>i</i>−1</sub> ≤ 4<i>L<sub>i</sub></i>/α for at least half of the <i>j</i> ≥ √<i>n</i>.</span><span class="pv" id="pv-F7"></span>
+          <span class="pw">Lemma 1: at least half of the <i>m</i>−<i>t</i>+1 windows of <i>t</i> consecutive terms carry ≤ 2<i>At</i>/(<i>m</i>−<i>t</i>+1) (Markov);
+            with <i>t</i> = <i>L</i><sub><i>i</i>−1</sub> ≤ √<i>n</i> ≤ <i>m</i>/2 this is ≤ 4<i>wt</i>. The only place where amortization enters.</span>
+        </div>
+        <div class="pl" id="pl-F8"><span class="pk">(5)</span>
+          <span class="pm"><i>S</i> = the σ with <i>w</i>(σ,<i>j</i>,<i>i</i>) ≤ 4<i>L<sub>i</sub></i>/α. Write σ̂ = τμ, μ = the <i>i</i> most recent epochs before <i>Q<sub>j</sub></i>;
+            <i>S</i>(<i>i</i>,τ) = the μ with τμ ∈ <i>S</i>.</span><span class="pv" id="pv-F8"></span>
+          <span class="pw">Fix τ, vary μ: the survey's <i>a</i><sub>1</sub> and <i>a</i><sub>2</sub>. Only μ with few later writes are used.</span>
+        </div>
+        <div class="sec">Few guesses</div>
+        <div class="pl" id="pl-F9"><span class="pk">(6)</span>
+          <span class="pm"><b><i>q</i>-accessible</b> registers: those some sum(<i>x</i>) meets within its first <i>q</i> probes, from some memory state. γ ≤ <i>n</i>·2<sup><i>qb</i></sup>.</span><span class="pv" id="pv-F9"></span>
+          <span class="pw">The first <i>q</i> probes of each query form a 2<sup><i>b</i></sup>-ary tree of depth <i>q</i>. This replaces the survey's count of all cells a
+            Change can touch &mdash; no condition on the update time is needed here.</span>
+        </div>
+        <div class="pl" id="pl-F10"><span class="pk">(7)</span>
+          <span class="pm">μ<sub>1</sub> ~ μ<sub>2</sub> iff the <i>recent</i> <i>q</i>-accessible registers and their contents agree. #classes
+            ε<sub><i>i</i>,τ</sub> ≤ Σ<sub><i>j</i> ≤ 4<i>L<sub>i</sub></i>/α</sub> C(γ,<i>j</i>) 2<sup><i>bj</i></sup> ≤ 2<sup>8<i>L<sub>i</sub></i>(log <i>n</i> + <i>qb</i>)/α</sup>.</span><span class="pv" id="pv-F10"></span>
+          <span class="pw">&ldquo;Recent&rdquo; = chronogram after epoch <i>i</i>.</span>
+        </div>
+        <div class="pl" id="pl-F11"><span class="pk">J</span>
+          <span class="pm"><i>J</i>(τ,μ,<i>x</i>): run sum(<i>x</i>) with every epoch-<i>i</i> register reporting its value at the end of τ; <i>J</i> = ∞ after more than
+            <i>q</i> probes. If <i>J</i> ≠ sum(<i>x</i>): more than <i>q</i> probes, or an epoch-<i>i</i> register was probed.</span><span class="pv"></span>
+          <span class="pw">The same as running on DS<sup>(<i>i</i>)</sup>. μ<sub>1</sub> ~ μ<sub>2</sub> ⇒ both modified runs see the same contents for <i>q</i> probes ⇒
+            <i>J</i>(τ,μ<sub>1</sub>) = <i>J</i>(τ,μ<sub>2</sub>) =: <i>V<sub>j</sub></i>, one vector per class.
+            <span class="rig">Truncation at <i>q</i> probes is harmless: such a query already pays one probe per epoch.</span></span>
+        </div>
+        <div class="pl" id="pl-F12"><span class="pk">(8)</span>
+          <span class="pm">With δ(τ,μ) = dist(<i>V<sub>j</sub></i>, <i>F</i>(τ,μ)): &nbsp;<i>E<sub>j</sub></i>·<i>n</i> ≥ <sup>1</sup>⁄<sub><i>z<sub>j</sub></i></sub> Σ<sub><i>i</i>≤<i>q</i></sub> Σ<sub>τ</sub> Σ<sub>μ∈<i>S</i>(<i>i</i>,τ)</sub> δ(τ,μ).</span><span class="pv" id="pv-F12"></span>
+          <span class="pw">(**): the probes of sum(<i>x</i>) are at least the number of epochs <i>i</i> with μ ∈ <i>S</i>(<i>i</i>,τ) and <i>J</i>(τ,μ,<i>x</i>) ≠ sum(<i>x</i>).
+            <i>F</i> = the correct answers, <i>z<sub>j</sub></i> = the number of prefixes before <i>Q<sub>j</sub></i>.</span>
+        </div>
+        <div class="sec">Far-apart answers</div>
+        <div class="pl" id="pl-F13"><span class="pk">L3</span>
+          <span class="pm"><b>Lemma 3.</b> The <i>F</i>(τ,μ) form an affine space spanned by <i>L<sub>i</sub></i> orthogonal 0/1 vectors, each but possibly one of weight
+            ≥ <i>n</i>/(3<i>L<sub>i</sub></i>). At most 2·2<sup>.95<i>L<sub>i</sub></i></sup> lie within <i>n</i>/30 of any <i>V</i>.</span><span class="pv" id="pv-F13"></span>
+          <span class="pw">The basis vectors are the segments between consecutive recent positions (Lemma 2); the possibly short one is the last segment,
+            which ends at <i>n</i>. The paper leaves the proof to the reader.</span>
+        </div>
+        <div class="pl" id="pl-F14"><span class="pk">(9)</span>
+          <span class="pm">Σ<sub>μ∈<i>S</i>(<i>i</i>,τ)</sub> δ(τ,μ) ≥ <sup><i>n</i></sup>⁄<sub>30</sub> · [ |<i>S</i>(<i>i</i>,τ)| − 2ε<sub><i>i</i></sub>θ<sub><i>i</i></sub>2<sup>−.05<i>L<sub>i</sub></i></sup> ].</span><span class="pv"></span>
+          <span class="pw">θ<sub><i>i</i></sub> = the number of all μ; as μ varies, <i>F</i> is uniform over the affine space, so each class has ≤ 2θ<sub><i>i</i></sub>2<sup>−.05<i>L<sub>i</sub></i></sup>
+            members closer than <i>n</i>/30 to its <i>V<sub>j</sub></i>.</span>
+        </div>
+        <div class="sec">Summing up</div>
+        <div class="pl later" id="pl-F15"><span class="pk">(10)</span>
+          <span class="pm"><i>E<sub>j</sub></i> ≥ <sup>1</sup>⁄<sub>30</sub> Σ<sub><i>i</i>≤<i>q</i></sub> [ Σ<sub>τ</sub> |<i>S</i>(<i>i</i>,τ)| / <i>z<sub>j</sub></i> − 2ε<sub><i>i</i></sub>2<sup>−.05<i>L<sub>i</sub></i></sup> ]</span><span class="pv"></span>
+          <span class="pw">(8) and (9), using Σ<sub>τ</sub> θ<sub><i>i</i></sub> = <i>z<sub>j</sub></i>. (Tab 6, next stage.)</span>
+        </div>
+        <div class="pl later" id="pl-F16"><span class="pk">(11)</span>
+          <span class="pm"><i>p<sub>j</sub></i><sup>(<i>i</i>)</sup> = Pr[<i>w</i>(σ,<i>j</i>,<i>i</i>) ≤ 4<i>L<sub>i</sub></i>/α]; &nbsp; Σ<sub><i>j</i>≥√<i>n</i></sub> <i>p<sub>j</sub></i><sup>(<i>i</i>)</sup> ≥ (<i>m</i> + 1 − √<i>n</i>)/2</span><span class="pv"></span>
+          <span class="pw">(4), summed over <i>j</i>. (Tab 6.)</span>
+        </div>
+        <div class="pl later" id="pl-F17"><span class="pk">(12)</span>
+          <span class="pm">Σ<sub><i>j</i></sub> <i>E<sub>j</sub></i> ≥ <sup>1</sup>⁄<sub>60</sub> <i>q</i>(<i>m</i>+1−√<i>n</i>) − <sup>1</sup>⁄<sub>15</sub>(<i>m</i>+1−√<i>n</i>) Σ<sub><i>i</i></sub> 2<sup><i>L<sub>i</sub></i>(8(log <i>n</i> + <i>qb</i>)/α − .05)</sup></span><span class="pv"></span>
+          <span class="pw">(7), (10), (11). (Tab 6.)</span>
+        </div>
+        <div class="pl later" id="pl-F18"><span class="pk">α</span>
+          <span class="pm">α = 400·<i>b</i>·log <i>n</i>: the second term is below half the first, and <i>r</i> = Ω(log <i>n</i> / log(<i>bw</i> log <i>n</i>)).</span><span class="pv"></span>
+          <span class="pw">(Tab 6.)</span>
+        </div>
+       </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<details class="editor">
+  <summary>Input</summary>
+  <div class="editor-body">
+    <div>
+      <textarea id="inputText" spellcheck="false"></textarea>
+      <div style="margin-top:8px; display:flex; gap:8px"><button class="pri" id="loadBtn">Load</button></div>
+      <div class="err" id="parseErr"></div>
+    </div>
+    <div class="hint">
+      One setting per line, <code>name = value</code>; <code>#</code> starts a comment. Everything is optional.
+      <dl>
+        <dt>m = 256</dt><dd>array length, a power of two (16 … 4096)</dd>
+        <dt>w = 8</dt><dd>word size in bits; default log <i>m</i></dd>
+        <dt>k = 16</dt><dd>number of updates; default ⌊√<i>m</i>⌋</dd>
+        <dt>positions = bitrev</dt><dd><code>bitrev</code> (survey) · <code>golden</code> (Fredman–Saks) · <code>sorted</code> · <code>random:SEED</code></dd>
+        <dt>beta = 2</dt><dd>epoch ratio: epochs 1..<i>i</i> are the last β<sup><i>i</i></sup> updates</dd>
+        <dt>epochs = 2 4 8 16</dt><dd>or give the cumulative sizes ℓ<sub>1</sub> &lt; ℓ<sub>2</sub> &lt; … ≤ <i>k</i> directly (mode fs: ≤ √<i>m</i>); updates older than ℓ<sub><i>r</i></sub> form an &ldquo;earlier&rdquo; prefix</dd>
+        <dt>bits = random:3</dt><dd>or <i>k</i> (mode fs: ops) digits 0/1, in <b>chronological</b> order (first digit = first update = <i>a<sub>k</sub></i>)</dd>
+        <dt>ds = tree B=2</dt><dd><code>tree B=…</code> (2 ≤ <i>B</i> ≤ <i>w</i>) · <code>fenwick</code> · <code>bits</code> · <code>prefix</code> · <code>log C=…</code> (update log, rebuilt every <i>C</i> toggles: amortized)</dd>
+        <dt>mode = survey</dt><dd><code>survey</code> (Miltersen) or <code>fs</code> (Fredman–Saks: a query after every update)</dd>
+        <dt>ops = 32 &nbsp; j = 32</dt><dd>mode fs only: number of updates <i>M</i> ≥ √<i>m</i>, and the query <i>Q<sub>j</sub></i> looked at (√<i>m</i> ≤ <i>j</i> ≤ <i>M</i>); replaces <code>k</code></dd>
+        <dt>samples = 200</dt><dd>random vectors <i>a</i> for the averages in the chain (capped by running time)</dd>
+      </dl>
+    </div>
+  </div>
+</details>
+
+<details class="notes">
+  <summary>Sources, notation, and what the original proof does differently</summary>
+  <div class="notes-body">
+    <p>The argument on the right is the one in P. B. Miltersen, <i>Cell probe complexity &ndash; a survey</i> (2000), §4.2: a
+      single query after a fixed sequence of updates, a worst-case bound. The original, M. L. Fredman and M. E. Saks,
+      <i>The cell probe complexity of dynamic data structures</i> (STOC 1989), Theorem 3&prime;, proves more &mdash; an
+      <b>amortized</b> bound and a tradeoff &mdash; with the same skeleton. This page uses the survey's letters, except that
+      the update cost is called <i>t</i><sub>u</sub>.</p>
+    <table class="tr">
+      <tr><th></th><th>this page / survey</th><th>Fredman–Saks</th></tr>
+      <tr><td>array length</td><td><i>m</i></td><td><i>n</i></td></tr>
+      <tr><td>word size</td><td><i>w</i> = log <i>m</i></td><td><i>b</i></td></tr>
+      <tr><td>update cost</td><td><i>t</i><sub>u</sub> (survey: <i>t</i>), worst-case probes of Change</td><td><i>w</i> = <i>W</i>/<i>m</i>, amortized writes per operation</td></tr>
+      <tr><td>query cost</td><td>probes of Prefix(<i>y</i>)</td><td><i>r</i> = <i>R</i>/<i>m</i>, amortized reads per query</td></tr>
+      <tr><td>number of epochs</td><td><i>r</i></td><td><i>q</i></td></tr>
+      <tr><td>epochs 1..<i>i</i> hold</td><td>ℓ<sub><i>i</i></sub> = log<sup>3<i>i</i></sup> <i>m</i> updates</td><td><i>L<sub>i</sub></i> = (α<i>w</i>)<sup><i>i</i></sup>, α = 400 · <i>b</i> · log <i>n</i></td></tr>
+      <tr><td>update positions</td><td>bit-reversal</td><td>⌊<i>n</i> · (<i>u</i>φ<sup>−1</sup> mod 1)⌋ (Lemma 2)</td></tr>
+      <tr><td>updates</td><td>Change(<i>i</i>,<i>a</i>): set</td><td><i>A</i>[<i>p</i>] ← <i>A</i>[<i>p</i>] + <i>x</i> mod 2: toggle</td></tr>
+      <tr><td>before / from epoch <i>i</i></td><td><i>a</i><sub>1</sub> / <i>a</i><sub>2</sub></td><td>τ / μ</td></tr>
+      <tr><td>forgetful answers</td><td><i>q</i><sup>(<i>i</i>)</sup>(<i>a</i>)</td><td><i>J</i>(τ,μ), with <i>J</i> = ∞ after <i>q</i> probes</td></tr>
+      <tr><td>few guesses</td><td>|<i>B</i>| ≤ 2<sup>0.01ℓ<sub><i>i</i></sub></sup></td><td>ε<sub><i>i</i>,τ</sub> equivalence classes, bound (7)</td></tr>
+      <tr><td>per-epoch contribution</td><td>1/40 (threshold <i>m</i>/20)</td><td>1/60 (threshold <i>n</i>/30)</td></tr>
+    </table>
+    <h3>What the original does differently</h3>
+    <ul>
+      <li><b>Amortization.</b> The sequence is <i>u</i><sub>1</sub><i>Q</i><sub>1</sub><i>u</i><sub>2</sub><i>Q</i><sub>2</sub>…, a query after every
+        update, and epochs are laid out backwards from <i>every</i> query <i>Q<sub>j</sub></i>. Only the total number of writes <i>W</i> is bounded;
+        Lemma 1 (at least half of all windows of <i>t</i> consecutive terms carry at most twice their fair share) turns that into
+        &ldquo;few writes after epoch <i>i</i>&rdquo; for at least half of the queries.</li>
+      <li><b>Positions.</b> Because the recent window slides with <i>j</i>, every window of updates must be spread, not just the suffixes of one
+        sequence: hence the golden-ratio positions and the three-distance theorem (Lemma 2). As printed in the scan, the position reads
+        &ldquo;⌊<i>i</i>φ<sup>−1</sup>⌋ mod <i>n</i>&rdquo;; Lemma 2 and its use make clear that ⌊<i>n</i>·(<i>i</i>φ<sup>−1</sup> mod 1)⌋ is meant.</li>
+      <li><b>Epoch ratio.</b> α<i>w</i> instead of log³<i>m</i>: the epochs adapt to the update cost, which gives the tradeoff
+        <i>r</i> = Ω(log <i>n</i> / log(<i>bw</i> log <i>n</i>)).</li>
+      <li><b>Which cells matter.</b> Only <i>q-accessible</i> registers &mdash; those some query can reach within its first <i>q</i> probes &mdash;
+        of which there are ≤ <i>n</i>·2<sup><i>qb</i></sup>, and a query running longer than <i>q</i> probes is cut off (<i>J</i> = ∞): it already pays
+        one probe per epoch. The survey instead counts all cells any Change tree can touch, <i>s</i> ≤ 2<i>m</i>·2<sup><i>wt</i></sup>, which is where its
+        requirement on <i>t</i> comes from.</li>
+      <li><b>Constants.</b> Distance threshold <i>n</i>/30 around the class vector directly, allowing one short basis vector (the factor 2 in
+        Lemma 3); per-epoch contribution 1/60.</li>
+    </ul>
+    <h3>The Fredman–Saks mode on this page</h3>
+    <ul>
+      <li>The sequence is <i>u</i><sub>1</sub>…<i>u<sub>M</sub></i> with <i>M</i> = <code>ops</code>; one query <i>Q<sub>j</sub></i> is looked at in detail (<code>j</code>), and tabs 1–5
+        show the argument for that query. Its epochs hold at most √<i>n</i> updates together, so older updates belong to τ (&ldquo;earlier&rdquo;).</li>
+      <li>The queries between the updates are not simulated: none of the structures here writes during a query, so they cannot change the memory.</li>
+      <li><i>w̄</i> is the number of writes of <i>this</i> sequence divided by <i>M</i> (the paper's <i>w</i> is a maximum over all sequences), and the epoch ratio is the
+        parameter β instead of α<i>w</i> = 400·<i>b</i>·log <i>n</i>·<i>w</i>, which no toy can accommodate.</li>
+      <li><i>q</i>-accessible registers are computed exactly: the update log gives its own list (its queries are adaptive); the other structures are
+        non-adaptive, so running every query once finds all registers within its first <i>q</i> probes.</li>
+      <li>Truncation matters on small instances: with few epochs, <i>q</i> is small, and a structure whose queries take more than <i>q</i> probes has
+        <i>J</i> = ∞ everywhere (preset &ldquo;FS: binary tree&rdquo;). The argument is then trivially satisfied &mdash; and uninformative.</li>
+    </ul>
+    <h3>Slips in the survey's §4.2, corrected on this page</h3>
+    <ul>
+      <li>In the first display, <i>y</i> ranges over {1,…,<i>m</i>}, not {0,1}<sup><i>m</i></sup>.</li>
+      <li>The spread property uses <i>r</i> for an arbitrary length; <i>r</i> is also the number of epochs. Likewise <i>k</i> denotes both √<i>m</i> and a
+        &ldquo;consecutive member&rdquo;.</li>
+      <li>The count of forgetful memories sums up to <i>t</i> · ℓ<sub><i>i</i>−1</sub> (cells written after epoch <i>i</i>), printed as &ldquo;<i>t</i>·<i>l<sub>i</sub></i> − 1&rdquo;;
+        a # is missing there as well.</li>
+      <li>&ldquo;If the complexity <i>t</i> of Change is less than log <i>m</i>&rdquo; does not give |<i>B</i>| ≤ 2<sup>0.01ℓ<sub><i>i</i></sub></sup>: the bound is
+        log|<i>B</i>| ≈ <i>t</i>²<i>w</i>ℓ<sub><i>i</i>−1</sub> = (<i>t</i>/log <i>m</i>)² ℓ<sub><i>i</i></sub>, so roughly <i>t</i> ≤ 0.09 log <i>m</i> is needed. The theorem
+        survives: either Change costs ≥ 0.09 log <i>m</i>, or Prefix costs ≥ log <i>m</i> / (240 log log <i>m</i>).</li>
+      <li>Rank is defined with &ldquo;&lt; <i>x</i>&rdquo; in §2 and &ldquo;≤ <i>x</i>&rdquo; in §4.2; the reduction needs ≤.</li>
+    </ul>
+  </div>
+</details>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+"use strict";
+/* ENGINE-BEGIN ==============================================================
+   Fredman–Saks chronogram argument: the computational part.
+
+   Everything the proof talks about is computed exactly here, from real
+   cell-probe programs:
+     * the hard update sequence  Change(i_k,a_k), ..., Change(i_1,a_1)
+       (update u = the u-th most recent one; epochs counted backwards),
+     * stamps (chronograms): a cell's stamp is the epoch of its last change,
+     * DS(a), and DS^(i)(a) = DS(a) with stamp-i cells restored to their
+       content just before epoch i began,
+     * q(a), q^(i)(a): Prefix(1..m) run on DS(a) resp. DS^(i)(a),
+     * R[i][y] = [Prefix(y) reads a stamp-i cell of DS(a)].
+
+   Cost model.  An operation pays one per probe.  A probe is a maximal run of
+   consecutive accesses to the same cell (read, then possibly write): exactly
+   what one node of a decision assignment tree can do.  Stamps change only
+   when a write changes the content of a cell.
+   ========================================================================== */
+
+function mulberry32(seed) {
+  let s = seed >>> 0;
+  return function () {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function parity(v) { v ^= v >>> 16; v ^= v >>> 8; v ^= v >>> 4; v ^= v >>> 2; v ^= v >>> 1; return v & 1; }
+function popcount(v) { let c = 0; while (v) { v &= v - 1; c++; } return c; }
+function floorLog2(n) { let b = 0; while (2 ** (b + 1) <= n) b++; return b; }
+
+/* ---------- scenario text ---------------------------------------------------- */
+
+const SCN_KEYS = ["mode", "m", "w", "k", "ops", "j", "positions", "beta", "epochs", "bits", "ds", "samples"];
+
+function parseScenario(text) {
+  const kv = {};
+  const lines = String(text).split(/\r?\n/);
+  for (let ln = 0; ln < lines.length; ln++) {
+    const line = lines[ln].replace(/#.*$/, "").trim();
+    if (!line) continue;
+    const mt = /^([A-Za-z_]+)\s*=\s*(.*)$/.exec(line);
+    if (!mt) throw new Error("line " + (ln + 1) + ": expected  name = value");
+    const key = mt[1].toLowerCase();
+    if (!SCN_KEYS.includes(key)) throw new Error("line " + (ln + 1) + ": unknown setting '" + mt[1] + "'");
+    kv[key] = mt[2].trim();
+  }
+  const int = (key, def) => {
+    if (!(key in kv)) return def;
+    const v = Number(kv[key]);
+    if (!Number.isInteger(v)) throw new Error(key + " must be an integer");
+    return v;
+  };
+  const S = {};
+  S.m = int("m", 256);
+  if (S.m < 16 || S.m > 4096 || (S.m & (S.m - 1)) !== 0)
+    throw new Error("m must be a power of two between 16 and 4096");
+  S.lgm = floorLog2(S.m);
+  S.w = int("w", S.lgm);
+  if (S.w < 1 || S.w > 24) throw new Error("w must be between 1 and 24");
+  S.mode = (kv.mode || "survey").toLowerCase();
+  if (S.mode !== "survey" && S.mode !== "fs") throw new Error("mode must be survey or fs");
+  S.rt = Math.floor(Math.sqrt(S.m));
+  if (S.mode === "survey") {
+    if ("ops" in kv || "j" in kv) throw new Error("ops and j belong to mode = fs");
+    S.k = int("k", S.rt);
+    if (S.k < 2 || S.k > Math.min(256, S.m / 2)) throw new Error("k must be between 2 and min(256, m/2)");
+  } else {
+    /* Fredman–Saks: u_1 Q_1 u_2 Q_2 ... u_M Q_M with M >= 2 sqrt(n); we look at the query Q_j */
+    if ("k" in kv) throw new Error("mode = fs uses ops (number of updates) and j (the query looked at), not k");
+    S.M = int("ops", 2 * S.rt);
+    if (S.M < S.rt || S.M > Math.min(512, Math.floor(S.m / 3)))
+      throw new Error("ops must be between ⌊√m⌋ = " + S.rt + " and min(512, m/3)");
+    S.j = int("j", S.M);
+    if (S.j < S.rt || S.j > S.M) throw new Error("j must be between ⌊√m⌋ = " + S.rt + " and ops = " + S.M);
+    S.k = S.j;
+  }
+
+  /* positions */
+  const ps = (kv.positions || (S.mode === "fs" ? "golden" : "bitrev")).toLowerCase();
+  let pm;
+  if (ps === "bitrev" || ps === "golden" || ps === "sorted") S.posSpec = { kind: ps };
+  else if ((pm = /^random(?::(\d+))?$/.exec(ps))) S.posSpec = { kind: "random", seed: Number(pm[1] || 1) };
+  else throw new Error("positions must be bitrev, golden, sorted or random:SEED");
+
+  /* epochs: cumulative sizes ell[1] < ell[2] < ... (epochs 1..i = last ell[i] updates) */
+  if ("epochs" in kv) {
+    const list = kv.epochs.split(/[\s,]+/).filter(s => s).map(Number);
+    if (!list.length || list.some(v => !Number.isInteger(v) || v < 1))
+      throw new Error("epochs must be a list of positive integers");
+    for (let i = 1; i < list.length; i++)
+      if (list[i] <= list[i - 1]) throw new Error("epochs must be strictly increasing (cumulative sizes)");
+    const cap = S.mode === "fs" ? S.rt : S.k;
+    if (list[list.length - 1] > cap) throw new Error(S.mode === "fs" ? "all epochs together may hold at most ⌊√m⌋ = " + cap + " updates" : "the last epoch size exceeds k");
+    S.ell = [0].concat(list);
+    S.beta = null;
+  } else {
+    const beta = int("beta", 2);
+    if (beta < 2) throw new Error("beta must be at least 2");
+    S.beta = beta;
+    S.ell = [0];
+    const cap = S.mode === "fs" ? S.rt : S.k;
+    for (let v = beta; v <= cap; v *= beta) S.ell.push(v);
+    if (S.ell.length === 1) throw new Error("beta > k: not a single epoch fits");
+  }
+  S.r = S.ell.length - 1;
+  if (S.r > 12) throw new Error("at most 12 epochs");
+
+  /* bits a_u, u = 1..k (u = 1 is the most recent update) */
+  const bs = (kv.bits || "random:1").replace(/\s+/g, "");
+  if ((pm = /^random(?::(\d+))?$/i.exec(bs))) S.bitSpec = { kind: "random", seed: Number(pm[1] || 1) };
+  else if (/^[01]+$/.test(bs)) {
+    const need = S.mode === "fs" ? S.M : S.k;
+    if (bs.length !== need) throw new Error("bits: need exactly " + (S.mode === "fs" ? "ops = " : "k = ") + need + " digits (got " + bs.length + ")");
+    S.bitSpec = { kind: "explicit", str: bs };
+  } else throw new Error("bits must be random:SEED or a 0/1 string of length k");
+
+  /* data structure */
+  const ds = (kv.ds || "tree B=4").toLowerCase();
+  if ((pm = /^tree(?:\s+b\s*=\s*(\d+))?$/.exec(ds))) S.dsSpec = { type: "tree", B: Number(pm[1] || 4) };
+  else if ((pm = /^log(?:\s+c\s*=\s*(\d+))?$/.exec(ds))) S.dsSpec = { type: "log", C: Number(pm[1] || 8) };
+  else if (ds === "fenwick" || ds === "bits" || ds === "prefix") S.dsSpec = { type: ds };
+  else throw new Error("ds must be  tree B=…,  fenwick,  bits,  prefix  or  log C=…");
+
+  S.samples = int("samples", 200);
+  if (S.samples < 0 || S.samples > 5000) throw new Error("samples must be between 0 and 5000");
+  return S;
+}
+
+/* ---------- positions i_u, u = 1..k ------------------------------------------ */
+
+function makePositions(m, k, spec) {
+  const pos = new Array(k + 1).fill(0);
+  if (spec.kind === "bitrev") {
+    /* u = 2^p + s  ->  (2s+1) m / 2^(p+1):  m/2, m/4, 3m/4, m/8, 3m/8, ... */
+    for (let u = 1; u <= k; u++) {
+      const p = floorLog2(u), s = u - 2 ** p;
+      pos[u] = (2 * s + 1) * m / 2 ** (p + 1);
+    }
+  } else if (spec.kind === "golden") {
+    /* Fredman–Saks, Lemma 2: x_u = u/phi mod 1; any L consecutive ones are >= 1/(3L) apart */
+    const g = (Math.sqrt(5) - 1) / 2;
+    for (let u = 1; u <= k; u++) pos[u] = Math.floor(m * ((u * g) % 1)) + 1;
+  } else if (spec.kind === "sorted") {
+    /* chronologically left to right: the most recent updates are the rightmost ones */
+    const gap = Math.floor(m / (k + 1));
+    for (let u = 1; u <= k; u++) pos[u] = (k - u + 1) * gap;
+  } else {
+    const rnd = mulberry32(spec.seed * 7919 + 13);
+    const used = new Set();
+    for (let u = 1; u <= k; u++) {
+      let p;
+      do { p = 1 + Math.floor(rnd() * (m - 1)); } while (used.has(p));
+      used.add(p); pos[u] = p;
+    }
+  }
+  const seen = new Set();
+  for (let u = 1; u <= k; u++) {
+    if (!(pos[u] >= 1 && pos[u] <= m)) throw new Error("position out of range");
+    if (seen.has(pos[u])) throw new Error("positions collide; use a larger m or a smaller k");
+    seen.add(pos[u]);
+  }
+  return pos;
+}
+
+/* smallest gap between consecutive positions among the last ell updates, and the
+   length of the last answer segment [max position, m] */
+function spreadOf(S, ell) {
+  const ps = [];
+  for (let u = 1; u <= ell; u++) ps.push(S.pos[u]);
+  ps.sort((a, b) => a - b);
+  let gap = Infinity;
+  for (let j = 1; j < ps.length; j++) gap = Math.min(gap, ps[j] - ps[j - 1]);
+  return { sorted: ps, gap: gap, tail: S.m - ps[ps.length - 1] + 1, head: ps[0] - 1 };
+}
+
+function makeBits(S, spec) {
+  const a = new Uint8Array(S.k + 1);
+  if (spec.kind === "explicit") {
+    /* the string is written in chronological order: first digit = first update = a_k */
+    for (let t = 1; t <= S.k; t++) a[S.k - t + 1] = spec.str.charCodeAt(t - 1) - 48;
+  } else {
+    const rnd = mulberry32(spec.seed * 104729 + 7);
+    for (let u = 1; u <= S.k; u++) a[u] = rnd() < 0.5 ? 1 : 0;
+  }
+  return a;
+}
+
+/* ---------- data structures (honest cell-probe programs) ----------------------
+   Interface:  size, cells[c] = {row, lo, hi, label, nb}, rows[r] = {label, cells},
+               change(p, a, M), prefix(j, M)   with M.read(c), M.write(c, v).
+   Positions p, j are 1-based; [lo, hi) are 0-based bit indices = positions lo+1..hi.
+   All state lives in the memory M; the objects themselves are read-only.        */
+
+function makeDS(m, w, spec) {
+  if (spec.type === "log") return dsLog(m, w, spec.C);
+  if (spec.type === "bits") return dsBits(m, w);
+  if (spec.type === "prefix") return dsPrefix(m, w);
+  if (spec.type === "fenwick") return dsFenwick(m, w);
+  return dsTree(m, w, spec.B);
+}
+
+function lowMask(n) { return n >= 31 ? 0x7fffffff : (1 << n) - 1; }
+
+function dsBits(m, w) {
+  const size = Math.ceil(m / w), cells = [];
+  for (let c = 0; c < size; c++)
+    cells.push({ row: 0, lo: c * w, hi: Math.min(m, (c + 1) * w), label: "word " + c, nb: Math.min(m, (c + 1) * w) - c * w });
+  return {
+    type: "bits", name: "Packed bit array", size: size, cells: cells,
+    rows: [{ label: "words of x", cells: cells.map((_, c) => c) }],
+    code: [
+      "Change(p, a):  v ← read(word ⌊(p−1)/w⌋);  if bit ≠ a: write the word with the bit set to a",
+      "Prefix(j):     parity of words 0 … ⌊(j−1)/w⌋, the last one masked to positions ≤ j"],
+    cost: "Change: 1 probe.  Prefix(j): ⌈j/w⌉ probes (up to m/w).",
+    change(p, a, M) {
+      const i = p - 1, c = (i / w) | 0, o = i % w;
+      const v = M.read(c);
+      const nv = a ? (v | (1 << o)) : (v & ~(1 << o));
+      if (nv !== v) M.write(c, nv);
+    },
+    prefix(j, M) {
+      const i = j - 1, cl = (i / w) | 0, o = i % w;
+      let par = 0;
+      for (let c = 0; c < cl; c++) par ^= parity(M.read(c));
+      return par ^ parity(M.read(cl) & lowMask(o + 1));
+    }
+  };
+}
+
+function dsPrefix(m, w) {
+  const size = Math.ceil(m / w), cells = [];
+  for (let c = 0; c < size; c++)
+    cells.push({ row: 0, lo: c * w, hi: Math.min(m, (c + 1) * w), label: "P-word " + c, nb: Math.min(m, (c + 1) * w) - c * w });
+  const full = c => lowMask(cells[c].nb);
+  const getP = (j, M) => { if (j === 0) return 0; const i = j - 1; return (M.read((i / w) | 0) >> (i % w)) & 1; };
+  return {
+    type: "prefix", name: "Packed prefix parities", size: size, cells: cells,
+    rows: [{ label: "words of P", cells: cells.map((_, c) => c) }],
+    code: [
+      "stores P_j = x_1 ⊕ … ⊕ x_j, packed w per word",
+      "Change(p, a):  x_p = P_p ⊕ P_{p−1};  if x_p ≠ a: flip P_j for all j ≥ p (every later word)",
+      "Prefix(j):     read the word holding P_j"],
+    cost: "Prefix: 1 probe.  Change: up to ⌈m/w⌉ + 1 probes.",
+    change(p, a, M) {
+      const pPrev = getP(p - 1, M);
+      const i = p - 1, c0 = (i / w) | 0, o = i % w;
+      const v0 = M.read(c0);
+      if ((((v0 >> o) & 1) ^ pPrev) === a) return;
+      M.write(c0, v0 ^ (full(c0) & ~lowMask(o)));
+      for (let c = c0 + 1; c < size; c++) { const v = M.read(c); M.write(c, v ^ full(c)); }
+    },
+    prefix(j, M) { return getP(j, M); }
+  };
+}
+
+function dsTree(m, w, B) {
+  if (!(B >= 2 && B <= w)) throw new Error("tree: need 2 ≤ B ≤ w (a node packs B child parities into one word)");
+  const n = [Math.ceil(m / B)];
+  while (n[n.length - 1] > 1) n.push(Math.ceil(n[n.length - 1] / B));
+  const h = n.length;
+  const span = []; for (let l = 0; l < h; l++) span.push(B ** (l + 1));
+  const off = new Array(h); let acc = 0;
+  for (let l = h - 1; l >= 0; l--) { off[l] = acc; acc += n[l]; }
+  const cells = [], rows = [];
+  for (let l = h - 1; l >= 0; l--) {
+    const row = { label: l === h - 1 ? "root" : (l === 0 ? "bottom (x)" : "level " + l), cells: [] };
+    for (let v = 0; v < n[l]; v++) {
+      const lo = v * span[l], hi = Math.min(m, (v + 1) * span[l]);
+      const nb = l === 0 ? hi - lo : Math.ceil((hi - lo) / span[l - 1]);
+      cells.push({ row: h - 1 - l, lo: lo, hi: hi, label: (l === 0 ? "x-node " : "node ") + "L" + l + "·" + v, nb: nb, level: l });
+      row.cells.push(off[l] + v);
+    }
+    rows.push(row);
+  }
+  return {
+    type: "tree", name: "B-ary tree, B = " + B, size: acc, cells: cells, rows: rows, h: h, B: B,
+    code: [
+      "every node's word packs B bits: the parities of its B child subtrees (bottom: B bits of x)",
+      "Change(p, a):  read the bottom word; if the bit ≠ a: flip it, and flip the child bit in every ancestor",
+      "Prefix(j):     root to bottom: in each node on the path, parity of the children left of the path"],
+    cost: "Change and Prefix: h = ⌈log_B m⌉ = " + h + " probes each.",
+    change(p, a, M) {
+      const i = p - 1;
+      let v = (i / B) | 0, t = i % B, c = off[0] + v;
+      const x0 = M.read(c);
+      if (((x0 >> t) & 1) === a) return;
+      M.write(c, x0 ^ (1 << t));
+      for (let l = 1; l < h; l++) {
+        t = v % B; v = (v / B) | 0; c = off[l] + v;
+        const x = M.read(c);
+        M.write(c, x ^ (1 << t));
+      }
+    },
+    prefix(j, M) {
+      const i = j - 1;
+      let par = 0;
+      for (let l = h - 1; l >= 1; l--) {
+        const v = Math.floor(i / span[l]), t = Math.floor(i / span[l - 1]) % B;
+        par ^= parity(M.read(off[l] + v) & lowMask(t));
+      }
+      const v0 = (i / B) | 0, t0 = i % B;
+      return par ^ parity(M.read(off[0] + v0) & lowMask(t0 + 1));
+    }
+  };
+}
+
+function dsFenwick(m, w) {
+  const xs = Math.ceil(m / w), lg = floorLog2(m);
+  const cells = [], rows = [];
+  for (let e = lg; e >= 0; e--) rows.push({ label: "F, lowbit " + (2 ** e), cells: [] });
+  rows.push({ label: "x, packed", cells: [] });
+  for (let c = 0; c < xs; c++) {
+    cells.push({ row: lg + 1, lo: c * w, hi: Math.min(m, (c + 1) * w), label: "x-word " + c, nb: Math.min(m, (c + 1) * w) - c * w });
+    rows[lg + 1].cells.push(c);
+  }
+  for (let i = 1; i <= m; i++) {
+    const lb = i & -i, e = floorLog2(lb);
+    cells.push({ row: lg - e, lo: i - lb, hi: i, label: "F[" + i + "]", nb: 1 });
+    rows[lg - e].cells.push(xs + i - 1);
+  }
+  return {
+    type: "fenwick", name: "Fenwick tree", size: xs + m, cells: cells, rows: rows,
+    code: [
+      "F[i] = parity of x over (i − lowbit(i), i], one bit per cell; x itself packed, to detect no-op changes",
+      "Change(p, a):  read x's word; if the bit ≠ a: flip it, and flip F[i] for i = p, p+lowbit(p), … ≤ m",
+      "Prefix(j):     XOR of F[i] for i = j, j − lowbit(j), … > 0"],
+    cost: "Change: ≤ log m + 2 probes.  Prefix: ≤ log m + 1 probes.",
+    change(p, a, M) {
+      const i0 = p - 1, c = (i0 / w) | 0, o = i0 % w;
+      const v = M.read(c);
+      if (((v >> o) & 1) === a) return;
+      M.write(c, v ^ (1 << o));
+      for (let i = p; i <= m; i += i & -i) { const f = xs + i - 1; M.write(f, M.read(f) ^ 1); }
+    },
+    prefix(j, M) {
+      let par = 0;
+      for (let i = j; i > 0; i -= i & -i) par ^= M.read(xs + i - 1);
+      return par;
+    }
+  };
+}
+
+/* An update log with periodic rebuilding: the textbook *amortized* structure.
+   P-words hold prefix parities of the array as of the last rebuild; the log holds the
+   positions toggled since.  Cheap on average, one expensive Change every C toggles.  */
+function dsLog(m, w, C) {
+  if (2 ** w < m) throw new Error("log: needs w ≥ log m (a log entry stores a position)");
+  if (!(C >= 1 && C < 2 ** w && C <= 64)) throw new Error("log: need 1 ≤ C ≤ 64");
+  const SP = Math.ceil(m / w), CNT = SP, BUF = SP + 1;
+  const cells = [];
+  for (let c = 0; c < SP; c++)
+    cells.push({ row: 0, lo: c * w, hi: Math.min(m, (c + 1) * w), label: "P-word " + c, nb: Math.min(m, (c + 1) * w) - c * w });
+  cells.push({ row: 1, lo: 0, hi: Math.max(1, Math.round(m / (C + 1))), label: "count", nb: Math.min(w, floorLog2(C) + 1), num: true });
+  for (let e = 0; e < C; e++) {
+    const lo = Math.round((e + 1) * m / (C + 1)), hi = Math.round((e + 2) * m / (C + 1));
+    cells.push({ row: 1, lo: lo, hi: Math.max(lo + 1, hi), label: "log[" + e + "]", nb: w, num: true, logEntry: true });
+  }
+  const full = c => lowMask(cells[c].nb);
+  const getP = (j, M) => { if (j === 0) return 0; const i = j - 1; return (M.read((i / w) | 0) >> (i % w)) & 1; };
+  return {
+    type: "log", name: "Update log + rebuild, C = " + C, size: SP + 1 + C, cells: cells, C: C,
+    rows: [{ label: "P-words", cells: cells.slice(0, SP).map((_, c) => c) }, { label: "count, log", cells: [CNT].concat(Array.from({ length: C }, (_, e) => BUF + e)) }],
+    code: [
+      "P_j = prefix parity as of the last rebuild; count, log[0..count) = positions toggled since (drawn as a row, not over positions)",
+      "Change(p, a):  x_p = P_p ⊕ P_{p−1} ⊕ (#log entries = p); if ≠ a: append p to the log — if the log is full, rebuild all P-words",
+      "Prefix(j):     P_j ⊕ parity of #{log entries ≤ j}  (reads count, then count log cells: adaptive)"],
+    cost: "Prefix: count + 2 probes.  Change: usually ≤ C + 4, but every C-th toggle rewrites all ⌈m/w⌉ P-words.",
+    accessible(q) {
+      const set = new Set();
+      if (q >= 1) for (let c = 0; c < SP; c++) set.add(c);
+      if (q >= 2) set.add(CNT);
+      for (let e = 0; e < Math.min(C, q - 2); e++) set.add(BUF + e);
+      return set;
+    },
+    change(p, a, M) {
+      let xp = getP(p, M) ^ getP(p - 1, M);
+      const cnt = M.read(CNT), ent = [];
+      for (let e = 0; e < cnt; e++) { const v = M.read(BUF + e); ent.push(v); if (v === p - 1) xp ^= 1; }
+      if (xp === a) return;
+      if (cnt < C) { M.write(BUF + cnt, p - 1); M.write(CNT, cnt + 1); return; }
+      /* rebuild: fold the log and this toggle into the P-words */
+      const tog = new Uint8Array(m + 1);
+      for (let e = 0; e < cnt; e++) tog[ent[e] + 1] ^= 1;
+      tog[p] ^= 1;
+      let run = 0;
+      for (let c = 0; c < SP; c++) {
+        const v = M.read(c);
+        let nv = 0;
+        for (let b = 0; b < cells[c].nb; b++) { const j = c * w + b + 1; run ^= tog[j]; nv |= ((((v >> b) & 1) ^ run) << b); }
+        if (nv !== v) M.write(c, nv & full(c));
+      }
+      M.write(CNT, 0);
+    },
+    prefix(j, M) {
+      let par = getP(j, M);
+      const cnt = M.read(CNT);
+      for (let e = 0; e < cnt; e++) if (M.read(BUF + e) < j) par ^= 1;
+      return par;
+    }
+  };
+}
+
+/* ---------- scenario ----------------------------------------------------------- */
+
+/* chronological positions, d = 1..M, for mode = fs */
+function makeChronPositions(m, M, spec) {
+  const cp = new Array(M + 1).fill(0);
+  if (spec.kind === "golden") {
+    const g = (Math.sqrt(5) - 1) / 2;
+    for (let d = 1; d <= M; d++) cp[d] = Math.floor(m * ((d * g) % 1)) + 1;
+    const seen = new Set();
+    for (let d = 1; d <= M; d++) { if (seen.has(cp[d])) throw new Error("positions collide; use a larger m or fewer ops"); seen.add(cp[d]); }
+  } else {
+    const pos = makePositions(m, M, spec);           /* survey order relative to the last query */
+    for (let d = 1; d <= M; d++) cp[d] = pos[M - d + 1];
+  }
+  return cp;
+}
+
+/* the survey-shaped view of the updates before the query Q_j (mode = fs) */
+function deriveAtJ(S, j) {
+  S.j = j; S.k = j;
+  S.pos = new Array(j + 1).fill(0);
+  S.bitsMain = new Uint8Array(j + 1);
+  for (let u = 1; u <= j; u++) { S.pos[u] = S.chronPos[j - u + 1]; S.bitsMain[u] = S.xs[j - u + 1]; }
+  S.epochOfU = new Int8Array(S.k + 1);
+  for (let u = 1; u <= S.k; u++) {
+    let e = S.r + 1;
+    for (let i = 1; i <= S.r; i++) if (u <= S.ell[i]) { e = i; break; }
+    S.epochOfU[u] = e;
+  }
+  return S;
+}
+
+function buildScenario(S) {
+  S.ds = makeDS(S.m, S.w, S.dsSpec);
+  S.epochMask = ((1 << (S.r + 1)) - 1) & ~1;
+  S.rowIndex = S.ds.rows.map(row => {
+    const map = new Int32Array(S.m).fill(-1);
+    row.cells.forEach(c => { const cl = S.ds.cells[c]; for (let b = cl.lo; b < cl.hi; b++) map[b] = c; });
+    return map;
+  });
+  if (S.mode === "fs") {
+    S.chronPos = makeChronPositions(S.m, S.M, S.posSpec);
+    S.xs = new Uint8Array(S.M + 1);
+    if (S.bitSpec.kind === "explicit") for (let d = 1; d <= S.M; d++) S.xs[d] = S.bitSpec.str.charCodeAt(d - 1) - 48;
+    else { const rnd = mulberry32(S.bitSpec.seed * 104729 + 7); for (let d = 1; d <= S.M; d++) S.xs[d] = rnd() < 0.5 ? 1 : 0; }
+    deriveAtJ(S, S.j);
+    S.seqWrites = sequenceWrites(S, S.xs);
+    S.lemma = lemma1(S, S.seqWrites);
+    return S;
+  }
+  S.pos = makePositions(S.m, S.k, S.posSpec);
+  S.epochOfU = new Int8Array(S.k + 1);
+  for (let u = 1; u <= S.k; u++) {
+    let e = S.r + 1;
+    for (let i = 1; i <= S.r; i++) if (u <= S.ell[i]) { e = i; break; }
+    S.epochOfU[u] = e;
+  }
+  S.bitsMain = makeBits(S, S.bitSpec);
+  S.chronPos = new Array(S.k + 1).fill(0);
+  for (let d = 1; d <= S.k; d++) S.chronPos[d] = S.pos[S.k - d + 1];
+  return S;
+}
+
+/* the k updates on an all-zero memory */
+function runUpdates(S, bits, full) {
+  const ds = S.ds, k = S.k, r = S.r, lim = 2 ** S.w;
+  const mem = new Int32Array(ds.size), st = new Int8Array(ds.size);
+  const snap = new Array(r + 1);
+  const H = full ? { mem: [mem.slice()], st: [st.slice()], ops: [null] } : null;
+  let tu = 0;
+  const writes = new Int32Array(k + 1);
+  for (let t = 1; t <= k; t++) {
+    const u = k - t + 1, e = S.epochOfU[u];
+    if (e <= r && u === S.ell[e]) snap[e] = mem.slice();     /* epoch e is about to begin */
+    let last = -1, cost = 0, cur = null, wlast = -1, wr = 0;
+    const probes = full ? [] : null;
+    const chk = c => { if (!(Number.isInteger(c) && c >= 0 && c < ds.size)) throw new Error("Change: cell " + c + " out of range"); };
+    const M = {
+      read(c) {
+        chk(c);
+        if (c !== last) { last = c; cost++; if (full) { cur = { c: c, v: mem[c], nv: mem[c], ch: false }; probes.push(cur); } }
+        return mem[c];
+      },
+      write(c, v) {
+        chk(c);
+        if (!(Number.isInteger(v) && v >= 0 && v < lim)) throw new Error("Change: value " + v + " does not fit into w = " + S.w + " bits");
+        if (c !== last) { last = c; cost++; if (full) { cur = { c: c, v: mem[c], nv: mem[c], ch: false, wo: true }; probes.push(cur); } }
+        if (wlast !== cost) { wlast = cost; wr++; }                /* one write instruction per probe */
+        if (v !== mem[c]) { mem[c] = v; st[c] = e; if (full) cur.ch = true; }
+        if (full) cur.nv = v;
+      }
+    };
+    ds.change(S.pos[u], bits[u], M);
+    if (cost > tu) tu = cost;
+    writes[t] = wr;
+    if (full) { H.mem.push(mem.slice()); H.st.push(st.slice()); H.ops.push({ t: t, u: u, e: e, p: S.pos[u], a: bits[u], probes: probes, cost: cost, wr: wr }); }
+  }
+  return { mem: mem, st: st, snap: snap, tu: tu, H: H, writes: writes };
+}
+
+/* DS^(i): every stamp-i cell back to its content just before epoch i began */
+function forget(run, i) {
+  const V = run.mem.slice(), sn = run.snap[i], st = run.st;
+  for (let c = 0; c < V.length; c++) if (st[c] === i) V[c] = sn[c];
+  return V;
+}
+
+/* one query on its own copy of memory `base`; stamps refer to the actual run.
+   mask has bit s set iff a probe reads (from base) a cell with stamp s. */
+function runQuery(ds, base, st, y, rec) {
+  let own = null, last = -1, cost = 0, mask = 0;
+  const probes = rec ? [] : null;
+  const M = {
+    read(c) {
+      if (!(Number.isInteger(c) && c >= 0 && c < base.length)) throw new Error("Prefix: cell " + c + " out of range");
+      const mine = own !== null && own.has(c);
+      if (c !== last) {
+        last = c; cost++;
+        if (!mine) mask |= 1 << st[c];
+        if (rec) probes.push({ c: c, v: mine ? own.get(c) : base[c], s: mine ? -1 : st[c] });
+      }
+      return mine ? own.get(c) : base[c];
+    },
+    write(c, v) {
+      if (own === null) own = new Map();
+      if (c !== last) { last = c; cost++; if (rec) probes.push({ c: c, v: base[c], s: -1, wo: true }); }
+      own.set(c, v);
+    }
+  };
+  const ans = ds.prefix(y, M) & 1;
+  return { ans: ans, cost: cost, mask: mask, probes: probes };
+}
+
+function truthOf(S, bits) {
+  const x = new Uint8Array(S.m + 1);
+  for (let u = 1; u <= S.k; u++) x[S.pos[u]] = bits[u];
+  const q = new Uint8Array(S.m + 1);
+  for (let y = 1; y <= S.m; y++) q[y] = q[y - 1] ^ x[y];
+  return { x: x, q: q };
+}
+
+/* full analysis of one bit vector a (everything recorded, for drawing) */
+function analyzeFull(S, bits) {
+  const m = S.m, r = S.r, ds = S.ds;
+  const run = runUpdates(S, bits, true);
+  const T = truthOf(S, bits);
+  const errors = [];
+  const Q = [null];
+  let tq = 0, sumCost = 0, sumEp = 0;
+  for (let y = 1; y <= m; y++) {
+    const q = runQuery(ds, run.mem, run.st, y, true);
+    Q.push(q);
+    if (q.ans !== T.q[y] && errors.length < 5) errors.push("Prefix(" + y + ") = " + q.ans + ", correct is " + T.q[y]);
+    tq = Math.max(tq, q.cost); sumCost += q.cost; sumEp += popcount(q.mask & S.epochMask);
+  }
+  const V = [null], Qi = [null], R = [null], mis = [null], dist = [0], rsum = [0], own = [0], after = [0];
+  let violations = 0;
+  for (let i = 1; i <= r; i++) {
+    V.push(forget(run, i));
+    const qi = [null], Ri = new Uint8Array(m + 1), Mi = new Uint8Array(m + 1);
+    let d = 0, rs = 0;
+    for (let y = 1; y <= m; y++) {
+      const q = runQuery(ds, V[i], run.st, y, true);
+      qi.push(q);
+      Ri[y] = (Q[y].mask >> i) & 1; rs += Ri[y];
+      Mi[y] = q.ans !== Q[y].ans ? 1 : 0; d += Mi[y];
+      if (Mi[y] && !Ri[y]) violations++;
+    }
+    Qi.push(qi); R.push(Ri); mis.push(Mi); dist.push(d); rsum.push(rs);
+    let o = 0, a = 0;
+    for (let c = 0; c < ds.size; c++) { if (run.st[c] === i) o++; if (run.st[c] >= 1 && run.st[c] < i) a++; }
+    own.push(o); after.push(a);
+  }
+  const lastT = new Int16Array(ds.size);
+  for (let t = 1; t <= S.k; t++) run.H.ops[t].probes.forEach(p => { if (p.ch) lastT[p.c] = t; });
+  return { run: run, T: T, Q: Q, V: V, Qi: Qi, R: R, mis: mis, dist: dist, rsum: rsum, own: own, after: after,
+           tu: run.tu, tq: tq, meanCost: sumCost / m, meanEp: sumEp / m, errors: errors, violations: violations, lastT: lastT };
+}
+
+/* Monte Carlo over uniform a (y exhaustively), for the averages in the chain.
+   budgetMs limits the running time; returns the number of samples actually used. */
+function sampleAverages(S, N, seed, budgetMs) {
+  const m = S.m, r = S.r, ds = S.ds;
+  const rnd = mulberry32(seed);
+  const bits = new Uint8Array(S.k + 1);
+  const acc = { n: 0, maxCost: 0, sumCost: 0, sumEp: 0, dist: new Float64Array(r + 1), rows: new Float64Array(r + 1),
+                violations: 0, errors: 0, tu: 0, after: new Float64Array(r + 1), afterMax: new Int32Array(r + 1) };
+  const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+  const t0 = now();
+  for (let s = 0; s < N; s++) {
+    for (let u = 1; u <= S.k; u++) bits[u] = rnd() < 0.5 ? 1 : 0;
+    const run = runUpdates(S, bits, false);
+    const T = truthOf(S, bits);
+    const ans = new Uint8Array(m + 1), masks = new Int32Array(m + 1);
+    for (let y = 1; y <= m; y++) {
+      const q = runQuery(ds, run.mem, run.st, y, false);
+      ans[y] = q.ans; masks[y] = q.mask;
+      if (q.ans !== T.q[y]) acc.errors++;
+      acc.sumCost += q.cost; if (q.cost > acc.maxCost) acc.maxCost = q.cost;
+      acc.sumEp += popcount(q.mask & S.epochMask);
+    }
+    for (let i = 1; i <= r; i++) {
+      const V = forget(run, i);
+      let d = 0, rs = 0;
+      for (let y = 1; y <= m; y++) {
+        const q = runQuery(ds, V, run.st, y, false);
+        const mi = q.ans !== ans[y], ri = (masks[y] >> i) & 1;
+        d += mi ? 1 : 0; rs += ri;
+        if (mi && !ri) acc.violations++;
+      }
+      acc.dist[i] += d; acc.rows[i] += rs;
+      let a = 0;
+      for (let c = 0; c < run.st.length; c++) if (run.st[c] >= 1 && run.st[c] < i) a++;
+      acc.after[i] += a; if (a > acc.afterMax[i]) acc.afterMax[i] = a;
+    }
+    acc.tu = Math.max(acc.tu, run.tu);
+    acc.n++;
+    if (budgetMs && now() - t0 > budgetMs && acc.n >= 8) break;
+  }
+  const n = Math.max(1, acc.n);
+  const out = { n: acc.n, maxCost: acc.maxCost, meanCost: acc.sumCost / (n * m), meanEp: acc.sumEp / (n * m),
+                dist: [], rows: [], after: [], afterMax: Array.from(acc.afterMax), violations: acc.violations, errors: acc.errors, tu: acc.tu };
+  let sd = 0;
+  for (let i = 0; i <= r; i++) {
+    out.dist.push(acc.dist[i] / n); out.rows.push(acc.rows[i] / n); out.after.push(acc.after[i] / n);
+    if (i >= 1) sd += acc.dist[i] / n;
+  }
+  out.sumDist = sd / m;
+  return out;
+}
+
+/* ---------- Fredman–Saks: writes along the whole sequence, Lemma 1 windows ------------- */
+
+/* writes of u_d (queries of our structures never write), d = 1..M, on the full sequence */
+function sequenceWrites(S, xs) {
+  const ds = S.ds, lim = 2 ** S.w, mem = new Int32Array(ds.size);
+  const wr = new Int32Array(S.M + 1);
+  for (let d = 1; d <= S.M; d++) {
+    let last = -1, cost = 0, wl = -1, n = 0;
+    const M = {
+      read(c) { if (c !== last) { last = c; cost++; } return mem[c]; },
+      write(c, v) { if (c !== last) { last = c; cost++; } if (wl !== cost) { wl = cost; n++; } if (!(v >= 0 && v < lim)) throw new Error("value too large"); mem[c] = v; }
+    };
+    ds.change(S.chronPos[d], xs[d], M);
+    wr[d] = n;
+  }
+  return wr;
+}
+
+/* w(sigma, j, i): writes during the i-1 most recent epochs before Q_j, for all j >= sqrt(m);
+   good iff <= 4 * wbar * ell[i-1] (Fredman–Saks (4)/(5), with beta in place of alpha*w). */
+function lemma1(S, wr) {
+  let W = 0; for (let d = 1; d <= S.M; d++) W += wr[d];
+  const wbar = W / S.M, rows = [null, null];
+  for (let i = 2; i <= S.r; i++) {
+    const t = S.ell[i - 1], thr = 4 * wbar * t, win = new Float64Array(S.M + 1), good = new Uint8Array(S.M + 1);
+    let ng = 0, n = 0;
+    for (let j = S.rt; j <= S.M; j++) {
+      let sum = 0; for (let d = j - t + 1; d <= j; d++) sum += wr[d];
+      win[j] = sum; good[j] = sum <= thr ? 1 : 0; ng += good[j]; n++;
+    }
+    rows.push({ i: i, t: t, thr: thr, win: win, good: good, frac: ng / n });
+  }
+  return { W: W, wbar: wbar, rows: rows };
+}
+
+/* q-accessible registers: reachable within the first q probes of some query, from some memory */
+function accessibleSet(S, q) {
+  if (S.ds.accessible) return S.ds.accessible(q);
+  /* our other structures are non-adaptive: the probe sequence of Prefix(y) does not depend
+     on the memory, so running every query once on any memory finds all of them */
+  const set = new Set(), zero = new Int32Array(S.ds.size), st = new Int8Array(S.ds.size);
+  for (let y = 1; y <= S.m; y++) runQuery(S.ds, zero, st, y, true).probes.slice(0, q).forEach(p => set.add(p.c));
+  return set;
+}
+
+/* ---------- tab 4/5: fix a1 (updates before epoch i), vary a2 (the last ell_i updates) ----- */
+function enumerateEpoch(S, i, opt) {
+  opt = opt || {};
+  const ds = S.ds, k = S.k, l = S.ell[i], m = S.m, lim = 2 ** S.w, fs = S.mode === "fs";
+  const q = S.r, acc = fs ? accessibleSet(S, q) : null;
+  /* the fixed part: updates t = 1 .. k - l (u > l) with the main bits */
+  const mem0 = new Int32Array(ds.size), st0 = new Int8Array(ds.size);
+  const runOne = (mem, st, t, bit, stamp) => {
+    const u = k - t + 1; let last = -1, cost = 0, wl = -1, n = 0;
+    const M = {
+      read(c) { if (c !== last) { last = c; cost++; } return mem[c]; },
+      write(c, v) { if (c !== last) { last = c; cost++; } if (wl !== cost) { wl = cost; n++; }
+                    if (!(v >= 0 && v < lim)) throw new Error("value too large");
+                    if (v !== mem[c]) { mem[c] = v; st[c] = stamp; } }
+    };
+    ds.change(S.pos[u], bit, M);
+    return n;
+  };
+  for (let t = 1; t <= k - l; t++) runOne(mem0, st0, t, S.bitsMain[k - t + 1], S.epochOfU[k - t + 1]);
+  /* x before epoch i */
+  const x0 = new Uint8Array(m + 1);
+  for (let u = l + 1; u <= k; u++) x0[S.pos[u]] = S.bitsMain[u];
+  /* which a2 */
+  const est = Math.max(1, l * (opt.tu || 6) + m * ((opt.tq || 4) + 1.5));
+  const budget = opt.budget || 2.6e7;
+  let list = [];
+  const mainA2 = new Uint8Array(l + 1); for (let u = 1; u <= l; u++) mainA2[u] = S.bitsMain[u];
+  let exhaustive = l <= 14 && (2 ** l) * est <= budget;
+  if (exhaustive) {
+    for (let v = 0; v < 2 ** l; v++) { const a = new Uint8Array(l + 1); for (let u = 1; u <= l; u++) a[u] = (v >> (u - 1)) & 1; list.push(a); }
+  } else {
+    const N = Math.max(64, Math.min(2048, Math.floor(0.4 * budget / est)));
+    const rnd = mulberry32(977 * i + 31);
+    list.push(mainA2);
+    for (let s2 = 1; s2 < N; s2++) { const a = new Uint8Array(l + 1); for (let u = 1; u <= l; u++) a[u] = rnd() < 0.5 ? 1 : 0; list.push(a); }
+  }
+  const classOf = new Map(), bOf = new Map();
+  const res = { i: i, l: l, exhaustive: exhaustive, N: list.length, fs: fs, gamma: acc ? acc.size : null,
+                cls: new Int32Array(list.length), bid: new Int32Array(list.length), dist: new Int32Array(list.length),
+                later: new Int32Array(list.length), laterAcc: new Int32Array(list.length), inS: new Uint8Array(list.length),
+                trunc: new Int32Array(list.length), a2: list, mainIdx: 0, x0: x0, mem0: mem0, st0: st0 };
+  const wbar = fs ? (S.lemma ? S.lemma.wbar : 0) : 0;
+  for (let n = 0; n < list.length; n++) {
+    const a = list[n];
+    let same = true; for (let u = 1; u <= l; u++) if (a[u] !== mainA2[u]) { same = false; break; }
+    if (same) res.mainIdx = n;
+    const mem = mem0.slice(), st = st0.slice();
+    let wLater = 0;
+    for (let t = k - l + 1; t <= k; t++) { const u = k - t + 1; const nw = runOne(mem, st, t, a[u], S.epochOfU[u]); if (u <= S.ell[i - 1]) wLater += nw; }
+    const V = mem.slice();
+    for (let c = 0; c < V.length; c++) if (st[c] === i) V[c] = mem0[c];
+    /* class key: the cells written after epoch i (stamp 1..i-1) and their contents;
+       fs: only the q-accessible ones */
+    let key = "", nl = 0, na = 0;
+    for (let c = 0; c < V.length; c++) if (st[c] >= 1 && st[c] < i) { nl++; if (!acc || acc.has(c)) { na++; key += c + ":" + V[c] + ","; } }
+    res.later[n] = nl; res.laterAcc[n] = na;
+    res.inS[n] = fs ? (wLater <= 4 * wbar * S.ell[i - 1] ? 1 : 0) : 1;
+    if (!classOf.has(key)) classOf.set(key, classOf.size);
+    res.cls[n] = classOf.get(key);
+    /* the forgetful answers, and the distance to the correct ones */
+    let par = 0, d = 0, qs = "", tr = 0;
+    const xa = x0.slice(); for (let u = 1; u <= l; u++) xa[S.pos[u]] = a[u];
+    for (let y = 1; y <= m; y++) {
+      par ^= xa[y];
+      const Q = runQuery(ds, V, st, y, false);
+      let out = Q.ans;
+      if (fs && Q.cost > q) { out = 2; tr++; }              /* J = infinity: more than q probes */
+      qs += out;
+      if (out !== par) d++;
+    }
+    if (!bOf.has(qs)) bOf.set(qs, bOf.size);
+    res.bid[n] = bOf.get(qs); res.dist[n] = d; res.trunc[n] = tr;
+  }
+  res.nClasses = classOf.size; res.nB = bOf.size;
+  const sizes = new Array(classOf.size).fill(0);
+  for (let n = 0; n < list.length; n++) sizes[res.cls[n]]++;
+  res.classSizes = sizes;
+  return res;
+}
+
+/* segments of the answer vector cut by the last ell updates, and exact ball counts */
+function segmentsOf(S, l) {
+  const sp = spreadOf(S, l), ps = sp.sorted, lens = [];
+  for (let j = 0; j < ps.length; j++) lens.push((j + 1 < ps.length ? ps[j + 1] : S.m + 1) - ps[j]);
+  return { ps: ps, lens: lens, head: ps[0] - 1 };
+}
+/* #{ f in {0,1}^l : sum f_j len_j <= R } -- the answer vectors of one coset within Hamming radius R */
+function ballCount(lens, R) {
+  R = Math.floor(R);
+  if (R < 0) return 0;
+  const dp = new Float64Array(R + 1); dp[0] = 1;
+  for (const L of lens) for (let r = R; r >= L; r--) dp[r] += dp[r - L];
+  let s = 0; for (let r = 0; r <= R; r++) s += dp[r];
+  return s;
+}
+function log2Binom(n, k) {
+  if (k < 0 || k > n) return -Infinity;
+  let s = 0; for (let t = 0; t < k; t++) s += Math.log2(n - t) - Math.log2(t + 1);
+  return s;
+}
+/* log2 of sum_{j <= J} C(N, j) 2^{bits * j}, with N given as log2 N (it may be astronomical);
+   uses C(N, j) <= N^j / j! when N is huge, the exact binomial otherwise */
+function log2CountBound(log2N, J, bits) {
+  let best = -Infinity; const terms = [];
+  for (let j = 0; j <= J; j++) {
+    const lc = log2N > 40 ? j * log2N - lgFact(j) : log2Binom(Math.round(2 ** log2N), j);
+    const v = lc + bits * j;
+    terms.push(v); if (v > best) best = v;
+  }
+  let sm = 0; for (const v of terms) sm += 2 ** (v - best);
+  return best + Math.log2(sm);
+}
+function lgFact(j) { let f = 0; for (let t = 2; t <= j; t++) f += Math.log2(t); return f; }
+function log2BinomSum(n, K) { /* log2 sum_{j<=K} C(n,j) */
+  let best = -Infinity; const t = [];
+  for (let j = 0; j <= Math.min(n, Math.floor(K)); j++) { const v = log2Binom(n, j); t.push(v); if (v > best) best = v; }
+  let s = 0; for (const v of t) s += 2 ** (v - best);
+  return best + Math.log2(s);
+}
+const H2 = p => (p <= 0 || p >= 1) ? 0 : -p * Math.log2(p) - (1 - p) * Math.log2(1 - p);
+/* ENGINE-END */
+
+/* UI-BEGIN =================================================================== */
+const el = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/* ---------- colours: one per epoch, used everywhere ------------------------ */
+const EPC = [null, "#b3372b", "#c7861c", "#4f8a3c", "#2b7a74", "#3f5fa3", "#7d4a94",
+             "#a0522d", "#6b7f2a", "#b0487a", "#3d7fa0", "#8a6d3b", "#5c6b8a"];
+const EARLIER = "#a39c8c", NEVER = "#fcf9f3", INK = "#38362e", XON = "#5a524a";
+function stampColor(s) { return s === 0 ? NEVER : (s > S.r ? EARLIER : EPC[s]); }
+function epochName(e) { return e > S.r ? "earlier" : "epoch " + e; }
+function chipE(e, txt) {
+  const c = e === 0 ? NEVER : stampColor(e);
+  const light = e === 0 || e === 2 || e > S.r;
+  return '<span class="chip' + (light ? " light" : "") + '" style="background:' + c + '">' + (txt === undefined ? epochName(e) : txt) + "</span>";
+}
+const fmt = (v, d) => (v === null || v === undefined || !isFinite(v)) ? "—" : Number(v).toFixed(d === undefined ? 2 : d);
+function bitsStr(v, nb) { let s = ""; for (let b = 0; b < nb; b++) s += (v >> b) & 1; return s; }
+
+/* ---------- presets ----------------------------------------------------------- */
+const PRESETS = [
+  { id: "tree2", name: "Binary tree (B = 2)",
+    text: "# a binary tree of subtree parities\nm = 256\nbeta = 2\npositions = bitrev\nbits = random:3\nds = tree B=2\n" },
+  { id: "tree4", name: "B-ary tree, B = 4",
+    text: "m = 256\nbeta = 2\npositions = bitrev\nbits = random:3\nds = tree B=4\n" },
+  { id: "treew", name: "B = w = log m: the matching upper bound",
+    text: "# B = w gives Θ(log m / log log m) for both operations\nm = 256\nbeta = 2\npositions = bitrev\nbits = random:3\nds = tree B=8\n" },
+  { id: "fenwick", name: "Fenwick tree",
+    text: "m = 256\nbeta = 2\npositions = bitrev\nbits = random:3\nds = fenwick\n" },
+  { id: "bits", name: "Cheap updates: packed bit array",
+    text: "# Change: 1 probe; Prefix(j): j/w probes\nm = 256\nbeta = 2\npositions = bitrev\nbits = random:3\nds = bits\n" },
+  { id: "prefix", name: "Cheap queries: packed prefix parities",
+    text: "# Prefix: 1 probe; Change: up to m/w probes\nm = 256\nbeta = 2\npositions = bitrev\nbits = random:3\nds = prefix\n" },
+  { id: "golden", name: "Golden-ratio positions (Fredman–Saks)",
+    text: "m = 256\nbeta = 2\npositions = golden\nbits = random:3\nds = tree B=2\n" },
+  { id: "sorted", name: "Sorted positions: no spread",
+    text: "# the most recent updates are the rightmost ones\nm = 256\nbeta = 2\npositions = sorted\nbits = random:3\nds = tree B=2\n" },
+  { id: "fewguess", name: "One big epoch, one tiny one (tabs 4–5)",
+    text: "# epoch 2: twelve updates; epoch 1: a single one. Few later writes, so few guesses.\nm = 256\nk = 13\nepochs = 1 13\npositions = bitrev\nbits = random:3\nds = tree B=4\n" },
+  { id: "log", name: "Update log + rebuild (an amortized structure)",
+    text: "# cheap on average, one expensive Change every C toggles\nm = 256\nbeta = 2\npositions = bitrev\nbits = random:3\nds = log C=6\n" },
+  { id: "big", name: "m = 1024, binary tree",
+    text: "m = 1024\nbeta = 2\npositions = bitrev\nbits = random:3\nds = tree B=2\n" },
+  { id: "beta4", name: "m = 4096, β = B = 4: one tree level per epoch",
+    text: "m = 4096\nbeta = 4\npositions = bitrev\nbits = random:3\nds = tree B=4\nsamples = 60\n" },
+  { id: "fs_tree", name: "FS: 32 updates, query Q₃₂, B = 4", fs: true,
+    text: "mode = fs\n# u1 Q1 u2 Q2 ... u32 Q32; look at the last query\nm = 256\nops = 32\nj = 32\nbeta = 2\npositions = golden\nbits = random:3\nds = tree B=4\n" },
+  { id: "fs_log", name: "FS: update log + rebuild (bursty writes)", fs: true,
+    text: "mode = fs\nm = 256\nops = 48\nj = 48\nbeta = 2\npositions = golden\nbits = random:3\nds = log C=6\n" },
+  { id: "fs_few", name: "FS: a big epoch 4, three tiny ones", fs: true,
+    text: "mode = fs\n# q = 4 epochs, so a query may use up to 4 probes before it is cut off\nm = 256\nops = 32\nj = 32\nepochs = 1 2 3 14\npositions = golden\nbits = random:3\nds = tree B=4\n" },
+  { id: "fs_bin", name: "FS: binary tree — queries longer than q probes", fs: true,
+    text: "mode = fs\n# 8 probes per query, but only q = 4 epochs: J = infinity everywhere\nm = 256\nops = 32\nj = 32\nbeta = 2\npositions = golden\nbits = random:3\nds = tree B=2\n" }
+];
+
+/* ---------- state ------------------------------------------------------------- */
+let TEXT = "", S = null, A = null, SMP = null, CH = null, ENUM = {};
+let tab = 1;
+const TS = { 1: null, 2: null, 3: null, 4: null, 5: null };
+const FS = () => S && S.mode === "fs";
+let pinY = null, timer = null;
+let LAYOUT = [], GEOM = null, CLAY = null;
+
+function setKey(text, key, val) {
+  const re = new RegExp("^[ \\t]*" + key + "[ \\t]*=.*$", "mi");
+  if (re.test(text)) return text.replace(re, key + " = " + val);
+  return text.replace(/\s*$/, "\n") + key + " = " + val + "\n";
+}
+
+function load(text, keepTab) {
+  let s;
+  try { s = buildScenario(parseScenario(text)); }
+  catch (e) { el("parseErr").textContent = e.message; return false; }
+  el("parseErr").textContent = "";
+  TEXT = text; el("inputText").value = text;
+  S = s;
+  A = analyzeFull(S, S.bitsMain);
+  SMP = S.samples > 0 ? sampleAverages(S, S.samples, 20260929, 700) : null;
+  const msgs = [];
+  if (A.errors.length) msgs.push("The data structure answers incorrectly: " + A.errors.join("; "));
+  if (A.violations || (SMP && SMP.violations)) msgs.push("A query answered differently on DS and DS⁽ⁱ⁾ without reading a stamp-i cell. " +
+    "That is impossible for a cell probe program; it indicates hidden state outside the memory.");
+  el("banner").style.display = msgs.length ? "block" : "none";
+  el("banner").innerHTML = msgs.map(esc).join("<br>");
+  ENUM = {}; selA2 = null; trial = null;
+  buildChrono();
+  TS[1] = build1(); TS[2] = build2(); TS[3] = build3(); TS[4] = build4(); TS[5] = build5();
+  pinY = null;
+  if (!keepTab) tab = 1;
+  syncControls(); fillProofValues(); render();
+  return true;
+}
+
+function syncControls() {
+  const pr = PRESETS.find(p => p.text === TEXT);
+  el("presetSel").value = pr ? pr.id : "";
+  el("dsSel").value = S.dsSpec.type;
+  el("bWrap").style.display = S.dsSpec.type === "tree" ? "" : "none";
+  if (S.dsSpec.type === "tree") el("bIn").value = S.dsSpec.B;
+  el("cWrap").style.display = S.dsSpec.type === "log" ? "" : "none";
+  if (S.dsSpec.type === "log") el("cIn").value = S.dsSpec.C;
+  el("posSel").value = S.posSpec.kind;
+  document.querySelectorAll("#modeSeg button").forEach(b => b.classList.toggle("on", b.dataset.mode === S.mode));
+  el("jWrap").style.display = FS() ? "" : "none";
+  if (FS()) { el("jIn").min = S.rt; el("jIn").max = S.M; el("jIn").value = S.j; }
+  el("proofSurvey").style.display = FS() ? "none" : "";
+  el("proofFS").style.display = FS() ? "" : "none";
+}
+
+/* ---------- step lists --------------------------------------------------------- */
+function mkSteps() {
+  const T = { steps: [], phases: [], cur: 0 };
+  T.phase = name => T.phases.push({ name: name, from: T.steps.length, to: T.steps.length - 1 });
+  T.add = o => { o.ph = T.phases.length - 1; T.steps.push(o); T.phases[T.phases.length - 1].to = T.steps.length - 1; };
+  return T;
+}
+
+function build1() {
+  const T = mkSteps();
+  T.phase("Setup"); T.add({ kind: "intro", t: 0, hl: ["D1", "D2"] });
+  T.phase("Spread");
+  for (let i = 1; i <= S.r; i++) T.add({ kind: "spread", i: i, t: 0, hl: ["D3"] });
+  const tE = S.k - S.ell[S.r];
+  if (tE > 0) { T.phase("Earlier"); for (let t = 1; t <= tE; t++) T.add({ kind: "upd", t: t, hl: ["D2", "D5"] }); }
+  for (let e = S.r; e >= 1; e--) {
+    T.phase("Epoch " + e);
+    for (let t = S.k - S.ell[e] + 1; t <= S.k - S.ell[e - 1]; t++) T.add({ kind: "upd", t: t, hl: ["D4", "D5"] });
+  }
+  T.phase("Stamps"); T.add({ kind: "done", t: S.k, hl: ["D5"] });
+  if (S.mode === "fs" && S.r >= 2) {
+    T.phase("Lemma 1");
+    for (let i = 2; i <= S.r; i++) T.add({ kind: "lemma", i: i, t: S.k, hl: [], hlF: ["F7", "F8"] });
+  }
+  return T;
+}
+
+function pickY0() {
+  let y0 = 1, best = -Infinity;
+  const target = Math.round(0.62 * S.m);
+  for (let y = 1; y <= S.m; y++) {
+    const q = A.Q[y];
+    const sc = popcount(q.mask & S.epochMask) * 1e6 + q.cost * 100 - Math.abs(y - target);
+    if (sc > best) { best = sc; y0 = y; }
+  }
+  return y0;
+}
+
+function build2() {
+  const T = mkSteps();
+  const y0 = pickY0();
+  T.phase("One query");
+  T.add({ kind: "q0", y: y0, j: 0, hl: ["C1", "C2"] });
+  for (let j = 1; j <= A.Q[y0].cost; j++) T.add({ kind: "q0", y: y0, j: j, hl: ["C3"] });
+  T.add({ kind: "q0end", y: y0, hl: ["C3"] });
+  T.phase("All queries");
+  const nb = Math.min(S.m, 16);
+  for (let b = 1; b <= nb; b++) T.add({ kind: "sweep", Y: Math.ceil(S.m * b / nb), hl: ["C2", "C3"] });
+  T.phase("Epoch by epoch");
+  T.add({ kind: "rows", hl: ["C4"] });
+  T.add({ kind: "avg", hl: ["C3", "C4"] });
+  return T;
+}
+
+function build3() {
+  const T = mkSteps();
+  const nb = Math.min(S.m, 8);
+  for (let i = 1; i <= S.r; i++) {
+    T.phase("Forget epoch " + i);
+    T.add({ kind: "own", i: i, hl: ["D6"] });
+    T.add({ kind: "revert", i: i, hl: ["D6", "D7"] });
+    for (let b = 1; b <= nb; b++) T.add({ kind: "sw3", i: i, Y: Math.ceil(S.m * b / nb), hl: ["D7", "C5"] });
+    T.add({ kind: "sum3", i: i, hl: ["C5", "C6"] });
+  }
+  return T;
+}
+
+/* ---------- chronogram data ----------------------------------------------------- */
+function buildChrono() {
+  const H = A.run.H, seen = new Map(), changes = [null];
+  for (let t = 1; t <= S.k; t++) {
+    const list = [];
+    H.ops[t].probes.forEach(p => { if (p.ch) { list.push(p.c); seen.set(p.c, true); } });
+    changes.push(list);
+  }
+  const cells = Array.from(seen.keys()).sort((a, b) => {
+    const A1 = S.ds.cells[a], B1 = S.ds.cells[b];
+    return A1.row - B1.row || A1.lo - B1.lo;
+  });
+  const idx = new Map(); cells.forEach((c, j) => idx.set(c, j));
+  CH = { cells: cells, idx: idx, changes: changes };
+}
+/* ---------- the aligned stack: every band shares the position axis 1..m -------- */
+const LAB_W = 112, RIGHT_W = 78, INF_COL = "#8e6bb0";
+
+function geomFor(svgId) {
+  const box = el(svgId).parentElement;
+  const W = Math.max(440, Math.floor(box.clientWidth - 30));
+  const pw = W - LAB_W - RIGHT_W;
+  return { W: W, pw: pw, sx: pw / S.m, X: b => LAB_W + b * pw / S.m };
+}
+
+/* maximal runs [a, b) of y in [from, to] with pred(y) */
+function runsOf(from, to, pred) {
+  const out = []; let a = -1;
+  for (let y = from; y <= to + 1; y++) {
+    const on = y <= to && pred(y);
+    if (on && a < 0) a = y;
+    if (!on && a >= 0) { out.push([a, y]); a = -1; }
+  }
+  return out;
+}
+const rect = (x, y, w, h, attrs) => '<rect x="' + x.toFixed(2) + '" y="' + y.toFixed(2) + '" width="' + Math.max(0, w).toFixed(2) +
+  '" height="' + Math.max(0, h).toFixed(2) + '" ' + (attrs || "") + "/>";
+const txt = (x, y, s, cls, extra) => '<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" class="' + cls + '" ' + (extra || "") + ">" + s + "</text>";
+
+function memRowHeight() {
+  const n = S.ds.rows.length;
+  if (n <= 5) return 22;
+  return Math.max(11, Math.min(18, Math.floor(170 / n)));
+}
+
+/* bands: array of specs; returns nothing, draws into #stackSvg and fills LAYOUT */
+function drawStack(bands, cursorY) {
+  const g = geomFor("stackSvg"); GEOM = g;
+  const X = g.X, m = S.m;
+  let y = 8, out = "";
+  LAYOUT = [];
+  const defs = '<defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+               '<line x1="0" y1="0" x2="0" y2="5" stroke="#fff" stroke-width="2.2" stroke-opacity=".9"/></pattern></defs>';
+  const label = (yc, s) => txt(LAB_W - 8, yc + 4, s, "svlab r");
+  const right = (yc, s) => txt(g.W - RIGHT_W + 8, yc + 4, s, "svval");
+  let cursorTop = null, cursorBot = null;
+
+  for (const b of bands) {
+    if (b.kind === "gap") { y += b.h || 8; continue; }
+    if (b.kind === "ruler") {
+      const h = 22, base = y + 15;
+      out += '<line x1="' + X(0) + '" y1="' + base + '" x2="' + X(m) + '" y2="' + base + '" stroke="' + INK + '" stroke-width=".8"/>';
+      for (let j = 0; j <= 16; j++) {
+        const bx = X(j * m / 16), major = j % 4 === 0;
+        out += '<line x1="' + bx.toFixed(1) + '" y1="' + (base - (major ? 6 : 3)) + '" x2="' + bx.toFixed(1) + '" y2="' + base +
+               '" stroke="' + INK + '" stroke-width="' + (major ? 1 : .6) + '"/>';
+        if (major && j > 0) out += txt(bx - 2, base - 8, String(j * m / 16), "svsm", 'text-anchor="' + (j === 16 ? "end" : "middle") + '"');
+      }
+      out += label(y + 8, "position");
+      LAYOUT.push({ y0: y, y1: y + h, kind: "ruler" });
+      y += h;
+      continue;
+    }
+    if (b.kind === "upd") {
+      const h = 26, yb = y + h - 3;
+      for (let u = S.k; u >= 1; u--) {
+        const t = S.k - u + 1, e = S.epochOfU[u], p = S.pos[u], cx = X(p - 0.5);
+        const col = stampColor(e);
+        const done = t <= b.upto, cur = t === b.cur;
+        let op = done ? 1 : .35;
+        if (b.emph !== undefined && b.emph !== null) op = e <= b.emph ? 1 : .18;
+        const rr = cur ? 5 : 3.3, top = yb - (cur ? 18 : 13);
+        out += '<g opacity="' + op + '"><line x1="' + cx.toFixed(1) + '" y1="' + yb + '" x2="' + cx.toFixed(1) + '" y2="' + (top + rr) +
+               '" stroke="' + col + '" stroke-width="' + (cur ? 2.2 : 1.4) + '"/>';
+        const emphMode = b.emph !== undefined && b.emph !== null;
+        const bit = b.bits ? b.bits[u] : S.bitsMain[u];
+        const vary = b.vary && u <= b.vary;
+        let fill = emphMode ? col : (!done ? "none" : (bit ? col : NEVER));
+        if (b.bits && !vary && (!emphMode || e <= b.emph)) fill = bit ? col : NEVER;
+        if (vary) { fill = NEVER; op = 1; }
+        out += '<circle cx="' + cx.toFixed(1) + '" cy="' + top + '" r="' + rr + '" fill="' + fill + '" stroke="' + col + '" stroke-width="1.4"' +
+               ((!done && !emphMode) || vary ? ' stroke-dasharray="2 1.5"' : "") + "/>";
+        if (vary && rr >= 3) out += txt(cx, top + 3, "?", "svnum", 'style="font-size:8px;fill:' + col + '"');
+        if (b.ring && b.ring.has(u)) out += '<circle cx="' + cx.toFixed(1) + '" cy="' + top + '" r="' + (rr + 3) + '" fill="none" stroke="#d8352a" stroke-width="2"/>';
+        out += "</g>";
+      }
+      out += label(y + 12, "updates");
+      LAYOUT.push({ y0: y, y1: y + h, kind: "upd", spec: b });
+      y += h;
+      continue;
+    }
+    if (b.kind === "seg") {
+      const h = 13, sp = spreadOf(S, S.ell[b.i]), ps = sp.sorted;
+      out += rect(X(0), y, g.pw, h, 'fill="' + NEVER + '" stroke="rgba(0,0,0,.12)" stroke-width=".6"');
+      let minLen = Infinity;
+      for (let j = 0; j < ps.length; j++) { const hi = j + 1 < ps.length ? ps[j + 1] : m + 1; minLen = Math.min(minLen, hi - ps[j]); }
+      for (let j = 0; j < ps.length; j++) {
+        const lo = ps[j] - 1, hi = j + 1 < ps.length ? ps[j + 1] - 1 : m;
+        const nMin = ps.reduce((acc, p0, jj) => acc + (((jj + 1 < ps.length ? ps[jj + 1] : m + 1) - p0) === minLen ? 1 : 0), 0);
+        const isMin = (hi - lo) === minLen && nMin <= 2;
+        out += rect(X(lo) + .5, y + 1, X(hi) - X(lo) - 1, h - 2,
+          'fill="' + (j % 2 ? "#e6d9c2" : "#d9c9ad") + '"' + (isMin ? ' stroke="' + EPC[1] + '" stroke-width="1.6"' : ""));
+      }
+      out += label(y + h / 2, "segments");
+      out += right(y + h / 2, "min " + minLen);
+      LAYOUT.push({ y0: y, y1: y + h, kind: "seg", spec: b });
+      y += h + 5;
+      continue;
+    }
+    if (b.kind === "x") {
+      const h = 14;
+      if (cursorTop === null) cursorTop = y;
+      out += rect(X(0), y, g.pw, h, 'fill="' + NEVER + '" stroke="rgba(0,0,0,.18)" stroke-width=".6"');
+      if (b.shadeTo) out += rect(X(0), y - 2, X(b.shadeTo) - X(0), h + 4, 'fill="' + EPC[1] + '" fill-opacity=".13"');
+      runsOf(1, m, yy => b.x[yy] === 1).forEach(([a, c]) =>
+        out += rect(X(a - 1) + (g.sx > 3 ? .5 : 0), y + 2, X(c - 1) - X(a - 1) - (g.sx > 3 ? 1 : 0), h - 4, 'fill="' + XON + '"'));
+      out += label(y + h / 2, "array x");
+      out += right(y + h / 2, "Σ = " + b.x.reduce((s, v) => s + v, 0));
+      LAYOUT.push({ y0: y, y1: y + h, kind: "x", spec: b });
+      y += h + 6;
+      continue;
+    }
+    if (b.kind === "mem") {
+      const rh = memRowHeight();
+      S.ds.rows.forEach((row, ri) => {
+        const y0 = y;
+        row.cells.forEach(c => {
+          const cl = S.ds.cells[c];
+          const x0 = X(cl.lo), x1 = X(cl.hi), wpx = x1 - x0;
+          const ins = wpx > 3 ? .6 : 0;
+          const s = b.st[c];
+          let stroke = wpx >= 4 ? 'stroke="rgba(0,0,0,.2)" stroke-width=".6"' : "";
+          if (b.ownI && s === b.ownI) stroke = 'stroke="' + INK + '" stroke-width="1.8"';
+          let fill = stampColor(s), fop = 1;
+          if (b.frozenI) {                       /* tab 4: what DS^(i) is made of */
+            if (s >= 1 && s < b.frozenI) { fop = (b.acc && !b.acc.has(c)) ? .35 : 1; }
+            else { fill = s === 0 ? NEVER : "#d8cfbd"; }
+          }
+          out += rect(x0 + ins, y0 + 1, wpx - 2 * ins, rh - 2, 'fill="' + fill + '" fill-opacity="' + fop + '" ' + stroke);
+          if (b.acc && b.acc.has(c) && wpx >= 3)
+            out += rect(x0 + ins + 1.2, y0 + 2.2, wpx - 2 * ins - 2.4, rh - 4.4, 'fill="none" stroke="#3f5fa3" stroke-width="1" stroke-dasharray="1.5 1.5"');
+          if (b.reverted && b.reverted.has(c)) {
+            out += rect(x0 + ins, y0 + 1, wpx - 2 * ins, rh - 2, 'fill="url(#hatch)" stroke="' + INK + '" stroke-width="1" stroke-dasharray="2 1.5"');
+          }
+          if (cl.nb === 1 && b.mem[c] && wpx >= 5) out += '<circle cx="' + ((x0 + x1) / 2).toFixed(1) + '" cy="' + (y0 + rh / 2) + '" r="1.6" fill="' + INK + '" fill-opacity=".55"/>';
+        });
+        out += label(y0 + rh / 2, esc(row.label));
+        LAYOUT.push({ y0: y0, y1: y0 + rh, kind: "mem", row: ri, spec: b });
+        y += rh;
+      });
+      /* probe marks on top */
+      if (b.probes) {
+        b.probes.forEach((pr, c) => {
+          const cl = S.ds.cells[c], ri = cl.row, y0 = LAYOUT.find(L => L.kind === "mem" && L.row === ri).y0;
+          let x0 = X(cl.lo), x1 = X(cl.hi);
+          if (x1 - x0 < 6) { const mid = (x0 + x1) / 2; x0 = mid - 3; x1 = mid + 3; }
+          out += rect(x0 + .3, y0 + .3, x1 - x0 - .6, rh - .6, 'fill="none" stroke="' + (pr.ch ? EPC[1] : "#1d1b17") + '" stroke-width="' + (pr.ch ? 2.8 : 2.1) + '"');
+          if (pr.n && x1 - x0 >= 15 && rh >= 13) {
+            const cx = (x0 + x1) / 2, cy = y0 + rh / 2;
+            out += '<circle cx="' + cx.toFixed(1) + '" cy="' + cy + '" r="6" fill="' + NEVER + '" stroke="#1d1b17" stroke-width=".8"/>' +
+                   txt(cx, cy, String(pr.n), "svnum");
+          }
+        });
+      }
+      y += 6;
+      continue;
+    }
+    if (b.kind === "cost") {
+      const h = 42, mx = Math.max(1, b.max);
+      out += rect(X(0), y, g.pw, h, 'fill="' + NEVER + '" stroke="rgba(0,0,0,.12)" stroke-width=".6"');
+      const hOf = v => (h - 3) * v / mx;
+      /* compress runs of equal values */
+      let a = 1;
+      for (let yy = 2; yy <= b.upto + 1; yy++) {
+        if (yy > b.upto || A.Q[yy].cost !== A.Q[a].cost || popcount(A.Q[yy].mask & S.epochMask) !== popcount(A.Q[a].mask & S.epochMask)) {
+          const c = A.Q[a].cost, d = popcount(A.Q[a].mask & S.epochMask);
+          out += rect(X(a - 1), y + h - hOf(c), X(yy - 1) - X(a - 1), hOf(c), 'fill="#cdbfa6"');
+          out += rect(X(a - 1), y + h - hOf(d), X(yy - 1) - X(a - 1), hOf(d), 'fill="' + XON + '"');
+          a = yy;
+        }
+      }
+      out += txt(LAB_W - 8, y + 13, "probes", "svlab r", 'style="fill:#a8977a"');
+      out += txt(LAB_W - 8, y + 31, "epochs read", "svlab r", 'style="fill:' + XON + '"');
+      let sc = 0, se = 0;
+      for (let yy = 1; yy <= b.upto; yy++) { sc += A.Q[yy].cost; se += popcount(A.Q[yy].mask & S.epochMask); }
+      if (b.upto > 0) { out += txt(g.W - RIGHT_W + 8, y + 13, "⌀ " + fmt(sc / b.upto), "svval"); out += txt(g.W - RIGHT_W + 8, y + 31, "⌀ " + fmt(se / b.upto), "svval"); }
+      LAYOUT.push({ y0: y, y1: y + h, kind: "cost", spec: b });
+      y += h + 6;
+      continue;
+    }
+    if (b.kind === "strip" || b.kind === "mis" || b.kind === "R") {
+      const h = b.kind === "R" ? 12 : 13;
+      out += rect(X(0), y, g.pw, h, 'fill="' + NEVER + '" stroke="rgba(0,0,0,.12)" stroke-width=".6"');
+      const upto = Math.min(m, b.upto);
+      if (upto < m) out += rect(X(upto), y, X(m) - X(upto), h, 'fill="#ece2d0"');
+      const col = b.kind === "mis" ? "#d8352a" : b.color;
+      runsOf(1, upto, yy => b.arr[yy] === 1).forEach(([a, c]) =>
+        out += rect(X(a - 1), y + 1.5, X(c - 1) - X(a - 1), h - 3, 'fill="' + col + '"'));
+      runsOf(1, upto, yy => b.arr[yy] === 2).forEach(([a, c]) =>
+        out += rect(X(a - 1), y + 1.5, X(c - 1) - X(a - 1), h - 3, 'fill="' + INF_COL + '"'));
+      out += label(y + h / 2, b.label);
+      let cnt = 0; for (let yy = 1; yy <= upto; yy++) cnt += b.arr[yy] === 1 ? 1 : 0;
+      if (b.showCount !== false) out += right(y + h / 2, (b.kind === "R" ? "Σ " : "") + cnt);
+      LAYOUT.push({ y0: y, y1: y + h, kind: b.kind, spec: b });
+      y += h + (b.kind === "R" ? 2 : 3);
+      continue;
+    }
+  }
+  if (cursorY) {
+    const cx = X(cursorY - 0.5), top = cursorTop === null ? 8 : cursorTop - 4;
+    out += '<line x1="' + cx.toFixed(1) + '" y1="' + top + '" x2="' + cx.toFixed(1) + '" y2="' + (y - 2) +
+           '" stroke="' + EPC[1] + '" stroke-width="1.3" stroke-dasharray="3 2" pointer-events="none"/>';
+    out += txt(cx, top - 1, "y = " + cursorY, "svsm", 'text-anchor="' + (cursorY > m * 0.85 ? "end" : (cursorY < m * 0.15 ? "start" : "middle")) + '" style="fill:' + EPC[1] + '"');
+  }
+  const svg = el("stackSvg");
+  svg.setAttribute("width", g.W); svg.setAttribute("height", y + 4);
+  svg.setAttribute("viewBox", "0 0 " + g.W + " " + (y + 4));
+  svg.innerHTML = defs + out;
+}
+
+/* ---------- the chronogram: time × changed cells ---------------------------------- */
+function drawChrono(tNow) {
+  const box = el("chronoSvg").parentElement;
+  const W = Math.max(440, Math.floor(box.clientWidth - 30));
+  const LAB = LAB_W, RW = 46, k = S.k, n = CH.cells.length;
+  const cw = (W - LAB - RW) / k;
+  const top = 30, rh = Math.max(1, Math.min(11, Math.floor(360 / Math.max(1, n))));
+  const H = top + n * rh + 22;
+  let out = "";
+  const X = t => LAB + (t - 1) * cw;
+  /* epoch bands */
+  const tE = S.k - S.ell[S.r];
+  const bands = [];
+  if (tE > 0) bands.push({ e: S.r + 1, t1: 1, t2: tE });
+  for (let e = S.r; e >= 1; e--) bands.push({ e: e, t1: S.k - S.ell[e] + 1, t2: S.k - S.ell[e - 1] });
+  bands.forEach(bd => {
+    const x0 = X(bd.t1), x1 = X(bd.t2 + 1);
+    out += rect(x0, top - 4, x1 - x0, n * rh + 8, 'fill="' + stampColor(bd.e) + '" fill-opacity=".10"');
+    out += '<line x1="' + x0.toFixed(1) + '" y1="' + (top - 16) + '" x2="' + x0.toFixed(1) + '" y2="' + (top + n * rh + 4) + '" stroke="' + INK + '" stroke-opacity=".25"/>';
+    const lab = x1 - x0 > 52 ? epochName(bd.e) : (x1 - x0 > 18 ? (bd.e > S.r ? "earl." : "ep " + bd.e) : (bd.e > S.r ? "" : String(bd.e)));
+    out += txt((x0 + x1) / 2, top - 10, lab, "svhead", 'text-anchor="middle" style="fill:' + stampColor(bd.e) + '"');
+  });
+  /* row groups */
+  let prevRow = -1, gStart = 0;
+  const flush = (j) => {
+    if (prevRow < 0) return;
+    const y0 = top + gStart * rh, y1 = top + j * rh;
+    if (y1 - y0 >= 14) out += txt(LAB - 8, (y0 + y1) / 2 + 4, esc(S.ds.rows[prevRow].label), "svlab r");
+    out += '<line x1="' + (LAB - 4) + '" y1="' + (y0 + .5) + '" x2="' + (LAB - 4) + '" y2="' + (y1 - .5) + '" stroke="' + INK + '" stroke-opacity=".35"/>';
+    if (j < n) out += '<line x1="' + LAB + '" y1="' + y1 + '" x2="' + (W - RW) + '" y2="' + y1 + '" stroke="' + INK + '" stroke-opacity=".12"/>';
+  };
+  CH.cells.forEach((c, j) => {
+    const r = S.ds.cells[c].row;
+    if (r !== prevRow) { flush(j); prevRow = r; gStart = j; }
+  });
+  flush(n);
+  /* the last change <= tNow per cell */
+  const last = new Int16Array(S.ds.size);
+  for (let t = 1; t <= tNow; t++) CH.changes[t].forEach(c => last[c] = t);
+  for (let t = 1; t <= tNow; t++) {
+    const e = S.epochOfU[S.k - t + 1];
+    CH.changes[t].forEach(c => {
+      const j = CH.idx.get(c), isLast = last[c] === t;
+      out += rect(X(t) + (cw > 4 ? 1 : 0), top + j * rh + (rh > 3 ? .5 : 0), Math.max(1, cw - (cw > 4 ? 2 : 0)), Math.max(1, rh - (rh > 3 ? 1 : 0)),
+        'fill="' + stampColor(e) + '" fill-opacity="' + (isLast ? 1 : .33) + '"' + (isLast && rh >= 4 && cw >= 5 ? ' stroke="' + INK + '" stroke-width=".9"' : ""));
+    });
+  }
+  /* current column */
+  if (tNow >= 1) out += rect(X(tNow), top - 5, cw, n * rh + 10, 'fill="none" stroke="' + INK + '" stroke-width="1.4"');
+  /* stamp column */
+  const stNow = A.run.H.st[tNow];
+  out += txt(W - RW + 8 + 6, top - 10, "stamp", "svhead", 'text-anchor="middle"');
+  CH.cells.forEach((c, j) => {
+    const s = stNow[c];
+    out += rect(W - RW + 8, top + j * rh + (rh > 3 ? .5 : 0), 13, Math.max(1, rh - (rh > 3 ? 1 : 0)), 'fill="' + stampColor(s) + '"' + (s === 0 ? ' stroke="rgba(0,0,0,.15)" stroke-width=".5"' : ""));
+  });
+  out += txt(LAB, H - 6, "← first update", "svsm", "");
+  out += txt(W - RW, H - 6, "last update, then the query →", "svsm", 'text-anchor="end"');
+  CLAY = { LAB: LAB, cw: cw, top: top, rh: rh, n: n, W: W, RW: RW };
+  const svg = el("chronoSvg");
+  svg.setAttribute("width", W); svg.setAttribute("height", H);
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.innerHTML = out;
+  el("chronoMeta").textContent = n + " of " + S.ds.size + " cells ever change";
+}
+/* ---------- per-tab rendering -------------------------------------------------- */
+function curStep() { const T = TS[tab]; return T.steps[T.cur]; }
+
+function legendHTML(extra) {
+  let h = "";
+  for (let i = 1; i <= S.r; i++) h += '<span class="item"><span class="sw" style="background:' + EPC[i] + '"></span>epoch ' + i + "</span>";
+  if (S.k > S.ell[S.r]) h += '<span class="item"><span class="sw" style="background:' + EARLIER + '"></span>earlier</span>';
+  h += '<span class="item"><span class="sw" style="background:' + NEVER + '"></span>never changed</span>';
+  return h + (extra || "");
+}
+const LEG_PROBE = '<span class="item"><span class="sw" style="background:none;border:2px solid #1d1b17"></span>probed</span>';
+const LEG_CHANGED = '<span class="item"><span class="sw" style="background:none;border:2px solid ' + "#b3372b" + '"></span>changed now</span>';
+const LEG_REV = '<span class="item"><span class="sw hatch" style="--c:#999;border:1px dashed #38362e"></span>reverted</span>';
+
+function probeMapUpd(t) {
+  const M = new Map();
+  if (t >= 1) A.run.H.ops[t].probes.forEach((p, j) => M.set(p.c, { n: j + 1, ch: p.ch }));
+  return M;
+}
+function probeMapQ(q, upto) {
+  const M = new Map();
+  q.probes.forEach((p, j) => { if (upto === undefined || j < upto) if (!M.has(p.c)) M.set(p.c, { n: j + 1, ch: false }); });
+  return M;
+}
+function metaLine() {
+  if (FS()) return "n = " + S.m + " · b = " + S.w + " · Q_j: j = " + S.j + " of " + S.M + " · q = " + S.r + " · max Change = " + A.tu + " · max query = " + A.tq;
+  return "m = " + S.m + " · w = " + S.w + " · k = " + S.k + " · r = " + S.r + " · t_u = " + A.tu + " · max Prefix = " + A.tq;
+}
+function dsNoteHTML() {
+  return "<b>" + esc(S.ds.name) + ".</b> " + esc(S.ds.cost) + S.ds.code.map(l => '<span class="cl">' + esc(l) + "</span>").join("");
+}
+
+function render1(st) {
+  const t = st.t;
+  const x = new Uint8Array(S.m + 1);
+  for (let u = 1; u <= S.k; u++) if (S.k - u + 1 <= t) x[S.pos[u]] = S.bitsMain[u];
+  const bands = [{ kind: "ruler" },
+    { kind: "upd", upto: t, cur: st.kind === "upd" ? t : -1, emph: st.kind === "spread" ? st.i : null }];
+  if (st.kind === "spread") bands.push({ kind: "seg", i: st.i });
+  bands.push({ kind: "x", x: x });
+  bands.push({ kind: "mem", mem: A.run.H.mem[t], st: A.run.H.st[t], probes: st.kind === "upd" ? probeMapUpd(t) : null });
+  drawStack(bands, null);
+  drawChrono(t);
+  el("legend").innerHTML = legendHTML(st.kind === "upd" ? LEG_PROBE + LEG_CHANGED : "");
+  el("statusBox").innerHTML = status1(st);
+}
+
+function focusY2(st) {
+  if (st.kind === "q0" || st.kind === "q0end") return st.y;
+  if (pinY) return pinY;
+  if (st.kind === "sweep") return st.Y;
+  return null;
+}
+function render2(st) {
+  const fy = focusY2(st);
+  const Y = st.kind === "sweep" ? st.Y : (st.kind === "q0" || st.kind === "q0end" ? 0 : S.m);
+  let probes = null;
+  if (fy) probes = probeMapQ(A.Q[fy], st.kind === "q0" ? st.j : undefined);
+  const bands = [{ kind: "ruler" }, { kind: "x", x: A.T.x, shadeTo: fy }, { kind: "mem", mem: A.run.mem, st: A.run.st, probes: probes }];
+  bands.push({ kind: "cost", upto: Y, max: A.tq });
+  for (let i = 1; i <= S.r; i++) bands.push({ kind: "R", arr: A.R[i], upto: Y, color: EPC[i], label: "R row " + i });
+  drawStack(bands, fy);
+  el("legend").innerHTML = legendHTML(fy ? LEG_PROBE : "");
+  el("statusBox").innerHTML = status2(st, fy);
+}
+
+function focusY3(st) {
+  if (pinY) return pinY;
+  const i = st.i;
+  if (st.kind === "sw3") return st.Y;
+  for (let y = 1; y <= S.m; y++) if (A.mis[i][y]) return y;
+  for (let y = 1; y <= S.m; y++) if (A.R[i][y]) return y;
+  return 1;
+}
+function render3(st) {
+  const i = st.i, fy = focusY3(st);
+  const reverted = new Set();
+  if (st.kind !== "own") for (let c = 0; c < S.ds.size; c++) if (A.run.st[c] === i) reverted.add(c);
+  const memShown = st.kind === "own" ? A.run.mem : A.V[i];
+  const Y = st.kind === "sw3" ? st.Y : (st.kind === "sum3" ? S.m : 0);
+  const qArr = new Uint8Array(S.m + 1), qiArr = new Uint8Array(S.m + 1);
+  const fsm = FS(), misArr = fsm ? new Uint8Array(S.m + 1) : A.mis[i], longArr = fsm ? new Uint8Array(S.m + 1) : null;
+  for (let y = 1; y <= S.m; y++) {
+    qArr[y] = A.Q[y].ans; qiArr[y] = A.Qi[i][y].ans;
+    if (fsm) {
+      if (A.Qi[i][y].cost > S.r) qiArr[y] = 2;                 /* J = infinity */
+      misArr[y] = qiArr[y] !== qArr[y] ? 1 : 0;
+      longArr[y] = A.Q[y].cost > S.r ? 1 : 0;
+    }
+  }
+  const probes = Y > 0 || st.kind === "revert" ? probeMapQ(st.kind === "own" ? A.Q[fy] : A.Qi[i][fy]) : null;
+  const bands = [{ kind: "ruler" }, { kind: "x", x: A.T.x, shadeTo: probes ? fy : null },
+    { kind: "mem", mem: memShown, st: A.run.st, ownI: i, reverted: reverted.size && st.kind !== "own" ? reverted : null, probes: probes },
+    { kind: "strip", arr: qArr, upto: Y, color: XON, label: fsm ? "F: sum(x)" : "q(a)" },
+    { kind: "strip", arr: qiArr, upto: Y, color: "#8a7f6d", label: fsm ? "J(τ,μ,x)" : "q⁽" + i + "⁾(a)" },
+    { kind: "mis", arr: misArr, upto: Y, label: "differ" },
+    { kind: "R", arr: A.R[i], upto: Y, color: EPC[i], label: fsm ? "probes ep. " + i : "R row " + i }];
+  if (fsm) bands.push({ kind: "R", arr: longArr, upto: Y, color: INF_COL, label: "> q probes" });
+  drawStack(bands, probes ? fy : null);
+  let sel = '<span class="item epsel">forget epoch';
+  for (let e = 1; e <= S.r; e++) sel += ' <button class="' + (e === i ? "pri" : "") + '" data-ep="' + e + '" style="padding:1px 8px;font-size:.72rem">' + e + "</button>";
+  sel += "</span>";
+  el("legend").innerHTML = legendHTML((st.kind !== "own" ? LEG_REV : "") + (probes ? LEG_PROBE : "")) + sel;
+  el("legend").querySelectorAll("button[data-ep]").forEach(bt => bt.addEventListener("click", () => {
+    stopPlay(); const T = TS[3]; T.cur = T.phases[Number(bt.dataset.ep) - 1].from; render();
+  }));
+  el("statusBox").innerHTML = status3(st, fy);
+  renderLock(i, fy, st.kind === "own");
+}
+
+/* ---------- lockstep table (tab 3) ------------------------------------------------ */
+function renderLock(i, y, onlyDS) {
+  const qa = A.Q[y], qb = A.Qi[i][y];
+  const n = Math.max(qa.probes.length, qb.probes.length);
+  el("lockTitle").innerHTML = "Prefix(" + y + ") on DS(<i>a</i>) and on DS<sup>(" + i + ")</sup>(<i>a</i>)";
+  el("lockMeta").textContent = (pinY ? "y pinned — click it again to release" : "click the picture to choose y");
+  let h = '<table class="lock"><tr><th>#</th><th>cell</th><th>stamp</th><th>content in DS(a)</th><th>content in DS⁽' + i + "⁾(a)</th></tr>";
+  for (let j = 0; j < n; j++) {
+    const pa = qa.probes[j], pb = qb.probes[j];
+    const c = pa ? pa.c : pb.c, cl = S.ds.cells[c];
+    const same = pa && pb && pa.c === pb.c;
+    const s = A.run.st[c];
+    const cellTxt = same || !pb ? esc(cl.label) : (pa ? esc(cl.label) + " / " : "— / ") + esc(S.ds.cells[pb.c].label);
+    const va = pa ? bitsStr(pa.v, S.ds.cells[pa.c].nb) : "—";
+    const vb = pb ? bitsStr(pb.v, S.ds.cells[pb.c].nb) : "—";
+    h += '<tr class="' + (s === i ? "hit" : "") + '"><td>' + (j + 1) + "</td><td" + (same || !pb || !pa ? "" : ' class="diff"') + ">" + cellTxt +
+         "</td><td>" + chipE(s, s === 0 ? "never" : (s > S.r ? "earlier" : String(s))) + "</td><td>" + va + '</td><td class="' + (va !== vb && !onlyDS ? "diff" : "") + '">' + (onlyDS ? "" : vb) + "</td></tr>";
+  }
+  h += '<tr class="ansrow"><td></td><td>answer</td><td></td><td>' + qa.ans + '</td><td class="' + (qa.ans !== qb.ans && !onlyDS ? "diff" : "") + '">' + (onlyDS ? "" : qb.ans) + "</td></tr></table>";
+  h += '<div class="dsnote">Contents are written position by position (the cell\'s first bit first). Rows with a stamp-' + i +
+       " cell are shaded: only there can the two memories differ, so the two runs agree until the first shaded row.</div>";
+  el("lockWrap").innerHTML = h;
+}
+
+/* ---------- status texts ------------------------------------------------------------ */
+function censusHTML(stArr) {
+  const cnt = new Array(S.r + 2).fill(0);
+  let never = 0;
+  for (let c = 0; c < S.ds.size; c++) { if (stArr[c] === 0) never++; else cnt[stArr[c]]++; }
+  let h = "";
+  for (let e = 1; e <= S.r + 1; e++) if (e <= S.r || cnt[e]) h += chipE(e, epochName(e) + ": " + cnt[e]) + " ";
+  return h + chipE(0, "never: " + never);
+}
+function status1(st) {
+  const ell = S.ell.slice(1).join(", ");
+  if (st.kind === "intro") {
+    return "<p><b>The adversary's input.</b> <i>k</i> = " + S.k + " updates Change(<i>i<sub>u</sub></i>, <i>a<sub>u</sub></i>) at fixed positions " +
+      "(the dots above the array) with uniformly random bits, then <b>one</b> query Prefix(<i>y</i>) at a uniformly random position. " +
+      "Filled dot: <i>a<sub>u</sub></i> = 1; open dot: <i>a<sub>u</sub></i> = 0 &mdash; a Change(<i>i</i>, 0) on a fresh 0 changes nothing.</p>" +
+      "<p><b>Epochs</b> are counted backwards from the query: epochs 1..<i>i</i> are the last ℓ<sub><i>i</i></sub> updates, ℓ = " + ell +
+      " (" + S.r + " epochs). The colours stand for epochs everywhere on the page.</p>" +
+      "<p>Below the array: the memory of the " + esc(S.ds.name.toLowerCase()) + ", every cell drawn over the positions it summarises. " +
+      "All cells start at 0.</p>";
+  }
+  if (st.kind === "spread") {
+    const i = st.i, l = S.ell[i], sp = spreadOf(S, l);
+    const guar = S.posSpec.kind === "bitrev" ? l > 0 && "<i>m</i>/(2ℓ) = " + fmt(S.m / (2 * l), 1)
+               : (S.posSpec.kind === "golden" ? "<i>m</i>/(3ℓ) = " + fmt(S.m / (3 * l), 1) + " (Fredman–Saks, Lemma 2)" : null);
+    let segMin = Infinity; const ps = sp.sorted;
+    for (let j = 0; j < ps.length; j++) segMin = Math.min(segMin, (j + 1 < ps.length ? ps[j + 1] : S.m + 1) - ps[j]);
+    return "<p>The last ℓ<sub>" + i + "</sub> = " + l + " updates (epochs 1–" + i + ") sit at positions " +
+      ps.join(", ") + ". They cut 1..<i>m</i> into segments; the shortest has length <b>" + segMin + "</b>" +
+      (guar ? ", the guarantee is " + guar : " &mdash; with these positions there is <b>no</b> guarantee") + ".</p>" +
+      "<p>Why this matters, much later (tab 5): flipping one recent bit flips the correct answer on a whole suffix of segments. " +
+      "Long segments make different recent bit patterns produce answer vectors that are <i>far apart</i>.</p>";
+  }
+  if (st.kind === "upd") {
+    const op = A.run.H.ops[st.t];
+    const nch = op.probes.filter(p => p.ch).length;
+    const re = op.probes.filter(p => p.ch && A.run.H.st[st.t - 1][p.c] !== 0 && A.run.H.st[st.t - 1][p.c] !== op.e).length;
+    let h = "<p>Update " + st.t + " of " + S.k + " (<i>u</i> = " + op.u + ", the " + op.u + "-th most recent) belongs to " + chipE(op.e) +
+      ": <code>Change(" + op.p + ", " + op.a + ")</code>.</p>";
+    h += "<p>The structure probes " + op.cost + " cell" + (op.cost === 1 ? "" : "s") + ": " +
+      op.probes.map(p => esc(S.ds.cells[p.c].label) + (p.ch ? " ✎" : "")).join(", ") + ". ";
+    if (nch === 0) h += "It changes <b>nothing</b> &mdash; <i>x</i><sub>" + op.p + "</sub> is already " + op.a + " &mdash; so no cell is stamped.</p>";
+    else h += "It changes " + nch + " (✎); they now carry stamp " + chipE(op.e, String(op.e)) + "." +
+      (re ? " " + re + " of them carried the stamp of an older epoch, which is overwritten: a stamp records the <b>last</b> change." : "") + "</p>";
+    h += "<p>Stamps so far: " + censusHTML(A.run.H.st[st.t]) + "</p>";
+    return h;
+  }
+  if (st.kind === "lemma") return status1lemma(st);
+  return "<p><b>All updates are done.</b> Every changed cell carries the stamp of its last change:</p><p>" + censusHTML(A.run.st) +
+    "</p><p>The recent epochs own few cells &mdash; they had few updates, and at most <i>t</i><sub>u</sub> = " + A.tu +
+    " probes each. The chronogram below makes this visible. Next: what the query reads (tab 2).</p>";
+}
+
+function epochsOfMask(mask) { const a = []; for (let i = 1; i <= S.r; i++) if ((mask >> i) & 1) a.push(i); return a; }
+function status2(st, fy) {
+  if (st.kind === "q0") {
+    const q = A.Q[st.y];
+    if (st.j === 0) return "<p>Take one query, <b>Prefix(" + st.y + ")</b>: the parity of <i>x</i><sub>1</sub>, …, <i>x</i><sub>" + st.y +
+      "</sub> (shaded). Its cost is the number of cells it probes; which cells, the code of the structure decides.</p>" +
+      "<p>C1 and C2: the worst case is at least the cost of this particular (<i>a</i>, <i>y</i>), and at least the average over all of them.</p>";
+    const p = q.probes[st.j - 1], cl = S.ds.cells[p.c], s = p.s;
+    const seen = epochsOfMask(q.probes.slice(0, st.j).reduce((mk, pp) => pp.s >= 0 ? mk | (1 << pp.s) : mk, 0));
+    const lt = A.lastT[p.c];
+    return "<p>Probe " + st.j + " of " + q.cost + ": <b>" + esc(cl.label) + "</b>, content <code>" + bitsStr(p.v, cl.nb) + "</code>, " +
+      (s === 0 ? "never changed (stamp none)." : "last changed by update " + lt + ", so stamp " + chipE(s) + ".") + "</p>" +
+      "<p>Epochs seen so far: " + (seen.length ? seen.map(e => chipE(e)).join(" ") : "none") + "</p>";
+  }
+  if (st.kind === "q0end") {
+    const q = A.Q[st.y], ep = epochsOfMask(q.mask);
+    return "<p>Prefix(" + st.y + ") probed <b>" + q.cost + "</b> cells, carrying stamps of <b>" + ep.length + "</b> distinct epochs among 1…" + S.r +
+      ": " + (ep.map(e => chipE(e)).join(" ") || "none") + ".</p><p>Every probe reads one cell with one stamp, so cost ≥ #distinct epochs read. " +
+      "That is <b>C3</b>, for this single query. It says nothing yet about <i>why</i> a query should read any particular epoch.</p>";
+  }
+  if (st.kind === "sweep") {
+    let sc = 0, se = 0;
+    for (let y = 1; y <= st.Y; y++) { sc += A.Q[y].cost; se += popcount(A.Q[y].mask & S.epochMask); }
+    return "<p>All queries <i>y</i> = 1 … " + st.Y + ". Top: the cost of each query (light) and the number of distinct epochs it reads (dark); " +
+      "dark ≤ light is C3, query by query. Below: the matrix <i>R</i>, one row per epoch: <i>R</i>[<i>i</i>][<i>y</i>] = 1 iff Prefix(<i>y</i>) reads a stamp-<i>i</i> cell.</p>" +
+      "<p>So far: average cost <b>" + fmt(sc / st.Y) + "</b>, average number of epochs read <b>" + fmt(se / st.Y) + "</b>.</p>" +
+      (fy ? "<p>Outlined: the probes of Prefix(" + fy + ")" + (pinY ? " (pinned)" : "") + ".</p>" : "");
+  }
+  if (st.kind === "rows") {
+    let h = "<p><b>Swap the sums (C4).</b> Adding up <i>R</i> column by column counts, for every query, the epochs it reads. " +
+      "Adding it up row by row gives the same total &mdash; but now organised by <b>epoch</b>: row <i>i</i> counts the queries that read a cell of epoch <i>i</i>.</p><p>";
+    for (let i = 1; i <= S.r; i++) h += chipE(i, "row " + i + ": " + A.rsum[i]) + " ";
+    return h + "</p><p>The proof now bounds every row on its own: on average over <i>a</i>, each row must have ≥ <i>m</i>/40 entries, " +
+      "for <i>any</i> data structure whose updates are cheap. Tab 3 shows where a lower bound on a row comes from.</p>";
+  }
+  let h = "<p><b>This <i>a</i> and the average.</b> For this <i>a</i>: average cost " + fmt(A.meanCost) + ", average number of epochs read " + fmt(A.meanEp) + ".";
+  if (SMP) {
+    h += " Over " + SMP.n + " random <i>a</i> (all <i>y</i>): " + fmt(SMP.meanCost) + " and " + fmt(SMP.meanEp) + " &mdash; the numbers next to C1–C4.</p>";
+    h += "<p>Fraction of queries reading epoch <i>i</i>, averaged: ";
+    for (let i = 1; i <= S.r; i++) h += chipE(i, i + ": " + fmt(SMP.rows[i] / S.m)) + " ";
+  }
+  return h + "</p>";
+}
+
+function status3(st, fy) {
+  const i = st.i, nUp = S.ell[i] - S.ell[i - 1];
+  const bound = A.tu * S.ell[i - 1];
+  if (st.kind === "own") {
+    return "<p>" + chipE(i) + " consists of " + nUp + " update" + (nUp === 1 ? "" : "s") + " and <b>owns " + A.own[i] + " cells</b>: those whose last change happened in epoch " + i + " (outlined).</p>" +
+      "<p>After epoch " + i + ", the later epochs changed <b>" + A.after[i] + "</b> cells" +
+      (i > 1 ? " (at most <i>t</i><sub>u</sub> · ℓ<sub>" + (i - 1) + "</sub> = " + A.tu + " · " + S.ell[i - 1] + " = " + bound + ")" : " &mdash; none, epoch 1 is the most recent") + ". " +
+      "Erase what epoch " + i + " owns, and whatever survives of its bits must have been copied into those later cells.</p>";
+  }
+  if (st.kind === "revert") {
+    return "<p><b>DS<sup>(" + i + ")</sup>(<i>a</i>)</b>: each of the " + A.own[i] + " stamp-" + i + " cells is reset to its content just before epoch " + i +
+      " began (hatched). Everything else is untouched, including the " + A.after[i] + " cells written later.</p>" +
+      "<p>No sequence of operations produced this memory: epoch " + i + "'s own writes are forgotten, the later ones are not. " +
+      "We simply run the query code on it and see what comes out (D7).</p>";
+  }
+  if (st.kind === "sw3") {
+    let d = 0, rr = 0; for (let y = 1; y <= st.Y; y++) { d += A.mis[i][y]; rr += A.R[i][y]; }
+    if (FS()) return status3fs(st, fy);
+    return "<p>The same query code, run on both memories for <i>y</i> = 1 … " + st.Y + ". Row <i>q</i>(<i>a</i>): the correct answers; row <i>q</i><sup>(" + i +
+      ")</sup>(<i>a</i>): the answers on DS<sup>(" + i + ")</sup>; red: they differ (" + d + " so far). Bottom: row " + i + " of <i>R</i> (" + rr + " so far).</p>" +
+      "<p><b>Every red mark sits above a mark of row " + i + ".</b> A query that never probes a stamp-" + i + " cell sees identical contents in both memories, " +
+      "follows the same path, and gives the same answer (C5).</p>" +
+      "<p>The table below replays Prefix(" + fy + ") on both memories.</p>";
+  }
+  if (FS()) return status3fs(st, fy);
+  const d = A.dist[i], rs = A.rsum[i];
+  let h = "<p>dist(<i>q</i>, <i>q</i><sup>(" + i + ")</sup>) = <b>" + d + "</b>, row " + i + " of <i>R</i> has <b>" + rs + "</b> entries, and all " + d +
+    " mismatches are among them " + (A.violations ? '<span class="bad">✗</span>' : '<span class="ok">✓</span>') +
+    ". So epoch " + i + " alone costs this <i>a</i> an average of " + fmt(d / S.m, 3) + " probes per query.</p>";
+  if (SMP) h += "<p>Averaged over " + SMP.n + " random <i>a</i>: dist/<i>m</i> = <b>" + fmt(SMP.dist[i] / S.m, 3) + "</b>; after epoch " + i +
+    " on average " + fmt(SMP.after[i], 1) + " cells change (max " + SMP.afterMax[i] + ").</p>";
+  return h + "<p>The survey shows dist/<i>m</i> ≥ 1/40 = 0.025 on average, for every structure with cheap updates. " +
+    "Why a forgetful memory must answer many queries <i>wrongly</i> is the content of tabs 4–5 (next stage): it can only " +
+    "&ldquo;guess&rdquo; from few later cells, while the correct answers are spread far apart.</p>";
+}
+
+/* Fredman–Saks reading of tab 3: J with truncation, and condition (5) */
+function lemmaGood(i, j) {
+  if (i === 1) return true;
+  const row = S.lemma.rows[i];
+  return !!(row && row.good[j]);
+}
+function status3fs(st, fy) {
+  const i = st.i, q = S.r, Y = st.kind === "sw3" ? st.Y : S.m;
+  let d = 0, tr = 0, lng = 0, bad = 0;
+  for (let y = 1; y <= Y; y++) {
+    const inf = A.Qi[i][y].cost > q, J = inf ? 2 : A.Qi[i][y].ans, mis = J !== A.Q[y].ans;
+    d += mis ? 1 : 0; tr += inf ? 1 : 0;
+    const lg = A.Q[y].cost > q; lng += lg ? 1 : 0;
+    if (mis && !lg && !A.R[i][y]) bad++;
+  }
+  const good = lemmaGood(i, S.j);
+  let h = "<p>The query code on the modified memory, for <i>x</i> = 1 … " + Y + ": <i>J</i>(τ,μ,<i>x</i>) " +
+    "(purple: ∞, more than <i>q</i> = " + q + " probes; " + tr + " so far). Red: <i>J</i> ≠ sum(<i>x</i>) (" + d + ").</p>" +
+    "<p>Every red mark sits above a mark of <i>probes epoch " + i + "</i> or of <i>&gt; q probes</i> " +
+    (bad ? '<span class="bad">✗</span>' : '<span class="ok">✓</span>') + ": a query that stops within <i>q</i> probes and meets no epoch-" + i +
+    " register sees the same contents in both runs.</p>";
+  if (st.kind === "sum3") {
+    h += "<p>δ(τ,μ) = <b>" + d + "</b>, i.e. " + fmt(d / S.m, 3) + " per query. " +
+      (lng === S.m ? "<b>Every</b> query here takes more than <i>q</i> probes, so each already pays one probe per epoch; the count is trivially satisfied. " : "") + "</p>";
+  }
+  h += "<p>Condition (5) for <i>Q</i><sub>" + S.j + "</sub>, epoch " + i + ": " +
+    (i === 1 ? "no later epochs, nothing written after epoch 1 &mdash; it holds." :
+      "writes during epochs 1…" + (i - 1) + " = " + S.lemma.rows[i].win[S.j] + " vs 4<i>w̄</i>ℓ<sub>" + (i - 1) + "</sub> = " + fmt(S.lemma.rows[i].thr, 1) + ": " +
+      (good ? '<span class="ok">holds</span>, so epoch ' + i + " counts for this query." : '<span class="bad">fails</span>: epoch ' + i +
+        " is not charged to this query (tab 1, Lemma 1: this happens for at most half of the queries).")) + "</p>";
+  return h;
+}
+/* ---------- tabs 4 and 5: fix a1, let a2 run through all its values ---------------------- */
+let selA2 = null, trial = null, lastStepKey = "", lemmaSel = 2;
+let CLAY4 = null, LEMLAY = null;
+
+function getEnum(i) { if (!ENUM[i]) ENUM[i] = enumerateEpoch(S, i, { tu: A.tu, tq: A.meanCost }); return ENUM[i]; }
+function a2Name() { return FS() ? "μ" : "<i>a</i><sub>2</sub>"; }
+function a1Name() { return FS() ? "τ" : "<i>a</i><sub>1</sub>"; }
+
+function epochSelectorHTML(cur, label) {
+  let h = '<span class="item epsel">' + label;
+  for (let e = 1; e <= S.r; e++) h += ' <button class="' + (e === cur ? "pri" : "") + '" data-ep="' + e + '" style="padding:1px 8px;font-size:.72rem">' + e + "</button>";
+  return h + "</span>";
+}
+function wireEpochSelector() {
+  el("legend").querySelectorAll("button[data-ep]").forEach(bt => bt.addEventListener("click", () => {
+    stopPlay(); const T = TS[tab]; T.cur = T.phases[Number(bt.dataset.ep) - 1].from; render();
+  }));
+}
+
+function build4() {
+  const T = mkSteps();
+  for (let i = 1; i <= S.r; i++) {
+    T.phase("Epoch " + i);
+    T.add({ kind: "frozen", i: i, hl: ["D6", "K1"], hlF: ["F8"] });
+    T.add({ kind: "later", i: i, hl: ["K1"], hlF: ["F9", "F10", "F11"] });
+    T.add({ kind: "classes", i: i, hl: ["K1", "C10"], hlF: ["F10", "F11"] });
+    T.add({ kind: "count", i: i, hl: ["K1", "C11"], hlF: ["F9", "F10"] });
+  }
+  return T;
+}
+function build5() {
+  const T = mkSteps();
+  for (let i = 1; i <= S.r; i++) {
+    T.phase("Epoch " + i);
+    T.add({ kind: "segs", i: i, hl: ["D3", "K2"], hlF: ["F4", "F13"] });
+    T.add({ kind: "flip1", i: i, hl: ["K2"], hlF: ["F13"] });
+    T.add({ kind: "pattern", i: i, hl: ["K2"], hlF: ["F13"] });
+    T.add({ kind: "ball", i: i, hl: ["K2", "C11"], hlF: ["F13"] });
+    T.add({ kind: "pigeon", i: i, hl: ["C8", "C9", "C10"], hlF: ["F13", "F14"] });
+  }
+  return T;
+}
+
+/* the state for one a2 (all later bits as in the main vector otherwise) */
+/* the a2 of tabs 1-3, unless nothing is written after epoch i for it: then the closest one
+   (same bits in epoch i) for which the later epochs do write */
+function defaultA2(R) {
+  if (R.i === 1 || R.later[R.mainIdx] > 0) return R.mainIdx;
+  const main = R.a2[R.mainIdx], lo = S.ell[R.i - 1];
+  let best = R.mainIdx, bestScore = -1;
+  for (let n = 0; n < R.N; n++) {
+    let same = true; for (let u = lo + 1; u <= R.l; u++) if (R.a2[n][u] !== main[u]) { same = false; break; }
+    if (!same) continue;
+    let agree = 0; for (let u = 1; u <= lo; u++) if (R.a2[n][u] === main[u]) agree++;
+    const sc = R.later[n] > 0 ? 1000 + agree : -1;
+    if (sc > bestScore) { bestScore = sc; best = n; }
+  }
+  return best;
+}
+function stateForA2(i, a2) {
+  const bits = S.bitsMain.slice();
+  for (let u = 1; u <= S.ell[i]; u++) bits[u] = a2[u];
+  const run = runUpdates(S, bits, false);
+  return { bits: bits, run: run, V: forget(run, i), T: truthOf(S, bits) };
+}
+
+/* ---------- tab 4 ----------------------------------------------------------------------------- */
+function render4(st) {
+  const i = st.i, R = getEnum(i), l = S.ell[i], fsm = FS();
+  if (!selA2 || selA2.i !== i) selA2 = { i: i, n: defaultA2(R) };
+  const a2 = R.a2[selA2.n], X = stateForA2(i, a2);
+  const acc = fsm ? accessibleSet(S, S.r) : null;
+  let bands;
+  if (st.kind === "frozen") {
+    bands = [{ kind: "ruler" }, { kind: "upd", upto: S.k, cur: -1, vary: l }, { kind: "x", x: R.x0 },
+             { kind: "mem", mem: R.mem0, st: R.st0, probes: null }];
+  } else {
+    const rev = new Set(); for (let c = 0; c < S.ds.size; c++) if (X.run.st[c] === i) rev.add(c);
+    bands = [{ kind: "ruler" }, { kind: "upd", upto: S.k, cur: -1, bits: X.bits }, { kind: "x", x: X.T.x },
+             { kind: "mem", mem: X.V, st: X.run.st, frozenI: i, acc: st.kind === "frozen" ? null : acc, reverted: rev.size ? rev : null, probes: null }];
+  }
+  drawStack(bands, null);
+  let leg = legendHTML();
+  if (st.kind !== "frozen") leg = legendHTML('<span class="item"><span class="sw" style="background:#d8cfbd"></span>as at the start of epoch ' + i + "</span>" + LEG_REV +
+    (acc ? '<span class="item"><span class="sw" style="background:none;border:1.5px dashed #3f5fa3"></span>q-accessible</span>' : ""));
+  el("legend").innerHTML = leg + epochSelectorHTML(i, "epoch");
+  wireEpochSelector();
+  const showCls = st.kind === "classes" || st.kind === "count";
+  el("classBox").style.display = showCls ? "" : "none";
+  el("budgetBox").style.display = st.kind === "count" ? "" : "none";
+  if (showCls) drawClassBar(R);
+  if (st.kind === "count") drawBudget(R);
+  el("statusBox").innerHTML = status4(st, R, X, acc);
+}
+
+function status4(st, R, X, acc) {
+  const i = st.i, l = S.ell[i], fsm = FS(), N = 2 ** l;
+  const sampled = R.exhaustive ? "" : " (a random sample of " + R.N + " of them)";
+  if (st.kind === "frozen") {
+    return "<p>Fix epoch " + i + " and everything that happened before it: " + (fsm ? "τ, " : "") + "the bits " + a1Name() + " of the " + (S.k - l) +
+      " earlier updates. The memory at the start of epoch " + i + " (shown) is then fixed.</p>" +
+      "<p>Only " + a2Name() + " varies: the ℓ<sub>" + i + "</sub> = " + l + " bits of epochs " + i + ", …, 1 (dashed dots) &mdash; 2<sup>" + l + "</sup> = " + N.toLocaleString("en") +
+      " possibilities. Both sides of the argument count over this set: how many different <i>guesses</i> the forgetful memory can make (this tab), " +
+      "and how spread out the <i>correct answers</i> are (tab 5).</p>";
+  }
+  if (st.kind === "later") {
+    let diff = 0, laterN = 0;
+    for (let c = 0; c < S.ds.size; c++) { if (X.V[c] !== R.mem0[c]) diff++; const s = X.run.st[c]; if (s >= 1 && s < i) laterN++; }
+    const isMain = selA2.n === R.mainIdx;
+    let h = "<p>For this " + a2Name() + (isMain ? " (the one of tabs 1–3)" : " (as in tabs 1–3 in epoch " + i + ", but with later bits that actually cause writes)") + ", DS<sup>(" + i + ")</sup> differs from the memory at the start of epoch " + i + " in " + diff +
+      " cells, and all of them are among the <b>" + laterN + "</b> cells written after epoch " + i + " (coloured). The stamp-" + i + " cells were reset (hatched), " +
+      "and nothing else was touched since.</p>";
+    if (!fsm) h += "<p>So DS<sup>(" + i + ")</sup> is determined by <i>which</i> cells were written after epoch " + i + " and <i>what</i> they contain: at most <i>t</i><sub>u</sub>·ℓ<sub>" + (i - 1) +
+      "</sub> = " + A.tu + "·" + S.ell[i - 1] + " = " + A.tu * S.ell[i - 1] + " cells (K1).</p>";
+    else h += "<p>Fredman–Saks look only at <b>q-accessible</b> registers (dashed): those a query can reach within its first <i>q</i> = " + S.r +
+      " probes, γ = " + acc.size + " of them. A query that runs longer is cut off anyway (<i>J</i> = ∞), so the " + (laterN - laterAccCount(X, acc, i)) +
+      " recent registers outside (faded) cannot matter. The class of μ is the set of recent q-accessible registers with their contents (7).</p>";
+    return h;
+  }
+  if (st.kind === "classes") {
+    return "<p>Now run all " + (R.exhaustive ? N.toLocaleString("en") : R.N.toLocaleString("en")) + " values of " + a2Name() + sampled + ". Grouped by " +
+      (fsm ? "their recent q-accessible registers and contents" : "the cells written after epoch " + i + " and their contents") + ", they fall into only <b>" +
+      R.nClasses.toLocaleString("en") + "</b> classes (top bar: one segment per class, as wide as the class). " +
+      "Within a class DS<sup>(" + i + ")</sup> is the same memory, so the forgetful answers are the same: " +
+      (fsm ? "<i>V<sub>j</sub></i> takes " : "<i>q</i><sup>(" + i + ")</sup> takes ") + "<b>" + R.nB.toLocaleString("en") + "</b> distinct values (bottom bar)" +
+      (R.nB <= R.nClasses ? ' <span class="ok">≤ #classes ✓</span>' : ' <span class="bad">✗</span>') + ".</p>" +
+      "<p>Hover a segment to see that " + a2Name() + "'s memory.</p>";
+  }
+  const lb = budgetNumbers(R);
+  let h = "<p><b>Counting.</b> " + a2Name() + " carries " + l + " bits; the forgetful memory can distinguish at most log<sub>2</sub> " + R.nClasses + " = " + fmt(Math.log2(R.nClasses), 1) +
+    " bits of it" + (R.exhaustive ? "" : " (at least; sampled)") + ".</p>";
+  if (!fsm) h += "<p>K1 bounds this without looking at the structure: at most <i>t</i>ℓ<sub>" + (i - 1) + "</sub> = " + lb.T + " cells among <i>s</i> ≤ 2<i>m</i>·2<sup><i>wt</i></sup>, " +
+    "each with <i>w</i> bits: log<sub>2</sub> of the bound is ≈ <b>" + fmt(lb.bound, 0) + "</b>. The chain needs 0.01ℓ<sub>" + i + "</sub> = " + fmt(0.01 * l, 2) +
+    ". That can only work if epochs grow by a factor far above <i>t</i>²<i>w</i> &mdash; the reason for ℓ<sub><i>i</i></sub> = log<sup>3<i>i</i></sup> <i>m</i>. " +
+    "A toy instance can only show the mechanism: the <i>actual</i> number of guesses is small when later epochs are small.</p>";
+  else h += "<p>Bound (7): at most 4<i>w̄</i>ℓ<sub>" + (i - 1) + "</sub> = " + lb.T + " recent registers among γ (here " + lb.gamma + ", in general ≤ <i>n</i>·2<sup><i>qb</i></sup>), " +
+    "each with <i>b</i> bits: log<sub>2</sub> ≈ <b>" + fmt(lb.bound, 0) + "</b> (with <i>n</i>·2<sup><i>qb</i></sup>: " + fmt(lb.boundP, 0) + "). " +
+    "(9) needs ε<sub><i>i</i></sub>·2<sup>−.05<i>L<sub>i</sub></i></sup> to be small, i.e. log ε clearly below 0.05<i>L<sub>i</sub></i> = " + fmt(0.05 * l, 2) + ": α = 400<i>b</i> log <i>n</i> makes the epochs grow fast enough.</p>" +
+    "<p>Of all μ, " + fmt(100 * R.inS.reduce((a, b) => a + b, 0) / R.N, 0) + "% satisfy (5).</p>";
+  return h;
+}
+function budgetNumbers(R) {
+  const i = R.i;
+  if (!FS()) {
+    const T = A.tu * S.ell[i - 1], log2s = Math.log2(2 * S.m) + S.w * A.tu;
+    return { T: T, bound: log2CountBound(log2s, T, S.w) };
+  }
+  const T = Math.floor(4 * S.lemma.wbar * S.ell[i - 1]);
+  return { T: T, gamma: R.gamma, bound: log2CountBound(Math.log2(Math.max(1, R.gamma)), T, S.w),
+           boundP: log2CountBound(Math.log2(S.m) + S.r * S.w, T, S.w) };
+}
+
+function drawClassBar(R) {
+  const svgId = "classSvg", box = el(svgId).parentElement;
+  const W = Math.max(440, Math.floor(box.clientWidth - 30)), pw = W - LAB_W - RIGHT_W;
+  const sizesC = R.classSizes, orderC = sizesC.map((s, c) => c).sort((a, b) => sizesC[b] - sizesC[a] || a - b);
+  const sizesB = new Array(R.nB).fill(0); for (let n = 0; n < R.N; n++) sizesB[R.bid[n]]++;
+  const orderB = sizesB.map((s, b) => b).sort((a, b) => sizesB[b] - sizesB[a] || a - b);
+  const repC = new Int32Array(R.nClasses).fill(-1), repB = new Int32Array(R.nB).fill(-1);
+  for (let n = 0; n < R.N; n++) { if (repC[R.cls[n]] < 0) repC[R.cls[n]] = n; if (repB[R.bid[n]] < 0) repB[R.bid[n]] = n; }
+  const selC = R.cls[selA2.n], selB = R.bid[selA2.n];
+  let out = "", y = 8;
+  const bars = [];
+  const drawBar = (order, sizes, sel, lab, count, rep, kind) => {
+    const h = 20; let x = LAB_W;
+    out += txt(LAB_W - 8, y + 14, lab, "svlab r");
+    order.forEach((c, j) => {
+      const wdt = pw * sizes[c] / R.N;
+      out += rect(x, y, wdt, h, 'fill="' + (j % 2 ? "#e6d9c2" : "#cdbb9c") + '"' + (wdt > 3 ? ' stroke="' + NEVER + '" stroke-width=".7"' : ""));
+      bars.push({ x0: x, x1: x + wdt, y0: y, y1: y + h, n: rep[c], kind: kind, size: sizes[c] });
+      x += wdt;
+    });
+    /* the selected one on top */
+    let xs = LAB_W; for (const c of order) { const wdt = pw * sizes[c] / R.N; if (c === sel) { out += rect(xs, y - 1, Math.max(2, wdt), h + 2, 'fill="none" stroke="#d8352a" stroke-width="2"'); break; } xs += wdt; }
+    out += txt(W - RIGHT_W + 8, y + 14, count, "svval");
+    y += h + 12;
+  };
+  drawBar(orderC, sizesC, selC, "classes", R.nClasses.toLocaleString("en"), repC, "c");
+  drawBar(orderB, sizesB, selB, FS() ? "vectors V_j" : "guesses q⁽" + R.i + "⁾", R.nB.toLocaleString("en"), repB, "b");
+  if (FS()) {
+    const f = R.inS.reduce((a, b) => a + b, 0) / R.N;
+    out += txt(LAB_W - 8, y + 12, "μ ∈ S(i,τ)", "svlab r");
+    out += rect(LAB_W, y, pw, 14, 'fill="' + NEVER + '" stroke="rgba(0,0,0,.15)"') + rect(LAB_W, y, pw * f, 14, 'fill="#9bb58a"');
+    out += txt(W - RIGHT_W + 8, y + 11, fmt(100 * f, 0) + "%", "svval");
+    y += 26;
+  }
+  out += txt(LAB_W, y + 6, "← " + R.N.toLocaleString("en") + " values of " + (FS() ? "μ" : "a₂") + (R.exhaustive ? " (all)" : " (sampled)") + ", each segment as wide as its class →", "svsm");
+  y += 12;
+  CLAY4 = { bars: bars };
+  const svg = el(svgId);
+  svg.setAttribute("width", W); svg.setAttribute("height", y + 4); svg.setAttribute("viewBox", "0 0 " + W + " " + (y + 4));
+  svg.innerHTML = out;
+  el("classTitle").innerHTML = "All " + (R.exhaustive ? "" : "sampled ") + (FS() ? "μ" : "a₂") + " at once, epoch " + R.i;
+  el("classMeta").textContent = "2^" + R.l + " = " + (2 ** R.l).toLocaleString("en");
+  el("classNote").innerHTML = "Top: " + (FS() ? "μ" : "<i>a</i><sub>2</sub>") + " grouped by what the forgetful memory can see of it. Bottom: grouped by the forgetful answer vector. " +
+    "Red frame: the class of the " + (FS() ? "μ" : "<i>a</i><sub>2</sub>") + " shown above (hover to change it).";
+}
+function onClassMove(ev) {
+  if (!CLAY4) return;
+  const p = svgPoint(el("classSvg"), ev);
+  const b = CLAY4.bars.find(b => p.x >= b.x0 && p.x < b.x1 && p.y >= b.y0 && p.y < b.y1);
+  if (!b) { hideTip(); return; }
+  const R = getEnum(curStep().i);
+  showTip(ev, (b.kind === "c" ? "class of " : "guess shared by ") + b.size + " value" + (b.size === 1 ? "" : "s") + " of " + (FS() ? "μ" : "a₂") +
+    '<div class="tt-s">e.g. ' + bitsOfA2(R, b.n) + "</div>");
+  if (selA2.n !== b.n) { selA2 = { i: R.i, n: b.n }; const st = curStep(); render4Only(st); }
+}
+function render4Only(st) { render4(st); }
+function bitsOfA2(R, n) { let s = ""; for (let u = R.l; u >= 1; u--) s += R.a2[n][u]; return (FS() ? "μ" : "a₂") + " = " + s + " (chronological)"; }
+
+function drawBudget(R) {
+  const svgId = "budgetSvg", box = el(svgId).parentElement;
+  const W = Math.max(440, Math.floor(box.clientWidth - 30)), pw = W - LAB_W - RIGHT_W - 60;
+  const lb = budgetNumbers(R), l = R.l, fsm = FS();
+  const rows = [
+    { lab: (fsm ? "μ" : "a₂") + ": 2^" + l + " values", v: l, col: XON },
+    { lab: "classes" + (R.exhaustive ? "" : " (≥)"), v: Math.log2(R.nClasses), col: EPC[Math.min(R.i, 12)] },
+    { lab: (fsm ? "vectors V_j" : "|B|, guesses") + (R.exhaustive ? "" : " (≥)"), v: Math.log2(R.nB), col: "#8a7f6d" },
+    { lab: fsm ? "(7), actual γ" : "K1's bound", v: lb.bound, col: "#c9b79a" }];
+  if (fsm) rows.push({ lab: "(7), γ ≤ n·2^qb", v: lb.boundP, col: "#dccbb0" });
+  const need = fsm ? 0.05 * l : 0.01 * l;
+  const xmax = Math.max(1, l * 1.25);
+  const X = v => LAB_W + pw * Math.min(v, xmax) / xmax;
+  let out = "", y = 8;
+  rows.forEach(r => {
+    out += txt(LAB_W - 8, y + 12, esc(r.lab), "svlab r");
+    out += rect(LAB_W, y + 2, Math.max(1, X(r.v) - LAB_W), 13, 'fill="' + r.col + '"');
+    const clipped = r.v > xmax;
+    out += txt(X(r.v) + 6, y + 13, (clipped ? "→ " : "") + fmt(r.v, r.v < 10 ? 1 : 0) + " bits", "svval");
+    y += 20;
+  });
+  const xn = X(need);
+  out += '<line x1="' + xn + '" y1="4" x2="' + xn + '" y2="' + (y + 2) + '" stroke="#d8352a" stroke-width="1.4" stroke-dasharray="3 2"/>';
+  out += txt(xn + 4, y + 12, (fsm ? "0.05·L = " : "0.01·ℓ = ") + fmt(need, 2) + " (needed)", "svsm", 'style="fill:#d8352a"');
+  const xl = X(l);
+  out += '<line x1="' + xl + '" y1="4" x2="' + xl + '" y2="' + (y + 2) + '" stroke="' + XON + '" stroke-width="1" stroke-dasharray="2 2"/>';
+  y += 18;
+  const svg = el(svgId);
+  svg.setAttribute("width", W); svg.setAttribute("height", y); svg.setAttribute("viewBox", "0 0 " + W + " " + y);
+  svg.innerHTML = out;
+  el("budgetMeta").textContent = "epoch " + R.i + " · ℓ = " + l;
+  el("budgetNote").innerHTML = fsm
+    ? "The bound is what (7) gives with the toy's own numbers (4<i>w̄</i>ℓ<sub><i>i</i>−1</sub> recent registers, <i>b</i> = " + S.w + " bits each). The paper's choice of α makes it drop below 0.05<i>L<sub>i</sub></i>; the toy's β = " + (S.beta || "—") + " cannot."
+    : "The bound is K1 with the toy's measured <i>t</i><sub>u</sub> = " + A.tu + ". For the survey's parameters it is ≤ 0.01ℓ<sub><i>i</i></sub>; for a toy it is hopeless &mdash; which is why the actual counts above are the interesting part.";
+}
+
+/* ---------- tab 5 ----------------------------------------------------------------------------- */
+function defaultTrial(st) {
+  const l = S.ell[st.i], s = new Set();
+  if (st.kind === "flip1") s.add(1);
+  if (st.kind === "pattern") { if (l >= 3) { s.add(2); s.add(3); } else { s.add(1); if (l >= 2) s.add(2); } }
+  return s;
+}
+function trialSet(st) {
+  const key = tab + ":" + TS[tab].cur;
+  if (key !== lastStepKey) { lastStepKey = key; trial = { i: st.i, set: defaultTrial(st) }; }
+  return trial.set;
+}
+function trialToggle(u) { if (trial.set.has(u)) trial.set.delete(u); else trial.set.add(u); }
+
+function render5(st) {
+  const i = st.i, l = S.ell[i], sg = segmentsOf(S, l), set = trialSet(st), fsm = FS();
+  const bitsV = S.bitsMain.slice(); set.forEach(u => bitsV[u] ^= 1);
+  const Tv = truthOf(S, bitsV), Tc = A.T;
+  const flipped = new Uint8Array(S.m + 1); let d = 0;
+  for (let y = 1; y <= S.m; y++) { flipped[y] = Tc.q[y] ^ Tv.q[y]; d += flipped[y]; }
+  let nfl = 0; { let run = 0; sg.ps.forEach(p => { let dd = 0; for (let u = 1; u <= l; u++) if (S.pos[u] === p && set.has(u)) dd = 1; run ^= dd; nfl += run; }); }
+  const bands = [{ kind: "ruler" }, { kind: "upd", upto: S.k, cur: -1, emph: i, bits: bitsV, ring: set }, { kind: "seg", i: i },
+    { kind: "strip", arr: Tc.q, upto: S.m, color: XON, label: fsm ? "F(τ,μ)" : "q(a₁∘a₂)", showCount: false },
+    { kind: "strip", arr: Tv.q, upto: S.m, color: "#8a7f6d", label: fsm ? "F(τ,μ′)" : "q(a₁∘a₂′)", showCount: false },
+    { kind: "mis", arr: flipped, upto: S.m, label: "flipped" }];
+  drawStack(bands, null);
+  el("legend").innerHTML = legendHTML('<span class="item"><span class="sw" style="background:none;border:2px solid #d8352a;border-radius:50%"></span>bit flipped (click the dots)</span>') +
+    epochSelectorHTML(i, "epoch");
+  wireEpochSelector();
+  el("ballBox").style.display = (st.kind === "ball" || st.kind === "pigeon") ? "" : "none";
+  el("histBox").style.display = st.kind === "pigeon" ? "" : "none";
+  const info = { d: d, nfl: nfl, set: set, sg: sg };
+  if (st.kind === "ball" || st.kind === "pigeon") drawBall(st, info);
+  if (st.kind === "pigeon") drawHist(st);
+  el("statusBox").innerHTML = status5(st, info);
+}
+
+function ballNumbers(i) {
+  const l = S.ell[i], sg = segmentsOf(S, l), fsm = FS();
+  const R2 = fsm ? S.m / 15 : S.m / 10;               /* triangle inequality: radius 2 x threshold */
+  const minLen = Math.min.apply(null, sg.lens);
+  const guar = fsm ? S.m / (3 * l) : S.m / (2 * l);
+  const flipsMax = Math.floor(R2 / guar);
+  return { l: l, sg: sg, R2: R2, exact: ballCount(sg.lens, R2), exactHalf: ballCount(sg.lens, R2 / 2), minLen: minLen, guar: guar,
+           comb: 2 ** log2BinomSum(l, Math.min(l, flipsMax)) * (fsm ? 2 : 1), flipsMax: flipsMax,
+           ent: 2 ** (H2(Math.min(.5, flipsMax / l)) * l) * (fsm ? 2 : 1), paper: (fsm ? 2 : 1) * 2 ** (0.95 * l), total: 2 ** l };
+}
+const big = v => v >= 1e6 ? "2^" + fmt(Math.log2(v), 1) : Math.round(v).toLocaleString("en");
+
+function drawBall(st, info) {
+  const b = ballNumbers(st.i), fsm = FS(), l = b.l;
+  let h = '<table class="lock wrap"><tr><th></th><th>count</th><th>of 2<sup>' + l + "</sup> = " + big(b.total) + "</th></tr>";
+  const inner = b.sg.lens.slice(0, -1), innerMin = inner.length ? Math.min.apply(null, inner) : Infinity, last = b.sg.lens[b.sg.lens.length - 1];
+  let rem = "";
+  if (fsm && last < b.guar) rem += " — the last segment (" + last + ") is the &ldquo;possibly one&rdquo; short basis vector";
+  if (innerMin < b.guar) rem += " — inner segments of " + innerMin + ": positions are rounded, ⌊" + (fsm ? "<i>n</i>" : "<i>m</i>") + "·<i>x<sub>d</sub></i>⌋";
+  h += "<tr><td>shortest segment</td><td>" + b.minLen + "</td><td>guarantee " + (fsm ? "<i>n</i>/(3<i>L</i>)" : "<i>m</i>/(2ℓ)") + " = " + fmt(b.guar, 1) + rem + "</td></tr>";
+  h += "<tr class=\"hit\"><td>within " + (fsm ? "<i>n</i>/15" : "<i>m</i>/10") + " = " + fmt(b.R2, 1) + " of one answer vector: <b>exactly</b></td><td>" + big(b.exact) +
+       "</td><td>dynamic program over the actual segment lengths</td></tr>";
+  h += "<tr><td>… the combinatorial bound (≤ " + b.flipsMax + " flipped segments)</td><td>" + big(b.comb) + "</td><td>Σ<sub><i>j</i> ≤ " + b.flipsMax + "</sub> C(" + l + ", <i>j</i>)" + (fsm ? " · 2" : "") + "</td></tr>";
+  h += "<tr><td>… the stated bound</td><td>" + big(b.paper) + "</td><td>" + (fsm ? "2·2<sup>.95<i>L</i></sup>" : "2<sup>0.95ℓ</sup>") + "</td></tr>";
+  h += "<tr><td>within " + (fsm ? "<i>n</i>/30" : "<i>m</i>/20") + " of one answer vector (for comparison)</td><td>" + big(b.exactHalf) + "</td><td></td></tr>";
+  h += "</table>";
+  h += '<div class="dsnote">A ball of radius ' + (fsm ? "<i>n</i>/30" : "<i>m</i>/20") + " around <i>any</i> vector &mdash; a guess, say &mdash; that contains an answer vector <i>c</i> lies inside the ball of radius " +
+    (fsm ? "<i>n</i>/15" : "<i>m</i>/10") + " around <i>c</i>. Since all answer vectors differ from <i>c</i> by flipping whole segments, that count is the same for every <i>c</i>.</div>";
+  el("ballWrap").innerHTML = h;
+  el("ballMeta").textContent = "epoch " + st.i + " · ℓ = " + l;
+}
+
+function drawHist(st) {
+  const R = getEnum(st.i), svgId = "histSvg", box = el(svgId).parentElement, fsm = FS();
+  const W = Math.max(440, Math.floor(box.clientWidth - 30)), pw = W - LAB_W - RIGHT_W;
+  const thr = fsm ? S.m / 30 : S.m / 20;
+  const nb = 50, maxD = Math.max(thr * 2, Math.max.apply(null, Array.from(R.dist)) + 1);
+  const cnt = new Array(nb).fill(0);
+  let near = 0;
+  for (let n = 0; n < R.N; n++) { const d = R.dist[n]; cnt[Math.min(nb - 1, Math.floor(d / maxD * nb))]++; if (d < thr) near++; }
+  const mx = Math.max.apply(null, cnt), H = 90;
+  let out = "";
+  const X = d => LAB_W + pw * d / maxD;
+  for (let j = 0; j < nb; j++) {
+    const x0 = X(j * maxD / nb), x1 = X((j + 1) * maxD / nb), hh = (H - 4) * cnt[j] / mx;
+    const isNear = (j + 1) * maxD / nb <= thr;
+    out += rect(x0 + .5, 8 + H - hh, x1 - x0 - 1, hh, 'fill="' + (isNear ? "#d8352a" : "#b9a88a") + '"');
+  }
+  out += '<line x1="' + LAB_W + '" y1="' + (8 + H) + '" x2="' + (LAB_W + pw) + '" y2="' + (8 + H) + '" stroke="' + INK + '" stroke-width=".8"/>';
+  out += '<line x1="' + X(thr) + '" y1="4" x2="' + X(thr) + '" y2="' + (8 + H + 4) + '" stroke="#d8352a" stroke-width="1.4" stroke-dasharray="3 2"/>';
+  out += txt(X(thr) + 4, 16, (fsm ? "n/30" : "m/20") + " = " + fmt(thr, 1), "svsm", 'style="fill:#d8352a"');
+  out += txt(LAB_W - 8, 8 + H / 2, "# " + (fsm ? "μ" : "a₂"), "svlab r");
+  out += txt(LAB_W, 8 + H + 14, "0", "svsm") + txt(LAB_W + pw, 8 + H + 14, "dist " + Math.round(maxD), "svsm", 'text-anchor="end"');
+  out += txt(W - RIGHT_W + 8, 8 + H / 2, fmt(100 * near / R.N, 1) + "% near", "svval");
+  const Hh = 8 + H + 20;
+  const svg = el(svgId);
+  svg.setAttribute("width", W); svg.setAttribute("height", Hh); svg.setAttribute("viewBox", "0 0 " + W + " " + Hh);
+  svg.innerHTML = out;
+  const b = ballNumbers(st.i), bnd = R.nB * b.exact;
+  el("histTitle").innerHTML = (fsm ? "δ(τ,μ) = dist(<i>V<sub>j</sub></i>, <i>F</i>)" : "dist(<i>q</i>, <i>q</i><sup>(" + st.i + ")</sup>)") + " over all " + (R.exhaustive ? "" : "sampled ") + (fsm ? "μ" : "<i>a</i><sub>2</sub>");
+  el("histMeta").textContent = R.N.toLocaleString("en") + " values";
+  el("histNote").innerHTML = "Red: closer than the threshold. Pigeonhole: every near " + (fsm ? "μ" : "<i>a</i><sub>2</sub>") + " has its correct answer vector in the ball around one of the " +
+    R.nB.toLocaleString("en") + (R.exhaustive ? "" : "+") + " guesses, so there are at most " + (fsm ? "#{<i>V<sub>j</sub></i>}" : "|<i>B</i>|") + " · " + big(b.exact) + " = " + big(bnd) + " of them &mdash; " +
+    (bnd < R.N / 2 ? '<b>fewer than half</b> of all ' + big(2 ** R.l) + ' <span class="ok">✓</span>: the argument goes through on this instance.' :
+      "more than half of " + big(2 ** R.l) + ": the bound is too weak here (the toy's epochs grow too slowly), although most values are in fact far.");
+}
+
+function status5(st, info) {
+  const i = st.i, l = S.ell[i], fsm = FS(), sg = info.sg;
+  const g = fsm ? "<i>n</i>/(3<i>L<sub>i</sub></i>)" : "<i>m</i>/(2ℓ<sub><i>i</i></sub>)";
+  if (st.kind === "segs") return "<p>Fix " + a1Name() + " again. The correct answers " + (fsm ? "<i>F</i>(τ,μ)" : "<i>q</i>(<i>a</i><sub>1</sub>∘<i>a</i><sub>2</sub>)") + " are prefix parities: " +
+    "they can only change at the ℓ<sub>" + i + "</sub> = " + l + " recent positions (bold dots), and are constant on the " + l + " segments between them. Shortest segment: " +
+    Math.min.apply(null, sg.lens) + "; the guarantee is " + g + " = " + fmt(fsm ? S.m / (3 * l) : S.m / (2 * l), 1) + (fsm ? " (Lemma 2)" : " (D3)") + ".</p>" +
+    "<p>(Positions before the first recent update never change: they only depend on " + a1Name() + ".)</p>";
+  if (st.kind === "flip1") return "<p>Flip one recent bit (ringed): <b>every</b> answer from its position on flips &mdash; a whole suffix of segments, here " + info.nfl +
+    " segments, distance <b>" + info.d + "</b>. A single bit of " + a2Name() + " moves the answer vector a long way.</p>";
+  if (st.kind === "pattern") return "<p>Flip several bits (click the dots to try your own): a segment is flipped iff an <b>odd</b> number of flipped bits lie at or left of its start. " +
+    "The flip pattern is the prefix XOR of the change &mdash; a bijection between changes of " + a2Name() + " and patterns of flipped segments.</p>" +
+    "<p>Here: " + info.nfl + " flipped segments, distance " + info.d + " ≥ " + info.nfl + " · " + Math.min.apply(null, sg.lens) + ". So the answer vectors form one coset: " +
+    "each is the centre with a set of whole segments complemented" + (fsm ? " &mdash; Lemma 3's affine space spanned by the segment indicators" : "") + ".</p>";
+  if (st.kind === "ball") {
+    const b = ballNumbers(i);
+    return "<p><b>How many answer vectors fit close together?</b> Within distance " + (fsm ? "<i>n</i>/15" : "<i>m</i>/10") + " of one of them at most " + b.flipsMax +
+      " segments may be flipped, because each costs ≥ " + fmt(b.guar, 1) + ". Exactly, over the actual segment lengths: <b>" + big(b.exact) + "</b> of the " + big(b.total) + " vectors.</p>" +
+      "<p>" + (fsm ? "Lemma 3" : "K2") + " states this as ≤ " + (fsm ? "2·2<sup>.95<i>L</i></sup>" : "2<sup>0.95ℓ</sup>") + ": a vanishing fraction of all answer vectors, once ℓ is large.</p>";
+  }
+  const R = getEnum(i);
+  let far = 0; for (let n = 0; n < R.N; n++) if (R.dist[n] >= (fsm ? S.m / 30 : S.m / 20)) far++;
+  return "<p><b>Pigeonhole.</b> The forgetful memory makes one of only " + R.nB.toLocaleString("en") + (R.exhaustive ? "" : "+") + " guesses (tab 4). Each guess is close to few correct answer vectors (the ball). " +
+    "So most " + a2Name() + " get a guess that is <b>far</b> from their correct answers: here " + fmt(100 * far / R.N, 1) + "% are at distance ≥ " + (fsm ? "<i>n</i>/30" : "<i>m</i>/20") + ".</p>" +
+    "<p>Each far " + a2Name() + " contributes ≥ " + (fsm ? "<i>n</i>/30" : "<i>m</i>/20") + " to the sum in " + (fsm ? "(8)" : "C8") + "; with at least half of them far, epoch " + i + " is worth ≥ " +
+    (fsm ? "1/60" : "1/40") + " probes per query on average. Tab 6 (next stage) adds this up.</p>";
+}
+
+/* ---------- tab 1, mode fs: writes along the whole sequence ------------------------------------- */
+function drawLemma(st) {
+  const svg = el("lemmaSvg"), box = svg.parentElement;
+  const W = Math.max(440, Math.floor(box.clientWidth - 30)), pw = W - LAB_W - RIGHT_W;
+  const M = S.M, j = S.j, wr = S.seqWrites;
+  if (st.kind === "lemma") lemmaSel = st.i;
+  const i = Math.min(Math.max(2, lemmaSel), S.r);
+  const bw = pw / M, X = d => LAB_W + (d - 1) * bw;
+  const mxw = Math.max(1, Math.max.apply(null, Array.from(wr)));
+  let out = "", y = 8;
+  const H1 = 56;
+  out += txt(LAB_W - 8, y + H1 / 2, "writes of u_d", "svlab r");
+  const winLo = i >= 2 ? j - S.ell[i - 1] + 1 : j + 1;
+  for (let d = 1; d <= M; d++) {
+    const u = j - d + 1, col = d <= j ? stampColor(S.epochOfU[u]) : "#cfc6b4";
+    const hh = (H1 - 4) * wr[d] / mxw;
+    out += rect(X(d) + (bw > 3 ? .5 : 0), y + H1 - hh, Math.max(1, bw - (bw > 3 ? 1 : 0)), hh, 'fill="' + col + '"');
+  }
+  out += '<line x1="' + LAB_W + '" y1="' + (y + H1) + '" x2="' + (LAB_W + pw) + '" y2="' + (y + H1) + '" stroke="' + INK + '" stroke-width=".8"/>';
+  /* the window of Q_j for epoch i: its i-1 most recent epochs */
+  if (i >= 2) out += rect(X(winLo), y - 2, X(j + 1) - X(winLo), H1 + 2, 'fill="none" stroke="' + INK + '" stroke-width="1.2" stroke-dasharray="3 2"');
+  out += txt(W - RIGHT_W + 8, y + 12, "w̄ = " + fmt(S.lemma.wbar), "svval");
+  y += H1 + 4;
+  /* epochs of Q_j */
+  for (let e = 1; e <= S.r + 1; e++) {
+    const lo = e <= S.r ? j - S.ell[e] + 1 : 1, hi = e <= S.r ? j - S.ell[e - 1] : j - S.ell[S.r];
+    if (hi < lo || hi < 1) continue;
+    out += rect(X(Math.max(1, lo)) + .5, y, X(hi + 1) - X(Math.max(1, lo)) - 1, 5, 'fill="' + stampColor(e) + '"');
+  }
+  const xq = X(j + 1);
+  out += '<line x1="' + xq + '" y1="4" x2="' + xq + '" y2="' + (y + 10) + '" stroke="#d8352a" stroke-width="1.6"/>';
+  out += txt(xq + 3, y + 10, "Q_" + j, "svsm", 'style="fill:#d8352a"');
+  out += txt(LAB_W - 8, y + 6, "epochs of Q_j", "svlab r");
+  y += 22;
+  /* window sums for all queries j' >= sqrt n */
+  const H2 = 56;
+  if (S.r >= 2) {
+    const row = S.lemma.rows[i];
+    const mx = Math.max(row.thr * 1.3, Math.max.apply(null, Array.from(row.win)));
+    out += txt(LAB_W - 8, y + H2 / 2 - 4, "w(σ, j′, " + i + ")", "svlab r");
+    out += txt(LAB_W - 8, y + H2 / 2 + 10, "for every Q_j′", "svlab r", 'style="font-size:11px"');
+    for (let jj = S.rt; jj <= M; jj++) {
+      const hh = (H2 - 4) * row.win[jj] / mx;
+      out += rect(X(jj) + (bw > 3 ? .5 : 0), y + H2 - hh, Math.max(1, bw - (bw > 3 ? 1 : 0)), hh, 'fill="' + (row.good[jj] ? "#9bb58a" : "#d8352a") + '"' +
+        (jj === j ? ' stroke="' + INK + '" stroke-width="1.4"' : ""));
+    }
+    const yt = y + H2 - (H2 - 4) * row.thr / mx;
+    out += '<line x1="' + LAB_W + '" y1="' + yt + '" x2="' + (LAB_W + pw) + '" y2="' + yt + '" stroke="' + INK + '" stroke-dasharray="4 2"/>';
+    out += txt(LAB_W + 4, yt - 3, "4w̄ℓ" + "₀₁₂₃₄₅₆₇₈₉"[Math.min(9, i - 1)] + " = " + fmt(row.thr, 1), "svsm");
+    out += '<line x1="' + LAB_W + '" y1="' + (y + H2) + '" x2="' + (LAB_W + pw) + '" y2="' + (y + H2) + '" stroke="' + INK + '" stroke-width=".8"/>';
+    out += txt(W - RIGHT_W + 8, y + H2 / 2, fmt(100 * row.frac, 0) + "% ok", "svval");
+    y += H2 + 4;
+  }
+  out += txt(LAB_W, y + 10, "d = 1", "svsm") + txt(LAB_W + pw, y + 10, "d = " + M, "svsm", 'text-anchor="end"');
+  y += 16;
+  LEMLAY = { X: X, bw: bw, M: M, W: W };
+  svg.setAttribute("width", W); svg.setAttribute("height", y); svg.setAttribute("viewBox", "0 0 " + W + " " + y);
+  svg.innerHTML = out;
+  el("lemmaMeta").textContent = "M = " + M + " updates · W = " + S.lemma.W + " writes";
+  let lh = "";
+  for (let e = 2; e <= S.r; e++) lh += ' <button class="' + (e === i ? "pri" : "") + '" data-li="' + e + '" style="padding:1px 8px;font-size:.72rem">' + e + "</button>";
+  el("lemmaLegend").innerHTML = S.r >= 2 ? '<span class="item epsel">windows for epoch <i>i</i> =' + lh + "</span>" : "only one epoch: nothing is written after it";
+  el("lemmaLegend").querySelectorAll("button[data-li]").forEach(b => b.addEventListener("click", () => { lemmaSel = Number(b.dataset.li); render(); }));
+}
+function onLemmaMove(ev) {
+  if (!LEMLAY) return;
+  const p = svgPoint(el("lemmaSvg"), ev), d = Math.floor((p.x - LAB_W) / LEMLAY.bw) + 1;
+  if (d < 1 || d > S.M) { hideTip(); return; }
+  const i = Math.min(Math.max(2, lemmaSel), S.r), row = S.r >= 2 ? S.lemma.rows[i] : null;
+  let h = "<b>u<sub>" + d + "</sub></b>: toggle " + S.xs[d] + " at position " + S.chronPos[d] + ", " + S.seqWrites[d] + " writes";
+  if (d <= S.j) h += "<br>for Q<sub>" + S.j + "</sub>: " + chipE(S.epochOfU[S.j - d + 1]);
+  if (row && d >= S.rt) h += "<br>Q<sub>" + d + "</sub>: w(σ, " + d + ", " + i + ") = " + row.win[d] + (row.good[d] ? " ≤ " : " > ") + fmt(row.thr, 1);
+  showTip(ev, h);
+}
+function status1lemma(st) {
+  const i = st.i, row = S.lemma.rows[i];
+  return "<p><b>Amortization.</b> Fredman and Saks bound only the <i>total</i> number of writes <i>W</i> = " + S.lemma.W + ", i.e. <i>w̄</i> = " + fmt(S.lemma.wbar) +
+    " per update on average. A single query might follow a burst of writes that re-encodes epoch " + i + ".</p>" +
+    "<p>Lemma 1: for at least half of the queries <i>Q<sub>j′</sub></i>, the writes during their " + (i - 1) + " most recent epoch" + (i === 2 ? "" : "s") + " (ℓ<sub>" + (i - 1) + "</sub> = " + S.ell[i - 1] +
+    " updates) stay below 4<i>w̄</i>ℓ<sub>" + (i - 1) + "</sub> = " + fmt(row.thr, 1) + ". Here: <b>" + fmt(100 * row.frac, 0) + "%</b> (green). " +
+    "Only these queries are charged for epoch " + i + " (condition (5)); that loses a factor 2, nothing more.</p>" +
+    (S.dsSpec.type === "log" ? "<p>The rebuilds of the log are the bursts: a query right after one sees a window full of writes.</p>" : "");
+}
+
+function laterAccCount(X, acc, i) { let n = 0; for (let c = 0; c < S.ds.size; c++) { const s = X.run.st[c]; if (s >= 1 && s < i && acc.has(c)) n++; } return n; }
+/* ---------- tooltips ----------------------------------------------------------------- */
+function showTip(ev, html) { const t = el("tooltip"); t.innerHTML = html; t.style.display = "block"; moveTip(ev); }
+function moveTip(ev) {
+  const t = el("tooltip"), pad = 14;
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  const r = t.getBoundingClientRect();
+  if (x + r.width > window.innerWidth - 6) x = ev.clientX - r.width - pad;
+  if (y + r.height > window.innerHeight - 6) y = ev.clientY - r.height - pad;
+  t.style.left = x + "px"; t.style.top = y + "px";
+}
+function hideTip() { el("tooltip").style.display = "none"; }
+
+function svgPoint(svg, ev) { const r = svg.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; }
+
+function cellTip(c, memArr, alt) {
+  const cl = S.ds.cells[c], s = A.run.st[c];
+  let h = '<div class="tt-h">' + esc(cl.label) + "</div>";
+  h += '<div class="tt-s">covers positions ' + (cl.lo + 1) + (cl.hi - cl.lo > 1 ? "–" + cl.hi : "") + "</div>";
+  h += "content <code>" + bitsStr(memArr[c], cl.nb) + "</code>";
+  if (alt && alt[c] !== memArr[c]) h += " &nbsp;(in DS(a): <code>" + bitsStr(alt[c], cl.nb) + "</code>)";
+  h += "<br>stamp: " + (s === 0 ? "never changed" : chipE(s) + (A.lastT[c] ? " — last change in update " + A.lastT[c] : ""));
+  return h;
+}
+
+function onStackMove(ev) {
+  if (!GEOM) return;
+  const p = svgPoint(el("stackSvg"), ev);
+  const L = LAYOUT.find(L => p.y >= L.y0 && p.y < L.y1);
+  const b = Math.floor((p.x - LAB_W) / GEOM.sx);
+  if (!L || b < 0 || b >= S.m) { hideTip(); return; }
+  const y = b + 1, st = curStep();
+  if (L.kind === "mem") {
+    const c = S.rowIndex[L.row][b];
+    if (c < 0) { hideTip(); return; }
+    const t1 = tab === 1 ? st.t : S.k;
+    const memArr = L.spec.mem, alt = (tab === 3 && memArr !== A.run.mem) ? A.run.mem : null;
+    let h = cellTip(c, memArr, alt);
+    if (tab === 1) { const s = A.run.H.st[t1][c]; h = h.replace(/<br>stamp:.*$/, "<br>stamp now: " + (s === 0 ? "none" : chipE(s))); }
+    showTip(ev, h); return;
+  }
+  if (L.kind === "upd") {
+    let best = null, bd = 7;
+    for (let u = 1; u <= S.k; u++) { const d = Math.abs(GEOM.X(S.pos[u] - 0.5) - p.x); if (d < bd) { bd = d; best = u; } }
+    if (!best) { hideTip(); return; }
+    const t = S.k - best + 1;
+    showTip(ev, '<div class="tt-h">update ' + t + " of " + S.k + "</div>u = " + best + " (the " + best + "-th most recent), " + chipE(S.epochOfU[best]) +
+      "<br><code>Change(" + S.pos[best] + ", " + S.bitsMain[best] + ")</code>");
+    return;
+  }
+  if (L.kind === "x") { showTip(ev, "<i>x</i><sub>" + y + "</sub> = " + L.spec.x[y] + " &nbsp; · &nbsp; prefix parity " + A.T.q[y] + '<div class="tt-s">click to fix the query position</div>'); return; }
+  if (L.kind === "cost") { const q = A.Q[y]; showTip(ev, "Prefix(" + y + "): " + q.cost + " probes, " + popcount(q.mask & S.epochMask) + " distinct epochs read"); return; }
+  if (L.kind === "R") { showTip(ev, "Prefix(" + y + ") " + (L.spec.arr[y] ? "reads" : "does not read") + " a cell of " + L.spec.label.replace("R row", "epoch")); return; }
+  if (L.kind === "strip" || L.kind === "mis") {
+    if (tab !== 3) { hideTip(); return; }
+    const i = st.i;
+    showTip(ev, "Prefix(" + y + "): " + A.Q[y].ans + " on DS(a), " + A.Qi[i][y].ans + " on DS⁽" + i + "⁾(a)" +
+      (A.mis[i][y] ? ' — <b style="color:#d8352a">differ</b>' : "") + "<br>reads a stamp-" + i + " cell: " + (A.R[i][y] ? "yes" : "no")); return;
+  }
+  if (L.kind === "seg") { showTip(ev, "position " + y); return; }
+  hideTip();
+}
+function onStackClick(ev) {
+  if (!GEOM || tab === 1) return;
+  const p = svgPoint(el("stackSvg"), ev);
+  if (tab === 4) return;
+  if (tab === 5) {
+    const L = LAYOUT.find(L => p.y >= L.y0 && p.y < L.y1);
+    if (L && L.kind === "upd") {
+      const i = curStep().i;
+      let best = null, bd = 9;
+      for (let u = 1; u <= S.ell[i]; u++) { const d = Math.abs(GEOM.X(S.pos[u] - 0.5) - p.x); if (d < bd) { bd = d; best = u; } }
+      if (best) { trialToggle(best); render(); }
+    }
+    return;
+  }
+  const b = Math.floor((p.x - LAB_W) / GEOM.sx);
+  if (b < 0 || b >= S.m) return;
+  pinY = pinY === b + 1 ? null : b + 1;
+  render();
+}
+function onChronoMove(ev) {
+  if (!CLAY) return;
+  const p = svgPoint(el("chronoSvg"), ev);
+  const t = Math.floor((p.x - CLAY.LAB) / CLAY.cw) + 1, j = Math.floor((p.y - CLAY.top) / CLAY.rh);
+  if (j < 0 || j >= CLAY.n) { hideTip(); return; }
+  const c = CH.cells[j], cl = S.ds.cells[c];
+  if (t >= 1 && t <= S.k && CH.changes[t].includes(c)) {
+    const op = A.run.H.ops[t], pr = op.probes.find(q => q.c === c);
+    showTip(ev, '<div class="tt-h">' + esc(cl.label) + "</div>changed by update " + t + " (" + chipE(op.e) + "), <code>Change(" + op.p + ", " + op.a + ")</code><br>" +
+      "<code>" + bitsStr(pr.v, cl.nb) + "</code> → <code>" + bitsStr(pr.nv, cl.nb) + "</code>");
+  } else showTip(ev, '<div class="tt-h">' + esc(cl.label) + "</div>" + '<span class="tt-s">covers positions ' + (cl.lo + 1) + "–" + cl.hi + "</span>");
+}
+
+/* ---------- the proof pane --------------------------------------------------------------- */
+function fillProofValues() {
+  const setV = (id, v, title) => { const e = el("pv-" + id); if (e) { e.textContent = v; e.title = title || ""; } };
+  setV("D2", "k = " + S.k);
+  setV("D4", "ℓ = " + S.ell.slice(1).join(","));
+  const sp = spreadOf(S, S.k);
+  setV("D3", "gap ≥ " + sp.gap, "smallest gap among all k positions");
+  if (SMP) {
+    const ti = "this a: ";
+    setV("C1", fmt(SMP.maxCost, 0), ti + A.tq + "  (max over the sampled a and all y)");
+    setV("C2", fmt(SMP.meanCost), ti + fmt(A.meanCost));
+    setV("C3", fmt(SMP.meanEp), ti + fmt(A.meanEp));
+    setV("C4", fmt(SMP.meanEp), ti + fmt(A.meanEp));
+    let d = 0; for (let i = 1; i <= S.r; i++) d += A.dist[i];
+    setV("C5", fmt(SMP.sumDist), ti + fmt(d / S.m));
+    setV("C6", fmt(SMP.sumDist), ti + fmt(d / S.m));
+    el("chainCap").innerHTML = "Right: the value of each line on this instance, averaged over " + SMP.n + " random <i>a</i> and all <i>y</i> (hover: this <i>a</i>). Each is ≥ the next.";
+  } else {
+    setV("C1", String(A.tq)); setV("C2", fmt(A.meanCost)); setV("C3", fmt(A.meanEp)); setV("C4", fmt(A.meanEp));
+    let d = 0; for (let i = 1; i <= S.r; i++) d += A.dist[i];
+    setV("C5", fmt(d / S.m)); setV("C6", fmt(d / S.m));
+    el("chainCap").innerHTML = "Right: the value of each line for this <i>a</i> (all <i>y</i>).";
+  }
+  el("proofMeta").textContent = FS() ? "Fredman–Saks, Thm 3′" : "Miltersen §4.2";
+  if (FS()) {
+    setV("F2", "M = " + S.M + ", j = " + S.j);
+    setV("F3", "w̄ = " + fmt(S.lemma.wbar));
+    setV("F4", "gap ≥ " + spreadOf(S, S.ell[S.r]).gap, "smallest gap among the last L_q updates before Q_j");
+    setV("F6", "L = " + S.ell.slice(1).join(","));
+    setV("F7", S.r >= 2 ? S.lemma.rows.slice(2).map(r => fmt(100 * r.frac, 0) + "%").join(" ") : "—", "fraction of queries with few later writes, per epoch i = 2..q");
+    setV("F9", "γ = " + accessibleSet(S, S.r).size);
+    if (SMP) setV("F12", fmt(SMP.meanCost) + " ≥ " + fmt(SMP.sumDist), "E_j (average probes of Q_j) and the right-hand side without the restriction to S(i,τ), averaged over random sequences");
+  }
+}
+const TO_FS = { D1: "F1", D2: "F2", D3: "F4", D4: "F6", D5: "F5", D6: "F11", D7: "F11", C1: "F3", C2: "F3",
+                C3: "F12", C4: "F12", C5: "F11", C6: "F12", K1: "F10", K2: "F13" };
+function renderProof(st) {
+  let hl = st.hl || [];
+  if (FS()) hl = st.hlF || Array.from(new Set(hl.map(h => TO_FS[h]).filter(h => h)));
+  document.querySelectorAll("#proof .pl").forEach(p => p.classList.toggle("on", hl.includes(p.id.slice(3))));
+  const on = document.querySelector("#proof .pl.on");
+}
+
+/* ---------- transport ------------------------------------------------------------------- */
+function renderTransport() {
+  const T = TS[tab], st = T.steps[T.cur];
+  const sc = el("scrubber");
+  sc.max = T.steps.length - 1; sc.value = T.cur;
+  el("stepNo").textContent = (T.cur + 1) + " / " + T.steps.length;
+  const bar = el("phaseBar");
+  if (bar.dataset.sig !== tab + ":" + T.steps.length + ":" + TEXT.length) {
+    bar.innerHTML = "";
+    T.phases.forEach((ph, j) => {
+      const b = document.createElement("button");
+      b.className = "phasebtn"; b.style.flexGrow = ph.to - ph.from + 1;
+      b.innerHTML = '<span class="fill"></span><span class="lab">' + esc(ph.name) + "</span>";
+      b.title = ph.name;
+      b.addEventListener("click", () => { stopPlay(); T.cur = ph.from; render(); });
+      bar.appendChild(b);
+    });
+    bar.dataset.sig = tab + ":" + T.steps.length + ":" + TEXT.length;
+  }
+  Array.from(bar.children).forEach((b, j) => {
+    const ph = T.phases[j], n = ph.to - ph.from + 1;
+    const f = T.cur > ph.to ? 1 : (T.cur < ph.from ? 0 : (T.cur - ph.from + 1) / n);
+    b.classList.toggle("on", j === st.ph); b.classList.toggle("past", T.cur > ph.to);
+    const fill = b.querySelector(".fill"); fill.style.width = (100 * f) + "%"; fill.classList.toggle("empty", f === 0);
+  });
+  el("phaseName").textContent = T.phases[st.ph].name;
+}
+function render() {
+  if (!S) return;
+  const st = curStep();
+  el("chronoBox").style.display = tab === 1 ? "" : "none";
+  el("lemmaBox").style.display = tab === 1 && FS() ? "" : "none";
+  el("lockBox").style.display = tab === 3 ? "" : "none";
+  el("classBox").style.display = tab === 4 ? "" : "none";
+  el("budgetBox").style.display = tab === 4 ? "" : "none";
+  el("ballBox").style.display = tab === 5 ? "" : "none";
+  el("histBox").style.display = tab === 5 ? "" : "none";
+  el("stackTitle").textContent = ["", "Positions, memory, stamps", "Memory with stamps, and what the queries read", "Forgetting an epoch",
+    "What the forgetful memory is made of", "The correct answers, segment by segment"][tab];
+  el("stackMeta").textContent = metaLine();
+  el("dsNote").innerHTML = dsNoteHTML();
+  document.querySelectorAll(".tabbtn[data-tab]").forEach(b => b.classList.toggle("on", Number(b.dataset.tab) === tab));
+  if (tab === 1) render1(st); else if (tab === 2) render2(st); else if (tab === 3) render3(st); else if (tab === 4) render4(st); else render5(st);
+  if (tab === 1 && FS()) drawLemma(st);
+  renderProof(st);
+  renderTransport();
+}
+function stepFwd() { const T = TS[tab]; if (T.cur < T.steps.length - 1) { T.cur++; render(); return true; } return false; }
+function stepBack() { const T = TS[tab]; if (T.cur > 0) { T.cur--; render(); } }
+function stopPlay() { if (timer) { clearInterval(timer); timer = null; el("playBtn").innerHTML = "&#x25B6;&#xFE0E;"; } }
+function togglePlay() {
+  if (timer) { stopPlay(); return; }
+  const T = TS[tab]; if (T.cur >= T.steps.length - 1) T.cur = 0;
+  el("playBtn").innerHTML = "&#x23F8;&#xFE0E;";
+  timer = setInterval(() => { if (!stepFwd()) stopPlay(); }, Number(el("speed").value));
+}
+function setTab(t) { stopPlay(); tab = t; pinY = null; hideTip(); render(); }
+function switchMode(mode) {
+  if (S && S.mode === mode) return;
+  let t = TEXT.split("\n").filter(l => !/^\s*(k|ops|j|mode)\s*=/i.test(l)).join("\n");
+  const pos = /^\s*positions\s*=\s*(\S+)/mi.exec(t);
+  if (mode === "fs" && (!pos || pos[1] === "bitrev")) t = setKey(t, "positions", "golden");
+  if (mode === "survey" && pos && pos[1] === "golden") t = setKey(t, "positions", "bitrev");
+  if (/^\s*bits\s*=\s*[01]/mi.test(t)) t = setKey(t, "bits", "random:1");
+  t = "mode = " + mode + "\n" + t.replace(/^\n+/, "");
+  stopPlay();
+  if (!load(t, true)) {
+    t = t.split("\n").filter(l => !/^\s*epochs\s*=/i.test(l)).join("\n");
+    load(t, true);
+  }
+}
+
+/* ---------- controls, splitter, init -------------------------------------------------- */
+function init() {
+  const ps = el("presetSel");
+  PRESETS.forEach(p => { const o = document.createElement("option"); o.value = p.id; o.textContent = p.name; ps.appendChild(o); });
+  const custom = document.createElement("option"); custom.value = ""; custom.textContent = "(custom)"; custom.disabled = true; ps.appendChild(custom);
+  ps.addEventListener("change", () => { const p = PRESETS.find(q => q.id === ps.value); if (p) { stopPlay(); load(p.text, true); } });
+  el("dsSel").addEventListener("change", () => {
+    const v = el("dsSel").value;
+    const B = Math.min(Number(el("bIn").value) || 2, S.w);
+    stopPlay(); load(setKey(TEXT, "ds", v === "tree" ? "tree B=" + Math.max(2, B) : (v === "log" ? "log C=" + (Number(el("cIn").value) || 8) : v)), true);
+  });
+  el("bIn").addEventListener("change", () => { stopPlay(); load(setKey(TEXT, "ds", "tree B=" + el("bIn").value), true); });
+  el("cIn").addEventListener("change", () => { stopPlay(); load(setKey(TEXT, "ds", "log C=" + el("cIn").value), true); });
+  document.querySelectorAll("#modeSeg button").forEach(b => b.addEventListener("click", () => switchMode(b.dataset.mode)));
+  const setJ = v => { v = Math.max(S.rt, Math.min(S.M, v)); if (v !== S.j) { stopPlay(); const keep = {}; for (const t in TS) keep[t] = TS[t] ? TS[t].cur : 0;
+                      load(setKey(TEXT, "j", v), true); for (const t in TS) if (TS[t]) TS[t].cur = Math.min(keep[t], TS[t].steps.length - 1); render(); } };
+  el("jIn").addEventListener("change", () => setJ(Number(el("jIn").value)));
+  el("jDec").addEventListener("click", () => setJ(S.j - 1));
+  el("jInc").addEventListener("click", () => setJ(S.j + 1));
+  el("posSel").addEventListener("change", () => {
+    const v = el("posSel").value; stopPlay(); load(setKey(TEXT, "positions", v === "random" ? "random:1" : v), true);
+  });
+  el("newBitsBtn").addEventListener("click", () => {
+    const seed = S.bitSpec.kind === "random" ? S.bitSpec.seed + 1 : 1;
+    stopPlay(); load(setKey(TEXT, "bits", "random:" + seed), true);
+  });
+  el("loadBtn").addEventListener("click", () => { stopPlay(); load(el("inputText").value, true); });
+  document.querySelectorAll(".tabbtn[data-tab]").forEach(b => b.addEventListener("click", () => setTab(Number(b.dataset.tab))));
+
+  el("stepBtn").addEventListener("click", () => { stopPlay(); stepFwd(); });
+  el("backBtn").addEventListener("click", () => { stopPlay(); stepBack(); });
+  el("playBtn").addEventListener("click", togglePlay);
+  el("resetBtn").addEventListener("click", () => { stopPlay(); TS[tab].cur = 0; render(); });
+  el("scrubber").addEventListener("input", e => { stopPlay(); TS[tab].cur = Number(e.target.value); render(); });
+  el("speed").addEventListener("input", e => { el("speedVal").textContent = e.target.value + "ms"; if (timer) { stopPlay(); togglePlay(); } });
+  el("allWhy").addEventListener("change", e => el("proof").classList.toggle("allwhy", e.target.checked));
+  document.querySelectorAll("#proof .pl").forEach(p => p.addEventListener("click", () => p.classList.toggle("open")));
+
+  const sv = el("stackSvg");
+  sv.addEventListener("mousemove", onStackMove); sv.addEventListener("mouseleave", hideTip); sv.addEventListener("click", onStackClick);
+  el("classSvg").addEventListener("mousemove", onClassMove); el("classSvg").addEventListener("mouseleave", hideTip);
+  el("lemmaSvg").addEventListener("mousemove", onLemmaMove); el("lemmaSvg").addEventListener("mouseleave", hideTip);
+  const cv = el("chronoSvg");
+  cv.addEventListener("mousemove", onChronoMove); cv.addEventListener("mouseleave", hideTip);
+
+  /* draggable splitter between the picture and the argument */
+  const spl = el("splitter"), stage = el("stage");
+  let drag = false, raf = 0;
+  spl.addEventListener("pointerdown", e => { drag = true; spl.classList.add("drag"); spl.setPointerCapture(e.pointerId); e.preventDefault(); });
+  spl.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const r = stage.getBoundingClientRect();
+    const w = Math.max(300, Math.min(r.width - 440, r.right - e.clientX - 6));
+    document.documentElement.style.setProperty("--side-w", w + "px");
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); });
+  });
+  const endDrag = () => { drag = false; spl.classList.remove("drag"); };
+  spl.addEventListener("pointerup", endDrag); spl.addEventListener("pointercancel", endDrag);
+
+  let rt = 0;
+  window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 80); });
+  document.addEventListener("keydown", ev => {
+    if (ev.target.tagName === "TEXTAREA" || ev.target.tagName === "INPUT" || ev.target.tagName === "SELECT") return;
+    if (ev.key === "ArrowRight") { stopPlay(); stepFwd(); ev.preventDefault(); }
+    if (ev.key === "ArrowLeft") { stopPlay(); stepBack(); ev.preventDefault(); }
+  });
+  load(PRESETS[0].text, false);
+}
+document.addEventListener("DOMContentLoaded", init);
+/* UI-END */
+
+</script>
+</body>
+</html>

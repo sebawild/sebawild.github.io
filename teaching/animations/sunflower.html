@@ -1,0 +1,1979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sunflowers · the Erdős–Rado lemma and a kernel for d-Hitting Set</title>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  skipStartupTypeset: true,
+  messageStyle: "none",
+  showMathMenu: false,
+  tex2jax: { inlineMath: [["\\(", "\\)"]], processEscapes: true },
+  TeX: { extensions: ["AMSmath.js", "AMSsymbols.js"],
+         Macros: { wrel: ["\\mathrel{\\;#1\\;}", 1] } },
+  SVG: { font: "Neo-Euler", useGlobalCache: false, useFontCache: true, mtextFontInherit: true, blacker: 0 }
+});
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS_SVG"></script>
+<style>
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#9c866d;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-font-mono:ui-monospace, Menlo, Consolas, monospace;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    --gw:50%;           /* drawing pane share of the main row (splitter) */
+    --rowh:560px;       /* main row height (splitter) */
+    --figh:460px;       /* definition figure height (splitter) */
+    --spah:440px;       /* sparsification figure height (splitter) */
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; margin:0 0 6px; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 14px; max-width:96ch; line-height:1.55; }
+  .subtitle code, .hint code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; }
+  .mj svg { overflow:visible; }
+
+  /* --- tabs --- */
+  .tabs { display:flex; gap:0; margin:0 0 14px; border-bottom:1px solid var(--wi-border); flex-wrap:wrap; }
+  .tabs button { font-family:var(--wi-font-head); letter-spacing:.04em; font-size:.88rem; background:transparent;
+                 color:var(--wi-ink-soft); border:1px solid transparent; border-bottom:0; border-radius:var(--wi-radius) var(--wi-radius) 0 0;
+                 padding:7px 16px 6px; margin-bottom:-1px; cursor:pointer; }
+  .tabs button:hover { color:var(--wi-ink-strong); background:var(--wi-panel); }
+  .tabs button.on { color:var(--wi-accent); background:var(--wi-bg); border-color:var(--wi-border); font-weight:bold; }
+  .tab { display:none; }
+  .tab.on { display:block; }
+
+  /* --- control chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:12px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; }
+  .ctl > label, .lbl { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer; transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text; font-size:1.02rem; line-height:1.1;
+                padding:4px 0; width:2.5em; text-align:center; }
+  button.small { padding:3px 9px; font-size:.72rem; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  input[type=number] { width:4.2em; }
+  .seg { display:inline-flex; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+
+  /* --- transport: slider + phase bar ---
+     The slider is custom-styled with an exactly 16px thumb; its centre travels
+     from 8px to width-8px, so the phase bar is inset by 8px on both sides and
+     the slider value is mapped piecewise-linearly onto the phase widths. */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:14px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; }
+  .progress input[type=range] { -webkit-appearance:none; appearance:none; display:block; width:100%; margin:0;
+       height:16px; background:transparent; cursor:pointer; }
+  .progress input[type=range]::-webkit-slider-runnable-track { height:6px; background:var(--wi-panel);
+       border:1px solid var(--wi-border-soft); border-radius:3px; }
+  .progress input[type=range]::-moz-range-track { height:6px; background:var(--wi-panel);
+       border:1px solid var(--wi-border-soft); border-radius:3px; }
+  .progress input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:16px; height:16px;
+       border-radius:50%; background:var(--wi-accent); border:2px solid var(--wi-panel-2); margin-top:-6px;
+       box-shadow:0 0 0 1px var(--wi-accent); box-sizing:border-box; }
+  .progress input[type=range]::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:var(--wi-accent);
+       border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); box-sizing:border-box; }
+  .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint);
+            white-space:nowrap; text-align:right; padding-top:1px; }
+  #stepNo { display:inline-block; width:8.5em; }
+  .phasebar { display:flex; margin:5px 8px 0; width:calc(100% - 16px); }
+  .phasebtn { position:relative; overflow:hidden; flex:none; padding:3px 0; font-size:.68rem; line-height:1.3;
+              font-family:var(--wi-font-head); letter-spacing:.03em; text-align:center;
+              background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+              border-left-width:0; border-radius:0; color:var(--wi-ink-faint); cursor:pointer; white-space:nowrap; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3;
+                    border-right:1px solid var(--wi-accent-soft); }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+
+  /* --- main row: hypergraph | splitter | matrix --- */
+  .mainrow { display:flex; height:var(--rowh); min-height:240px; }
+  .pane { display:flex; flex-direction:column; min-width:0; min-height:0; }
+  #hgPane { flex:0 0 var(--gw); }
+  #mxPane { flex:1 1 0; }
+  .vsplit { flex:0 0 14px; cursor:col-resize; position:relative; touch-action:none; }
+  .vsplit::after { content:""; position:absolute; left:6px; top:30%; bottom:30%; width:2px;
+                   border-radius:1px; background:var(--wi-border-soft); }
+  .vsplit:hover::after, .vsplit.drag::after { background:var(--wi-accent-soft); }
+  .hsplit { height:14px; cursor:row-resize; position:relative; touch-action:none; }
+  .hsplit::after { content:""; position:absolute; top:6px; left:40%; right:40%; height:2px;
+                   border-radius:1px; background:var(--wi-border-soft); }
+  .hsplit:hover::after, .hsplit.drag::after { background:var(--wi-accent-soft); }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+             border-radius:var(--wi-radius-lg); padding:12px 15px; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--wi-ink-faint);
+               margin:0 0 9px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--wi-font-body);
+                    font-size:1.15em; color:var(--wi-ink-soft); display:flex; gap:8px; align-items:center; }
+  .svgwrap { flex:1 1 0; min-height:0; position:relative; background:var(--wi-bg); border-radius:var(--wi-radius); overflow:hidden; }
+  .svgwrap svg { position:absolute; left:0; top:0; display:block; }
+  #mxWrap { overflow-y:auto; overflow-x:hidden; }
+  #mxWrap svg { position:static; }
+  .crumbs { font-size:.82rem; color:var(--wi-ink-soft); min-height:1.6em; margin:-3px 0 6px; white-space:nowrap; overflow:hidden; text-overflow:clip; }
+  .crumbs .sep { color:var(--wi-ink-faint); padding:0 .35em; }
+  .crumbs .on { color:var(--wi-accent); font-weight:bold; }
+
+  .legend { display:flex; flex-wrap:wrap; gap:5px 15px; margin-top:8px; font-size:.72rem; color:var(--wi-ink-soft); }
+  .legend .item { display:flex; align-items:center; gap:6px; }
+  .sw { width:.9em; height:.9em; border-radius:50%; border:1.5px solid var(--wi-ink-soft); display:inline-block; }
+  .swr { width:1.2em; height:.8em; border-radius:3px; border:1.5px solid var(--wi-border); display:inline-block; }
+
+  /* --- lower row: status | code --- */
+  .lowrow { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); gap:14px; align-items:start; }
+  .col-side { display:flex; flex-direction:column; gap:14px; }
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius);
+            padding:10px 13px; font-size:.9rem; color:var(--wi-ink-strong); min-height:118px; }
+  .status .ans { display:block; margin-top:6px; font-size:.95rem; color:var(--wi-accent); font-weight:bold; }
+  .vars { display:grid; grid-template-columns:auto 1fr; gap:3px 14px; font-size:.9rem; align-items:baseline; align-content:start; min-height:12.5em; }
+  .vars .vk { text-align:right; color:var(--wi-ink-soft); white-space:nowrap; }
+  .vars .vv { color:var(--wi-ink-strong); }
+  .vars .vv.none { color:var(--wi-ink-faint); }
+  .vars .vv.ok { color:var(--wi-relax); }
+  .vars .vv.bad { color:var(--wi-active); }
+  .meter { margin-top:4px; }
+  .meter .row { display:flex; align-items:center; gap:10px; font-size:.82rem; margin:3px 0; }
+  .meter .bar { position:relative; flex:1 1 auto; height:12px; background:var(--wi-panel-2); border:1px solid var(--wi-border-soft); border-radius:3px; overflow:hidden; }
+  .meter .bar i { position:absolute; left:0; top:0; bottom:0; background:var(--wi-accent-soft); }
+  .meter .bar b { position:absolute; top:-2px; bottom:-2px; width:2px; background:var(--wi-ink-strong); }
+  .meter .lab { flex:none; width:6.5em; text-align:right; white-space:nowrap; color:var(--wi-ink-soft); }
+  .meter .num { flex:none; width:6.5em; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .countnote { font-size:.76rem; color:var(--wi-ink-soft); margin-top:8px; line-height:1.45; }
+
+  details.code { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.code > summary { cursor:pointer; padding:10px 15px; font-family:var(--wi-font-head); font-size:.72rem;
+                           text-transform:uppercase; letter-spacing:.1em; color:var(--wi-ink-faint); }
+  details.code[open] > summary { border-bottom:1px solid var(--wi-border-soft); color:var(--wi-accent); }
+  .codebody { padding:8px 6px 10px; }
+  .cline { display:flex; gap:10px; padding:1px 9px; font-size:.84rem; line-height:1.6;
+           color:var(--wi-ink-strong); border-left:3px solid transparent; white-space:nowrap; }
+  .cline .ln { color:var(--wi-ink-faint); min-width:1.3em; text-align:right; user-select:none; font-size:.8em; padding-top:.15em; }
+  .cline .ind { display:inline-block; }
+  .cline.on { background:#f6e6df; border-left-color:var(--wi-active); }
+  .cline.gap { height:.55em; }
+  .cline b { color:var(--wi-ink-strong); }
+  .cline .cm { color:var(--wi-ink-faint); font-style:italic; padding-left:1.5em; }
+  .codenote { font-size:.74rem; color:var(--wi-ink-soft); padding:8px 15px 12px; line-height:1.5;
+              border-top:1px solid var(--wi-border-soft); }
+  .codewrap { overflow-x:auto; }
+
+  details.editor { margin-top:18px; background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:11px 16px; font-family:var(--wi-font-head); font-size:.78rem;
+                             letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,300px) 1fr; gap:16px; align-items:start; }
+  textarea { width:100%; height:240px; font-family:var(--wi-font-mono); font-size:.78rem; background:var(--wi-panel-2);
+             color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.8rem; color:var(--wi-ink-soft); line-height:1.55; }
+  .err { color:var(--wi-active); font-size:.8rem; min-height:1.2em; margin-top:6px; }
+
+  .tooltip { position:fixed; z-index:40; pointer-events:none; background:var(--wi-panel-2);
+             border:1px solid var(--wi-border-strong); border-radius:var(--wi-radius); padding:6px 9px;
+             font-size:.8rem; color:var(--wi-ink-strong); box-shadow:0 3px 10px rgba(0,0,0,.12);
+             max-width:300px; display:none; line-height:1.45; }
+  .tooltip .tt-h { font-family:var(--wi-font-head); letter-spacing:.04em; color:var(--wi-accent); }
+
+  /* --- definition tab --- */
+  .figrow { height:var(--figh); min-height:260px; display:flex; }
+  .figrow .pane { flex:1 1 auto; }
+  #spaRow { height:var(--spah); }
+  #figWrap { background:var(--wi-bg); }
+  .deftext { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:14px; }
+  .deftext .sim-box p { margin:0 0 .55em; font-size:.92rem; line-height:1.55; }
+  .deftext .sim-box p:last-child { margin-bottom:0; }
+
+  /* --- SVG: hypergraph --- */
+  .el circle.dot { fill:var(--wi-panel-2); stroke:var(--wi-ink-soft); stroke-width:1.5; }
+  .el text { font-family:var(--wi-font-body); font-size:13px; font-weight:bold; fill:var(--wi-ink-strong);
+             text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  .el.core circle.dot { fill:var(--wi-accent); stroke:var(--wi-accent-dark); }
+  .el.core text { fill:var(--wi-panel-2); }
+  .el.inU circle.dot { stroke:var(--wi-queue); stroke-width:2.6; }
+  .el.pick circle.dot { stroke:var(--wi-active); stroke-width:3.4; fill:#f6e6df; }
+  .el.gone circle.dot { fill:var(--wi-bg); stroke:var(--wi-inert); stroke-dasharray:2 2; }
+  .el.gone text { fill:var(--wi-inert); }
+  .badge rect { fill:var(--wi-panel-2); stroke:var(--wi-queue); stroke-width:1.2; }
+  .badge.top rect { fill:#f6e6df; stroke:var(--wi-active); stroke-width:1.6; }
+  .badge text { font-family:var(--wi-font-body); font-size:11.5px; fill:var(--wi-ink-strong); text-anchor:middle; dominant-baseline:central; font-variant-numeric:tabular-nums; }
+  .hs path { fill:none; stroke-linejoin:round; stroke-linecap:round; }
+  .hs .band { stroke:var(--wi-ink-soft); stroke-opacity:.07; }
+  .hs .spine { stroke:var(--wi-ink-soft); stroke-opacity:.45; stroke-width:1.3; }
+  .hs.faint.graph .band { display:none; }
+  .hs.faint.graph .spine { stroke-width:1.6; }
+  .hs.out .band { display:none; }
+  .hs.out .spine { stroke:var(--wi-inert); stroke-opacity:.45; stroke-width:1; stroke-dasharray:3 3; }
+  .hs.inM .band { stroke:var(--wi-queue); stroke-opacity:.22; }
+  .hs.inM .spine { stroke:var(--wi-queue); stroke-opacity:1; stroke-width:2.4; }
+  .hs.scan .band { stroke:var(--wi-examine); stroke-opacity:.18; }
+  .hs.scan .spine { stroke:var(--wi-examine); stroke-opacity:1; stroke-width:2.2; stroke-dasharray:5 3; }
+  .hs.pet .band { stroke-opacity:.24; }
+  .hs.pet .spine { stroke-opacity:1; stroke-width:2.6; }
+  .hs.coreset .band { stroke:var(--wi-accent); stroke-opacity:.10; }
+  .hs.coreset .spine { stroke:var(--wi-accent); stroke-opacity:.6; stroke-width:1.6; }
+  .hs.newcore .band { stroke:var(--wi-accent); stroke-opacity:.28; }
+  .hs.newcore .spine { stroke:var(--wi-accent); stroke-opacity:1; stroke-width:3; }
+  .nocore { font-family:var(--wi-font-body); font-style:italic; font-size:13px; fill:var(--wi-active); }
+
+  /* --- SVG: matrix --- */
+  .mx .cell { fill:var(--wi-ink-soft); }
+  .mx .cell.dim { fill:var(--wi-inert); opacity:.55; }
+  .mx .cell.dead { fill:var(--wi-inert); opacity:.35; }
+  .mx .cell.zc { fill:var(--wi-accent); }
+  .mx .rowbg { fill:transparent; }
+  .mx .rowbg.inM { fill:var(--wi-queue); fill-opacity:.14; }
+  .mx .rowbg.scan { fill:var(--wi-examine); fill-opacity:.16; }
+  .mx .rowbg.pet { fill-opacity:.2; }
+  .mx .rowbg.newcore { fill:var(--wi-accent); fill-opacity:.16; }
+  .mx .colbg.zc { fill:var(--wi-accent); fill-opacity:.12; }
+  .mx .colbg.inU { fill:var(--wi-queue); fill-opacity:.09; }
+  .mx .colbg.pick { fill:var(--wi-active); fill-opacity:.13; }
+  .mx .rl { font-family:var(--wi-font-body); fill:var(--wi-ink-soft); dominant-baseline:central; text-anchor:end; }
+  .mx .rl.dead, .mx .rl.dim { fill:var(--wi-inert); }
+  .mx .cl { font-family:var(--wi-font-body); font-size:12px; font-weight:bold; fill:var(--wi-ink-strong); text-anchor:middle; dominant-baseline:central; }
+  .mx .cl.zc { fill:var(--wi-accent); }
+  .mx .cnt { font-family:var(--wi-font-body); font-size:11.5px; fill:var(--wi-queue); text-anchor:middle; dominant-baseline:central; font-variant-numeric:tabular-nums; }
+  .mx .cnt.top { fill:var(--wi-active); font-weight:bold; }
+  .mx .strike { stroke:var(--wi-inert); stroke-width:1; }
+  .mx .grid { stroke:var(--wi-border-soft); stroke-width:.6; }
+  .mx .scanmark { fill:var(--wi-examine); }
+
+  .mobile-note { display:none; background:var(--wi-controls); border:1px solid var(--wi-accent-soft);
+                 border-radius:var(--wi-radius-lg); padding:11px 15px; font-size:.82rem; color:var(--wi-ink-strong); margin-bottom:14px; }
+  @media (max-width:980px) {
+    .lowrow { grid-template-columns:minmax(0,1fr); }
+  }
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls { gap:8px 12px; padding:10px 12px; }
+    .mainrow { flex-direction:column; height:auto; }
+    #hgPane { flex:none; height:360px; }
+    #mxPane { flex:none; height:420px; margin-top:12px; }
+    .vsplit, .hsplit { display:none; }
+    .figrow { height:380px; }
+    .lowrow { margin-top:14px; }
+    .editor-body { grid-template-columns:1fr; }
+    .mobile-note { display:block; }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    * { animation-duration:.001ms !important; transition-duration:.001ms !important; }
+  }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title { font-family: var(--wi-font-head); letter-spacing: .05em; }
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1>Sunflowers &nbsp;·&nbsp; the Erdös–Rado lemma and a kernel for <i>d</i>-Hitting Set</h1>
+</div>
+
+<p class="subtitle">
+  A <b>sunflower</b> is a family of sets that all meet in the same <b>core</b>, and are disjoint outside it.
+  Erdős and Rado showed that every large family of small sets contains one, and their proof finds it:
+  pick disjoint sets greedily; if there are too few of them, many sets must go through one element, so
+  put that element into the core and repeat with the remaining sets.
+  For <i>d</i>-Hitting Set, a sunflower with <span class="mt">$k+1$</span> petals can be replaced by its
+  core, because any <span class="mt">$k$</span> elements that hit all petals must hit the core.
+</p>
+
+<div class="mobile-note">
+  <b>Small screen:</b> the drawing and the matrix are stacked; the pseudocode is below them.
+</div>
+
+<div class="tabs" role="tablist">
+  <button id="tabBtnDef" role="tab">What is a sunflower</button>
+  <button id="tabBtnFind" role="tab">Finding a sunflower</button>
+  <button id="tabBtnKer" role="tab" class="on">Kernel for <i>d</i>-Hitting Set</button>
+  <button id="tabBtnSpa" role="tab">Sparsifying formulas</button>
+</div>
+
+<!-- ================================================================ tab 1 -->
+<section class="tab" id="tabDef">
+  <div class="controls">
+    <div class="ctl"><label for="fPetals">Petals</label><input type="number" id="fPetals" min="3" max="8" value="6"></div>
+    <div class="ctl"><label for="fCore">Core size</label><input type="number" id="fCore" min="1" max="3" value="2"></div>
+    <div class="ctl"><label for="fPetal">Petal size</label><input type="number" id="fPetal" min="1" max="3" value="2"></div>
+    <div class="ctl">
+      <label class="chk"><input type="checkbox" id="fEmpty" checked> empty core</label>
+      <label class="chk"><input type="checkbox" id="fNon" checked> non-example</label>
+      <label class="chk"><input type="checkbox" id="fMatrix" checked> as a matrix</label>
+    </div>
+    <div class="ctl"><button id="fSvg">Download SVG</button></div>
+  </div>
+  <div class="figrow">
+    <div class="pane sim-box">
+      <div class="sim-title"><span>Sunflowers and a non-example</span><span class="rhs" id="figMeta"></span></div>
+      <div class="svgwrap" id="figWrap"><svg id="figSvg"></svg></div>
+    </div>
+  </div>
+  <div class="hsplit" id="hsplitFig" title="Drag to resize; double-click to reset"></div>
+  <div class="deftext">
+    <div class="sim-box">
+      <div class="sim-title"><span>Definition</span></div>
+      <p class="mt">Sets $S_1,\ldots,S_r$ (all different) form a <b>sunflower with $r$ petals and core $C$</b>
+        if $S_i \cap S_j \wrel= C$ for all $i \ne j$.</p>
+      <p class="mt">Then the <b>petals</b> $S_i \setminus C$ are pairwise disjoint. $C = \emptyset$ is allowed:
+        $r$ pairwise disjoint sets are a sunflower. At most one petal can be empty, namely if
+        the core itself is one of the sets.</p>
+    </div>
+    <div class="sim-box">
+      <div class="sim-title"><span>Sunflower Lemma (Erdős–Rado 1960)</span></div>
+      <p class="mt">Every family $\mathcal F$ of sets of size $\le d$ with $|\mathcal F| \wrel> d!\,(r-1)^d$
+        contains a sunflower with $r$ petals, and the proof finds it in polynomial time.</p>
+      <p class="mt">For $d = 2$ the bound says: a graph with more than $2(r-1)^2$ edges has $r$ disjoint edges
+        or a vertex of degree $\ge r$.</p>
+    </div>
+    <div class="sim-box">
+      <div class="sim-title"><span>How good is the bound?</span></div>
+      <p class="mt">Far from tight. Families of $(r-1)^d$ sets without a sunflower are easy to build (one element from
+        each of $d$ groups of $r-1$), and $O(r \log d)^d$ sets always suffice (Alweiss, Lovett, Wu and Zhang 2019;
+        Rao; Bell, Chueluecha and Warnke). Whether $c_r^{\,d}$ sets suffice is the Erdős–Rado sunflower conjecture,
+        still open.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ sparsification -->
+<section class="tab" id="tabSpa">
+  <div class="controls">
+    <div class="ctl"><label for="sPetals">Clauses in the sunflower</label><input type="number" id="sPetals" min="2" max="6" value="4"></div>
+    <div class="ctl"><label for="sWidth">Clause width</label><input type="number" id="sWidth" min="3" max="4" value="3"></div>
+    <div class="ctl"><label for="sCore">Core size</label><input type="number" id="sCore" min="1" max="3" value="2"></div>
+    <div class="ctl"><button id="sSvg">Download SVG</button></div>
+  </div>
+  <div class="figrow" id="spaRow">
+    <div class="pane sim-box">
+      <div class="sim-title"><span>One branching step on a sunflower of clauses</span><span class="rhs" id="spaMeta"></span></div>
+      <div class="svgwrap" id="spaWrap"><svg id="spaSvg"></svg></div>
+    </div>
+  </div>
+  <div class="hsplit" id="hsplitSpa" title="Drag to resize; double-click to reset"></div>
+  <div class="deftext">
+    <div class="sim-box">
+      <div class="sim-title"><span>The branching step</span></div>
+      <p class="mt">Clauses are sets of literals. Let the clauses $S_1,\ldots,S_r$ of $\mathcal F$ form a sunflower with
+        core $C$, and let $G$ be the other clauses.</p>
+      <p class="mt">A satisfying assignment either satisfies $C$, and then all of $S_1,\ldots,S_r$; or it does not,
+        and then it must satisfy every petal $S_i \setminus C$. Hence $\mathcal F \equiv \mathcal F_1 \lor \mathcal F_2$.
+        In $\mathcal F_1$, $r$ clauses become one shorter clause; in $\mathcal F_2$, all $r$ clauses get shorter.</p>
+    </div>
+    <div class="sim-box">
+      <div class="sim-title"><span>Sparsification Lemma (Impagliazzo–Paturi–Zane 2001)</span></div>
+      <p class="mt">For every $k \ge 3$ and $\varepsilon > 0$ there is a constant $K$ such that every $k$-CNF $\mathcal F$
+        on $n$ variables is equivalent to $\mathcal F_1 \lor \cdots \lor \mathcal F_t$ with $t \le 2^{\varepsilon n}$,
+        where each $\mathcal F_i$ is a $k$-CNF on the same variables with at most $K n$ clauses.
+        The $\mathcal F_i$ can be computed in time $2^{\varepsilon n}\, n^{O(1)}$.</p>
+    </div>
+    <div class="sim-box">
+      <div class="sim-title"><span>Where the sunflowers come from</span></div>
+      <p class="mt">Branch as long as some set of literals lies in too many clauses of the same width. Removing it from
+        these clauses leaves many small sets, so by the Sunflower Lemma they contain a large sunflower, and with the set
+        put back it is a sunflower of clauses. At the end, every literal lies in $O(1)$ clauses, so each branch has
+        $O(n)$ clauses. The work is in choosing the thresholds so that only $2^{\varepsilon n}$ branches arise.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ tab 2 -->
+<section class="tab on" id="tabKer">
+  <div class="controls">
+    <div class="ctl">
+      <label for="presetSel">Example</label>
+      <select id="presetSel"></select>
+    </div>
+    <div class="ctl">
+      <label for="kIn" id="kLab">Parameter <span class="mt">$k$</span></label>
+      <input type="number" id="kIn" min="1" max="8" value="2">
+    </div>
+    <div class="ctl">
+      <span class="lbl">Detail</span>
+      <span class="seg">
+        <button id="detFine" class="on">Every step of the lemma</button>
+        <button id="detCoarse">One step per rule</button>
+      </span>
+    </div>
+    <div class="ctl">
+      <label class="chk"><input type="checkbox" id="allChk" checked> all sets in the drawing</label>
+    </div>
+    <div class="ctl" id="randCtl" style="display:none">
+      <button id="randBtn" title="Draw a new random family">Random family</button>
+      <input type="number" id="rM" min="2" max="150" value="20" title="number of sets"><span class="lbl">sets of size</span>
+      <span class="mt">$\le$</span><input type="number" id="rD" min="1" max="5" value="3" title="d"><span class="lbl">over</span>
+      <input type="number" id="rN" min="2" max="40" value="12" title="number of elements"><span class="lbl">elements</span>
+    </div>
+  </div>
+
+  <div class="transport">
+    <div class="transport-row">
+      <span class="ctl" style="gap:6px">
+        <button id="resetBtn" class="icon" title="Back to the first step  (Home)" aria-label="Back to the first step">&#x21BA;</button>
+        <button id="backBtn" class="icon" title="One step back  (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+        <button id="stepBtn" class="icon pri" title="One step forward  (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+        <button id="playBtn" class="icon" title="Play / pause  (space)" aria-label="Play">&#x25B6;&#xFE0E;</button>
+      </span>
+      <span class="progress">
+        <input type="range" id="scrubber" min="0" max="100000" step="1" value="0" aria-label="Step">
+        <div class="phasebar" id="phaseBar"></div>
+      </span>
+      <span class="stepno" id="stepNo">— / —</span>
+      <span class="ctl" style="gap:6px">
+        <span class="lbl">Delay</span>
+        <input type="range" id="speed" min="60" max="1600" value="600" style="width:88px;accent-color:var(--wi-accent)">
+        <span class="stepno" id="speedVal" style="width:3.6em">600ms</span>
+      </span>
+    </div>
+  </div>
+
+  <div class="mainrow" id="mainRow">
+    <div class="pane sim-box" id="hgPane">
+      <div class="sim-title"><span>The family as a hypergraph</span><span class="rhs" id="hgMeta"></span></div>
+      <div class="crumbs" id="crumbs"></div>
+      <div class="svgwrap" id="hgWrap"><svg id="hgSvg"></svg></div>
+      <div class="legend">
+        <span class="item"><span class="swr" style="background:rgba(42,106,99,.14);border-color:var(--wi-queue)"></span> disjoint sets <span class="mt">$M$</span></span>
+        <span class="item"><span class="sw" style="border-color:var(--wi-queue);border-width:2.5px"></span> <span class="mt">$U = \bigcup M$</span></span>
+        <span class="item"><span class="sw" style="border-color:var(--wi-active);border-width:3px;background:#f6e6df"></span> <span class="mt">$u$</span></span>
+        <span class="item"><span class="sw" style="background:var(--wi-accent);border-color:var(--wi-accent-dark)"></span> core so far</span>
+        <span class="item"><span class="swr" style="background:rgba(144,32,21,.18);border-color:var(--wi-accent)"></span> core, new set</span>
+      </div>
+    </div>
+    <div class="vsplit" id="vsplit" title="Drag to resize; double-click to reset"></div>
+    <div class="pane sim-box" id="mxPane">
+      <div class="sim-title"><span>The family as a 0/1 matrix</span><span class="rhs" id="mxMeta"></span></div>
+      <div class="svgwrap" id="mxWrap"><svg id="mxSvg"></svg></div>
+      <div class="legend">
+        <span class="item">rows: sets, columns: elements;</span>
+        <span class="item">numbers below: how many sets contain the element</span>
+      </div>
+    </div>
+  </div>
+  <div class="hsplit" id="hsplit" title="Drag to resize; double-click to reset"></div>
+
+  <div class="lowrow">
+    <div class="col-side">
+      <div class="sim-box">
+        <div class="sim-title"><span>What just happened</span><span class="rhs" id="phaseName"></span></div>
+        <div class="status" id="statusBox"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>The counting argument</span><span class="rhs" id="depthMeta"></span></div>
+        <div class="vars" id="varsBox"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span id="sizeTitle">Size of the family</span></div>
+        <div id="sizeBox"></div>
+      </div>
+    </div>
+    <details class="code" id="codeBox" open>
+      <summary>Pseudocode</summary>
+      <div class="codewrap"><div class="codebody" id="codeBody"></div></div>
+      <div class="codenote" id="codeNote"></div>
+    </details>
+  </div>
+
+  <details class="editor" id="editor">
+    <summary>Input</summary>
+    <div class="editor-body">
+      <div>
+        <textarea id="inputText" spellcheck="false"></textarea>
+        <div style="margin-top:8px;display:flex;gap:8px"><button class="pri" id="loadBtn">Load</button></div>
+        <div class="err" id="parseErr"></div>
+      </div>
+      <div class="hint">
+        A set family in the style of the <a href="https://algs4.cs.princeton.edu/41graph/">algs4</a> graph format:
+        the number of elements <i>n</i>, the number of sets <i>m</i>, then <i>m</i> lines, one per set, listing its
+        elements (elements are <code>0</code>…<code>n−1</code>; a line <code>-</code> is the empty set). A graph in algs4
+        format is such a family with two elements per line.
+        Optionally <i>n</i> more lines <code>x y</code> give the drawing: any scale, <i>y</i> pointing down, the picture
+        keeps its aspect ratio. Without them the elements are placed automatically.
+        <br><br>
+        A line <code>k 2</code> (or <code>k = 2</code>) anywhere sets the parameter. The sets have size at most
+        <i>d</i>, the largest set size, unless a line <code>d 3</code> sets a larger <i>d</i>. Lines starting with
+        <code>#</code> are comments. A set listed twice is kept once.
+        <br><br>
+        The order of the sets matters: the greedy pass of the lemma scans them in this order, and new cores are
+        appended at the end. At most 60 elements and 150 sets.
+      </div>
+    </div>
+  </details>
+</section>
+
+<div class="tooltip" id="tooltip"></div>
+<div id="texHost" aria-hidden="true" style="position:absolute;left:-9999px;top:0;visibility:hidden;font-size:19px;font-family:var(--wi-font-body)"></div>
+<script>
+const PRESETS = [
+  { key: "graph", name: "Graph with two hubs, d = 2, k = 2", text: "# a graph is a family of 2-sets: here every edge touches 0 or 1\n# (k+1 edges at one vertex form a sunflower with core {v})\nk 2\n12\n13\n0 2\n1 9\n0 6\n0 1\n1 10\n0 3\n0 8\n1 8\n0 4\n1 11\n0 5\n1 5\n0 7\n0.286 0.396\n0.747 0.396\n0.044 0.176\n0.088 0.527\n0.220 0.791\n0.462 0.725\n0.286 0.000\n0.000 0.747\n0.571 0.022\n0.989 0.176\n1.000 0.593\n0.791 0.835\n" },
+  { key: "hubs3", name: "Graph with three hubs, d = 2, k = 3", text: "# every edge touches 0, 1 or 2\nk 3\n16\n25\n1 11\n2 14\n2 12\n0 5\n2 8\n0 10\n0 1\n1 7\n0 6\n0 9\n0 3\n0 4\n1 10\n1 2\n1 6\n1 13\n2 11\n0 7\n0 8\n2 4\n1 14\n2 13\n2 15\n2 3\n1 12\n0.234 0.496\n0.618 0.213\n0.618 0.738\n0.084 0.753\n0.229 0.886\n0.000 0.559\n0.084 0.198\n0.222 0.069\n0.409 0.952\n0.010 0.350\n0.401 0.000\n0.872 0.151\n0.971 0.310\n1.000 0.509\n0.950 0.688\n0.734 0.903\n" },
+  { key: "nomatch", name: "Three disjoint edges: No (d = 2, k = 2)", text: "# the greedy pass finds k+1 = 3 pairwise disjoint edges: a sunflower with empty core\nk 2\n10\n10\n0 8\n1 8\n2 8\n3 8\n2 4\n3 5\n4 9\n5 9\n6 9\n7 9\n0.000 0.000\n0.000 0.833\n0.333 0.000\n0.333 0.833\n0.667 0.000\n0.667 0.833\n1.000 0.000\n1.000 0.833\n0.167 0.417\n0.833 0.417\n" },
+  { key: "fano", name: "Fano plane, d = 3, k = 1", text: "# the 7 lines of the Fano plane: any two meet in exactly one point\nk 1\n7\n7\n0 1 3\n0 2 5\n1 2 4\n0 4 6\n1 5 6\n2 3 6\n3 4 5\n0.500 0.000\n0.000 0.866\n1.000 0.866\n0.250 0.433\n0.500 0.866\n0.750 0.433\n0.500 0.577\n" },
+  { key: "planted", name: "53 triples, d = 3, k = 2", text: "# every set contains 0 or 1; the pairs {0,5}, {0,6}, {1,2}, {1,3} lie in many sets\nk 2\n18\n53\n1 3 9\n1 2 3\n1 3 11\n0 6 17\n1 2 14\n1 2 6\n1 2 11\n1 3 5\n1 3 14\n1 3 15\n0 5 14\n0 6 9\n1 3 7\n1 3 10\n1 3 12\n0 6 8\n0 5 17\n0 5 9\n1 3 8\n1 2 10\n0 3 6\n1 3 16\n0 5 6\n1 2 7\n0 5 15\n1 3 13\n0 6 16\n1 2 9\n0 5 7\n1 2 12\n1 2 15\n0 6 12\n1 3 6\n0 6 7\n0 6 13\n1 2 4\n1 2 17\n1 2 16\n0 6 10\n0 5 10\n0 6 14\n1 3 4\n0 2 5\n0 5 8\n0 5 11\n0 5 12\n0 5 16\n1 2 13\n1 2 8\n1 3 17\n0 5 13\n0 6 15\n0 6 11\n0.319 0.462\n0.681 0.462\n0.731 0.231\n0.731 0.693\n0.500 0.080\n0.269 0.231\n0.269 0.693\n0.315 0.891\n0.098 0.738\n0.000 0.502\n0.051 0.255\n0.236 0.069\n0.500 0.000\n0.764 0.069\n0.949 0.255\n1.000 0.502\n0.902 0.738\n0.685 0.891\n" },
+];
+const FIND_PRESETS = [
+  { key: "rand", name: "20 random sets over 12 elements, r = 3", text: "# random sets of size 2 and 3; below the threshold 3!\u00b72^3 = 48\nk 3\nd 3\n12\n20\n6 7 10\n2 8 10\n1 4 8\n3 7 9\n1 9 10\n8 10\n1 7\n4 5 11\n6 11\n1 7 11\n5 10 11\n1 7 9\n1 4\n9 10\n0 1 2\n1 9 11\n3 4 10\n1 3 4\n0 2 4\n0 1 4\n0.054 0.519\n0.378 0.249\n0.000 0.317\n0.385 0.000\n0.277 0.384\n0.563 0.709\n1.000 0.346\n0.714 0.167\n0.125 0.105\n0.596 0.050\n0.495 0.285\n0.659 0.441\n" },
+  { key: "graph", name: "Graph with 13 edges, r = 3", text: "# a graph is a family of 2-sets: here every edge touches 0 or 1\n# (k+1 edges at one vertex form a sunflower with core {v})\nk 3\n12\n13\n0 2\n1 9\n0 6\n0 1\n1 10\n0 3\n0 8\n1 8\n0 4\n1 11\n0 5\n1 5\n0 7\n0.286 0.396\n0.747 0.396\n0.044 0.176\n0.088 0.527\n0.220 0.791\n0.462 0.725\n0.286 0.000\n0.000 0.747\n0.571 0.022\n0.989 0.176\n1.000 0.593\n0.791 0.835\n" },
+  { key: "planted", name: "53 triples, r = 3 (above the threshold)", text: "# every set contains 0 or 1; the pairs {0,5}, {0,6}, {1,2}, {1,3} lie in many sets\nk 3\n18\n53\n1 3 9\n1 2 3\n1 3 11\n0 6 17\n1 2 14\n1 2 6\n1 2 11\n1 3 5\n1 3 14\n1 3 15\n0 5 14\n0 6 9\n1 3 7\n1 3 10\n1 3 12\n0 6 8\n0 5 17\n0 5 9\n1 3 8\n1 2 10\n0 3 6\n1 3 16\n0 5 6\n1 2 7\n0 5 15\n1 3 13\n0 6 16\n1 2 9\n0 5 7\n1 2 12\n1 2 15\n0 6 12\n1 3 6\n0 6 7\n0 6 13\n1 2 4\n1 2 17\n1 2 16\n0 6 10\n0 5 10\n0 6 14\n1 3 4\n0 2 5\n0 5 8\n0 5 11\n0 5 12\n0 5 16\n1 2 13\n1 2 8\n1 3 17\n0 5 13\n0 6 15\n0 6 11\n0.319 0.462\n0.681 0.462\n0.731 0.231\n0.731 0.693\n0.500 0.080\n0.269 0.231\n0.269 0.693\n0.315 0.891\n0.098 0.738\n0.000 0.502\n0.051 0.255\n0.236 0.069\n0.500 0.000\n0.764 0.069\n0.949 0.255\n1.000 0.502\n0.902 0.738\n0.685 0.891\n" },
+  { key: "fano", name: "Fano plane, r = 3", text: "# the 7 lines of the Fano plane: any two meet in exactly one point\nk 3\n7\n7\n0 1 3\n0 2 5\n1 2 4\n0 4 6\n1 5 6\n2 3 6\n3 4 5\n0.500 0.000\n0.000 0.866\n1.000 0.866\n0.250 0.433\n0.500 0.866\n0.750 0.433\n0.500 0.577\n" },
+  { key: "miss", name: "A path with 5 edges, r = 3 (greedy misses)", text: "# the edges {0,1}, {2,3}, {4,5} are disjoint, but the greedy pass picks {1,2} and {3,4} first\nk 3\n6\n5\n1 2\n3 4\n0 1\n2 3\n4 5\n0.000 0.000\n0.200 0.140\n0.400 0.000\n0.600 0.140\n0.800 0.000\n1.000 0.140\n" },
+  { key: "tri", name: "Two disjoint triangles, r = 3 (no sunflower)", text: "# 6 edges without 3 disjoint edges and without a vertex of degree 3:\n# the largest graph without a 3-petal sunflower\nk 3\n6\n6\n0 1\n3 4\n1 2\n4 5\n0 2\n3 5\n0.000 0.308\n0.192 0.000\n0.385 0.308\n0.615 0.308\n0.808 0.000\n1.000 0.308\n" },
+  { key: "trans", name: "One element from each pair: 8 triples, r = 3", text: "# pairs {0,1}, {2,3}, {4,5}; each set takes one element from each pair:\n# (r-1)^d = 8 sets and no sunflower with 3 petals\nk 3\n6\n8\n0 2 4\n0 2 5\n0 3 4\n0 3 5\n1 2 4\n1 2 5\n1 3 4\n1 3 5\n0.400 0.000\n0.600 0.000\n0.000 0.780\n0.120 0.980\n1.000 0.780\n0.880 0.980\n" },
+];
+"use strict";
+const el = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const LSKEY = "sunflower-kernel:";
+
+/* ======================================================================
+   Math: MathJax 2 (SVG output, Neo-Euler) renders every TeX snippet once
+   into a hidden host; the resulting <svg> is cached and reused, inline in
+   HTML ($...$ markup) and nested inside the drawings. Until MathJax is
+   ready, a plain-text fallback is shown and the page re-renders when the
+   cache fills.
+   ====================================================================== */
+const TEX = new Map();
+const texPending = new Set();
+let texBusy = false;
+function texReady() { return !!(window.MathJax && MathJax.isReady && MathJax.Hub); }
+function texReq(t) {
+  if (TEX.has(t) || texPending.has(t)) return;
+  texPending.add(t); setTimeout(kickTex, 0);
+}
+function kickTex() {
+  if (texBusy || !texPending.size || !texReady()) return;
+  texBusy = true;
+  const batch = [...texPending]; texPending.clear();
+  const host = el("texHost"); host.innerHTML = "";
+  const spans = batch.map(t => {
+    const s = document.createElement("span"); s.textContent = "\\(" + t + "\\)";
+    host.appendChild(s); host.appendChild(document.createTextNode(" ")); return s;
+  });
+  MathJax.Hub.Queue(["Typeset", MathJax.Hub, host], () => {
+    batch.forEach((t, i) => {
+      const svg = spans[i].querySelector("svg");
+      if (!svg || !svg.getAttribute("viewBox")) { TEX.set(t, false); return; }
+      const vb = svg.getAttribute("viewBox").trim().split(/[\s,]+/).map(Number);
+      TEX.set(t, { html: svg.outerHTML, vb });
+    });
+    host.innerHTML = "";
+    texBusy = false;
+    scheduleRender();
+    if (texPending.size) kickTex();
+  });
+}
+(function pollTex() { if (texReady()) kickTex(); else setTimeout(pollTex, 120); })();
+
+const FALLBACK = [[/\\emptyset/g, "∅"], [/\\le(q)?/g, "≤"], [/\\ge(q)?/g, "≥"], [/\\cup/g, "∪"], [/\\bigcup/g, "∪"],
+  [/\\cap/g, "∩"], [/\\in/g, "∈"], [/\\setminus/g, "∖"], [/\\ne(q)?/g, "≠"], [/\\ldots/g, "…"], [/\\cdot/g, "·"],
+  [/\\mathcal\{F\}/g, "𝓕"], [/\\mathcal F/g, "𝓕"], [/\\wrel\{(.*?)\}/g, " $1 "], [/\\wrel(.)/g, " $1 "],
+  [/\\bigl|\\bigr|\\left|\\right/g, ""], [/\\mathrel\{(.*?)\}/g, "$1"],
+  [/\\[{}]/g, m => m[1]], [/\\,|\\;|\\!/g, " "], [/[{}]/g, ""], [/\\([a-zA-Z]+)/g, "$1"]];
+function texFallback(t) { let s = t; for (const [a, b] of FALLBACK) s = s.replace(a, b); return s; }
+
+/* $...$ in a string -> cached inline svg, or the fallback */
+function mh(s) {
+  return String(s).replace(/\$([^$]+)\$/g, (m, t) => {
+    const c = TEX.get(t);
+    if (c) return '<span class="mj">' + c.html + "</span>";
+    texReq(t);
+    return '<i class="mjf">' + escapeHtml(texFallback(t)) + "</i>";
+  });
+}
+function escapeHtml(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+/* TeX inside a drawing: (x, y) is the baseline point, size the em size in px */
+function svgTex(parent, t, x, y, size, anchor = "middle", color = null) {
+  const c = TEX.get(t);
+  const g = document.createElementNS(NS, "g");
+  if (color) { g.style.color = color; g.setAttribute("fill", color); g.setAttribute("stroke", color); }
+  if (c) {
+    g.innerHTML = c.html;
+    const s = g.firstElementChild;
+    const [mx, my, w, h] = c.vb;
+    const W = w / 1000 * size, H = h / 1000 * size;
+    const left = anchor === "middle" ? x - W / 2 : anchor === "end" ? x - W : x;
+    s.removeAttribute("style");
+    s.setAttribute("x", left); s.setAttribute("y", y + my / 1000 * size);
+    s.setAttribute("width", W); s.setAttribute("height", H);
+    s.setAttribute("overflow", "visible");
+    g._w = W;
+  } else {
+    texReq(t);
+    const tx = document.createElementNS(NS, "text");
+    tx.setAttribute("x", x); tx.setAttribute("y", y);
+    tx.setAttribute("font-family", "texgyrepagella, Palatino, serif"); tx.setAttribute("font-style", "italic");
+    tx.setAttribute("font-size", size); tx.setAttribute("text-anchor", anchor);
+    tx.setAttribute("fill", color || "#38362e"); tx.setAttribute("stroke", "none");
+    tx.textContent = texFallback(t);
+    g.appendChild(tx);
+    g._w = texFallback(t).length * size * 0.5;
+  }
+  parent.appendChild(g);
+  return g;
+}
+
+/* text with $...$ math inside a drawing: words in the body font, math via MathJax */
+const _mctx = document.createElement("canvas").getContext("2d");
+function svgMixed(parent, str, x, y, size, anchor = "middle", color = "#46433a") {
+  const parts = String(str).split(/(\$[^$]+\$)/).filter(t => t.length);
+  const font = `${size}px texgyrepagella, Palatino, "Palatino Linotype", serif`;
+  _mctx.font = font;
+  const widths = parts.map(t => {
+    if (t[0] === "$") { const c = TEX.get(t.slice(1, -1)); if (!c) texReq(t.slice(1, -1)); return c ? c.vb[2] / 1000 * size : texFallback(t.slice(1, -1)).length * size * 0.5; }
+    return _mctx.measureText(t).width;
+  });
+  const total = widths.reduce((a, b) => a + b, 0);
+  let cx = anchor === "middle" ? x - total / 2 : anchor === "end" ? x - total : x;
+  const g = document.createElementNS(NS, "g");
+  parent.appendChild(g);
+  parts.forEach((t, i) => {
+    if (t[0] === "$") svgTex(g, t.slice(1, -1), cx, y, size, "start", color);
+    else {
+      const tx = document.createElementNS(NS, "text");
+      tx.setAttribute("x", cx); tx.setAttribute("y", y); tx.setAttribute("font-size", size);
+      tx.setAttribute("font-family", "texgyrepagella, Palatino, 'Palatino Linotype', serif");
+      tx.setAttribute("fill", color); tx.setAttribute("xml:space", "preserve"); tx.style.whiteSpace = "pre";
+      tx.textContent = t; g.appendChild(tx);
+    }
+    cx += widths[i];
+  });
+  return g;
+}
+
+const setTex = a => a.length ? "\\{" + a.slice().sort((x, y) => x - y).join(",") + "\\}" : "\\emptyset";
+const fact = n => n <= 1 ? 1 : n * fact(n - 1);
+const thr = (d, p) => fact(d) * Math.pow(p - 1, d);           // d!(r-1)^d
+const thrTex = (d, p) => d <= 0 ? String.raw`${thr(d, p)}` : String.raw`${d}!\cdot ${p - 1}^{${d}} = ${thr(d, p)}`;
+
+/* ======================================================================
+   Input: n, m, then m lines (one set each), optionally n lines "x y";
+   lines "k <value>" and "d <value>" anywhere; "#" starts a comment.
+   ====================================================================== */
+function parseInput(text) {
+  const raw = text.split(/\r?\n/).map(l => l.replace(/#.*$/, "").trim()).filter(l => l.length);
+  let k = null, d = null; const lines = [];
+  for (const l of raw) {
+    let m = l.match(/^k\s*(?:=|:)?\s*(-?\d+)$/i);
+    if (m) { k = parseInt(m[1], 10); continue; }
+    m = l.match(/^d\s*(?:=|:)?\s*(-?\d+)$/i);
+    if (m) { d = parseInt(m[1], 10); continue; }
+    lines.push(l);
+  }
+  if (lines.length < 2) throw new Error("Expected the number of elements and the number of sets.");
+  const n = parseInt(lines[0], 10), m = parseInt(lines[1], 10);
+  if (!(n >= 1) || !/^\d+$/.test(lines[0])) throw new Error("The first line must be the number of elements (at least 1).");
+  if (n > 60) throw new Error("At most 60 elements, please.");
+  if (!(m >= 0) || !/^\d+$/.test(lines[1])) throw new Error("The second line must be the number of sets.");
+  if (m > 150) throw new Error("At most 150 sets, please.");
+  if (lines.length < 2 + m) throw new Error(`Expected ${m} lines with sets, found ${lines.length - 2}.`);
+  const seen = new Set(), sets = [];
+  let dup = 0;
+  for (let i = 0; i < m; i++) {
+    const l = lines[2 + i];
+    let S = [];
+    if (l !== "-" && l !== "{}" && l !== "∅") {
+      const t = l.split(/[\s,]+/);
+      for (const x of t) {
+        const v = Number(x);
+        if (!Number.isInteger(v) || v < 0 || v >= n) throw new Error(`Set line ${i + 1} ("${l}") must list elements in 0…${n - 1}.`);
+        if (!S.includes(v)) S.push(v);
+      }
+    }
+    S.sort((a, b) => a - b);
+    const key = S.join(",");
+    if (seen.has(key)) { dup++; continue; }
+    seen.add(key); sets.push(S);
+  }
+  const dmax = Math.max(0, ...sets.map(S => S.length));
+  if (d == null) d = dmax;
+  else if (d < dmax) throw new Error(`d = ${d}, but a set has ${dmax} elements.`);
+  if (d > 6) throw new Error("Sets of size at most 6, please (d ≤ 6).");
+  let pos = null;
+  const rest = lines.slice(2 + m);
+  if (rest.length) {
+    if (rest.length < n) throw new Error(`Expected ${n} coordinate lines "x y", found ${rest.length}.`);
+    pos = rest.slice(0, n).map((l, i) => {
+      const t = l.split(/[\s,]+/).map(Number);
+      if (t.length < 2 || !isFinite(t[0]) || !isFinite(t[1])) throw new Error(`Coordinate line ${i + 1} must be "x y".`);
+      return { x: t[0], y: t[1] };
+    });
+  }
+  return { n, sets, pos: pos || forceLayout(n, sets), k, d, dup };
+}
+
+/* spring layout of the "clique expansion": elements in a common set attract */
+function forceLayout(n, sets) {
+  const pairs = new Map();
+  for (const S of sets) for (let i = 0; i < S.length; i++) for (let j = i + 1; j < S.length; j++) {
+    const key = S[i] + "," + S[j]; pairs.set(key, (pairs.get(key) || 0) + 1);
+  }
+  const edges = [...pairs.entries()].map(([key, w]) => key.split(",").map(Number).concat([w]));
+  let rnd = 12345; const R = () => (rnd = (rnd * 16807) % 2147483647) / 2147483647;
+  const p = Array.from({ length: n }, (_, i) => ({ x: Math.cos(2 * Math.PI * i / n) + (R() - .5) * .02,
+                                                   y: Math.sin(2 * Math.PI * i / n) + (R() - .5) * .02 }));
+  const K = Math.sqrt(4 / n); let temp = 0.2;
+  for (let it = 0; it < 600; it++) {
+    const d = p.map(() => ({ x: 0, y: 0 }));
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const dx = p[i].x - p[j].x, dy = p[i].y - p[j].y, r = Math.hypot(dx, dy) || 1e-4, f = K * K / r;
+      d[i].x += dx / r * f; d[i].y += dy / r * f; d[j].x -= dx / r * f; d[j].y -= dy / r * f;
+    }
+    for (const [a, b, w] of edges) {
+      const dx = p[a].x - p[b].x, dy = p[a].y - p[b].y, r = Math.hypot(dx, dy) || 1e-4, f = r * r / K * Math.sqrt(w);
+      d[a].x -= dx / r * f; d[a].y -= dy / r * f; d[b].x += dx / r * f; d[b].y += dy / r * f;
+    }
+    for (let i = 0; i < n; i++) {
+      const r = Math.hypot(d[i].x, d[i].y) || 1e-4, l = Math.min(r, temp);
+      p[i].x += d[i].x / r * l; p[i].y += d[i].y / r * l;
+    }
+    temp *= 0.99;
+  }
+  // spread out: keep elements apart from each other and from the
+  // segments between other elements that share a set
+  const xs = p.map(q => q.x), ys = p.map(q => q.y);
+  const mx = Math.min(...xs), Mx = Math.max(...xs), my = Math.min(...ys), My = Math.max(...ys), sc = Math.max(Mx - mx, My - my) || 1;
+  for (const q of p) { q.x = (q.x - mx) / sc; q.y = (q.y - my) / sc; }
+  const dmin = 0.95 / Math.sqrt(n), dseg = 0.5 / Math.sqrt(n);
+  for (let it = 0; it < 300; it++) {
+    let moved = false;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const dx = p[j].x - p[i].x, dy = p[j].y - p[i].y, r = Math.hypot(dx, dy) || 1e-6;
+      if (r < dmin) { const f = (dmin - r) / 2 / r; p[i].x -= dx * f; p[i].y -= dy * f; p[j].x += dx * f; p[j].y += dy * f; moved = true; }
+    }
+    for (const [a, b] of edges) for (let i = 0; i < n; i++) {
+      if (i === a || i === b) continue;
+      const ex = p[b].x - p[a].x, ey = p[b].y - p[a].y, L2 = ex * ex + ey * ey || 1e-9;
+      const t = ((p[i].x - p[a].x) * ex + (p[i].y - p[a].y) * ey) / L2;
+      if (t <= 0.05 || t >= 0.95) continue;
+      const cx = p[a].x + t * ex, cy = p[a].y + t * ey, dx = p[i].x - cx, dy = p[i].y - cy, r = Math.hypot(dx, dy) || 1e-6;
+      if (r < dseg) {
+        const f = (dseg - r) / r;
+        const ux = r > 1e-5 ? dx : -ey, uy = r > 1e-5 ? dy : ex;
+        p[i].x += ux * f * 0.6; p[i].y += uy * f * 0.6;
+        p[a].x -= ux * f * 0.2; p[a].y -= uy * f * 0.2; p[b].x -= ux * f * 0.2; p[b].y -= uy * f * 0.2;
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  return p;
+}
+
+/* ======================================================================
+   The algorithms. They run to completion first and record
+     ALL:   every set that ever belongs to the family (input sets, then the
+            cores added by the rule), with the steps at which it appears
+            and disappears; the family's order is the order of ALL
+     steps: one per highlighted pseudocode line(s)
+   Ties: the greedy pass scans the family in order; u is the smallest
+   element among those in the most sets.
+   ====================================================================== */
+const MAX_STEPS = 6000;
+
+function runKernel(H, K, mode = "kernel") {
+  const d = H.d, bound = fact(d) * Math.pow(K, d);
+  const ALL = H.sets.map((el, i) => ({ id: i, el, name: ["S", String(i)], born: -1, died: Infinity, core: false }));
+  const steps = [];
+  let iter = 0;
+  const S = o => {
+    if (steps.length >= MAX_STEPS) throw new Error("Too many steps; choose a smaller instance.");
+    o.iter = iter; steps.push(o); return steps.length - 1;
+  };
+  const alive = () => ALL.filter(r => r.died === Infinity).map(r => r.id);
+  const minus = (a, Z) => a.filter(x => !Z.includes(x));
+  const famTex = Z => Z.length ? String.raw`\mathcal F_{${Z.join(",")}}` : String.raw`\mathcal F`;
+  const nm = r => String.raw`${r.name[0]}_{${r.name[1]}}`;
+  const setsTex = ids => ids.map(id => "$" + nm(ALL[id]) + "$").join(", ");
+
+  /* findSunflower on the sets with ids `sub` (all containing Z), p petals */
+  function find(sub, p, Z) {
+    const dd = d - Z.length, F = famTex(Z), t = thr(dd, p);
+    const base = { depth: Z.length, Z, sub, p };
+    S({ ...base, kind: "enter", lines: ["f0"],
+      msg: Z.length === 0
+        ? String.raw`Call findSunflower($\mathcal F$, $r = ${p}$). The family has $|\mathcal F| = ${sub.length}$ sets of size $\le ${dd}$, and $${sub.length} > ${thrTex(dd, p)}$: by the Sunflower Lemma it contains a sunflower with ${p} petals.`
+        : String.raw`Recursive call on $${F}$: the ${sub.length} sets through $${setTex(Z)}$, with ${Z.length > 1 ? "these elements" : "this element"} removed: sets of size $\le ${dd}$, and $${sub.length} ${sub.length > t ? ">" : "\\le"} ${thrTex(dd, p)}$.` });
+    const M = [], red = id => minus(ALL[id].el, Z);
+    let rej = [];
+    for (let i = 0; i < sub.length; i++) {
+      const id = sub[i], R = red(id);
+      if (M.every(o => !red(o).some(x => R.includes(x)))) {
+        M.push(id);
+        const rejTxt = rej.length ? ` (${setsTex(rej)} ${rej.length > 1 ? "meet" : "meets"} $M$ and ${rej.length > 1 ? "were" : "was"} skipped)` : "";
+        S({ ...base, kind: "add", lines: ["f2", "f3"], M: M.slice(), scan: i, rej: rej.slice(),
+          msg: (R.length ? String.raw`$${nm(ALL[id])}${Z.length ? String.raw` \setminus ${setTex(Z)}` : ""} = ${setTex(R)}$` : String.raw`$${nm(ALL[id])}${Z.length ? String.raw` \setminus ${setTex(Z)}` : ""} = \emptyset$`) +
+               String.raw` is disjoint from all sets in $M$: add it, now $|M| = ${M.length}$` + rejTxt + "." });
+        rej = [];
+        if (M.length === p) {
+          S({ ...base, kind: "retM", lines: ["f4"], M: M.slice(), scan: i, P: M.slice(), PC: Z.slice(),
+            msg: String.raw`$|M| = ${p}$: these ${p} sets are pairwise disjoint${Z.length ? String.raw` outside $${setTex(Z)}$` : ""}, a sunflower with ${p} petals and ${Z.length ? "empty core here" : "empty core"}. Return $M$.` });
+          return { P: M.slice() };
+        }
+      } else rej.push(id);
+    }
+    const U = [...new Set(M.flatMap(red))].sort((a, b) => a - b);
+    const hasEmpty = sub.some(id => red(id).length === 0);
+    S({ ...base, kind: "maximal", lines: ["f5"], M: M.slice(), scan: sub.length, rej: rej.slice(), U,
+      msg: String.raw`The pass is done with only $|M| = ${M.length} < ${p}$: $M$ is maximal, so every set${hasEmpty ? String.raw` other than $\emptyset$` : ""} meets one of the sets in $M$, i.e. meets $U = \bigcup M = ${setTex(U)}$, and $|U| = ${U.length} \le ${dd}\cdot ${p - 1}$.` });
+    if (!U.length) {
+      S({ ...base, kind: "stuck", lines: ["f5"], M: M.slice(), U,
+        msg: String.raw`$U$ is empty: there is no element to continue with, and no sunflower with ${p} petals is found.` });
+      return { P: null };
+    }
+    const counts = {};
+    for (const u of U) counts[u] = sub.filter(id => red(id).includes(u)).length;
+    let u = U[0]; for (const x of U) if (counts[x] > counts[u]) u = x;
+    const meet = sub.length - (hasEmpty ? 1 : 0), guar = Math.ceil(meet / U.length), need = thr(dd - 1, p);
+    S({ ...base, kind: "count", lines: ["f6"], M: M.slice(), U, counts, u,
+      guar, need, meet,
+      msg: String.raw`Pigeonhole: ${meet} sets meet the ${U.length} elements of $U$, so some element lies in at least $\lceil ${meet}/${U.length} \rceil = ${guar}$ of them. The most popular is $u = ${u}$, in ${counts[u]} sets; the lemma needs more than $${thrTex(dd - 1, p)}$.` });
+    const sub2 = sub.filter(id => red(id).includes(u)), Z2 = Z.concat([u]).sort((a, b) => a - b);
+    S({ ...base, kind: "fu", lines: ["f7"], M: M.slice(), U, counts, u, next: sub2,
+      msg: String.raw`$${famTex(Z2)}$ keeps the ${sub2.length} sets that contain $u = ${u}$, and removes $u$ from them. Every sunflower found among these becomes one in $${F}$ by putting $u$ back: $u$ joins the core.` });
+    const r = find(sub2, p, Z2);
+    if (!r.P) return r;
+    const core = r.P.map(id => ALL[id].el).reduce((a, b) => a.filter(x => b.includes(x)));
+    S({ ...base, kind: "lift", lines: ["f8", "f9"], P: r.P, PC: core,
+      msg: String.raw`The call on $${famTex(Z2)}$ returned ${p} sets; with $u = ${u}$ put back they form a sunflower in $${F}$ with core $${setTex(core)}$: ${setsTex(r.P)}.` });
+    return r;
+  }
+
+  let result = null;
+  if (mode === "find") {
+    const p = K, F = alive(), t = thr(d, p);
+    S({ kind: "start", lines: [], coarse: true, depth: -1, Z: [], sub: F,
+      msg: String.raw`A family of ${F.length} sets of size $\le d = ${d}$; we look for a sunflower with $r = ${p}$ petals. ` +
+        (F.length > t ? String.raw`As $${F.length} > d!\,(r-1)^d = ${thrTex(d, p)}$, the Sunflower Lemma guarantees that the search succeeds.`
+                      : String.raw`As $${F.length} \le d!\,(r-1)^d = ${thrTex(d, p)}$, the lemma guarantees nothing: the search may fail.`) });
+    const r = find(F, p, []);
+    for (const st of steps) if (["enter", "retM", "count", "lift", "stuck"].includes(st.kind)) st.coarse = true;
+    const witness = r.P ? null : bruteSunflower(ALL.map(x => x.el), p);
+    if (r.P) {
+      const C = r.P.map(id => ALL[id].el).reduce((a, b) => a.filter(x => b.includes(x)));
+      result = { type: "found", P: r.P, C, guaranteed: F.length > t };
+      S({ kind: "result", lines: [], coarse: true, depth: -1, Z: [], sub: F, P: r.P, PC: C, C,
+        msg: String.raw`Found a sunflower with ${p} petals: ${setsTex(r.P)}, core $C = ${setTex(C)}$.` +
+          (F.length > t ? "" : String.raw` (Lucky: with $${F.length} \le ${t}$ sets the lemma did not promise it.)`) });
+    } else {
+      result = { type: "failed", witness };
+      S({ kind: "result", lines: [], coarse: true, depth: -1, Z: [], sub: F, P: witness ? witness.ids : null, PC: witness ? witness.C : null,
+        msg: String.raw`The search found no sunflower with ${p} petals. ` + (witness === undefined
+          ? "(The family is too large to check by brute force whether it has one at all.)"
+          : witness ? String.raw`Yet the family has one, found by brute force and shown here: ${setsTex(witness.ids)}, core $${setTex(witness.C)}$. Below the threshold the greedy argument can miss it.`
+                    : String.raw`Brute force confirms: the family has no sunflower with ${p} petals at all. ${F.length} sets, against the threshold $${t}$.`) });
+    }
+    return { ALL, steps, result, bound: t, d, K: p, mode };
+  }
+  S({ kind: "start", lines: ["k0"], coarse: true, depth: -1, Z: [], sub: alive(),
+    msg: String.raw`A family of ${ALL.length} sets of size $\le d = ${d}$, parameter $k = ${K}$. Every hitting set of size $\le ${K}$ must hit every set. The kernel shrinks the family until $|\mathcal F| \le d!\,k^d = ${d}!\cdot ${K}^{${d}} = ${bound}$.` });
+  for (;;) {
+    const F = alive();
+    if (F.length <= bound) {
+      result = { type: "kernel", size: F.length };
+      const els = new Set(F.flatMap(id => ALL[id].el)).size;
+      S({ kind: "end", lines: ["k1", "k6"], coarse: true, depth: -1, Z: [], sub: F,
+        msg: String.raw`$|\mathcal F| = ${F.length} \le ${bound}$: done. ` + (iter ? `After ${iter} replacement${iter > 1 ? "s" : ""}, the` : "The") +
+             String.raw` family has ${F.length} sets over ${els} elements ($\le d \cdot d!\,k^d$), and it has a hitting set of size $\le ${K}$ if and only if the input has.` });
+      break;
+    }
+    iter++;
+    S({ kind: "while", lines: ["k1"], depth: -1, Z: [], sub: F,
+      msg: String.raw`$|\mathcal F| = ${F.length} > ${bound} = d!\,k^d$: the family is too large, so the Sunflower Lemma with $r = k+1 = ${K + 1}$ petals applies (as $d!\,((k+1)-1)^d = d!\,k^d$).` });
+    const r = find(F, K + 1, []);
+    if (!r.P) { result = { type: "stuck" }; break; }
+    const P = r.P, C = P.map(id => ALL[id].el).reduce((a, b) => a.filter(x => b.includes(x)));
+    S({ kind: "found", lines: ["k2", "k3"], coarse: true, depth: -1, Z: [], sub: F, P, PC: C, C,
+      msg: String.raw`Sunflower with ${K + 1} petals: ${setsTex(P)}, core $C = ${setTex(C)}$. ` +
+           (C.length ? String.raw`A hitting set with $\le ${K}$ elements outside $C$ can hit at most ${K} of the ${K + 1} disjoint petals, so it must hit $C$.`
+                     : String.raw`The ${K + 1} sets are pairwise disjoint.`) });
+    if (!C.length) {
+      result = { type: "no" };
+      S({ kind: "no", lines: ["k4"], coarse: true, depth: -1, Z: [], sub: F, P, PC: C, C,
+        msg: String.raw`$C = \emptyset$: ${K + 1} pairwise disjoint sets need ${K + 1} different elements. There is no hitting set of size $\le ${K}$; return a trivial No-instance.` });
+      break;
+    }
+    const keyC = C.join(",");
+    let rec = ALL.find(x => x.died === Infinity && x.el.join(",") === keyC);
+    const removed = P.filter(id => !rec || id !== rec.id);
+    const st = steps.length;
+    let added = null;
+    if (!rec) { rec = { id: ALL.length, el: C.slice(), name: ["C", String(iter)], born: st, died: Infinity, core: true }; ALL.push(rec); added = rec.id; }
+    for (const id of removed) ALL[id].died = st + 1;
+    const before = F.length, after = before - removed.length + (added != null ? 1 : 0);
+    S({ kind: "replace", lines: ["k5"], coarse: true, depth: -1, Z: [], sub: F, P, PC: C, C, removed, added, keep: rec.id,
+      msg: (added != null
+        ? String.raw`Replace the ${K + 1} sets by their core: remove them and add $${nm(rec)} = C = ${setTex(C)}$.`
+        : String.raw`The core $${setTex(C)}$ is already in the family (as $${nm(rec)}$); remove the other ${removed.length} sets.`) +
+        String.raw` Now $|\mathcal F| = ${after}$ (was ${before}).` });
+  }
+  return { ALL, steps, result, bound, d, K, mode };
+}
+
+/* brute force: p distinct sets with equal pairwise intersections, or null;
+   undefined if there are too many p-subsets to try */
+function bruteSunflower(sets, p) {
+  const m = sets.length;
+  let combos = 1; for (let i = 0; i < p; i++) combos = combos * (m - i) / (i + 1);
+  if (combos > 3e5) return undefined;
+  const inter = (a, b) => a.filter(x => b.includes(x));
+  const key = a => a.join(",");
+  const pick = [];
+  const rec = (start, C) => {
+    if (pick.length === p) return true;
+    for (let i = start; i < m; i++) {
+      if (pick.length === 0) { pick.push(i); if (rec(i + 1, null)) return true; pick.pop(); continue; }
+      let ok = true, c = C;
+      for (const j of pick) { const I = inter(sets[i], sets[j]); if (c === null) c = I; else if (key(I) !== key(c)) { ok = false; break; } }
+      if (!ok) continue;
+      pick.push(i); if (rec(i + 1, c)) return true; pick.pop();
+    }
+    return false;
+  };
+  if (p === 1) return m ? { ids: [0], C: sets[0].slice() } : null;
+  if (!rec(0, null)) return null;
+  const C = pick.map(i => sets[i]).reduce(inter);
+  return { ids: pick.slice(), C };
+}
+
+/* ======================================================================
+   Pseudocode (shown on the page; the slides should use the same text)
+   ====================================================================== */
+const KW = s => "<b>" + s + "</b>";
+const CM = s => '<span class="cm">// ' + s + "</span>";
+const CODE = [
+  ["k0", 0, KW("procedure") + String.raw` sunflowerKernel($\mathcal F$, $k$):` + CM(String.raw`all sets in $\mathcal F$ have size $\le d$`)],
+  ["k1", 1, KW("while") + String.raw` $|\mathcal F| > d!\cdot k^d$ ` + KW("do")],
+  ["k2", 2, String.raw`$P :=$ findSunflower($\mathcal F$, $k+1$)` + CM("exists by the Sunflower Lemma")],
+  ["k3", 2, String.raw`$C :=$ core of $P$` + CM(String.raw`$S \cap S'$ for any $S \ne S'$ in $P$`)],
+  ["k4", 2, KW("if") + String.raw` $C \mathrel{==} \emptyset$ ` + KW("then return") + " a trivial No-instance" + CM("$k+1$ disjoint sets")],
+  ["k5", 2, String.raw`$\mathcal F := (\mathcal F \setminus P) \cup \{C\}$` + CM("every small hitting set hits $C$")],
+  ["k6", 1, KW("return") + String.raw` $(\mathcal F, k)$`],
+  ["gap"],
+  ["f0", 0, KW("procedure") + String.raw` findSunflower($\mathcal F$, $r$):` + CM(String.raw`sets of size $\le d$, $|\mathcal F| > d!\,(r-1)^d$`)],
+  ["f1", 1, String.raw`$M := \emptyset$`],
+  ["f2", 1, KW("for") + String.raw` $S$ in $\mathcal F$ ` + KW("do") + CM(String.raw`in the order of $\mathcal F$`)],
+  ["f3", 2, KW("if") + String.raw` $S \cap T \mathrel{==} \emptyset$ for all $T \in M$ ` + KW("then") + String.raw` $M := M \cup \{S\}$`],
+  ["f4", 2, KW("if") + String.raw` $|M| \mathrel{==} r$ ` + KW("then return") + " $M$" + CM(String.raw`$r$ disjoint sets: core $\emptyset$`)],
+  ["f5", 1, String.raw`$U := \bigcup_{T \in M} T$` + CM(String.raw`every set $S \ne \emptyset$ meets $U$; $|U| \le d\,(r-1)$`)],
+  ["f6", 1, String.raw`$u :=$ an element of $U$ in the most sets of $\mathcal F$` + CM(String.raw`in $> (d-1)!\,(r-1)^{d-1}$ sets`)],
+  ["f7", 1, String.raw`$\mathcal F_u := \{\, S \setminus \{u\} : S \in \mathcal F,\ u \in S \,\}$` + CM(String.raw`sets of size $\le d-1$`)],
+  ["f8", 1, String.raw`$P' :=$ findSunflower($\mathcal F_u$, $r$)`],
+  ["f9", 1, KW("return") + String.raw` $\{\, S \cup \{u\} : S \in P' \,\}$` + CM("$u$ joins the core")]
+];
+const CODENOTE = String.raw`Choices the pseudocode leaves open: the family keeps the order of the input, and a new core $C$ is appended at its end (if $C$ is already in the family, it keeps its place). The greedy pass scans in this order; among the elements in the most sets, $u$ is the smallest. In the drawing, $\mathcal F_{u}$ is shown through the full sets: $\mathcal F_{1,3}$ means the sets that contain $1$ and $3$.`;
+
+const CODENOTE_FIND = String.raw`Choices the pseudocode leaves open: the greedy pass scans the sets in the order of the input; among the elements in the most sets, $u$ is the smallest. In the drawing, $\mathcal F_{u}$ is shown through the full sets: $\mathcal F_{1,3}$ means the sets that contain $1$ and $3$. The threshold in the comment is what the lemma needs; the procedure runs on any family, and below the threshold it may fail.`;
+
+/* ======================================================================
+   State
+   ====================================================================== */
+let H = null, RUN = null, K = 2, coarse = false, MODE = "kernel";
+let ACT = [], pos = 0, timer = null;
+let PH = [], PHX = [], PHW = [];
+const PET = ["#2a6a63", "#b07d18", "#6b4a87", "#4a7c3f", "#3f5f8a", "#a0522d", "#902015", "#6b6b2a", "#2f7f9f"];
+
+const curStep = () => RUN.steps[ACT[pos]];
+const fineIdx = () => ACT[pos];
+
+function build() {
+  RUN = runKernel(H, K, MODE);
+  ACT = RUN.steps.map((s, i) => i).filter(i => !coarse || RUN.steps[i].coarse);
+  pos = 0;
+  computePhases();
+  buildCode();
+  layoutPhases();
+  renderAll();
+}
+
+/* ---------- phases: one per application of the rule ---------- */
+function computePhases() {
+  const last = RUN.steps[RUN.steps.length - 1];
+  const keyOf = MODE === "find"
+    ? st => st.kind === "start" ? "start" : st.kind === "result" ? "res" : st.kind === "lift" ? "lift" : "L" + st.depth
+    : st => st.kind === "end" || st.kind === "no" || st.kind === "stuck" ? "res" : st.iter;
+  PH = [];
+  ACT.forEach((fi, p) => {
+    const st = RUN.steps[fi], key = keyOf(st);
+    if (PH.length && PH[PH.length - 1].key === key) PH[PH.length - 1].end = p + 1;
+    else {
+      let label, short;
+      if (MODE === "find") {
+        if (key === "start") { label = "Start"; short = "Start"; }
+        else if (key === "res") { label = RUN.result.type === "found" ? "Sunflower" : "Failed"; short = label; }
+        else if (key === "lift") { label = "Back up"; short = "Up"; }
+        else { label = "Level " + key.slice(1); short = key; }
+      } else {
+        label = key === "res" ? (last.kind === "no" ? "No-instance" : "Kernel") : key === 0 ? "Start" : `Sunflower ${key}`;
+        short = key === "res" ? (last.kind === "no" ? "No" : "Kernel") : key === 0 ? "Start" : String(key);
+      }
+      PH.push({ key, label, short, start: p, end: p + 1 });
+    }
+  });
+}
+
+/* widths proportional to step counts, but at least MINW px (water filling);
+   if that is impossible, all equal */
+const MINW = 30;
+function layoutPhases() {
+  const bar = el("phaseBar"), W = bar.clientWidth;
+  if (!W || !PH.length) return;
+  const cnt = PH.map(p => p.end - p.start), n = PH.length;
+  let w;
+  if (n * MINW >= W) w = new Array(n).fill(W / n);
+  else {
+    const fixed = new Set();
+    for (;;) {
+      const free = cnt.map((_, i) => i).filter(i => !fixed.has(i));
+      const lam = (W - fixed.size * MINW) / free.reduce((s, i) => s + cnt[i], 0);
+      let changed = false;
+      for (const i of free) if (cnt[i] * lam < MINW) { fixed.add(i); changed = true; }
+      if (!changed) { w = cnt.map((c, i) => fixed.has(i) ? MINW : c * lam); break; }
+    }
+  }
+  PHW = w; PHX = []; let x = 0; for (const v of w) { PHX.push(x); x += v; }
+  bar.innerHTML = "";
+  const ctx = document.createElement("canvas").getContext("2d");
+  PH.forEach((p, i) => {
+    const b = document.createElement("button");
+    b.className = "phasebtn"; b.style.width = w[i] + "px"; b.title = p.label;
+    b.innerHTML = '<span class="fill"></span><span class="lab"></span>';
+    bar.appendChild(b);
+    const cs = getComputedStyle(b);
+    ctx.font = `bold ${cs.fontSize} ${cs.fontFamily}`;
+    const cand = [p.label, p.short, p.label[0]];
+    const fit = cand.find(c => ctx.measureText(c).width + 6 <= w[i]) || "";
+    b.querySelector(".lab").textContent = fit;
+    b.addEventListener("click", () => { stopPlay(); go(p.start); });
+  });
+  syncTransport();
+}
+function phaseOfPos(p) { return PH.findIndex(ph => p >= ph.start && p < ph.end); }
+function posToX(p) {
+  const j = phaseOfPos(p), ph = PH[j], c = ph.end - ph.start;
+  return PHX[j] + (p - ph.start + 0.5) / c * PHW[j];
+}
+function xToPos(x) {
+  let j = PHX.findIndex((x0, i) => x >= x0 && x < x0 + PHW[i]);
+  if (j < 0) j = x < 0 ? 0 : PH.length - 1;
+  const ph = PH[j], c = ph.end - ph.start;
+  const t = Math.max(0, Math.min(c - 1, Math.floor((x - PHX[j]) / PHW[j] * c)));
+  return ph.start + t;
+}
+const barWidth = () => el("phaseBar").clientWidth;
+function syncTransport() {
+  if (!PH.length || !PHW.length) return;
+  const Wb = barWidth();
+  el("scrubber").value = Math.round(posToX(pos) / Wb * 100000);
+  el("stepNo").textContent = `${pos + 1} / ${ACT.length}`;
+  const j = phaseOfPos(pos);
+  [...el("phaseBar").children].forEach((b, i) => {
+    const ph = PH[i], f = b.querySelector(".fill");
+    b.classList.toggle("on", i === j); b.classList.toggle("past", i < j);
+    const frac = i < j ? 1 : i > j ? 0 : (pos - ph.start + 1) / (ph.end - ph.start);
+    f.style.width = (frac * 100) + "%"; f.classList.toggle("empty", frac === 0);
+  });
+  el("phaseName").textContent = PH[j] ? PH[j].label : "";
+  el("backBtn").disabled = pos === 0; el("stepBtn").disabled = pos >= ACT.length - 1;
+}
+
+function go(p) { pos = Math.max(0, Math.min(ACT.length - 1, p)); renderAll(); }
+function stopPlay() { if (timer) { clearInterval(timer); timer = null; } el("playBtn").innerHTML = "&#x25B6;&#xFE0E;"; el("playBtn").setAttribute("aria-label", "Play"); }
+function togglePlay() {
+  if (timer) { stopPlay(); return; }
+  if (pos >= ACT.length - 1) go(0);
+  el("playBtn").innerHTML = "&#x23F8;&#xFE0E;"; el("playBtn").setAttribute("aria-label", "Pause");
+  timer = setInterval(() => { if (pos >= ACT.length - 1) stopPlay(); else go(pos + 1); }, Number(el("speed").value));
+}
+
+/* ======================================================================
+   Rendering
+   ====================================================================== */
+let renderQueued = false;
+function scheduleRender() {
+  if (renderQueued) return; renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; renderStatic(); buildCode(); if (RUN) renderAll(); renderFigure(); renderSpa(); });
+}
+function renderStatic() {
+  document.querySelectorAll(".mt").forEach(s => {
+    if (s.dataset.src == null) s.dataset.src = s.innerHTML.replace(/\$([^$]+)\$/g,
+      m => m.replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&amp;/g, "&"));
+    s.innerHTML = mh(s.dataset.src);
+  });
+}
+function renderAll() {
+  if (!RUN) return;
+  syncTransport();
+  const v = viewOf();
+  renderHG(v); renderMX(v); renderCrumbs(v); renderStatus(); renderVars(v); renderSize(); renderCodeHl();
+}
+
+function svgEl(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+/* convex hull of the points, each blown up to a disc of radius r (sampled) */
+function blobPoints(pts, r) {
+  const P = [];
+  const N = 28;
+  for (const p of pts) for (let i = 0; i < N; i++) {
+    const a = 2 * Math.PI * i / N; P.push([p[0] + r * Math.cos(a), p[1] + r * Math.sin(a)]);
+  }
+  P.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const p of P) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  up.pop(); lo.pop();
+  return lo.concat(up);
+}
+const blobPath = (pts, r) => "M" + blobPoints(pts, r).map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join("L") + "Z";
+
+/* A set is drawn as a thick band along a spanning tree of its elements
+   (like LineSets / Kelp diagrams), never as a convex hull: a hull may
+   swallow elements that are not in the set. Tree edges that would pass
+   too close to another element are bent around it, so the band of a set
+   touches exactly its own elements. */
+function segDist(a, b, o) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1e-9;
+  const t = Math.max(0, Math.min(1, ((o[0] - a[0]) * dx + (o[1] - a[1]) * dy) / L2));
+  return [Math.hypot(a[0] + t * dx - o[0], a[1] + t * dy - o[1]), t];
+}
+function routeSet(mem, P, clear) {
+  const inS = new Set(mem), obst = [];
+  for (let i = 0; i < P.length; i++) if (!inS.has(i)) obst.push(P[i]);
+  const conflicts = (a, b) => { let c = 0; for (const o of obst) { const [dd, t] = segDist(a, b, o); if (dd < clear && t > 0 && t < 1) c++; } return c; };
+  const route = (a, b, depth) => {
+    let worst = null, wd = clear;
+    for (const o of obst) { const [dd, t] = segDist(a, b, o); if (dd < wd && t > 0.02 && t < 0.98) { wd = dd; worst = o; } }
+    if (!worst || depth > 4) return [a, b];
+    const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+    let side = Math.sign((worst[0] - a[0]) * nx + (worst[1] - a[1]) * ny) || 1;
+    const w = [worst[0] - side * nx * (clear + 3), worst[1] - side * ny * (clear + 3)];
+    const left = route(a, w, depth + 1), right = route(w, b, depth + 1);
+    return left.concat(right.slice(1));
+  };
+  // Prim's algorithm; edges near other elements are expensive
+  const pts = mem.map(i => P[i]), n = pts.length, inT = [0], polys = [];
+  const best = pts.map((p, i) => i === 0 ? null : { w: Infinity, from: 0 });
+  const wgt = (i, j) => Math.hypot(pts[i][0] - pts[j][0], pts[i][1] - pts[j][1]) * (1 + 4 * conflicts(pts[i], pts[j]));
+  for (let j = 1; j < n; j++) best[j] = { w: wgt(0, j), from: 0 };
+  const used = new Set([0]);
+  while (used.size < n) {
+    let j = -1; for (let k = 0; k < n; k++) if (!used.has(k) && (j < 0 || best[k].w < best[j].w)) j = k;
+    used.add(j); polys.push(route(pts[best[j].from], pts[j], 0));
+    for (let k = 0; k < n; k++) if (!used.has(k)) { const w = wgt(j, k); if (w < best[k].w) best[k] = { w, from: j }; }
+  }
+  if (n === 1) polys.push([pts[0], [pts[0][0] + 0.01, pts[0][1]]]);
+  return polys.map(pl => "M" + pl.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join("L")).join("");
+}
+
+/* everything a step shows, in one place */
+function viewOf() {
+  const fi = fineIdx(), st = curStep(), A = RUN.ALL;
+  const alive = new Set(A.filter(r => r.born <= fi && r.died > fi).map(r => r.id));
+  const sub = new Set(st.sub || []);
+  const role = new Map();   // id -> { cls, color }
+  if (st.M && !st.P) for (const id of st.M) role.set(id, { cls: "inM" });
+  if (st.kind === "add") role.set(st.M[st.M.length - 1], { cls: "inM", fresh: true });
+  if (st.P) st.P.forEach((id, i) => role.set(id, { cls: "pet", color: PET[i % PET.length], petal: i }));
+  if (st.kind === "fu") for (const id of st.next) role.set(id, { cls: "scan" });
+  if (st.kind === "replace") {
+    for (const id of st.removed) role.set(id, { cls: "removing" });
+    role.set(st.keep, { cls: "newcore" });
+  }
+  const Z = st.PC || st.Z || [];
+  return { fi, st, alive, sub, role, Z, U: new Set(st.U || []), u: st.u, counts: st.counts || null };
+}
+
+/* ---------- hypergraph ---------- */
+let geo = null;
+function renderHG(v) {
+  const wrap = el("hgWrap"), svg = el("hgSvg");
+  const W = wrap.clientWidth, Hh = wrap.clientHeight;
+  svg.setAttribute("width", W); svg.setAttribute("height", Hh);
+  svg.innerHTML = "";
+  if (!W || !Hh) return;
+  const R = 11, pad = R + 22;
+  const xs = H.pos.map(p => p.x), ys = H.pos.map(p => p.y);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const s = Math.min((W - 2 * pad) / Math.max(x1 - x0, 1e-9), (Hh - 2 * pad) / Math.max(y1 - y0, 1e-9));
+  const ox = (W - (x1 - x0) * s) / 2, oy = (Hh - (y1 - y0) * s) / 2;
+  const P = H.pos.map(p => [ox + (p.x - x0) * s, oy + (p.y - y0) * s]);
+  geo = P;
+  const A = RUN.ALL, st = v.st, depth = st.depth;
+  const graphLike = RUN.d <= 2, showAll = el("allChk").checked;
+  const band = R + 6, clear = band + R + 3;
+  const layers = [svgEl("g", {}, svg), svgEl("g", {}, svg), svgEl("g", {}, svg), svgEl("g", {}, svg)];
+  const ids = [...v.alive].sort((a, b) => a - b);
+  for (const id of ids) {
+    const r = A[id], ro = v.role.get(id);
+    let cls, layer = 0, color = null;
+    if (ro) { cls = ro.cls === "removing" ? "pet" : ro.cls; color = ro.color || null; layer = ro.cls === "newcore" ? 3 : ro.cls === "pet" ? 2 : 1;
+      if (ro.cls === "removing") { color = "#cc2f22"; } }
+    else if (depth > 0 && !v.sub.has(id)) { if (!showAll) continue; cls = "out"; }
+    else if (r.core && !(depth > 0 && !v.sub.has(id))) { cls = "coreset"; layer = 1; }
+    else { if (!showAll && !(depth > 0 && v.sub.has(id))) continue; cls = "faint"; }
+    if (!r.el.length) continue;
+    const d = routeSet(r.el, P, clear);
+    const e = svgEl("g", { class: "hs " + cls + (graphLike ? " graph" : "") }, layers[layer]);
+    const b = svgEl("path", { d, class: "band", "stroke-width": 2 * band }, e);
+    const sp = svgEl("path", { d, class: "spine" }, e);
+    if (color) { b.style.stroke = color; sp.style.stroke = color; }
+    if (ro && ro.cls === "removing") sp.style.strokeDasharray = "6 4";
+    e.dataset.id = id;
+  }
+  // elements
+  const usedNow = new Set(); for (const id of v.alive) for (const x of A[id].el) usedNow.add(x);
+  const Zs = new Set(v.Z);
+  const ge = svgEl("g", {}, svg);
+  for (let x = 0; x < H.n; x++) {
+    let cls = "el";
+    if (Zs.has(x)) cls += " core";
+    else if (v.u === x && (st.kind === "count" || st.kind === "fu")) cls += " pick";
+    else if (v.U.has(x)) cls += " inU";
+    if (!usedNow.has(x)) cls += " gone";
+    const g = svgEl("g", { class: cls }, ge);
+    svgEl("circle", { cx: P[x][0], cy: P[x][1], r: R, class: "dot" }, g);
+    const t = svgEl("text", { x: P[x][0], y: P[x][1] + .5 }, g); t.textContent = x;
+  }
+  if (v.counts) {
+    let top = -1; for (const k in v.counts) top = Math.max(top, v.counts[k]);
+    for (const k in v.counts) {
+      const x = +k, c = v.counts[k], txt = String(c), w = 9 + 7 * txt.length;
+      const g = svgEl("g", { class: "badge" + (x === v.u ? " top" : "") }, ge);
+      const bx = P[x][0] + R - 2, by = P[x][1] - R - 13;
+      svgEl("rect", { x: bx, y: by, width: w, height: 16, rx: 8 }, g);
+      const t = svgEl("text", { x: bx + w / 2, y: by + 8.5 }, g); t.textContent = txt;
+    }
+  }
+  const nAlive = v.alive.size - (st.kind === "replace" ? st.removed.length : 0);
+  el("hgMeta").innerHTML = mh(String.raw`$|\mathcal F| = ${nAlive}$`) + `&ensp;<span style="font-size:.85em">${H.n} elements</span>`;
+}
+
+/* ---------- matrix ---------- */
+function renderMX(v) {
+  const wrap = el("mxWrap"), svg = el("mxSvg");
+  const W = wrap.clientWidth, Hh = wrap.clientHeight;
+  if (!W || !Hh) return;
+  const A = RUN.ALL, st = v.st, depth = st.depth, n = H.n;
+  const rows = A.length;
+  const labW = 44, top = 22, bot = 22;
+  const cw = Math.max(8, Math.min(24, (W - labW - 12) / n));
+  let ch = Math.min(20, cw, (Hh - top - bot - 4) / rows);
+  if (ch < 12) ch = 12;
+  const totalH = top + rows * ch + bot + 4;
+  svg.setAttribute("width", W - (totalH > Hh ? 14 : 0)); svg.setAttribute("height", Math.max(Hh, totalH));
+  svg.innerHTML = "";
+  const g = svgEl("g", { class: "mx" }, svg);
+  const X = c => labW + c * cw, Y = r => top + r * ch;
+  const Zs = new Set(v.Z);
+  // column backgrounds
+  for (let c = 0; c < n; c++) {
+    let cls = null;
+    if (Zs.has(c)) cls = "zc";
+    else if (v.u === c && (st.kind === "count" || st.kind === "fu")) cls = "pick";
+    else if (v.U.has(c)) cls = "inU";
+    if (cls) svgEl("rect", { x: X(c), y: top - 2, width: cw, height: rows * ch + 4, class: "colbg " + cls }, g);
+    const t = svgEl("text", { x: X(c) + cw / 2, y: top / 2 + 1, class: "cl" + (Zs.has(c) ? " zc" : "") }, g);
+    t.textContent = c;
+    if (cw < 13 && c % 2 === 1 && n > 20) t.setAttribute("y", top / 2 - 4);
+  }
+  // rows
+  for (let r = 0; r < rows; r++) {
+    const rec = A[r];
+    if (rec.born > v.fi) continue;                       // not created yet: reserved space
+    const dead = rec.died <= v.fi;
+    const ro = v.role.get(r);
+    const dim = !dead && depth > 0 && !v.sub.has(r);
+    if (ro) {
+      const b = svgEl("rect", { x: 2, y: Y(r), width: labW + n * cw, height: ch, rx: 2,
+        class: "rowbg " + (ro.cls === "removing" ? "pet" : ro.cls) }, g);
+      if (ro.color) b.style.fill = ro.color;
+      if (ro.cls === "removing") b.style.fill = "#cc2f22";
+    }
+    const fs = Math.min(13, ch), lab = svgEl("text", { x: labW - 6, y: Y(r) + ch / 2 - 1, class: "rl" + (dead ? " dead" : dim ? " dim" : ""), "font-size": fs }, g);
+    lab.textContent = rec.name[0];
+    const sb = svgEl("tspan", { "font-size": (fs * 0.72).toFixed(1), dy: (fs * 0.25).toFixed(1) }, lab); sb.textContent = rec.name[1];
+    lab.dataset.id = r;
+    const sz = Math.max(3, Math.min(cw, ch) - 4);
+    for (const c of rec.el) {
+      const cls = "cell" + (dead ? " dead" : dim ? " dim" : Zs.has(c) && !dead ? " zc" : "");
+      svgEl("rect", { x: X(c) + (cw - sz) / 2, y: Y(r) + (ch - sz) / 2, width: sz, height: sz, rx: Math.min(2.5, sz / 3), class: cls }, g);
+    }
+    if (dead) svgEl("line", { x1: labW - 30, x2: labW + n * cw, y1: Y(r) + ch / 2, y2: Y(r) + ch / 2, class: "strike" }, g);
+  }
+  // scan marker: the last set looked at by the greedy pass
+  if (st.kind === "add" && st.M.length) {
+    const r = st.M[st.M.length - 1];
+    svgEl("path", { d: `M${2},${Y(r) + 2} L${9},${Y(r) + ch / 2} L${2},${Y(r) + ch - 2}Z`, class: "scanmark" }, g);
+  }
+  // counts below
+  if (v.counts) {
+    let top2 = -1; for (const k in v.counts) top2 = Math.max(top2, v.counts[k]);
+    for (const k in v.counts) {
+      const t = svgEl("text", { x: X(+k) + cw / 2, y: top + rows * ch + bot / 2 + 3, class: "cnt" + (+k === v.u ? " top" : "") }, g);
+      t.textContent = v.counts[k];
+    }
+  }
+  const inF = v.alive.size - (st.kind === "replace" ? st.removed.length : 0);
+  el("mxMeta").innerHTML = `<span style="font-size:.85em">${inF} of ${rows} rows in the family</span>`;
+}
+
+/* ---------- breadcrumbs: the recursion ---------- */
+function renderCrumbs(v) {
+  const st = v.st;
+  const fam = Z => Z.length ? String.raw`\mathcal F_{${Z.join(",")}}` : String.raw`\mathcal F`;
+  let h;
+  if (st.depth < 0 && MODE === "find") h = `<span class="on">findSunflower</span>` + mh(String.raw` ($r = ${RUN.K}$, $d = ${RUN.d}$)`);
+  else if (st.depth < 0) h = `<span class="on">sunflowerKernel</span>` + mh(String.raw` ($k = ${RUN.K}$, $d = ${RUN.d}$)`);
+  else {
+    const parts = [];
+    const Z = st.Z;
+    for (let i = 0; i <= Z.length; i++) {
+      const t = "$" + fam(Z.slice(0, i)) + "$";
+      parts.push(i === Z.length ? `<span class="on">${mh(t)}</span>` : mh(t));
+    }
+    h = (MODE === "find" ? "" : "sunflowerKernel<span class=\"sep\">›</span>") + "findSunflower: " + parts.join('<span class="sep">›</span>');
+  }
+  el("crumbs").innerHTML = h;
+}
+
+/* ---------- status, counting argument, size, code ---------- */
+function renderStatus() {
+  const st = curStep();
+  let h = mh(st.msg);
+  if (st.kind === "end") h += '<span class="ans">' + mh(String.raw`Kernel: ${RUN.result.size} sets $\le d!\,k^d = ${RUN.bound}$.`) + "</span>";
+  if (st.kind === "result") h += '<span class="ans">' + (RUN.result.type === "found"
+    ? mh(String.raw`Sunflower with ${RUN.K} petals, core $${setTex(RUN.result.C)}$.`)
+    : "No sunflower found.") + "</span>";
+  if (st.kind === "no") h += '<span class="ans">' + mh(String.raw`No: no hitting set of size $\le ${RUN.K}$.`) + "</span>";
+  el("statusBox").innerHTML = h;
+}
+function renderVars(v) {
+  const st = v.st, d = RUN.d, p = MODE === "find" ? RUN.K : RUN.K + 1;
+  let h = "";
+  const row = (k, val, cls = "") => { h += `<span class="vk">${mh(k)}</span><span class="vv ${cls}">${mh(val)}</span>`; };
+  if (st.depth < 0 && MODE === "find") {
+    const nF = v.alive.size, t = RUN.bound;
+    row("$|\\mathcal F|$", String.raw`${nF}`);
+    row("$d!\\,(r-1)^d$", String.raw`$${thrTex(d, p)}$`);
+    row("guarantee", nF > t ? String.raw`yes: $${nF} > ${t}$` : String.raw`none: $${nF} \le ${t}$`, nF > t ? "ok" : "bad");
+    if (st.kind === "result") row("result", RUN.result.type === "found" ? String.raw`core $${setTex(RUN.result.C)}$` : "no sunflower found",
+                                   RUN.result.type === "found" ? "ok" : "bad");
+    el("varsBox").innerHTML = h;
+    el("depthMeta").textContent = "";
+    return;
+  }
+  if (st.depth < 0) {
+    const nF = v.alive.size;
+    row("$|\\mathcal F|$", String.raw`${nF}`);
+    row("$d!\\,k^d$", String.raw`$${d}!\cdot ${RUN.K}^{${d}} = ${RUN.bound}$`);
+    row("rule", nF > RUN.bound && st.kind !== "end" ? String.raw`applies: $${nF} > ${RUN.bound}$` : String.raw`stops: $${nF} \le ${RUN.bound}$`, nF > RUN.bound ? "" : "ok");
+    if (st.C) row("core $C$", "$" + setTex(st.C) + "$", st.C.length ? "" : "bad");
+    el("varsBox").innerHTML = h;
+    el("depthMeta").textContent = "kernel loop";
+    return;
+  }
+  // the funnel: every level of the recursion so far
+  const lev = [];
+  const Zfull = st.Z;
+  for (let i = 0; i <= Zfull.length; i++) {
+    const Z = Zfull.slice(0, i);
+    const size = i === Zfull.length ? st.sub.length
+      : [...v.alive].filter(id => Z.every(x => RUN.ALL[id].el.includes(x))).length;
+    lev.push({ Z, size, t: thr(d - i, p), dd: d - i });
+  }
+  let mtr = '<div class="meter" style="grid-column:1 / span 2">';
+  const mx = Math.max(...lev.map(l => Math.max(l.size, l.t)), 1);
+  for (const l of lev) {
+    const lab = "$|" + (l.Z.length ? String.raw`\mathcal F_{${l.Z.join(",")}}` : String.raw`\mathcal F`) + "|$";
+    const ok = l.size > l.t;
+    mtr += `<div class="row"><span class="lab">${mh(lab)}</span><span class="bar"><i style="width:${(l.size / mx * 100).toFixed(1)}%"></i><b style="left:${(l.t / mx * 100).toFixed(1)}%"></b></span>` +
+           `<span class="num ${ok ? "" : ""}">${mh(String.raw`$${l.size} ${ok ? ">" : "\\le"} ${l.t}$`)}</span></div>`;
+  }
+  mtr += `<div class="countnote">${mh(String.raw`Bar: sets at each level of the recursion; tick: the lemma's threshold $(d-\ell)!\,(r-1)^{d-\ell}$ with $r = ${p}$.`)}</div></div>`;
+  h += mtr;
+  if (st.M) row("$|M|$", String.raw`$${st.M.length}$` + (st.kind === "add" || st.kind === "retM" ? "" : String.raw` $< r = ${p}$`));
+  if (st.U) row("$|U|$", String.raw`$${st.U.length} \le ${d - st.depth}\cdot ${p - 1}$`);
+  if (st.kind === "count" || st.kind === "fu") {
+    row("pigeonhole", String.raw`some element in $\ge \lceil ${st.meet}/${st.U.length}\rceil = ${st.guar}$ sets`);
+    row("$u$", String.raw`$${st.u}$, in ${st.counts[st.u]} sets $> ${st.need}$`, st.counts[st.u] > st.need ? "ok" : "bad");
+  }
+  if (st.P) row("found", String.raw`${st.P.length} sets, core $${setTex(st.PC)}$`, "ok");
+  el("varsBox").innerHTML = h;
+  el("depthMeta").textContent = `recursion depth ${st.depth}`;
+}
+function renderSize() {
+  const fi = fineIdx(), A = RUN.ALL;
+  if (MODE === "find") {
+    el("sizeTitle").textContent = "Size against the threshold";
+    const d = RUN.d, p = RUN.K, m = A.length, t = RUN.bound, lo = Math.pow(p - 1, d), mx = Math.max(m, t, 1) * 1.04;
+    let h = '<div class="meter"><div class="row"><span class="lab">' + mh("$|\\mathcal F|$") + '</span><span class="bar">' +
+      `<i style="width:${(m / mx * 100).toFixed(1)}%"></i><b style="left:${(t / mx * 100).toFixed(1)}%"></b>` +
+      `<b style="left:${(lo / mx * 100).toFixed(1)}%;background:var(--wi-queue)"></b></span>` +
+      `<span class="num">${mh(String.raw`$${m} ${m > t ? ">" : "\\le"} ${t}$`)}</span></div></div>`;
+    h += '<div class="countnote">' + mh(String.raw`Dark tick: the lemma's threshold $d!\,(r-1)^d = ${t}$; above it a sunflower is guaranteed. Green tick: $(r-1)^d = ${lo}$; families of this size without a sunflower exist (one element from each of $d$ groups of $r-1$). Change $r$ to move the threshold.`) + "</div>";
+    el("sizeBox").innerHTML = h;
+    return;
+  }
+  el("sizeTitle").textContent = "Size of the family";
+  const nF = A.filter(r => r.born <= fi && r.died > fi).length;
+  const m0 = A.filter(r => r.born < 0).length, mx = Math.max(m0, RUN.bound, 1) * 1.04;
+  let h = '<div class="meter"><div class="row"><span class="lab">' + mh("$|\\mathcal F|$") + '</span><span class="bar">' +
+    `<i style="width:${(nF / mx * 100).toFixed(1)}%"></i><b style="left:${(RUN.bound / mx * 100).toFixed(1)}%"></b></span>` +
+    `<span class="num">${mh(String.raw`$${nF} ${nF > RUN.bound ? ">" : "\\le"} ${RUN.bound}$`)}</span></div></div>`;
+  const reps = RUN.steps.filter((s, i) => s.kind === "replace" && i <= fi);
+  if (reps.length) {
+    h += '<div class="countnote">' + reps.map(s => mh(String.raw`${s.iter}. core $${setTex(s.C)}$: $-${s.removed.length}$` + (s.added != null ? ", $+1$" : ""))).join("<br>") + "</div>";
+  } else {
+    h += '<div class="countnote">' + mh(String.raw`Tick: the kernel bound $d!\,k^d$. Each replacement removes $k+1$ sets and adds at most one.`) + "</div>";
+  }
+  el("sizeBox").innerHTML = h;
+}
+function buildCode() {
+  const L = MODE === "find" ? CODE.filter(c => c[0][0] === "f") : CODE;
+  el("codeBody").innerHTML = L.map(([key, ind, html], i) => key === "gap" ? '<div class="cline gap"></div>' :
+    `<div class="cline" data-k="${key}"><span class="ln">${L.slice(0, i).filter(c => c[0] !== "gap").length + 1}</span><span class="ind" style="width:${ind * 1.6}em"></span><span>${mh(html)}</span></div>`).join("");
+  el("codeNote").innerHTML = mh(MODE === "find" ? CODENOTE_FIND : CODENOTE);
+  if (RUN) renderCodeHl();
+}
+function renderCodeHl() {
+  const on = new Set(curStep().lines);
+  el("codeBody").querySelectorAll(".cline").forEach(c => c.classList.toggle("on", on.has(c.dataset.k)));
+}
+
+/* ---------- tooltips on sets ---------- */
+function showTip(ev, html) { const t = el("tooltip"); t.innerHTML = html; t.style.display = "block"; moveTip(ev); }
+function moveTip(ev) {
+  const t = el("tooltip"), w = t.offsetWidth, h = t.offsetHeight;
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - 14;
+  if (y + h > innerHeight - 8) y = ev.clientY - h - 14;
+  t.style.left = x + "px"; t.style.top = y + "px";
+}
+const hideTip = () => { el("tooltip").style.display = "none"; };
+function setTip(id) {
+  const r = RUN.ALL[id];
+  return `<div class="tt-h">${mh(String.raw`$${r.name[0]}_{${r.name[1]}} = ${setTex(r.el)}$`)}</div>` +
+    (r.core ? `added as the core of sunflower ${r.name[1]}` : `input set ${r.name[1]}`);
+}
+function initTips() {
+  for (const w of ["hgWrap", "mxWrap"]) {
+    el(w).addEventListener("pointermove", ev => {
+      const t = ev.target.closest && ev.target.closest("[data-id]");
+      if (t && RUN) showTip(ev, setTip(+t.dataset.id)); else hideTip();
+    });
+    el(w).addEventListener("pointerleave", hideTip);
+  }
+}
+
+/* ======================================================================
+   Tab 1: the definition figure. Drawn with explicit colours (no CSS
+   classes), so that the downloaded SVG looks the same on a slide.
+   ====================================================================== */
+const COL = { bg: "#f5ebd9", ink: "#46433a", soft: "#6b675c", faint: "#8b8779", accent: "#902015",
+              accentDark: "#6d180f", active: "#cc2f22", panel: "#fcf9f3" };
+const FIGPET = ["#2a6a63", "#b07d18", "#6b4a87", "#4a7c3f", "#3f5f8a", "#a0522d", "#6b6b2a", "#2f7f9f"];
+
+function figOpts() {
+  const iv = (id, lo, hi, def) => { const v = parseInt(el(id).value, 10); return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : def; };
+  return { p: iv("fPetals", 3, 8, 6), c: iv("fCore", 1, 3, 2), q: iv("fPetal", 1, 3, 2),
+           empty: el("fEmpty").checked, non: el("fNon").checked, matrix: el("fMatrix").checked };
+}
+const CORE_OFF = { 1: [[0, 0]], 2: [[-0.1, 0], [0.1, 0]], 3: [[0, -0.115], [-0.1, 0.06], [0.1, 0.06]] };
+
+function renderFigure() {
+  const wrap = el("figWrap"), svg = el("figSvg");
+  const W = wrap.clientWidth, Hh = wrap.clientHeight;
+  if (!W || !Hh) return;
+  svg.setAttribute("width", W); svg.setAttribute("height", Hh);
+  svg.innerHTML = "";
+  drawFigure(svg, W, Hh, figOpts());
+  const o = figOpts();
+  el("figMeta").innerHTML = mh(String.raw`$r = ${o.p}$ petals, $|C| = ${o.c}$, $|S_i \setminus C| = ${o.q}$`);
+}
+
+function drawFigure(svg, W, Hh, o) {
+  const pad = 0.12;                              // blob padding (figure units)
+  const dotR = 5.5;                              // element dots (px)
+  const radii = t => 0.6 + 0.26 * t;
+  // --- panel A: the sunflower
+  const rLast = radii(o.q - 1);
+  const RA = rLast + pad + 0.34;
+  const core = CORE_OFF[o.c];
+  const ang = j => -Math.PI / 2 + 2 * Math.PI * j / o.p;
+  const petals = [];
+  for (let j = 0; j < o.p; j++) {
+    const a = ang(j), pts = [];
+    for (let t = 0; t < o.q; t++) pts.push([radii(t) * Math.cos(a), radii(t) * Math.sin(a)]);
+    petals.push(pts);
+  }
+  // --- panel B: empty core
+  const nb = 4, RB = 0.33 + 0.25 * (Math.max(o.q, 2) - 1) + pad + 0.30;
+  // --- panel C: non-example
+  const RC = 0.62 + 0.26 + pad + 0.34;
+  // --- panel D: matrix
+  const cell = 16, cols = o.c + o.p * o.q, labW = 32;
+  const Dpx = o.matrix ? labW + cols * cell + 8 : 0, DH = o.p * cell;
+  // --- fit: geometry scales, text and dots do not
+  const capH = 44, margin = 14, gap = 30;
+  const units = 2 * RA + (o.empty ? 2 * RB : 0) + (o.non ? 2 * RC : 0);
+  const nPan = 1 + (o.empty ? 1 : 0) + (o.non ? 1 : 0) + (o.matrix ? 1 : 0);
+  const sW = (W - 2 * margin - gap * (nPan - 1) - Dpx) / units;
+  const sH = (Hh - capH - 2 * margin) / (2 * Math.max(RA, o.empty ? RB : 0, o.non ? RC : 0));
+  const s = Math.max(10, Math.min(sW, sH, 150));
+  const used = units * s + Dpx + gap * (nPan - 1);
+  let x = Math.max(margin, (W - used) / 2);
+  const cy = margin + (Hh - capH - 2 * margin) / 2;
+  const g = svgEl("g", {}, svg);
+  const P = (cx, p) => [cx + p[0] * s, cy + p[1] * s];
+  const blob = (parent, pts, fill, stroke, sw = 2, fo = 0.15) =>
+    svgEl("path", { d: blobPath(pts, pad * s), fill, "fill-opacity": fo, stroke, "stroke-width": sw, "stroke-linejoin": "round" }, parent);
+  const dot = (parent, p, fill = COL.ink) => svgEl("circle", { cx: p[0], cy: p[1], r: dotR, fill, stroke: COL.panel, "stroke-width": 1.2 }, parent);
+  const caption = (cx, str) => svgMixed(g, str, cx, Hh - margin - 10, 16, "middle", COL.ink);
+
+  // A
+  {
+    const cx = x + RA * s;
+    const ga = svgEl("g", {}, g);
+    petals.forEach((pts, j) => blob(ga, core.concat(pts).map(p => P(cx, p)), FIGPET[j % 8], FIGPET[j % 8]));
+    const coreR = (o.c === 1 ? 0 : 0.115) + pad * 0.95;
+    svgEl("circle", { cx, cy, r: coreR * s, fill: COL.accent, "fill-opacity": 0.22, stroke: COL.accent, "stroke-width": 2.2 }, ga);
+    petals.forEach(pts => pts.forEach(p => dot(ga, P(cx, p))));
+    core.forEach(p => dot(ga, P(cx, p), COL.accent));
+    petals.forEach((pts, j) => {
+      const a = ang(j), r = rLast + pad + 0.17;
+      const lx = cx + r * s * Math.cos(a), ly = cy + r * s * Math.sin(a) + 6;
+      svgTex(ga, `S_{${j + 1}}`, lx, ly, 16, "middle", FIGPET[j % 8]);
+    });
+    // the core label, on a chip between petals 1 and 2
+    const a = -Math.PI / 2 + Math.PI / o.p, r = coreR + 0.2;
+    const lx = cx + r * s * Math.cos(a), ly = cy + r * s * Math.sin(a);
+    svgEl("rect", { x: lx - 10, y: ly - 11, width: 20, height: 20, rx: 4, fill: COL.panel, "fill-opacity": 0.9, stroke: COL.accent, "stroke-width": 1 }, ga);
+    svgTex(ga, "C", lx, ly + 5, 16, "middle", COL.accent);
+    caption(cx, `${o.p} petals, core $C$`);
+    x += 2 * RA * s + gap;
+  }
+  // B
+  if (o.empty) {
+    const cx = x + RB * s, gb = svgEl("g", {}, g), q = Math.max(o.q, 2);
+    for (let j = 0; j < nb; j++) {
+      const a = -Math.PI / 4 + 2 * Math.PI * j / nb, pts = [];
+      for (let t = 0; t < q; t++) { const r = 0.33 + 0.25 * t; pts.push([r * Math.cos(a), r * Math.sin(a)]); }
+      blob(gb, pts.map(p => P(cx, p)), FIGPET[j % 8], FIGPET[j % 8]);
+      pts.forEach(p => dot(gb, P(cx, p)));
+    }
+    caption(cx, "core $\\emptyset$: disjoint sets");
+    x += 2 * RB * s + gap;
+  }
+  // C
+  if (o.non) {
+    const cx = x + RC * s, gc = svgEl("g", {}, g);
+    const A3 = [-Math.PI / 2, Math.PI / 6, 5 * Math.PI / 6];
+    const pts3 = A3.map(a => [0.62, 0.88].map(r => [r * Math.cos(a), r * Math.sin(a)]));
+    const xa = -Math.PI / 6, xp = [0.7 * Math.cos(xa), 0.7 * Math.sin(xa)];
+    const sets = [[[0, 0]].concat(pts3[0], [xp]), [[0, 0]].concat(pts3[1], [xp]), [[0, 0]].concat(pts3[2])];
+    sets.forEach((S, j) => blob(gc, S.map(p => P(cx, p)), FIGPET[j], FIGPET[j]));
+    pts3.forEach(pts => pts.forEach(p => dot(gc, P(cx, p))));
+    dot(gc, P(cx, [0, 0]), COL.accent);
+    const X = P(cx, xp);
+    dot(gc, X, COL.active);
+    svgEl("circle", { cx: X[0], cy: X[1], r: dotR + 5, fill: "none", stroke: COL.active, "stroke-width": 2.2 }, gc);
+    svgTex(gc, "x", X[0] + 16, X[1] + 5, 16, "start", COL.active);
+    A3.forEach((a, j) => {
+      const r = 0.88 + pad + 0.17;
+      svgTex(gc, `S_{${j + 1}}`, cx + r * s * Math.cos(a), cy + r * s * Math.sin(a) + 6, 16, "middle", FIGPET[j]);
+    });
+    // crossed out: a red X in the panel's upper right corner
+    const kx = cx + RC * s * 0.82, ky = cy - RC * s * 0.82, kr = 11;
+    svgEl("path", { d: `M${kx - kr},${ky - kr}L${kx + kr},${ky + kr}M${kx + kr},${ky - kr}L${kx - kr},${ky + kr}`,
+                    stroke: COL.active, "stroke-width": 3.2, "stroke-linecap": "round", fill: "none" }, gc);
+    caption(cx, "not a sunflower: $S_1 \\cap S_2 \\ne S_1 \\cap S_3$");
+    x += 2 * RC * s + gap;
+  }
+  // D
+  if (o.matrix) {
+    const gd = svgEl("g", {}, g), x0 = x + labW, y0 = cy - DH / 2;
+    svgEl("rect", { x: x0, y: y0 - 4, width: o.c * cell, height: DH + 8, fill: COL.accent, "fill-opacity": 0.12 }, gd);
+    for (let j = 0; j < o.p; j++) {
+      const bx = x0 + (o.c + j * o.q) * cell;
+      svgEl("rect", { x: bx, y: y0 + j * cell, width: o.q * cell, height: cell, fill: FIGPET[j % 8], "fill-opacity": 0.16 }, gd);
+      svgTex(gd, `S_{${j + 1}}`, x0 - 6, y0 + j * cell + cell - 3, 14, "end", FIGPET[j % 8]);
+      const cells = [];
+      for (let c = 0; c < o.c; c++) cells.push([c, COL.accent]);
+      for (let t = 0; t < o.q; t++) cells.push([o.c + j * o.q + t, FIGPET[j % 8]]);
+      for (const [c, f] of cells) svgEl("rect", { x: x0 + c * cell + 2, y: y0 + j * cell + 2, width: cell - 4, height: cell - 4, rx: 2, fill: f }, gd);
+    }
+    svgEl("rect", { x: x0, y: y0, width: cols * cell, height: DH, fill: "none", stroke: COL.faint, "stroke-width": 0.8 }, gd);
+    svgTex(gd, "C", x0 + o.c * cell / 2, y0 - 10, 14, "middle", COL.accent);
+    caption(x + Dpx / 2, "the same, as a matrix");
+  }
+}
+
+
+/* ======================================================================
+   Tab: one sparsification step (Impagliazzo–Paturi–Zane), drawn with
+   explicit colours like the definition figure
+   ====================================================================== */
+function spaOpts() {
+  const iv = (id, lo, hi, def) => { const v = parseInt(el(id).value, 10); return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : def; };
+  const w = iv("sWidth", 3, 4, 3);
+  el("sCore").max = w - 1;
+  return { r: iv("sPetals", 2, 6, 4), w, c: iv("sCore", 1, w - 1, 2) };
+}
+function renderSpa() {
+  const wrap = el("spaWrap"), svg = el("spaSvg");
+  const W = wrap.clientWidth, Hh = wrap.clientHeight;
+  if (!W || !Hh) return;
+  svg.setAttribute("width", W); svg.setAttribute("height", Hh);
+  svg.innerHTML = "";
+  const o = spaOpts();
+  drawSpa(svg, W, Hh, o);
+  el("spaMeta").innerHTML = mh(String.raw`$r = ${o.r}$ clauses of width ${o.w}, $|C| = ${o.c}$`);
+}
+function drawSpa(svg, W, Hh, o) {
+  const q = o.w - o.c;                                   // petal size
+  const lit = (v, neg) => (neg ? String.raw`\lnot x_{${v}}` : `x_{${v}}`);
+  const coreLits = [];
+  for (let i = 0; i < o.c; i++) coreLits.push(lit(i + 1, i % 2 === 1));
+  const petLits = [];
+  for (let j = 0; j < o.r; j++) {
+    const a = [];
+    for (let t = 0; t < q; t++) { const v = o.c + 1 + j * q + t; a.push(lit(v, (j + t) % 2 === 1)); }
+    petLits.push(a);
+  }
+  const CO = { 1: [[0, 0]], 2: [[-23, 0], [23, 0]], 3: [[0, -19], [-24, 14], [24, 14]] }[o.c];
+  const R0 = 82, chipW = 46, chipH = 26, pad = 27;
+  const ang = j => -Math.PI / 2 + Math.PI / o.r + 2 * Math.PI * j / o.r;
+  // step along petal j so that neighbouring chips do not overlap (px, not scaled)
+  const Gj = j => { const a = ang(j), c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a));
+    return Math.max(34, Math.min(c > 1e-6 ? (chipW + 5) / c : 1e9, s > 1e-6 ? (chipH + 5) / s : 1e9)); };
+  let Gmax = 0; for (let j = 0; j < o.r; j++) Gmax = Math.max(Gmax, Gj(j));
+  const Kr = Gmax * (q - 1) + pad + 8;
+  const capH = 76, margin = 12, arrow = 96;
+  const f = Math.max(0.6, Math.min(1.6, (((W - 2 * margin - 2 * arrow) / 6) - Kr) / R0, (((Hh - capH - 2 * margin) / 2) - Kr) / R0));
+  const R = R0 * f + Kr, Wtot = 6 * R + 2 * arrow, Htot = 2 * R + capH + 14;
+  const x0 = 0, cy = R + 10;
+  const z = Math.min(1, (W - 2 * margin) / Wtot, (Hh - 2 * margin) / Htot);
+  const pos = (cx, j, t) => { const rr = R0 * f + Gj(j) * t; return [cx + rr * Math.cos(ang(j)), cy + rr * Math.sin(ang(j))]; };
+  const corePos = cx => CO.map(p => [cx + p[0], cy + p[1]]);
+  const g = svgEl("g", { transform: `translate(${((W - Wtot * z) / 2).toFixed(1)},${((Hh - Htot * z) / 2).toFixed(1)}) scale(${z.toFixed(4)})` }, svg);
+  const blob = (pts, col, fo = 0.15, sw = 2) =>
+    svgEl("path", { d: blobPath(pts, pad), fill: col, "fill-opacity": fo, stroke: col, "stroke-width": sw, "stroke-linejoin": "round" }, g);
+  const chip = (p, tex, kind) => {
+    const fill = kind === "core" ? COL.accent : COL.panel, ink = kind === "core" ? COL.panel : COL.ink;
+    const gc = svgEl("g", kind === "gone" ? { opacity: 0.32 } : {}, g);
+    svgEl("rect", { x: p[0] - chipW / 2, y: p[1] - chipH / 2, width: chipW, height: chipH, rx: 7, fill,
+      stroke: kind === "core" ? COL.accentDark : COL.soft, "stroke-width": 1.3, "stroke-dasharray": kind === "gone" ? "3 2" : "none" }, gc);
+    svgTex(gc, tex, p[0], p[1] + 5.5, 15, "middle", ink);
+    if (kind === "false") svgEl("path", { d: `M${p[0] - chipW / 2 + 4},${p[1] + chipH / 2 - 4}L${p[0] + chipW / 2 - 4},${p[1] - chipH / 2 + 4}`,
+      stroke: COL.active, "stroke-width": 2.2, "stroke-linecap": "round" }, gc);
+  };
+  const cap = (cx, line, str, col = COL.ink) => svgMixed(g, str, cx, cy + R + 22 + 22 * line, 15, "middle", col);
+  const cxL = x0 + R, cxM = x0 + 3 * R + arrow, cxR = x0 + 5 * R + 2 * arrow;
+  // --- middle: the sunflower
+  for (let j = 0; j < o.r; j++) blob(corePos(cxM).concat(petLits[j].map((_, t) => pos(cxM, j, t))), FIGPET[j % 8]);
+  for (let j = 0; j < o.r; j++) petLits[j].forEach((L, t) => chip(pos(cxM, j, t), L, "pet"));
+  coreLits.forEach((L, i) => chip(corePos(cxM)[i], L, "core"));
+  for (let j = 0; j < o.r; j++) {
+    const a = ang(j), rr = R0 * f + Gj(j) * (q - 1) + pad + 14;
+    svgTex(g, `S_{${j + 1}}`, cxM + rr * Math.cos(a), cy + rr * Math.sin(a) + 5, 14, "middle", FIGPET[j % 8]);
+  }
+  cap(cxM, 0, String.raw`$\mathcal F = S_1 \land \cdots \land S_{${o.r}} \land G$`);
+  cap(cxM, 1, `${o.r} clauses of width ${o.w}, core $C$ of size ${o.c}`, COL.soft);
+  // --- left: core satisfied
+  blob(corePos(cxL), COL.accent, 0.16, 2.4);
+  for (let j = 0; j < o.r; j++) petLits[j].forEach((L, t) => chip(pos(cxL, j, t), L, "gone"));
+  coreLits.forEach((L, i) => chip(corePos(cxL)[i], L, "core"));
+  cap(cxL, 0, String.raw`$\mathcal F_1 = C \land G$`);
+  cap(cxL, 1, `one clause of width ${o.c}`, COL.soft);
+  // --- right: core falsified
+  for (let j = 0; j < o.r; j++) blob(petLits[j].map((_, t) => pos(cxR, j, t)), FIGPET[j % 8]);
+  for (let j = 0; j < o.r; j++) petLits[j].forEach((L, t) => chip(pos(cxR, j, t), L, "pet"));
+  coreLits.forEach((L, i) => chip(corePos(cxR)[i], L, "false"));
+  cap(cxR, 0, String.raw`$\mathcal F_2 = (S_1 \setminus C) \land \cdots \land (S_{${o.r}} \setminus C) \land G$`);
+  cap(cxR, 1, `${o.r} clauses of width ${q}`, COL.soft);
+  // --- arrows from the middle panel
+  const arr = (xa, xb, label) => {
+    const y = cy, dir = Math.sign(xb - xa);
+    svgEl("path", { d: `M${xa},${y}L${xb - dir * 9},${y}`, stroke: COL.ink, "stroke-width": 2, fill: "none" }, g);
+    svgEl("path", { d: `M${xb},${y}L${xb - dir * 11},${y - 6}L${xb - dir * 11},${y + 6}Z`, fill: COL.ink }, g);
+    svgMixed(g, label, (xa + xb) / 2, y - 12, 14, "middle", COL.ink);
+  };
+  arr(cxM - R - 6, cxL + R + 6, "$C$ true");
+  arr(cxM + R + 6, cxR - R - 6, "$C$ false");
+  svgMixed(g, String.raw`$\mathcal F \equiv \mathcal F_1 \lor \mathcal F_2$`, Wtot / 2, cy + R + 74, 16, "middle", COL.accent);
+}
+function downloadFigure(id = "figSvg", name = null) {
+  const svg = el(id).cloneNode(true);
+  const W = +svg.getAttribute("width"), Hh = +svg.getAttribute("height");
+  svg.setAttribute("xmlns", NS); svg.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+  svg.setAttribute("viewBox", `0 0 ${W} ${Hh}`);
+  const bg = document.createElementNS(NS, "rect");
+  bg.setAttribute("width", W); bg.setAttribute("height", Hh); bg.setAttribute("fill", COL.bg);
+  svg.insertBefore(bg, svg.firstChild);
+  const src = '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(svg);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([src], { type: "image/svg+xml" }));
+  const o = figOpts();
+  a.download = name || `sunflower-${o.p}-petals.svg`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ======================================================================
+   Tabs, splitters, controls
+   ====================================================================== */
+let TAB = "ker";
+const ST = { kernel: null, find: null };
+function setTab(t) {
+  TAB = t;
+  el("tabDef").classList.toggle("on", t === "def"); el("tabKer").classList.toggle("on", t === "ker" || t === "find");
+  el("tabSpa").classList.toggle("on", t === "spa"); el("tabBtnSpa").classList.toggle("on", t === "spa");
+  el("tabBtnDef").classList.toggle("on", t === "def"); el("tabBtnKer").classList.toggle("on", t === "ker");
+  el("tabBtnFind").classList.toggle("on", t === "find");
+  try { localStorage.setItem(LSKEY + "tab", t); } catch (e) {}
+  stopPlay();
+  if (t === "def") { renderFigure(); return; }
+  if (t === "spa") { renderSpa(); return; }
+  setMode(t === "find" ? "find" : "kernel");
+}
+const presetsOf = m => m === "find" ? FIND_PRESETS : PRESETS;
+function setMode(m) {
+  if (RUN && MODE !== m) ST[MODE] = { H, K, RUN, pos, preset: el("presetSel").value, text: el("inputText").value, all: el("allChk").checked };
+  const changed = MODE !== m || !RUN;
+  MODE = m;
+  el("kLab").innerHTML = m === "find" ? "Petals " + mh("$r$") : "Parameter " + mh("$k$");
+  el("kIn").min = m === "find" ? 2 : 1;
+  el("randCtl").style.display = m === "find" ? "" : "none";
+  el("detFine").textContent = m === "find" ? "Every step" : "Every step of the lemma";
+  el("detCoarse").textContent = m === "find" ? "One step per level" : "One step per rule";
+  el("hgPane").querySelector(".sim-title span").textContent = "The family as a hypergraph";
+  if (!changed) { layoutPhases(); renderAll(); return; }
+  const sel = el("presetSel"); sel.innerHTML = "";
+  for (const p of presetsOf(m)) { const o = document.createElement("option"); o.value = p.key; o.textContent = p.name; sel.appendChild(o); }
+  const oc = document.createElement("option"); oc.value = "custom"; oc.textContent = "(your input)"; sel.appendChild(oc);
+  const S = ST[m];
+  if (S) {
+    H = S.H; K = S.K; RUN = S.RUN; sel.value = S.preset; el("inputText").value = S.text; el("kIn").value = K; el("allChk").checked = S.all;
+    ACT = RUN.steps.map((s, i) => i).filter(i => !coarse || RUN.steps[i].coarse);
+    pos = Math.min(S.pos, ACT.length - 1);
+    computePhases(); buildCode(); layoutPhases(); renderAll();
+  } else {
+    const key = lsGet(m + ":preset");
+    const p = presetsOf(m).find(q => q.key === key) || presetsOf(m)[0];
+    sel.value = p.key;
+    setInstance(p.text, true);
+  }
+}
+function randomFamily() {
+  const iv = (id, lo, hi) => Math.max(lo, Math.min(hi, parseInt(el(id).value, 10) || lo));
+  const n = iv("rN", 2, 40), d = Math.min(iv("rD", 1, 5), n);
+  let m = iv("rM", 1, 150);
+  let total = 0; for (let s = 1; s <= d; s++) { let c = 1; for (let i = 0; i < s; i++) c = c * (n - i) / (i + 1); total += c; }
+  m = Math.min(m, total);
+  const seen = new Set(), sets = [];
+  while (sets.length < m) {
+    const sz = 1 + Math.floor(Math.random() * d), a = [];
+    if (Math.random() < 0.6) { while (a.length < d) { const x = Math.floor(Math.random() * n); if (!a.includes(x)) a.push(x); } }
+    else while (a.length < sz) { const x = Math.floor(Math.random() * n); if (!a.includes(x)) a.push(x); }
+    a.sort((x, y) => x - y); const k = a.join(" ");
+    if (!seen.has(k)) { seen.add(k); sets.push(k); }
+  }
+  const text = `# random family: ${m} sets of size at most ${d} over ${n} elements\nk ${K}\nd ${d}\n${n}\n${m}\n` + sets.join("\n") + "\n";
+  try { setInstance(text, false); } catch (e) { el("parseErr").textContent = e.message; }
+}
+
+function lsGet(k) { try { return localStorage.getItem(LSKEY + k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(LSKEY + k, v); } catch (e) {} }
+function lsDel(k) { try { localStorage.removeItem(LSKEY + k); } catch (e) {} }
+
+function initSplitters() {
+  const root = document.documentElement.style, row = el("mainRow");
+  const defRow = () => Math.round(Math.max(420, Math.min(720, innerHeight * 0.66))) + "px";
+  const gw = lsGet("gw"), rh = lsGet("rowh"), fh = lsGet("figh");
+  if (gw) root.setProperty("--gw", gw);
+  root.setProperty("--rowh", rh || defRow());
+  if (fh) root.setProperty("--figh", fh);
+  const drag = (handle, onMove, onReset) => {
+    handle.addEventListener("pointerdown", ev => {
+      ev.preventDefault(); handle.setPointerCapture(ev.pointerId); handle.classList.add("drag");
+      const mv = e => onMove(e), up = () => { handle.classList.remove("drag"); handle.removeEventListener("pointermove", mv); handle.removeEventListener("pointerup", up); };
+      handle.addEventListener("pointermove", mv); handle.addEventListener("pointerup", up);
+    });
+    handle.addEventListener("dblclick", onReset);
+  };
+  drag(el("vsplit"), e => {
+    const r = row.getBoundingClientRect();
+    const f = Math.max(20, Math.min(80, (e.clientX - r.left) / r.width * 100)).toFixed(1) + "%";
+    root.setProperty("--gw", f); lsSet("gw", f);
+  }, () => { root.setProperty("--gw", "50%"); lsDel("gw"); });
+  drag(el("hsplit"), e => {
+    const r = row.getBoundingClientRect();
+    const h = Math.round(Math.max(240, Math.min(1800, e.clientY - r.top))) + "px";
+    root.setProperty("--rowh", h); lsSet("rowh", h);
+  }, () => { lsDel("rowh"); root.setProperty("--rowh", defRow()); });
+  drag(el("hsplitFig"), e => {
+    const r = document.querySelector(".figrow").getBoundingClientRect();
+    const h = Math.round(Math.max(260, Math.min(1400, e.clientY - r.top))) + "px";
+    root.setProperty("--figh", h); lsSet("figh", h);
+  }, () => { lsDel("figh"); root.setProperty("--figh", "460px"); });
+  let t = null;
+  const ro = new ResizeObserver(() => { clearTimeout(t); t = setTimeout(() => {
+    if (TAB !== "def" && RUN) { layoutPhases(); renderAll(); }
+    if (TAB === "def") renderFigure();
+    if (TAB === "spa") renderSpa();
+  }, 30); });
+  ro.observe(el("hgWrap")); ro.observe(el("mxWrap")); ro.observe(el("phaseBar")); ro.observe(el("figWrap")); ro.observe(el("spaWrap"));
+  if (lsGet("spah")) root.setProperty("--spah", lsGet("spah"));
+  drag(el("hsplitSpa"), e => {
+    const r = el("spaRow").getBoundingClientRect();
+    const h = Math.round(Math.max(260, Math.min(1400, e.clientY - r.top))) + "px";
+    root.setProperty("--spah", h); lsSet("spah", h);
+  }, () => { lsDel("spah"); root.setProperty("--spah", "440px"); });
+}
+
+function setInstance(text, fromPreset) {
+  const h = parseInput(text);
+  H = h; if (h.k != null) K = Math.max(1, Math.min(8, h.k));
+  el("kIn").value = K;
+  el("inputText").value = text;
+  if (!fromPreset) el("presetSel").value = "custom";
+  if (MODE === "find") K = Math.max(2, K), el("kIn").value = K;
+  el("allChk").checked = h.sets.length <= 30;
+  el("parseErr").textContent = h.dup ? `${h.dup} set${h.dup > 1 ? "s were" : " was"} listed twice and kept once.` : "";
+  stopPlay(); build();
+}
+function withK(text, k) {
+  return /^\s*k\s*(=|:)?\s*-?\d+\s*$/im.test(text) ? text.replace(/^\s*k\s*(=|:)?\s*-?\d+\s*$/im, "k " + k) : "k " + k + "\n" + text;
+}
+function safeBuild() {
+  try { build(); return true; }
+  catch (e) { el("parseErr").textContent = e.message; el("editor").open = true; return false; }
+}
+function initControls() {
+  const sel = el("presetSel");
+  sel.addEventListener("change", () => {
+    const p = presetsOf(MODE).find(q => q.key === sel.value); if (!p) return;
+    lsSet(MODE + ":preset", p.key);
+    try { setInstance(p.text, true); } catch (e) { el("parseErr").textContent = e.message; }
+  });
+  el("kIn").addEventListener("change", () => {
+    const k = Math.max(MODE === "find" ? 2 : 1, Math.min(8, parseInt(el("kIn").value, 10) || 1));
+    el("kIn").value = k;
+    const oldK = K; K = k; stopPlay();
+    if (!safeBuild()) { K = oldK; el("kIn").value = oldK; safeBuild(); return; }
+    el("inputText").value = withK(el("inputText").value, k);
+  });
+  const setDet = c => {
+    const keep = RUN ? fineIdx() : null;
+    coarse = c; el("detFine").classList.toggle("on", !c); el("detCoarse").classList.toggle("on", c);
+    lsSet("coarse", c ? "1" : "0");
+    if (RUN) {
+      ACT = RUN.steps.map((s, i) => i).filter(i => !coarse || RUN.steps[i].coarse);
+      pos = 0; while (pos + 1 < ACT.length && ACT[pos + 1] <= keep) pos++;
+      computePhases(); layoutPhases(); renderAll();
+    }
+  };
+  el("detFine").addEventListener("click", () => setDet(false));
+  el("detCoarse").addEventListener("click", () => setDet(true));
+  coarse = lsGet("coarse") === "1"; el("detFine").classList.toggle("on", !coarse); el("detCoarse").classList.toggle("on", coarse);
+  el("allChk").addEventListener("change", () => renderAll());
+  el("loadBtn").addEventListener("click", () => {
+    try { el("parseErr").textContent = ""; setInstance(el("inputText").value, false); }
+    catch (e) { el("parseErr").textContent = e.message; }
+  });
+  el("resetBtn").addEventListener("click", () => { stopPlay(); go(0); });
+  el("backBtn").addEventListener("click", () => { stopPlay(); go(pos - 1); });
+  el("stepBtn").addEventListener("click", () => { stopPlay(); go(pos + 1); });
+  el("playBtn").addEventListener("click", togglePlay);
+  el("speed").addEventListener("input", () => {
+    el("speedVal").textContent = el("speed").value + "ms";
+    if (timer) { stopPlay(); togglePlay(); }
+  });
+  el("scrubber").addEventListener("input", () => {
+    stopPlay();
+    const x = Number(el("scrubber").value) / 100000 * barWidth();
+    go(xToPos(x));
+  });
+  document.addEventListener("keydown", ev => {
+    if (TAB === "def" || TAB === "spa" || !RUN) return;
+    if (ev.target.closest && ev.target.closest("input[type=text], input[type=number], textarea, select")) return;
+    if (ev.key === "ArrowRight") { stopPlay(); go(pos + 1); ev.preventDefault(); }
+    else if (ev.key === "ArrowLeft") { stopPlay(); go(pos - 1); ev.preventDefault(); }
+    else if (ev.key === "Home") { stopPlay(); go(0); ev.preventDefault(); }
+    else if (ev.key === "End") { stopPlay(); go(ACT.length - 1); ev.preventDefault(); }
+    else if (ev.key === " " && !(ev.target.closest && ev.target.closest("button"))) { togglePlay(); ev.preventDefault(); }
+  });
+  // definition tab
+  for (const id of ["fPetals", "fCore", "fPetal", "fEmpty", "fNon", "fMatrix"]) el(id).addEventListener("input", renderFigure);
+  el("fSvg").addEventListener("click", () => downloadFigure());
+  for (const id of ["sPetals", "sWidth", "sCore"]) el(id).addEventListener("input", renderSpa);
+  el("sSvg").addEventListener("click", () => { const o = spaOpts(); downloadFigure("spaSvg", `sparsification-${o.r}-clauses.svg`); });
+  el("tabBtnSpa").addEventListener("click", () => setTab("spa"));
+  el("tabBtnDef").addEventListener("click", () => setTab("def"));
+  el("tabBtnKer").addEventListener("click", () => setTab("ker"));
+  el("tabBtnFind").addEventListener("click", () => setTab("find"));
+  el("randBtn").addEventListener("click", randomFamily);
+}
+
+function init() {
+  renderStatic();
+  initSplitters();
+  initControls();
+  initTips();
+  const t = lsGet("tab");
+  if (t === "def" || t === "spa") { setMode("kernel"); setTab(t); }
+  else setTab(t === "find" ? "find" : "ker");
+}
+init();
+</script>
+</body>
+</html>

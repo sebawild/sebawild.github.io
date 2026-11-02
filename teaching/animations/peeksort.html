@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Peeksort · step by step through the recursion</title>
+<script>
+  /* MathJax: TeX in \( \), Euler letters, SVG output (also used for the labels inside the drawings) */
+  window.MathJax = {
+    tex: { inlineMath: [["\\(", "\\)"]] },
+    loader: { load: ["[mathjax-euler-extension]/svg"],
+              paths: { "mathjax-euler-extension": "https://cdn.jsdelivr.net/npm/@mathjax/mathjax-euler-font-extension@4" } },
+    svg: { fontCache: "none", mtextInheritFont: true },
+    output: { linebreaks: { inline: false } },
+    options: { enableMenu: false },
+    startup: { typeset: false }
+  };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js"></script>
+<style>
+  /* Same token values as /css/animations.css, repeated so the page also works when opened directly. */
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#9c866d;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1; --wi-ramp-lo:#e5c0b4; --wi-ramp-hi:#902015;
+    --wi-font-body:texgyrepagella, "TeX Gyre Pagella", Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-font-mono:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    /* page tints, mixed from the palette (as on the slides: runs red!80!black!20, leaves !5, merge results black!80!red!20) */
+    --t-run:#ead0c4; --t-run-line:#5b3a33; --t-leaf:#f5e6dd; --t-leaf-line:#8e5d52;
+    --t-merged:#d9c3be; --t-merged-line:#4c2a24;
+    --t-range:#f0d4a0;   /* the subarray of the current call (sand) */
+    --t-found:#b9d8e4;   /* the run around the middle (blue)        */
+    --t-known:#f2c0ac;   /* a run known from a Δ (salmon)           */
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .wi-topbar { display:flex; align-items:baseline; justify-content:space-between; gap:1em; flex-wrap:wrap;
+               margin:0 0 1.1em; padding-bottom:.5em; border-bottom:1px solid var(--wi-border);
+               font-family:var(--wi-font-head); letter-spacing:.03em; }
+  .wi-topbar .wi-home { color:var(--wi-ink-strong); font-size:1.05em; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:14px 22px; flex-wrap:wrap; margin:0 0 6px; }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 14px; max-width:100ch; line-height:1.5; }
+
+  /* --- chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:11px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .lbl, .ctl > label:not(.chk) { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer; line-height:1.35;
+           transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text; font-size:1.02rem; line-height:1.1;
+                padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  input.tokens { font-family:var(--wi-font-mono); font-size:.8rem; width:22em; max-width:100%; }
+  input.num { width:4.2em; }
+  .seg { display:inline-flex; flex-wrap:wrap; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  .seg button.on:hover:not(:disabled) { background:var(--wi-accent-dark); color:var(--wi-panel-2); }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+  .hidden { display:none !important; }
+
+  /* --- transport: buttons, step slider with phase bar --- */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:16px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; }
+  /* the step slider: a 16 px thumb, whose centre travels from 8 px to width − 8 px — exactly the span of the phase bar */
+  input.scrub { -webkit-appearance:none; appearance:none; display:block; width:100%; height:16px; margin:2px 0 0;
+                background:transparent; cursor:pointer; }
+  input.scrub::-webkit-slider-runnable-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; box-sizing:border-box; width:16px; height:16px;
+                margin-top:-6px; border-radius:50%; background:var(--wi-accent); border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  input.scrub::-moz-range-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-moz-range-thumb { box-sizing:border-box; width:16px; height:16px; border-radius:50%; background:var(--wi-accent);
+                border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint); white-space:nowrap; text-align:right; padding-top:2px; }
+  .phasebar { display:flex; margin:6px 8px 0; height:1.55rem; }
+  .phasebtn { flex:none; position:relative; overflow:hidden; padding:0; min-width:0; height:100%;
+              font-size:.68rem; line-height:1.55rem; font-family:var(--wi-font-head); letter-spacing:.02em; text-align:center;
+              background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-left-width:0;
+              border-radius:0; color:var(--wi-ink-faint); cursor:pointer; white-space:nowrap; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3; border-right:1px solid var(--wi-accent-soft); }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+  .phasebtn.k-merge:not(.on) { background:#f1e8e2; }
+
+  /* --- stage --- */
+  .stage { display:grid; grid-template-columns:minmax(0, var(--lf, 58fr)) 18px minmax(320px, var(--rf, 42fr)); gap:0; align-items:start; }
+  @media (max-width:980px) { .stage { grid-template-columns:1fr; gap:16px; } .splitter { display:none !important; } }
+  .splitter { align-self:stretch; min-height:200px; cursor:col-resize; touch-action:none; display:flex; justify-content:center; }
+  .splitter::before { content:""; width:4px; margin:30px 0; border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .splitter:hover::before, .splitter.drag::before, .splitter:focus-visible::before { background:var(--wi-accent-soft); }
+  .splitter:focus-visible { outline:none; }
+  .col-main, .col-side { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  @media (min-width:981px) { .col-side { position:sticky; top:10px; } }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); padding:11px 13px; min-width:0; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--wi-ink-faint);
+               margin:0 0 8px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--wi-font-body); font-size:1.15em; color:var(--wi-ink-soft); }
+  svg.stagesvg { display:block; background:var(--wi-bg); border-radius:var(--wi-radius); }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:8px; font-size:.74rem; color:var(--wi-ink-soft); align-items:center; }
+  .legend .item { display:inline-flex; align-items:center; gap:6px; }
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius);
+            padding:9px 13px; font-size:.9rem; color:var(--wi-ink-strong); min-height:6.6em; }
+  .status .yes { color:var(--wi-relax); font-weight:bold; }
+  .status .no  { color:var(--wi-active); font-weight:bold; }
+  .vars { display:flex; flex-wrap:wrap; gap:6px 12px; font-size:.86rem; align-items:baseline; min-height:3.2em; }
+  .vars .v { background:var(--wi-panel-2); padding:0 6px; border-radius:3px; white-space:nowrap; }
+  .vars .v.chg { background:#f6e6df; box-shadow:inset 0 0 0 1px var(--wi-accent-soft); }
+  .vars .k { color:var(--wi-ink-faint); font-family:var(--wi-font-head); font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; }
+  .vars .grp { display:inline-flex; gap:6px 10px; flex-wrap:wrap; align-items:baseline; }
+  .vars .cnt { margin-left:auto; display:flex; gap:12px; }
+  .vars .cnt code { font-family:var(--wi-font-mono); font-size:.84em; background:var(--wi-panel-2); padding:1px 5px; border-radius:3px; }
+  .stack { font-size:.8rem; line-height:1.9; margin-top:6px; color:var(--wi-ink-soft); }
+  .stack code { font-family:var(--wi-font-mono); font-size:.84em; background:var(--wi-panel-2); padding:1px 4px; border-radius:3px; white-space:nowrap; }
+  .stack code.top { background:#f6e6df; color:var(--wi-accent); box-shadow:inset 0 0 0 1px var(--wi-accent-soft); }
+  .stack .sep { color:var(--wi-ink-faint); margin:0 3px; }
+
+  /* code panel: the pseudocode of the slides */
+  .codebox { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  .codebox > .sim-title { padding:10px 15px 0; }
+  .codescroll { position:relative; max-height:calc(100vh - 330px); min-height:200px; overflow:auto; padding:0 6px 10px; }
+  .sublabel { font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.09em; text-transform:uppercase;
+              color:var(--wi-ink-faint); padding:10px 12px 3px; border-top:1px solid var(--wi-border-soft); margin-top:6px;
+              display:flex; justify-content:space-between; gap:10px; }
+  .sublabel:first-child { border-top:0; margin-top:0; padding-top:4px; }
+  .sublabel .src { text-transform:none; letter-spacing:0; font-family:var(--wi-font-body); font-size:1.1em; }
+  .cline { display:flex; gap:10px; padding:1px 9px; font-size:.84rem; line-height:1.7; color:var(--wi-ink-strong);
+           border-left:3px solid transparent; align-items:center; }
+  .cline .ln { color:var(--wi-ink-faint); min-width:1.3em; text-align:right; user-select:none; flex:none; font-size:.8em; align-self:flex-start; padding-top:.2em; }
+  .cline .tx { white-space:nowrap; }
+  .cline .cm { color:var(--wi-ink-faint); font-style:italic; }
+  .cline.caller { background:#f3ebdd; border-left-color:var(--wi-accent-soft); }
+  .cline.on { background:#f6e6df; border-left-color:var(--wi-active); }
+  .codenote { font-size:.74rem; color:var(--wi-ink-faint); padding:2px 15px 12px; line-height:1.45; }
+  .about { font-size:.82rem; line-height:1.55; color:var(--wi-ink-soft); }
+  .about p { margin:0 0 6px; }
+  .about b { color:var(--wi-ink-strong); font-family:var(--wi-font-head); font-weight:normal; letter-spacing:.04em; font-size:.92em; }
+  mjx-container[jax="SVG"] { color:inherit; }
+
+  /* input editor */
+  details.editor { margin-top:16px; background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:11px 16px; font-family:var(--wi-font-head); font-size:.78rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,340px) 1fr; gap:16px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  textarea { width:100%; height:150px; font-family:var(--wi-font-mono); font-size:.78rem; background:var(--wi-panel-2);
+             color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.78rem; color:var(--wi-ink-soft); line-height:1.55; }
+  .hint code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; font-family:var(--wi-font-mono); }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+
+  /* SVG text */
+  .sv-idx  { font-family:var(--wi-font-mono); font-size:11px; fill:var(--wi-ink-faint); text-anchor:middle; }
+  .sv-val  { font-family:var(--wi-font-mono); font-size:14px; fill:var(--wi-ink-strong); text-anchor:middle; }
+  .sv-val.dim { fill:var(--wi-ink-faint); }
+  .sv-len  { font-family:var(--wi-font-mono); font-size:10.5px; fill:var(--wi-ink-soft); text-anchor:middle; }
+  .sv-row  { font-family:var(--wi-font-body); font-size:13.5px; fill:var(--wi-ink-soft); }
+  .sv-note { font-family:var(--wi-font-body); font-size:13.5px; fill:var(--wi-ink-soft); }
+  .sv-note.bad { fill:var(--wi-ink-faint); font-style:italic; }
+  .sv-badge{ font-family:var(--wi-font-body); font-size:15px; font-weight:bold; text-anchor:middle; dominant-baseline:central; fill:var(--wi-panel-2); }
+  .mj-buf  { position:absolute; left:-10000px; top:0; visibility:hidden; }
+  @keyframes pop { from { opacity:.2; } to { opacity:1; } }
+  .sv-pop { animation:pop .35s ease-out both; }
+  /* merge: an element flies from (--dx, --dy) to its new place */
+  @keyframes fly { 0% { transform:translate(var(--dx), var(--dy)); opacity:0; } 12% { opacity:1; } 100% { transform:none; opacity:1; } }
+  .fly { animation:fly .55s cubic-bezier(.45,.05,.3,1) both; }
+
+  /* presentation view */
+  .only-p { display:none !important; }
+  body.present .only-p { display:inline-flex !important; }
+  body.present .hide-p { display:none !important; }
+  body.present h1 { font-size:1.9rem; }
+  .exitp { position:fixed; top:10px; right:12px; z-index:20; font-size:.75rem; opacity:.5; }
+  .exitp:hover, .exitp:focus-visible { opacity:1; }
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls { gap:8px 12px; padding:10px 12px; }
+    .seg button { padding:5px 9px; font-size:.74rem; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { animation-duration:.001ms !important; transition-duration:.001ms !important; } }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption { font-family: var(--wi-font-head); letter-spacing: .05em; }
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar hide-p">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1 id="pageTitle">Peeksort</h1>
+  <span class="ctl hide-p"><button id="presBtn" title="A clutter-free view for the lecture (Esc to leave)">Presentation view</button></span>
+</div>
+<button id="exitPres" class="only-p exitp" title="Leave the presentation view (Esc)">✕ leave presentation</button>
+<p class="subtitle hide-p">Top-down mergesort that peeks at the middle and cuts at the nearest run boundary instead.
+  Step by step through the recursion: how <i>i</i>, <i>j</i> and the Δ’s are found in each call, and how the sign of a Δ says whether a run is known.
+  The code is the one from the slides; the highlighted line is the one being executed. Merging is a single step here.</p>
+
+<div class="controls hide-p">
+  <div class="ctl">
+    <label for="presetSel">Input</label>
+    <select id="presetSel"></select>
+  </div>
+  <div class="ctl">
+    <input type="text" id="tokIn" class="tokens" spellcheck="false" aria-label="Input elements, separated by spaces">
+    <button id="tokSet" class="pri">Set</button>
+  </div>
+  <div class="ctl">
+    <label for="genN">n</label>
+    <input type="number" id="genN" class="num" min="2" max="64" value="20">
+  </div>
+  <div class="ctl">
+    <span class="lbl">Show</span>
+    <span class="seg" id="granSeg">
+      <button data-gran="fine" class="on" title="Every line, including each step of the run scans">every line</button>
+      <button data-gran="coarse" title="Skip the steps inside extendRunLeft / extendRunRight">skip the scans</button>
+    </span>
+  </div>
+  <div class="ctl"><label class="chk"><input type="checkbox" id="tagChk" checked> number equal keys</label></div>
+</div>
+
+<div class="transport">
+  <div class="transport-row">
+    <span class="ctl" style="gap:6px">
+      <button id="sReset" class="icon hide-p" title="Back to the first step (Home)" aria-label="Back to the first step">&#x21BA;</button>
+      <button id="sBack" class="icon" title="One step back (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+      <button id="sStep" class="icon pri" title="One step forward (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+      <button id="sPlay" class="icon" title="Play / pause (space)" aria-label="Play">&#x25B6;&#xFE0E;</button>
+    </span>
+    <span class="progress">
+      <input type="range" class="scrub" id="scrubber" min="0" max="100000" value="0" step="1" aria-label="Step">
+      <div class="phasebar" id="phaseBar"></div>
+    </span>
+    <span class="stepno" id="stepNo">— / —</span>
+    <span class="ctl hide-p" style="gap:6px">
+      <span class="lbl">Speed</span>
+      <input type="range" id="sSpeed" min="40" max="1400" value="600" style="width:88px;accent-color:var(--wi-accent)" aria-label="Delay between steps">
+      <span class="stepno" id="sSpeedVal" style="min-width:4.5em">600ms</span>
+    </span>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="col-main">
+    <div class="sim-box">
+      <div class="sim-title"><span>Recursive calls</span><span class="rhs" id="treeMeta"></span></div>
+      <div id="treeWrap"><svg id="treeSvg" class="stagesvg"></svg></div>
+      <div class="legend hide-p" id="treeLegend"></div>
+    </div>
+    <div class="sim-box">
+      <div class="sim-title"><span id="detTitle">The current call</span><span class="rhs" id="detMeta"></span></div>
+      <div id="detWrap"><svg id="detSvg" class="stagesvg"></svg></div>
+      <div class="legend hide-p" id="detLegend"></div>
+    </div>
+    <div class="sim-box hide-p">
+      <div class="vars" id="varsBox"></div>
+      <div class="stack" id="stackBox"></div>
+    </div>
+  </div>
+  <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" tabindex="0"
+       title="Drag to share the width between drawings and code (double-click: back to the default)"></div>
+  <div class="col-side">
+    <div class="sim-box">
+      <div class="sim-title"><span>What happens</span><span class="rhs" id="phaseName"></span></div>
+      <div class="status" id="statusBox"></div>
+    </div>
+    <div class="codebox">
+      <div class="sim-title"><span>Code</span><span class="rhs">as on the slides</span></div>
+      <div class="codescroll" id="codeScroll"></div>
+      <div class="codenote" id="codeNote"></div>
+    </div>
+    <div class="sim-box hide-p">
+      <div class="about" id="aboutBox"></div>
+    </div>
+  </div>
+</div>
+
+<details class="editor hide-p">
+  <summary>Input as text</summary>
+  <div class="editor-body">
+    <div>
+      <textarea id="inputText" spellcheck="false"></textarea>
+      <div style="margin-top:8px"><button class="pri" id="loadBtn">Load</button></div>
+      <div class="err" id="parseErr"></div>
+    </div>
+    <div class="hint">
+      The elements, separated by spaces, commas or line breaks — the format of the
+      <a href="https://algs4.cs.princeton.edu/code/">algs4</a> sorting clients, so e.g. <code>tiny.txt</code>
+      can be pasted as it is. If every element is a number they are compared numerically, otherwise as strings.
+      Lines starting with <code>#</code> are comments.
+      <br><br>
+      Instead of the elements, a line <code>@runs 5 3 3 14 1 2</code> asks for an input with exactly these run lengths
+      (the numbers 1 … <i>n</i>, every run increasing and every run boundary a descent), and <code>@seed 3</code> picks another such input.
+      <br><br>
+      At most 64 elements. The same works in the page address, e.g.
+      <code>#runs=5,3,3,14,1,2</code> or <code>#in=S,O,R,T,E,X,A,M,P,L,E</code>; add <code>&amp;skip</code> to skip the scans
+      and <code>&amp;present</code> for the presentation view.
+    </div>
+  </div>
+</details>
+<script>
+"use strict";
+/* ==========================================================================
+   Peeksort, step by step.
+
+   gPeek below is a line-by-line transcription of the pseudocode on the slides
+   (printed in the code panel); extendRunRight is the slide's helper, and
+   extendRunLeft is its mirror image ("similar" on the slide), spelled out.
+   The generator yields once per executed line (and per loop test of the run
+   scans); every step is recorded with a snapshot, so one can scrub back and
+   forth.  The merge is a single step: the sorting page shows merging in detail.
+
+   Array positions hold element ids (their position in the input); values live
+   in inp.vals[id], so equal keys can be told apart.
+   ========================================================================== */
+const el  = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const M = s => "\\(" + s + "\\)";                 /* inline TeX */
+const mn = x => x < 0 ? "-" + (-x) : String(x);   /* a number for TeX (− via TeX's minus) */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* ---------- inputs ---------------------------------------------------------- */
+function cmpVals(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
+function makeInput(vals, labels) {
+  const n = vals.length, numeric = vals.every(v => typeof v === "number");
+  let mag;
+  if (numeric) {
+    let mx = -Infinity, mi = Infinity;
+    for (const v of vals) { if (v > mx) mx = v; if (v < mi) mi = v; }
+    mag = mi > 0 ? vals.map(v => v / mx) : vals.map(v => mx === mi ? 1 : 0.06 + 0.94 * (v - mi) / (mx - mi));
+  } else {
+    const dist = [...new Set(vals)].sort(cmpVals), rk = new Map(dist.map((v, i) => [v, i]));
+    mag = vals.map(v => (rk.get(v) + 1) / dist.length);
+  }
+  labels = labels || vals.map(v => String(v));
+  const tot = new Map(), seen = new Map(), occ = [];
+  vals.forEach(v => tot.set(v, (tot.get(v) || 0) + 1));
+  vals.forEach(v => { const c = (seen.get(v) || 0) + 1; seen.set(v, c); occ.push(tot.get(v) > 1 ? c : 0); });
+  return { n, vals, numeric, mag, labels, occ, hasDup: occ.some(x => x > 0) };
+}
+/* the maximal (weakly increasing) runs of a sequence of values: [start, end) pairs */
+function runsOf(vals, ids, lo, hi) {
+  const out = []; let s = lo;
+  for (let k = lo + 1; k <= hi; k++) if (k === hi || cmpVals(vals[ids[k - 1]], vals[ids[k]]) > 0) { out.push([s, k]); s = k; }
+  return out;
+}
+/* the numbers 1..n with exactly the given run lengths: random runs, every boundary a descent */
+function valsFromRuns(L, seed) {
+  const n = L.reduce((a, b) => a + b, 0), rng = mulberry32(seed * 7919 + n);
+  for (let t = 0; t < 2000; t++) {
+    const p = []; for (let i = 1; i <= n; i++) p.push(i);
+    for (let i = n - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const x = p[i]; p[i] = p[j]; p[j] = x; }
+    const A = []; let s = 0;
+    for (const len of L) { A.push(...p.slice(s, s + len).sort((a, b) => a - b)); s += len; }
+    let ok = true; s = 0;
+    for (let q = 0; q + 1 < L.length; q++) { s += L[q]; if (!(A[s - 1] > A[s])) { ok = false; break; } }
+    if (ok) return A;
+  }
+  const A = []; let top = n;                       /* fallback: each run below the previous one */
+  for (const len of L) { top -= len; for (let k = 1; k <= len; k++) A.push(top + k); }
+  return A;
+}
+function genVals(kind, n, rng) {
+  const v = []; for (let i = 1; i <= n; i++) v.push(i);
+  if (kind === "reversed") return v.reverse();
+  if (kind === "random") { for (let i = n - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = v[i]; v[i] = v[j]; v[j] = t; } return v; }
+  return v;                                        /* sorted */
+}
+function randomRuns(n, rng) {
+  const L = []; let s = 0;
+  while (s < n) { const len = Math.min(n - s, 1 + Math.floor(rng() * Math.max(2, Math.round(n / 4)))); L.push(len); s += len; }
+  return L;
+}
+
+/* ---------- MathJax: typeset HTML off-screen and swap it in; labels inside the SVG drawings ---------- */
+const mjReady = () => !!(window.MathJax && MathJax.typesetPromise && MathJax.startup && MathJax.startup.document);
+function setMath(node, html) {
+  if (node._want === html) return;
+  node._want = html;
+  if (!mjReady()) { node.innerHTML = html; return; }
+  if (node._busy) return;                          /* the newest request is picked up when this one is done */
+  node._busy = true;
+  const want = html, tmp = document.createElement("div"), cs = getComputedStyle(node);
+  tmp.className = "mj-buf"; tmp.style.fontSize = cs.fontSize; tmp.style.fontFamily = cs.fontFamily; tmp.innerHTML = want;
+  document.body.appendChild(tmp);
+  MathJax.typesetPromise([tmp]).then(() => {
+    if (MathJax.typesetClear) MathJax.typesetClear([node]);
+    node.replaceChildren(...tmp.childNodes);
+  }).catch(() => { node.innerHTML = want; }).finally(() => {
+    tmp.remove(); node._busy = false;
+    if (node._want !== want) { const w = node._want; node._want = null; setMath(node, w); }
+  });
+}
+const MJL = new Map(); let mjAgain = 0;
+function mjSvg(tex) {
+  const c = MJL.get(tex);
+  if (c) return c === 1 ? null : c;
+  if (!mjReady()) return null;
+  MJL.set(tex, 1);
+  MathJax.tex2svgPromise(tex, { display: false }).then(node => {
+    const sv = node.querySelector("svg");
+    MJL.set(tex, { vb: sv.getAttribute("viewBox").split(/[\s,]+/).map(Number), inner: sv.innerHTML });
+    if (!mjAgain) mjAgain = requestAnimationFrame(() => { mjAgain = 0; stepsRender(); });
+  }).catch(() => MJL.delete(tex));
+  return null;
+}
+let MEASURE = null;
+const BODYFONT = () => getComputedStyle(document.body).fontFamily;
+function textW(s, font) {
+  if (!MEASURE) MEASURE = document.createElement("canvas").getContext("2d");
+  MEASURE.font = font; return MEASURE.measureText(s).width;
+}
+/* TeX at (x, baseline y); returns { w, svg }.  Until MathJax has it, a plain stand-in. */
+function mathAt(tex, x, y, fs, anchor, color, plain) {
+  const c = mjSvg(tex);
+  if (!c) {
+    const w = textW(plain, "italic " + fs + "px " + BODYFONT());
+    return { w, svg: '<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" style="font:italic ' + fs + 'px var(--wi-font-body);fill:' + color + ';text-anchor:' + (anchor || "start") + '">' + esc(plain) + "</text>" };
+  }
+  const [, vy, vw, vh] = c.vb, w = vw / 1000 * fs, h = vh / 1000 * fs;
+  const left = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w : x;
+  return { w, svg: '<svg x="' + left.toFixed(1) + '" y="' + (y + vy / 1000 * fs).toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + h.toFixed(1) +
+                   '" viewBox="' + c.vb.join(" ") + '" overflow="visible" style="color:' + color + '">' + c.inner + "</svg>" };
+}
+/* stand-ins for TeX, while MathJax loads */
+const PLAIN = { "\\ell": "ℓ", "\\Delta_\\ell": "Δℓ", "\\Delta_r": "Δr", "\\Delta_g": "Δg", "\\Delta_0": "Δ0", "\\Delta_n": "Δn", "\\tfrac12": "½" };
+const plainOf = t => PLAIN[t] || t.replace(/\\Delta_\\ell/g, "Δℓ").replace(/\\Delta_([a-z0-9])/g, "Δ$1").replace(/\\ell/g, "ℓ").replace(/[{}\\]/g, "");
+
+/* ---------- the code, as on the slides ---------------------------------------- */
+const CODE = [
+  { key: "init", title: "Initial call", lines: [
+    [0, M("\\Delta_0 := \\text{extendRunRight}(A, 0)")],
+    [0, M("\\Delta_n := \\text{extendRunLeft}(A, n-1) - n")],
+    [0, "peeksort(" + M("A[0..n)") + ", " + M("\\Delta_0") + ", " + M("\\Delta_n") + ")"] ] },
+  { key: "pk", title: "Peeksort", lines: [
+    [0, "<b>procedure</b> peeksort(" + M("A[\\ell..r)") + ", " + M("\\Delta_\\ell") + ", " + M("\\Delta_r") + "):"],
+    [1, "<b>if</b> " + M("r-\\ell \\le 1") + " <b>then return</b>"],
+    [1, "<b>if</b> " + M("\\ell + \\Delta_\\ell = r \\;\\vee\\; \\ell = r + \\Delta_r") + " <b>then return</b>"],
+    [1, M("m := \\ell + \\lfloor (r-\\ell)/2 \\rfloor")],
+    [1, M("i := \\begin{cases} \\ell+\\Delta_\\ell & \\text{if } \\ell+\\Delta_\\ell \\ge m\\\\ \\text{extendRunLeft}(A, m) & \\text{else} \\end{cases}")],
+    [1, M("j := \\begin{cases} r+\\Delta_r & \\text{if } r+\\Delta_r \\le m\\\\ \\text{extendRunRight}(A, m) & \\text{else} \\end{cases}")],
+    [1, M("g := \\begin{cases} i & \\text{if } m-i < j-m\\\\ j & \\text{else} \\end{cases}")],
+    [1, M("\\Delta_g := \\begin{cases} j-i & \\text{if } m-i < j-m\\\\ i-j & \\text{else} \\end{cases}")],
+    [1, "peeksort(" + M("A[\\ell..g)") + ", " + M("\\Delta_\\ell") + ", " + M("\\Delta_g") + ")"],
+    [1, "peeksort(" + M("A[g..r)") + ", " + M("\\Delta_g") + ", " + M("\\Delta_r") + ")"],
+    [1, "merge(" + M("A[\\ell..g)") + ", " + M("A[g..r)") + ", " + M("\\mathit{buf}") + ")"],
+    [1, "copy " + M("\\mathit{buf}") + " to " + M("A[\\ell..r)")] ] },
+  { key: "er", title: "extendRunRight", lines: [
+    [0, "<b>procedure</b> extendRunRight(" + M("A[0..n)") + ", " + M("i") + "):"],
+    [1, M("j := i+1")],
+    [1, "<b>while</b> " + M("j < n \\wedge A[j-1] \\le A[j]")],
+    [2, M("j := j+1")],
+    [1, "<b>return</b> " + M("j") + ' <span class="cm">// ' + M("A[i..j)") + " is a run</span>"] ] },
+  { key: "el", title: "extendRunLeft", src: "“similar”, spelled out", lines: [
+    [0, "<b>procedure</b> extendRunLeft(" + M("A[0..n)") + ", " + M("j") + "):"],
+    [1, M("i := j")],
+    [1, "<b>while</b> " + M("i > 0 \\wedge A[i-1] \\le A[i]")],
+    [2, M("i := i-1")],
+    [1, "<b>return</b> " + M("i") + ' <span class="cm">// ' + M("A[i..j]") + " is a run</span>"] ] }
+];
+function buildCode() {
+  const box = el("codeScroll");
+  let h = "";
+  for (const blk of CODE) {
+    h += '<div class="sublabel"><span>' + esc(blk.title) + "</span>" + (blk.src ? '<span class="src">' + esc(blk.src) + "</span>" : "") + "</div>";
+    blk.lines.forEach(([ind, html], i) => {
+      h += '<div class="cline" data-k="' + blk.key + "." + (i + 1) + '"><span class="ln">' + (i + 1) + '</span><span class="tx" style="padding-left:' + (1.6 * ind) + 'em">' + html + "</span></div>";
+    });
+  }
+  box.innerHTML = h;
+  box._lines = new Map([...box.querySelectorAll(".cline")].map(d => [d.dataset.k, d]));
+  box._on = [];
+}
+function highlightCode(ln, stack) {
+  const box = el("codeScroll");
+  for (const d of box._on) d.classList.remove("on", "caller");
+  box._on = [];
+  for (const fr of stack) { const d = fr.site && box._lines.get(fr.site); if (d) { d.classList.add("caller"); box._on.push(d); } }
+  const d = box._lines.get(ln);
+  if (d) {
+    d.classList.remove("caller"); d.classList.add("on"); box._on.push(d);
+    const top = d.offsetTop, bot = top + d.offsetHeight;
+    if (top < box.scrollTop + 20 || bot > box.scrollTop + box.clientHeight - 20) box.scrollTop = Math.max(0, top - box.clientHeight * 0.35);
+  }
+}
+
+/* ==========================================================================
+   The algorithm
+   ========================================================================== */
+class Run {
+  constructor(inp) {
+    this.inp = inp; this.vals = inp.vals; this.n = inp.n;
+    this.A = []; for (let i = 0; i < this.n; i++) this.A.push(i);
+    this.buf = null; this.nc = 0; this.mc = 0;
+    this.stack = [];            /* frames {label, site, kind}; replaced, never mutated */
+    this.F = null;              /* the node (= frame variables) of the current peeksort call */
+    this.H = null;              /* the variables of a running extendRun… */
+    this.init = {};             /* Δ0, Δn once known */
+    this.nodes = []; this.ts = [];   /* the calls, and their state: 1 called, 2 m known, 3 cut, 4 returned at once, 5 merged */
+    this.tag = "init";          /* which phase a step belongs to */
+  }
+  call(label, site, kind) { this.stack = this.stack.concat([{ label, site, kind }]); }
+  ret() { this.stack = this.stack.slice(0, -1); }
+  le(p, q) { this.nc++; return cmpVals(this.vals[this.A[p]], this.vals[this.A[q]]) <= 0; }
+  L(k) { const id = this.A[k]; return texEsc(this.inp.labels[id]) + (TAGS && this.inp.occ[id] ? "_{" + this.inp.occ[id] + "}" : ""); }
+}
+let TAGS = true;
+/* a label as TeX (inside \mathtt): escape what TeX would read as commands; HTML-escape for innerHTML */
+const texEsc = s => esc(String(s).replace(/\\/g, "\\backslash ").replace(/([#$%&_{}])/g, "\\$1").replace(/\^/g, "\\hat{}").replace(/~/g, "\\sim "));
+const S = (ln, o) => { o = o || {}; o.ln = ln; return o; };
+const val = (R, k) => "\\mathtt{" + R.L(k) + "}";
+
+function* gExtR(R, i, site) {
+  const n = R.n;
+  R.call("extendRunRight(A, " + i + ")", site, "helper");
+  R.H = { kind: "R", i, j: null };
+  yield S("er.1", { msg: () => "extendRunRight" + M("(A, " + i + ")") + ": how far to the right does the run reach that contains " + M("A[" + i + "]") + "?" });
+  let j = i + 1; R.H.j = j;
+  yield S("er.2", { msg: () => M("j := i + 1 = " + j) + "." });
+  for (;;) {
+    const inb = j < n, res = inb ? R.le(j - 1, j) : false, jj = j;
+    yield S("er.3", { cmp: inb ? [j - 1, j, res] : null,
+      msg: () => inb ? M("j = " + jj + " < n") + " and " + M("A[" + (jj - 1) + "] = " + val(R, jj - 1) + (res ? " \\le " : " > ") + "A[" + jj + "] = " + val(R, jj)) + " — " +
+                       (res ? '<span class="yes">still increasing</span>, go on.' : '<span class="no">a descent</span>: the run ends here.')
+                     : M("j = n = " + n) + ": the end of the array." });
+    if (!res) break;
+    j++; R.H.j = j;
+    yield S("er.4", { msg: () => M("j := " + j) + "." });
+  }
+  yield S("er.5", { msg: () => "Return " + M("j = " + j) + ": " + M("A[" + i + ".." + j + ")") + " is a run." });
+  R.ret(); R.H = null;
+  return j;
+}
+function* gExtL(R, j, site) {
+  R.call("extendRunLeft(A, " + j + ")", site, "helper");
+  R.H = { kind: "L", i: null, j };
+  yield S("el.1", { msg: () => "extendRunLeft" + M("(A, " + j + ")") + ": how far to the left does the run reach that contains " + M("A[" + j + "]") + "?" });
+  let i = j; R.H.i = i;
+  yield S("el.2", { msg: () => M("i := j = " + i) + "." });
+  for (;;) {
+    const inb = i > 0, res = inb ? R.le(i - 1, i) : false, ii = i;
+    yield S("el.3", { cmp: inb ? [i - 1, i, res] : null,
+      msg: () => inb ? M("i = " + ii + " > 0") + " and " + M("A[" + (ii - 1) + "] = " + val(R, ii - 1) + (res ? " \\le " : " > ") + "A[" + ii + "] = " + val(R, ii)) + " — " +
+                       (res ? '<span class="yes">still increasing</span>, go on.' : '<span class="no">a descent</span>: the run starts here.')
+                     : M("i = 0") + ": the start of the array." });
+    if (!res) break;
+    i--; R.H.i = i;
+    yield S("el.4", { msg: () => M("i := " + i) + "." });
+  }
+  yield S("el.5", { msg: () => "Return " + M("i = " + i) + ": " + M("A[" + i + ".." + j + "]") + " is a run." });
+  R.ret(); R.H = null;
+  return i;
+}
+
+/* what a Δ says, for the left resp. right end of A[l..r) */
+function sayDl(l, dl, name) {
+  name = name || "\\Delta_\\ell";
+  return dl > 0 ? M(name + " = " + dl + " > 0") + ": " + M("A[" + l + ".." + (l + dl) + ")") + " is a known run at the left end."
+       : dl < 0 ? M(name + " = " + mn(dl) + " < 0") + ": the wrong sign for a left end — no run is known there."
+       :          M(name + " = 0") + ": no run is known at the left end.";
+}
+function sayDr(r, dr, name) {
+  name = name || "\\Delta_r";
+  return dr < 0 ? M(name + " = " + mn(dr) + " < 0") + ": " + M("A[" + (r + dr) + ".." + r + ")") + " is a known run at the right end."
+       : dr > 0 ? M(name + " = " + dr + " > 0") + ": the wrong sign for a right end — no run is known there."
+       :          M(name + " = 0") + ": no run is known at the right end.";
+}
+const callTex = (l, r, dl, dr) => "\\text{peeksort}(A[" + l + ".." + r + "), " + mn(dl) + ", " + mn(dr) + ")";
+
+function* gPeek(R, l, r, dl, dr, parent, side, site, depth) {
+  const id = R.nodes.length;
+  const F = { id, l, r, dl, dr, parent, side, depth, runs: runsOf(R.vals, R.A, l, r) };
+  R.nodes.push(F); R.ts.push(1);
+  R.call("peeksort(A[" + l + ".." + r + "), " + dl + ", " + dr + ")", site, "peek");
+  R.F = F; R.tag = "node:" + id;
+  const enter = (parent < 0 ? "The initial call: " : "") + M(callTex(l, r, dl, dr)) + ", sort " + M("A[" + l + ".." + r + ")") + ".";
+  yield S("pk.1", { mile: 1, msg: () => enter + "<br>" + sayDl(l, dl) + "<br>" + sayDr(r, dr) });
+  if (r - l <= 1) {
+    R.ts[id] = 4;
+    yield S("pk.2", { mile: 1, msg: () => M("r - \\ell = " + (r - l) + " \\le 1") + ": " + (r === l ? "the part is empty" : "a single element is sorted") + " — return." });
+    R.ret(); return;
+  }
+  yield S("pk.2", { msg: () => M("r - \\ell = " + (r - l) + " > 1") + "." });
+  const runL = l + dl === r, runR = l === r + dr;
+  if (runL || runR) {
+    R.ts[id] = 4;
+    yield S("pk.3", { mile: 1, msg: () => (runL ? M("\\ell + \\Delta_\\ell = " + l + " + " + dl + " = " + r + " = r") + ": the known run at the left end"
+                                                : M("r + \\Delta_r = " + r + " " + (dr < 0 ? "-" : "+") + " " + Math.abs(dr) + " = " + l + " = \\ell") + ": the known run at the right end") +
+                                                " is all of " + M("A[" + l + ".." + r + ")") + ". Already sorted — return." });
+    R.ret(); return;
+  }
+  const wrongNote = (dl <= 0 || dr >= 0) ? " (A Δ with the wrong sign can never make these tests true: " +
+        (dl <= 0 ? M("\\ell + \\Delta_\\ell \\le \\ell < r") : M("r + \\Delta_r \\ge r > \\ell")) + ".)" : "";
+  yield S("pk.3", { msg: () => M("\\ell + \\Delta_\\ell = " + (l + dl) + " \\ne r = " + r) + " and " + M("r + \\Delta_r = " + (r + dr) + " \\ne \\ell = " + l) +
+                               ": not a single known run." + wrongNote });
+  const m = F.m = l + Math.floor((r - l) / 2); R.ts[id] = 2;
+  yield S("pk.4", { mile: 1, msg: () => M("m := \\ell + \\lfloor (r-\\ell)/2 \\rfloor = " + l + " + \\lfloor " + (r - l) + "/2 \\rfloor = " + m) + ": peek at the middle " + M("A[" + m + "]") + "." });
+
+  /* line 5: i */
+  if (l + dl >= m) {
+    F.i = l + dl; F.iBy = "delta";
+    yield S("pk.5", { mile: 1, msg: () => M("\\ell + \\Delta_\\ell = " + (l + dl) + " \\ge m = " + m) + ": the known run at the left end reaches the middle, so " +
+                                           M("i := \\ell + \\Delta_\\ell = " + F.i) + " — no scan needed." });
+  } else {
+    yield S("pk.5", { msg: () => M("\\ell + \\Delta_\\ell = " + (l + dl) + " < m = " + m) +
+                                 (dl > 0 ? " (the known run ends before the middle)" : " — automatically, as " + M("\\Delta_\\ell") + " has the wrong sign") +
+                                 ": scan from the middle to the left, " + M("i := \\text{extendRunLeft}(A, " + m + ")") + "." });
+    const i = yield* gExtL(R, m, "pk.5");
+    R.F = F; F.i = i; F.iBy = "scan";
+    yield S("pk.5", { mile: 1, msg: () => M("i = " + i) + ": the run containing " + M("A[" + m + "]") + " starts at " + i + "." });
+  }
+  /* line 6: j */
+  if (r + dr <= m) {
+    F.j = r + dr; F.jBy = "delta";
+    yield S("pk.6", { mile: 1, msg: () => M("r + \\Delta_r = " + (r + dr) + " \\le m = " + m) + ": the known run at the right end reaches the middle, so " +
+                                           M("j := r + \\Delta_r = " + F.j) + " — no scan needed." });
+  } else {
+    yield S("pk.6", { msg: () => M("r + \\Delta_r = " + (r + dr) + " > m = " + m) +
+                                 (dr < 0 ? " (the known run starts after the middle)" : " — automatically, as " + M("\\Delta_r") + " has the wrong sign") +
+                                 ": scan from the middle to the right, " + M("j := \\text{extendRunRight}(A, " + m + ")") + "." });
+    const j = yield* gExtR(R, m, "pk.6");
+    R.F = F; F.j = j; F.jBy = "scan";
+    yield S("pk.6", { mile: 1, msg: () => M("j = " + j) + ": the run containing " + M("A[" + m + "]") + " ends at " + j +
+                      (F.i < j ? ", so " + M("A[" + F.i + ".." + j + ")") + " is the run around the middle." : " — the same boundary as " + M("i") + ": the known run " + M("A[" + l + ".." + F.i + ")") + " reaches past the middle, and the scan finds its end again.") });
+  }
+  /* lines 7, 8: the cut */
+  const i = F.i, j = F.j, toI = m - i < j - m;
+  F.g = toI ? i : j; R.ts[id] = 3;
+  const g = F.g;
+  yield S("pk.7", { mile: 1, cut: 1, msg: () => M("m - i = " + mn(m - i) + (toI ? " < " : " \\ge ") + "j - m = " + mn(j - m)) + ": " +
+        (toI ? M("i") + " is the closer run boundary — cut at " + M("g := i = " + g) : M("j") + " is at least as close — cut at " + M("g := j = " + g)) + "." +
+        (g === l || g === r ? " The " + (g === l ? "left" : "right") + " part is empty: all of " + M("A[" + l + ".." + r + ")") + " is one run, which neither Δ knew about." : "") });
+  F.dg = toI ? j - i : i - j;
+  const dg = F.dg;
+  yield S("pk.8", { mile: 1, cut: 1, msg: () => M("\\Delta_g := " + (toI ? "j - i" : "i - j") + " = " + mn(dg)) + ". Both parts get this same number. " +
+        (dg > 0 ? "For the right part " + M("A[" + g + ".." + r + ")") + " it is a left " + M("\\Delta") + " with the right sign: " + M("A[" + g + ".." + (g + dg) + ")") +
+                  " is a known run. For the left part " + M("A[" + l + ".." + g + ")") + " it is a right " + M("\\Delta") + " with the wrong sign: no run known there."
+       : dg < 0 ? "For the left part " + M("A[" + l + ".." + g + ")") + " it is a right " + M("\\Delta") + " with the right sign: " + M("A[" + (g + dg) + ".." + g + ")") +
+                  " is a known run. For the right part " + M("A[" + g + ".." + r + ")") + " it is a left " + M("\\Delta") + " with the wrong sign: no run known there."
+       : M("i = j") + ", so this run has length 0: no information for either part.") });
+  yield S("pk.9", { mile: 1, tag: "next", msg: () => "Sort the left part: " + M(callTex(l, g, dl, dg)) + "." });
+  yield* gPeek(R, l, g, dl, dg, id, "L", "pk.9", depth + 1);
+  R.F = F;
+  yield S("pk.10", { mile: 1, tag: "next", msg: () => M("A[" + l + ".." + g + ")") + " is sorted. Now the right part: " + M(callTex(g, r, dg, dr)) + "." });
+  yield* gPeek(R, g, r, dg, dr, id, "R", "pk.10", depth + 1);
+  R.F = F; R.tag = "merge:" + id;
+  /* lines 11, 12: merge (atomic) and copy back */
+  const ids = [], A = R.A; let p = l, q = g;
+  while (p < g && q < r) ids.push(cmpVals(R.vals[A[p]], R.vals[A[q]]) <= 0 ? A[p++] : A[q++]);
+  while (p < g) ids.push(A[p++]);
+  while (q < r) ids.push(A[q++]);
+  R.buf = { lo: l, hi: r, ids, done: false }; R.mc += r - l;
+  yield S("pk.11", { mile: 1, msg: () => "Both parts are sorted: " + M("\\text{merge}(A[" + l + ".." + g + "), A[" + g + ".." + r + "), \\mathit{buf})") + ", in one step here. " +
+        (g === l || g === r ? "One part is empty, so this merge only copies: " : "Merge cost ") + M("r - \\ell = " + (r - l)) + "." });
+  for (let k = l; k < r; k++) A[k] = ids[k - l];
+  R.buf = { lo: l, hi: r, ids, done: true }; R.ts[id] = 5;
+  yield S("pk.12", { mile: 1, msg: () => "Copy " + M("\\mathit{buf}") + " to " + M("A[" + l + ".." + r + ")") + ": sorted. Return." });
+  R.buf = null;
+  R.ret();
+}
+
+function* gMain(R) {
+  const n = R.n;
+  R.tag = "init";
+  yield S("init.1", { mile: 1, msg: () => "Before the first call: find the runs at both ends of the array. " + M("\\Delta_0 := \\text{extendRunRight}(A, 0)") + "." });
+  const d0 = yield* gExtR(R, 0, "init.1");
+  R.init = { d0 };
+  yield S("init.1", { mile: 1, msg: () => M("\\Delta_0 = " + d0) + ": the first run is " + M("A[0.." + d0 + ")") + (d0 === n ? " — the whole array." : ".") });
+  yield S("init.2", { mile: 1, msg: () => M("\\Delta_n := \\text{extendRunLeft}(A, " + (n - 1) + ") - " + n) + "." });
+  const s = yield* gExtL(R, n - 1, "init.2");
+  R.init = { d0, dn: s - n };
+  yield S("init.2", { mile: 1, msg: () => M("\\Delta_n = " + s + " - " + n + " = " + mn(s - n)) + ": negative, minus the length of the last run " + M("A[" + s + ".." + n + ")") +
+        ". A right " + M("\\Delta") + " counts from the right end, so a known run there has a negative " + M("\\Delta") + "." });
+  yield S("init.3", { mile: 1, tag: "next", msg: () => "The initial call " + M(callTex(0, n, d0, s - n)) + ": both " + M("\\Delta") + "’s have the right sign." });
+  yield* gPeek(R, 0, n, d0, s - n, -1, "", "init.3", 0);
+  R.F = null; R.H = null;
+  yield S("init.3", { done: 1, mile: 1, msg: () => summary(R) });
+}
+function summary(R) {
+  const n = R.n, L = runsOf(R.vals, Array.from({ length: n }, (_, i) => i), 0, n).map(([a, b]) => b - a);
+  const H = L.reduce((h, x) => h + x * Math.log2(n / x), 0);
+  return "Sorted. Merge cost " + M(R.mc) + " (the sum of " + M("r - \\ell") + " over all merges). The input has " + L.length + " run" + (L.length > 1 ? "s" : "") +
+         (L.length > 1 ? ", and " + M("\\mathscr H(\\ell_1,\\ldots,\\ell_{" + L.length + "}) = \\sum_k \\ell_k \\lg(n/\\ell_k) \\approx " + H.toFixed(1)) +
+                         "; the analysis guarantees a merge cost of at most " + M("\\mathscr H + 2n \\approx " + (H + 2 * n).toFixed(1)) : ", nothing to merge.") +
+         "<br>The run scans compared " + M(R.nc) + " pairs of neighbours.";
+}
+
+/* ==========================================================================
+   Recording
+   ========================================================================== */
+const D = { inp: null, text: "", runs: null, seed: 1, preset: "slide", fine: [], vis: [], cur: 0, gran: "fine",
+            phases: [], timer: null, R: null, nodes: [], last: -2 };
+const MAX_N = 64;
+
+function recordSteps() {
+  const R = new Run(D.inp), fine = [];
+  for (const s of gMain(R)) {
+    fine.push({ s, A: R.A.slice(), buf: R.buf ? Object.assign({}, R.buf) : null, F: R.F ? Object.assign({}, R.F) : null,
+                H: R.H ? Object.assign({}, R.H) : null, init: Object.assign({}, R.init), ts: R.ts.slice(), nc: R.nc, mc: R.mc,
+                stack: R.stack, tag: s.tag || R.tag, msg: s.msg ? s.msg() : "" });
+  }
+  for (let k = fine.length - 2; k >= 0; k--) if (fine[k].tag === "next") fine[k].tag = fine[k + 1].tag;
+  D.R = R; D.fine = fine; D.nodes = R.nodes; D.n = R.n;
+  D.last = -2;
+  buildVisible();
+}
+const inHelper = f => f.stack.length && f.stack[f.stack.length - 1].kind === "helper";
+function buildVisible() {
+  D.vis = [];
+  D.fine.forEach((f, i) => { if (D.gran === "fine" || !inHelper(f)) D.vis.push(i); });
+  /* phases: maximal stretches of visible steps with the same tag */
+  D.phases = [];
+  D.vis.forEach((fi, vi) => {
+    const tag = D.fine[fi].tag, P = D.phases[D.phases.length - 1];
+    if (P && P.tag === tag) P.to = vi; else D.phases.push({ tag, from: vi, to: vi });
+  });
+  for (const P of D.phases) {
+    const [kind, id] = P.tag.split(":"), v = D.nodes[+id];
+    if (kind === "init") { P.names = ["initial call", "initial", "·"]; P.kind = "init"; P.title = "Before the first call: the runs at both ends"; continue; }
+    const rg = v.l + ".." + v.r;
+    if (kind === "merge") { P.names = ["merge " + rg, rg, "⋈"]; P.kind = "merge"; P.title = "merge A[" + v.l + ".." + v.r + ") and copy back"; }
+    else if (v.g === undefined) { P.names = ["run " + rg, rg, "·"]; P.kind = "leaf"; P.title = "peeksort(A[" + v.l + ".." + v.r + ")) returns at once"; }
+    else { P.names = ["peek " + rg, rg, "✂"]; P.kind = "split"; P.title = "peeksort(A[" + v.l + ".." + v.r + ")): find the cut"; }
+  }
+  buildPhaseBar();
+}
+
+/* ==========================================================================
+   Phase bar: widths ∝ number of steps, at least PH_MIN px (water filling);
+   the slider maps piecewise-linearly onto exactly these widths
+   ========================================================================== */
+const PH_MIN = 30, SCALE = 100000;
+function buildPhaseBar() {
+  const bar = el("phaseBar");
+  bar.innerHTML = D.phases.map((P, i) => '<button class="phasebtn k-' + P.kind + '" data-p="' + i + '" title="' + esc(P.title) + '"><span class="fill empty"></span><span class="lab"></span></button>').join("");
+  bar.querySelectorAll(".phasebtn").forEach(b => b.onclick = () => { stepsStop(); D.cur = D.phases[+b.dataset.p].from; stepsRender(); });
+  const digits = String(D.vis.length).length;
+  el("stepNo").style.minWidth = (2 * digits + 3) + "ch";
+  fitPhaseBar();
+}
+function fitPhaseBar() {
+  const bar = el("phaseBar"), W = bar.getBoundingClientRect().width, P = D.phases;
+  if (!W || !P.length) return;
+  const k = P.map(p => p.to - p.from + 1);
+  let w;
+  if (P.length * PH_MIN >= W) w = P.map(() => W / P.length);
+  else {
+    const fixed = new Set();
+    for (;;) {
+      const rest = k.reduce((s, x, i) => fixed.has(i) ? s : s + x, 0), room = W - fixed.size * PH_MIN, c = room / rest;
+      let more = false;
+      k.forEach((x, i) => { if (!fixed.has(i) && c * x < PH_MIN) { fixed.add(i); more = true; } });
+      if (!more) { w = k.map((x, i) => fixed.has(i) ? PH_MIN : c * x); break; }
+    }
+  }
+  let x = 0;
+  D.pw = w; D.px = w.map(v => { const a = x; x += v; return a; }); D.pW = W;
+  const btns = bar.querySelectorAll(".phasebtn");
+  btns.forEach((b, i) => {
+    b.style.width = w[i] + "px";
+    const font = getComputedStyle(b).font, lab = b.querySelector(".lab");
+    lab.textContent = P[i].names.find(s => textW(s, font) <= w[i] - 5) || "";
+    b.title = P[i].title;
+  });
+}
+const phaseOf = vi => { let lo = 0, hi = D.phases.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (D.phases[m].from <= vi) lo = m; else hi = m - 1; } return lo; };
+function stepToVal(vi) {
+  const p = phaseOf(vi), P = D.phases[p], k = P.to - P.from + 1;
+  return Math.round((D.px[p] + (vi - P.from + 0.5) / k * D.pw[p]) / D.pW * SCALE);
+}
+function valToStep(v) {
+  const x = v / SCALE * D.pW;
+  let p = 0; while (p + 1 < D.phases.length && D.px[p + 1] <= x) p++;
+  const P = D.phases[p], k = P.to - P.from + 1;
+  return P.from + clamp(Math.floor((x - D.px[p]) / D.pw[p] * k), 0, k - 1);
+}
+
+/* ==========================================================================
+   Colours, small SVG helpers
+   ========================================================================== */
+const COL = {};
+function hex2rgb(h) { h = h.trim().replace("#", ""); if (h.length === 3) h = h.split("").map(x => x + x).join(""); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); }
+function readColors() {
+  const cs = getComputedStyle(document.documentElement);
+  COL.lo = hex2rgb(cs.getPropertyValue("--wi-ramp-lo") || "#e5c0b4"); COL.hi = hex2rgb(cs.getPropertyValue("--wi-ramp-hi") || "#902015");
+}
+const ramp = m => "rgb(" + COL.lo.map((a, i) => Math.round(a + (COL.hi[i] - a) * clamp(m, 0, 1))).join(",") + ")";
+function labSvg(id) {
+  const o = TAGS && D.inp.occ[id] ? '<tspan dy="4" font-size="70%">' + D.inp.occ[id] + "</tspan>" : "";
+  return esc(D.inp.labels[id]) + o;
+}
+const SVG_DEFS = '<defs>' +
+  '<marker id="hd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--wi-accent-dark)"/></marker>' +
+  '<marker id="hq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--wi-queue)"/></marker>' +
+  '<marker id="ho" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9" fill="none" stroke="var(--wi-ink-faint)" stroke-width="1.4"/></marker>' +
+  '<marker id="hs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--wi-accent)"/></marker></defs>';
+/* scissors, blades pointing up, centred at (x, y) */
+function scissors(x, y, s, col) {
+  col = col || "var(--wi-accent)";
+  return '<g transform="translate(' + x.toFixed(1) + "," + y.toFixed(1) + ')" stroke="' + col + '" fill="none" stroke-width="1.5" stroke-linecap="round">' +
+         '<circle cx="' + (-0.3 * s) + '" cy="' + (0.55 * s) + '" r="' + (0.22 * s) + '"/><circle cx="' + (0.3 * s) + '" cy="' + (0.55 * s) + '" r="' + (0.22 * s) + '"/>' +
+         '<line x1="' + (-0.2 * s) + '" y1="' + (0.37 * s) + '" x2="' + (0.12 * s) + '" y2="' + (-0.6 * s) + '"/><line x1="' + (0.2 * s) + '" y1="' + (0.37 * s) + '" x2="' + (-0.12 * s) + '" y2="' + (-0.6 * s) + '"/></g>';
+}
+
+/* ==========================================================================
+   The recursion, in the style of the slides: each call one row lower, the
+   parts of a cut pulled apart, merge nodes on the cuts
+   ========================================================================== */
+const TREE = { rowH: 60, top: 12 };
+function treeLayout(W) {
+  const nodes = D.nodes, n = D.n;
+  let lo = 0, hi = 0, depth = 0;
+  for (const v of nodes) {
+    v.off = v.parent < 0 ? 0 : nodes[v.parent].off + (v.side === "L" ? -1 : 1);
+    lo = Math.min(lo, v.off); hi = Math.max(hi, v.off); depth = Math.max(depth, v.depth);
+  }
+  const spread = hi - lo, pad = 14, c = spread ? Math.min(0.9, 0.6 * n / spread) : 0;
+  const u = Math.min(30, (W - 2 * pad) / (n + c * spread)), s = c * u;
+  const x0 = (W - n * u - spread * s) / 2 - lo * s;
+  return { u, s, X: (v, k) => x0 + v.off * s + k * u, H: TREE.top + (depth + 1) * TREE.rowH + 4 };
+}
+function svgTree(W, f) {
+  const T = treeLayout(W), ts = f.ts, nodes = D.nodes, cur = f.F ? f.F.id : -1, ln = f.s.ln;
+  const st = v => ts[v.id] || 0;
+  const rowTop = v => TREE.top + v.depth * TREE.rowH, boxY = v => rowTop(v) + 30, BH = 16;
+  let edges = "", body = "", over = "";
+  for (const v of nodes) {
+    const t = st(v); if (!t) continue;
+    const X0 = T.X(v, v.l), X1 = T.X(v, v.r), y = boxY(v), isCur = v.id === cur, op = isCur ? 1 : 0.4;
+    /* edge to the parent's merge node */
+    if (v.parent >= 0) {
+      const p = nodes[v.parent], px = T.X(p, p.g), py = boxY(p) + BH / 2;
+      const cxv = v.g !== undefined && t !== 4 && (t >= 3) ? T.X(v, v.g) : (X0 + X1) / 2, cyv = v.g !== undefined && t >= 3 && t !== 4 ? y + BH / 2 : y;
+      edges += '<line x1="' + cxv.toFixed(1) + '" y1="' + cyv.toFixed(1) + '" x2="' + px.toFixed(1) + '" y2="' + py.toFixed(1) + '" stroke="#a69e93" stroke-width="3.2" stroke-linecap="round" opacity=".6"/>';
+    }
+    /* the runs of the call; a returned call as a leaf run, a merged call as a merge result */
+    if (t === 4) {
+      if (v.r > v.l) body += '<rect x="' + (X0 + 1).toFixed(1) + '" y="' + y + '" width="' + Math.max(1, X1 - X0 - 2).toFixed(1) + '" height="' + BH + '" rx="2" fill="var(--t-leaf)" stroke="var(--t-leaf-line)" stroke-width="1.1"/>' +
+                            (X1 - X0 >= 14 ? '<text class="sv-len" x="' + ((X0 + X1) / 2).toFixed(1) + '" y="' + (y + 12) + '">' + (v.r - v.l) + "</text>" : "");
+      else body += '<text class="sv-len" x="' + X0.toFixed(1) + '" y="' + (y + 12) + '" style="fill:var(--wi-ink-faint)">∅</text>';
+    } else if (t === 5) {
+      body += '<rect x="' + (X0 + 0.5).toFixed(1) + '" y="' + (y - 1) + '" width="' + (X1 - X0 - 1).toFixed(1) + '" height="' + (BH + 2) + '" rx="4" fill="var(--t-merged)" stroke="var(--t-merged-line)" stroke-width="1.2"/>';
+    } else {
+      for (const [a, b] of v.runs) {
+        const xa = T.X(v, a), xb = T.X(v, b), known = (v.dl > 0 && a === v.l && b === v.l + v.dl) || (v.dr < 0 && b === v.r && a === v.r + v.dr);
+        body += '<rect x="' + (xa + 1).toFixed(1) + '" y="' + y + '" width="' + Math.max(1, xb - xa - 2).toFixed(1) + '" height="' + BH + '" rx="2" fill="var(--t-run)" stroke="' +
+                (known ? "var(--wi-accent)" : "var(--t-run-line)") + '" stroke-width="' + (known ? 2.2 : 1) + '"/>' +
+                (xb - xa >= 14 ? '<text class="sv-len" x="' + ((xa + xb) / 2).toFixed(1) + '" y="' + (y + 12) + '">' + (b - a) + "</text>" : "");
+      }
+    }
+    if (isCur) over += '<rect x="' + (X0 - 3).toFixed(1) + '" y="' + (y - 5) + '" width="' + (X1 - X0 + 6).toFixed(1) + '" height="' + (BH + 10) + '" rx="5" fill="none" stroke="var(--wi-active)" stroke-width="1.5" stroke-dasharray="4 3"/>';
+    /* the peek: interval with its midpoint ½, the dotted path to the cut, the merge node */
+    if (v.m !== undefined && (t === 2 || t === 3 || t === 5)) {
+      const iy = rowTop(v) + 18, xm = T.X(v, (v.l + v.r) / 2);
+      over += '<g opacity="' + op + '"><line x1="' + X0.toFixed(1) + '" x2="' + X1.toFixed(1) + '" y1="' + iy + '" y2="' + iy + '" stroke="var(--wi-accent)" stroke-width="1.4"/>' +
+              '<line x1="' + X0.toFixed(1) + '" x2="' + X0.toFixed(1) + '" y1="' + (iy - 4) + '" y2="' + (iy + 4) + '" stroke="var(--wi-accent)" stroke-width="1.4"/>' +
+              '<line x1="' + X1.toFixed(1) + '" x2="' + X1.toFixed(1) + '" y1="' + (iy - 4) + '" y2="' + (iy + 4) + '" stroke="var(--wi-accent)" stroke-width="1.4"/>' +
+              '<line x1="' + xm.toFixed(1) + '" x2="' + xm.toFixed(1) + '" y1="' + (iy - 3) + '" y2="' + (iy + 3) + '" stroke="var(--wi-accent)" stroke-width="1.4"/>' +
+              mathAt("\\tfrac12", xm, iy - 5, 12, "middle", "var(--wi-accent)", "½").svg;
+      const Fs = isCur ? f.F : null;
+      if (Fs && Fs.i === undefined && (ln === "pk.5" || ln.startsWith("el.")))
+        over += '<line x1="' + (xm - 3) + '" x2="' + (xm - 16) + '" y1="' + (iy + 6) + '" y2="' + (iy + 6) + '" stroke="var(--wi-accent)" stroke-width="1.3" marker-end="url(#hs)"/>';
+      if (Fs && Fs.i !== undefined && Fs.j === undefined && (ln === "pk.6" || ln.startsWith("er.")))
+        over += '<line x1="' + (xm + 3) + '" x2="' + (xm + 16) + '" y1="' + (iy + 6) + '" y2="' + (iy + 6) + '" stroke="var(--wi-accent)" stroke-width="1.3" marker-end="url(#hs)"/>';
+      over += "</g>";
+      if (t === 3 || t === 5) {
+        const xc = T.X(v, v.g);
+        over += '<path d="M' + xm.toFixed(1) + "," + (iy + 1) + " C" + xm.toFixed(1) + "," + (y - 2) + " " + xc.toFixed(1) + "," + (iy + 2) + " " + xc.toFixed(1) + "," + (y - 2) +
+                " L" + xc.toFixed(1) + "," + (y + BH + 3) + '" fill="none" stroke="var(--wi-accent)" stroke-width="1.4" stroke-dasharray="1.6 2.4" opacity="' + op + '"/>';
+        over += '<circle cx="' + xc.toFixed(1) + '" cy="' + (y + BH / 2) + '" r="6.5" fill="#cfc7bf" stroke="var(--wi-ink-strong)" stroke-width="1.6" opacity=".8"/>';
+        if (isCur && (ln === "pk.7" || ln === "pk.8")) over += scissors(xc, y + BH + 11, 13);
+      }
+    }
+    /* while the current call looks for it: the run around the middle, underlined */
+    if (isCur && f.F && f.F.i !== undefined && f.F.j !== undefined && f.F.j > f.F.i && t === 2)
+      over += '<rect x="' + T.X(v, f.F.i).toFixed(1) + '" y="' + (y + BH + 2) + '" width="' + (T.X(v, f.F.j) - T.X(v, f.F.i)).toFixed(1) + '" height="3.5" rx="1.5" fill="var(--wi-queue)"/>';
+  }
+  return { h: T.H, body: edges + body + over };
+}
+
+/* ==========================================================================
+   The current call in detail: the array, ℓ m r i j g, the Δ's as arrows
+   ========================================================================== */
+const DROWS = { ptr: 3 };
+function svgDetail(W, f) {
+  const n = D.n, s = f.s, mag = D.inp.mag, F = f.F, H = f.H;
+  const padL = 64, padR = 18;
+  const p = clamp((W - padL - padR) / n, 12, 48);
+  const x0 = padL + Math.max(0, (W - padL - padR - n * p) / 2);
+  const ex = k => x0 + k * p, cx = k => x0 + (k + 0.5) * p;
+  const bw = p * 0.72, showVal = p >= 15;
+  const topM = 34, Hb = n > 40 ? 120 : 150, base = topM + Hb;
+  const valY = base + 17, idxY = base + (showVal ? 31 : 14);
+  const ptrY = idxY + 18, knownY = ptrY + DROWS.ptr * 17 + 4;
+  const dY = [knownY + 38, knownY + 64, knownY + 92], bufY = dY[2] + 24, H0 = bufY + 26 + 8;
+  let body = "";
+  const l = F ? F.l : 0, r = F ? F.r : n;
+  const fin = !!s.done;
+  const dl = fin ? undefined : F ? F.dl : f.init.d0, dr = fin ? undefined : F ? F.dr : f.init.dn;
+  const rect = (a, b, y, h, fill, extra) => b > a ? '<rect x="' + (ex(a) + 1).toFixed(1) + '" y="' + y + '" width="' + ((b - a) * p - 2).toFixed(1) + '" height="' + h + '" rx="3" style="fill:' + fill + '"' + (extra || "") + "/>" : "";
+
+  /* the merge, animated: wrap an element's marks in a group that flies in from (dx, dy) */
+  const B0 = f.buf, flying = B0 && D.animEl !== null && (s.ln === "pk.11" || s.ln === "pk.12");
+  const stag = B0 ? Math.min(70, 650 / Math.max(1, B0.hi - B0.lo)) : 0;
+  const fly = (marks, dx, dy, order) => '<g class="fly" style="--dx:' + dx.toFixed(1) + "px;--dy:" + dy.toFixed(1) + "px;animation-delay:" + (order * stag - D.animEl).toFixed(0) + 'ms">' + marks + "</g>";
+
+  if (flying) body += '<defs><clipPath id="barclip"><rect x="0" y="0" width="' + W + '" height="' + (base + 0.5) + '"/></clipPath></defs>';
+
+  /* regions behind the bars */
+  if (F) body += rect(l, r, topM - 12, Hb + 14, "var(--t-range)");
+  if (dl !== undefined && dl > 0 && l + dl <= n) body += rect(l, l + dl, topM - 8, Hb + 10, "var(--t-known)");
+  if (dr !== undefined && dr < 0) body += rect(r + dr, r, topM - 8, Hb + 10, "var(--t-known)");
+  if (H) body += H.kind === "R" ? rect(H.i, H.j, topM - 4, Hb + 6, "var(--t-found)", ' opacity=".75"') : rect(H.i, H.j + 1, topM - 4, Hb + 6, "var(--t-found)", ' opacity=".75"');
+  else if (F && F.i !== undefined && F.j !== undefined && F.j > F.i) body += rect(F.i, F.j, topM - 4, Hb + 6, "var(--t-found)");
+
+  /* bars */
+  const cmp = s.cmp, outl = new Set(cmp ? [cmp[0], cmp[1]] : []);
+  for (let k = 0; k < n; k++) {
+    const id = f.A[k], hh = (0.06 + 0.94 * mag[id]) * Hb, inR = !F || (k >= l && k < r), op = inR ? 1 : 0.28;
+    const bar = '<rect x="' + (cx(k) - bw / 2).toFixed(1) + '" y="' + (base - hh).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + hh.toFixed(1) + '" fill="' + ramp(mag[id]) + '" opacity="' + op + '"' +
+                (outl.has(k) ? ' stroke="var(--wi-active)" stroke-width="2.6"' : "") + "/>";
+    const lab = showVal ? '<text class="sv-val' + (inR ? "" : " dim") + '" x="' + cx(k).toFixed(1) + '" y="' + valY + '"' + (p < 26 ? ' font-size="' + Math.max(9, p * 0.52).toFixed(1) + '"' : "") + ">" + labSvg(id) + "</text>" : "";
+    /* copy back: the value flies up from its place in buf to the same place in A, its bar rises out of the baseline */
+    if (flying && s.ln === "pk.12" && k >= B0.lo && k < B0.hi)
+      body += '<g clip-path="url(#barclip)">' + fly(bar, 0, hh + 2, k - B0.lo) + "</g>" + fly(lab, 0, bufY + 17 - valY, k - B0.lo);
+    else body += bar + lab;
+    if (p >= 16 || k % 5 === 0) body += '<text class="sv-idx" x="' + cx(k).toFixed(1) + '" y="' + idxY + '">' + k + "</text>";
+  }
+  body += '<text class="sv-row" x="6" y="' + (base - 4) + '">A</text>';
+  /* a comparison A[x−1] ≤ A[x] */
+  if (cmp) {
+    const [a, b, res] = cmp, top = k => base - (0.06 + 0.94 * mag[f.A[k]]) * Hb - 5;
+    const yb = Math.max(14, Math.min(top(a), top(b)) - 14), xm = (cx(a) + cx(b)) / 2;
+    body += '<path d="M' + cx(a).toFixed(1) + "," + top(a).toFixed(1) + " L" + cx(a).toFixed(1) + "," + yb + " L" + cx(b).toFixed(1) + "," + yb + " L" + cx(b).toFixed(1) + "," + top(b).toFixed(1) + '" fill="none" stroke="var(--wi-active)" stroke-width="1.6"/>' +
+            '<circle cx="' + xm.toFixed(1) + '" cy="' + yb + '" r="10" fill="var(--wi-active)"/><text class="sv-badge" x="' + xm.toFixed(1) + '" y="' + (yb + 0.5) + '">' + (res ? "≤" : "&gt;") + "</text>";
+  }
+  /* the cut */
+  if (F && F.g !== undefined) {
+    const xg = ex(F.g);
+    body += '<line x1="' + xg.toFixed(1) + '" x2="' + xg.toFixed(1) + '" y1="' + (topM - 16) + '" y2="' + (idxY + 4) + '" stroke="var(--wi-active)" stroke-width="2" stroke-dasharray="6 4"/>';
+    if (s.ln === "pk.7" || s.ln === "pk.8") body += scissors(xg, topM - 22, 13, "var(--wi-active)");
+  }
+
+  /* pointers: ℓ r i j g at the gaps between elements, m at an element */
+  const P = [];
+  if (F) {
+    P.push(["\\ell", "ℓ", l, "e", "var(--wi-ink-soft)"], ["r", "r", r, "e", "var(--wi-ink-soft)"]);
+    if (F.m !== undefined) P.push(["m", "m", F.m, "c", "var(--wi-relax)"]);
+    if (F.i !== undefined) P.push(["i", "i", F.i, "e", "var(--wi-accent)"]);
+    if (F.j !== undefined) P.push(["j", "j", F.j, "e", "var(--wi-examine)"]);
+    if (F.g !== undefined) P.push(["g", "g", F.g, "e", "var(--wi-active)"]);
+  }
+  if (H) { if (H.kind === "R" && H.j !== null) P.push(["j", "j", H.j, "e", "var(--wi-examine)"]); if (H.kind === "L" && H.i !== null) P.push(["i", "i", H.i, "e", "var(--wi-accent)"]); }
+  const placed = P.map(q => [q[3] === "e" ? ex(q[2]) : cx(q[2])].concat(q)).sort((a, b) => a[0] - b[0]), rowEnd = [];
+  for (const [x, tex, plain, , kind, col] of placed) {
+    let row = 0; while (row < rowEnd.length && rowEnd[row] > x - 14) row++;
+    rowEnd[row] = x;
+    const y = ptrY + Math.min(row, DROWS.ptr - 1) * 17;
+    body += '<path d="M' + (x - 4).toFixed(1) + "," + (ptrY - 3) + " L" + x.toFixed(1) + "," + (ptrY - 9) + " L" + (x + 4).toFixed(1) + "," + (ptrY - 3) + 'z" style="fill:' + col + '"/>';
+    if (kind === "e") body += '<line x1="' + x.toFixed(1) + '" x2="' + x.toFixed(1) + '" y1="' + (idxY - 10) + '" y2="' + (ptrY - 8) + '" style="stroke:' + col + '" stroke-width="1"/>';
+    if (row) body += '<line x1="' + x.toFixed(1) + '" x2="' + x.toFixed(1) + '" y1="' + (ptrY - 2) + '" y2="' + (y - 3) + '" style="stroke:' + col + '" stroke-width=".8" stroke-dasharray="1.5 1.5"/>';
+    body += mathAt(tex, x, y + 9, 15, "middle", col, plain).svg;
+  }
+
+  /* the slides' picture of the parameters: A[ℓ..r) with the runs known at its ends */
+  const ky = knownY + 4, kh = 20;
+  body += '<text class="sv-row" x="6" y="' + (ky + 14) + '">known</text>';
+  if (!fin && (F || f.init.d0 !== undefined)) {
+    body += '<rect x="' + ex(l).toFixed(1) + '" y="' + ky + '" width="' + ((r - l) * p).toFixed(1) + '" height="' + kh + '" rx="2" fill="var(--t-merged)" stroke="var(--t-merged-line)" stroke-width="1.1" opacity=".9"/>';
+    const inner = (a, b) => b > a ? '<rect x="' + (ex(a) + 2).toFixed(1) + '" y="' + (ky + 3) + '" width="' + ((b - a) * p - 4).toFixed(1) + '" height="' + (kh - 6) + '" rx="1.5" fill="var(--t-run)" stroke="var(--t-run-line)" stroke-width="1"/>' : "";
+    if (dl !== undefined && dl > 0) body += inner(l, l + dl);
+    if (dr !== undefined && dr < 0) body += inner(r + dr, r);
+    if (!(dl > 0)) body += '<text class="sv-note bad" x="' + (ex(l) + 6).toFixed(1) + '" y="' + (ky + 14.5) + '">?</text>';
+    if (!(dr < 0)) body += '<text class="sv-note bad" x="' + (ex(r) - 6).toFixed(1) + '" y="' + (ky + 14.5) + '" text-anchor="end">?</text>';
+  }
+
+  /* the Δ's as arrows from their end: into A[ℓ..r) = a known run, out of it = the wrong sign */
+  const font = "13.5px " + BODYFONT();
+  const arrow = (row, from, d, kind, nameTex, namePlain) => {
+    const y = dY[row];
+    if (d === undefined) return "";
+    const x1 = ex(from), x2 = ex(from + d);
+    const ok = kind === "L" ? d > 0 : kind === "R" ? d < 0 : d !== 0;
+    let g = "", note;
+    if (d === 0) {
+      g += '<circle cx="' + x1.toFixed(1) + '" cy="' + y + '" r="4" fill="none" stroke="var(--wi-ink-faint)" stroke-width="1.5"/>';
+      note = kind === "G" ? "a run of length 0: no information for either part" : "no known run";
+    } else {
+      const col = kind === "G" ? "var(--wi-queue)" : ok ? "var(--wi-accent-dark)" : "var(--wi-ink-faint)";
+      const mk = kind === "G" ? "hq" : ok ? "hd" : "ho";
+      g += '<line x1="' + x1.toFixed(1) + '" x2="' + x1.toFixed(1) + '" y1="' + (y - 6) + '" y2="' + (y + 6) + '" style="stroke:' + col + '" stroke-width="1.6"/>' +
+           '<line x1="' + x1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y1="' + y + '" y2="' + y + '" style="stroke:' + col + '" stroke-width="' + (ok ? 2.2 : 1.6) + '"' +
+           (ok ? "" : ' stroke-dasharray="5 3"') + ' marker-end="url(#' + mk + ')"/>';
+      if (kind === "L" || kind === "R") note = ok ? ["known run"] : ["wrong sign: no known run"];
+      else note = d > 0 ? ["right part: a known run", "left part: the wrong sign"] : ["left part: a known run", "right part: the wrong sign"];
+    }
+    if (typeof note === "string") note = [note];
+    const lab = nameTex + " = " + mn(d), labPlain = namePlain + " = " + d;
+    const mw = mathAt(lab, 0, 0, 15, "start", "#000", labPlain).w;
+    const one = note.join(" · "), w1 = mw + 8 + textW(one, font), w2 = mw + 8 + Math.max(...note.map(t => textW(t, font)));
+    const right = Math.max(x1, x2) + 10, left = Math.min(x1, x2) - 10, roomR = W - 4 - right, roomL = left - 34;
+    const lines = (w1 <= Math.max(roomR, roomL) || note.length === 1) ? [one] : note, tot = lines.length > 1 ? w2 : w1;
+    const onRight = tot <= roomR || roomR >= roomL;
+    const col = ok || kind === "G" ? "var(--wi-ink-strong)" : "var(--wi-ink-faint)", cls = "sv-note" + (ok || kind === "G" ? "" : " bad");
+    const tx0 = onRight ? right + mw + 8 : left - tot + mw + 8;
+    g += mathAt(lab, onRight ? right : left - tot, y + 5, 15, "start", col, labPlain).svg;
+    lines.forEach((t, q) => { g += '<text class="' + cls + '" x="' + tx0.toFixed(1) + '" y="' + (y + 4.5 + (lines.length > 1 ? (q - 0.5) * 14 : 0)).toFixed(1) + '">' + esc(t) + "</text>"; });
+    return g;
+  };
+  const nm = F ? [["\\Delta_\\ell", "Δℓ"], ["\\Delta_r", "Δr"]] : [["\\Delta_0", "Δ0"], ["\\Delta_n", "Δn"]];
+  body += mathAt(nm[0][0], 6, dY[0] + 5, 15, "start", "var(--wi-ink-soft)", nm[0][1]).svg + mathAt(nm[1][0], 6, dY[1] + 5, 15, "start", "var(--wi-ink-soft)", nm[1][1]).svg +
+          mathAt("\\Delta_g", 6, dY[2] + 5, 15, "start", "var(--wi-ink-soft)", "Δg").svg;
+  if (dl !== undefined) body += arrow(0, l, dl, "L", nm[0][0], nm[0][1]);
+  if (dr !== undefined) body += arrow(1, r, dr, "R", nm[1][0], nm[1][1]);
+  if (F && F.dg !== undefined) body += arrow(2, F.g, F.dg, "G", "\\Delta_g", "Δg");
+
+  /* buf */
+  body += '<text class="sv-row" x="6" y="' + (bufY + 17) + '">buf</text>';
+  if (f.buf) {
+    const B = f.buf;
+    for (let k = B.lo; k < B.hi; k++) {
+      const id = B.ids[k - B.lo];
+      let mk = '<rect x="' + (ex(k) + 1).toFixed(1) + '" y="' + bufY + '" width="' + (p - 2).toFixed(1) + '" height="24" rx="2" fill="' + ramp(mag[id]) + '" opacity="' + (B.done ? 0.3 : 0.85) + '"/>';
+      if (showVal) mk += '<text class="sv-val" x="' + cx(k).toFixed(1) + '" y="' + (bufY + 17) + '"' + (p < 26 ? ' font-size="' + Math.max(9, p * 0.52).toFixed(1) + '"' : "") + (B.done ? ' opacity=".45"' : "") + ">" + labSvg(id) + "</text>";
+      /* merge: each element moves from its place in A to its place in buf, in the order the merge outputs them */
+      const src = f.A.indexOf(id);
+      body += flying && s.ln === "pk.11" ? fly(mk, cx(src) - cx(k), valY - 17 - bufY, k - B.lo) : mk;
+    }
+  } else body += '<rect x="' + ex(0).toFixed(1) + '" y="' + bufY + '" width="' + (n * p).toFixed(1) + '" height="24" rx="2" fill="none" stroke="var(--wi-border-soft)" stroke-dasharray="3 4"/>';
+  return { h: H0, body };
+}
+
+/* ==========================================================================
+   Rendering one step
+   ========================================================================== */
+function setSvg(svg, out, W) {
+  svg.setAttribute("width", W); svg.setAttribute("height", out.h); svg.setAttribute("viewBox", "0 0 " + W + " " + out.h);
+  svg.innerHTML = SVG_DEFS + out.body;
+}
+function stepsRender() {
+  if (!D.fine.length) return;
+  const vi = D.cur, fi = D.vis[vi], f = D.fine[fi], s = f.s;
+  /* the merge animation runs when the step is reached by stepping forward; a re-render of the same step continues it */
+  const now = performance.now();
+  if (D.prevVi === vi - 1) D.anim = { vi, t0: now };       /* prevVi === vi on a re-render: carry on */
+  D.prevVi = vi;
+  D.animEl = D.anim && D.anim.vi === vi ? now - D.anim.t0 : null;
+  TAGS = el("tagChk").checked;
+  const W1 = Math.max(320, el("treeWrap").clientWidth), W2 = Math.max(320, el("detWrap").clientWidth);
+  setSvg(el("treeSvg"), svgTree(W1, f), W1);
+  setSvg(el("detSvg"), svgDetail(W2, f), W2);
+  setMath(el("statusBox"), f.msg);
+  highlightCode(s.ln, f.stack);
+  /* variables */
+  const prev = vi > 0 ? D.fine[D.vis[vi - 1]] : null;
+  const chip = (tex, v, old) => '<span class="v' + (old !== undefined && old !== v ? " chg" : "") + '">' + M(tex + " = " + mn(v)) + "</span>";
+  let vh = "";
+  if (f.F) {
+    const F = f.F, O = prev && prev.F && prev.F.id === F.id ? prev.F : {};
+    vh += '<span class="grp"><span class="k">peeksort</span>' + chip("\\ell", F.l) + chip("r", F.r) + chip("\\Delta_\\ell", F.dl) + chip("\\Delta_r", F.dr);
+    for (const [k, tex] of [["m", "m"], ["i", "i"], ["j", "j"], ["g", "g"], ["dg", "\\Delta_g"]]) if (F[k] !== undefined) vh += chip(tex, F[k], O[k] === undefined ? (prev ? null : undefined) : O[k]);
+    vh += "</span>";
+  } else if (f.init.d0 !== undefined) {
+    vh += '<span class="grp"><span class="k">initial</span>' + chip("\\Delta_0", f.init.d0) + (f.init.dn !== undefined ? chip("\\Delta_n", f.init.dn) : "") + "</span>";
+  }
+  if (f.H) {
+    const H = f.H, O = prev && prev.H && prev.H.kind === H.kind ? prev.H : {};
+    vh += '<span class="grp"><span class="k">' + (H.kind === "R" ? "extendRunRight" : "extendRunLeft") + "</span>" +
+          (H.i !== null ? chip("i", H.i, O.i) : "") + (H.j !== null ? chip("j", H.j, O.j) : "") + "</span>";
+  }
+  vh += '<span class="cnt"><span><span class="k">comparisons in scans</span> <code>' + f.nc + '</code></span><span><span class="k">merge cost</span> <code>' + f.mc + "</code></span></span>";
+  setMath(el("varsBox"), vh);
+  el("stackBox").innerHTML = f.stack.length
+    ? '<span class="k" style="font-family:var(--wi-font-head);font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--wi-ink-faint)">Call stack</span> ' +
+      f.stack.map((fr, i) => "<code" + (i === f.stack.length - 1 ? ' class="top"' : "") + ">" + esc(fr.label) + "</code>").join(' <span class="sep">›</span> ')
+    : "";
+  el("detMeta").textContent = f.F ? "peeksort(A[" + f.F.l + ".." + f.F.r + "), " + f.F.dl + ", " + f.F.dr + ")" + (f.H ? " › " + f.stack[f.stack.length - 1].label : "")
+                                  : s.done ? "done" : "before the first call" + (f.H ? " › " + f.stack[f.stack.length - 1].label : "");
+  const called = f.ts.length, total = D.nodes.length;
+  el("treeMeta").textContent = called + " of " + total + " calls so far" + (s.done ? " — merge cost " + f.mc : "");
+  /* phase bar, slider */
+  const pi = phaseOf(vi);
+  el("phaseBar").querySelectorAll(".phasebtn").forEach((b, i) => {
+    const P = D.phases[i], frac = vi > P.to ? 1 : vi < P.from ? 0 : (vi - P.from + 1) / (P.to - P.from + 1);
+    b.classList.toggle("on", i === pi); b.classList.toggle("past", vi > P.to);
+    const fl = b.querySelector(".fill"); fl.style.width = (frac * 100) + "%"; fl.classList.toggle("empty", frac === 0 || frac === 1);
+  });
+  el("phaseName").textContent = D.phases[pi].names[0];
+  el("scrubber").value = stepToVal(vi);
+  el("stepNo").textContent = (vi + 1) + " / " + D.vis.length;
+  el("sBack").disabled = vi === 0; el("sReset").disabled = vi === 0; el("sStep").disabled = vi >= D.vis.length - 1;
+}
+
+/* ==========================================================================
+   Transport
+   ========================================================================== */
+function stepsGo(d) { stepsStop(); D.cur = clamp(D.cur + d, 0, D.vis.length - 1); stepsRender(); }
+function stepsStop() { if (D.timer) { clearTimeout(D.timer); D.timer = null; } stepsPlayUI(); }
+function stepsPlay() {
+  if (D.timer) { stepsStop(); return; }
+  if (D.cur >= D.vis.length - 1) D.cur = 0;
+  const tick = () => {
+    if (D.cur >= D.vis.length - 1) { stepsStop(); return; }
+    D.cur++; stepsRender();
+    D.timer = setTimeout(tick, +el("sSpeed").value);
+  };
+  D.timer = setTimeout(tick, 60);
+  stepsPlayUI();
+}
+function stepsPlayUI() {
+  const b = el("sPlay");
+  b.innerHTML = D.timer ? "&#x23F8;&#xFE0E;" : "&#x25B6;&#xFE0E;";
+  b.title = D.timer ? "Pause (space)" : "Play (space)";
+}
+
+/* ==========================================================================
+   Inputs, presets, address
+   ========================================================================== */
+const PRESETS = [
+  { key: "slide",   name: "Slides: runs of lengths 5 3 3 14 1 2",       runs: [5, 3, 3, 14, 1, 2] },
+  { key: "tiny",    name: "algs4 tiny.txt: S O R T E X A M P L E",       text: "S O R T E X A M P L E" },
+  { key: "left",    name: "A long first run: lengths 9 2 3",             runs: [9, 2, 3] },
+  { key: "right",   name: "A long last run: lengths 3 2 9",              runs: [3, 2, 9] },
+  { key: "middle",  name: "A long run in the middle: lengths 2 2 12 2 2", runs: [2, 2, 12, 2, 2] },
+  { key: "g-runs",  name: "Random runs, n elements",                     gen: "runs" },
+  { key: "g-random", name: "Random permutation of 1..n",                 gen: "random" },
+  { key: "g-reversed", name: "Reversed, n elements (runs of length 1)",  gen: "reversed" },
+  { key: "g-sorted", name: "Sorted, n elements (one run)",               gen: "sorted" },
+  { key: "custom",  name: "(your own input)" }
+];
+function parseInputText(txt) {
+  const dir = {}, toks = [];
+  for (let line of String(txt).split(/\r?\n/)) {
+    line = line.trim();
+    if (!line || line.startsWith("#")) continue;
+    const m = line.match(/^@(\w+)\s*[:=]?\s*(.*)$/);
+    if (m) { dir[m[1].toLowerCase()] = m[2].trim(); continue; }
+    for (const t of line.split(/[\s,;]+/)) if (t) toks.push(t);
+  }
+  if (dir.seed !== undefined && !/^\d+$/.test(dir.seed)) throw new Error("@seed must be a non-negative integer.");
+  const seed = dir.seed !== undefined ? +dir.seed : 1;
+  if (dir.runs !== undefined) {
+    const L = dir.runs.split(/[\s,;]+/).filter(Boolean).map(Number);
+    if (!L.length || L.some(x => !Number.isInteger(x) || x < 1)) throw new Error("@runs needs positive integers, the run lengths.");
+    const n = L.reduce((a, b) => a + b, 0);
+    if (n < 2 || n > MAX_N) throw new Error("The run lengths must add up to 2 … " + MAX_N + " (they add up to " + n + ").");
+    const vals = valsFromRuns(L, seed);
+    return { inp: makeInput(vals), text: vals.join(" "), runs: L, seed };
+  }
+  if (toks.length < 2) throw new Error("At least two elements, please.");
+  if (toks.length > MAX_N) throw new Error("At most " + MAX_N + " elements, please (found " + toks.length + ").");
+  const NUM = /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/, numeric = toks.every(t => NUM.test(t));
+  return { inp: makeInput(numeric ? toks.map(Number) : toks, toks), text: toks.join(" "), runs: null, seed };
+}
+function useInput(r) { D.inp = r.inp; D.text = r.text; D.runs = r.runs; D.seed = r.seed; el("tokIn").value = r.text; }
+function applyPreset(key) {
+  const p = PRESETS.find(q => q.key === key);
+  if (!p || p.key === "custom") return;
+  D.preset = key;
+  const n = clamp(parseInt(el("genN").value, 10) || 20, 2, MAX_N); el("genN").value = n;
+  if (p.runs) useInput(parseInputText("@runs " + p.runs.join(" ")));
+  else if (p.text) useInput(parseInputText(p.text));
+  else if (p.gen === "runs") useInput(parseInputText("@runs " + randomRuns(n, mulberry32(D.seed * 31 + n)).join(" ")));
+  else useInput(parseInputText(genVals(p.gen, n, mulberry32(D.seed * 977 + n)).join(" ")));
+}
+function writeHash() {
+  let h = "#";
+  if (D.preset !== "slide") h += D.runs ? "runs=" + D.runs.join(",") + (D.seed !== 1 ? "&seed=" + D.seed : "") : "in=" + D.text.split(" ").map(encodeURIComponent).join(",");
+  if (D.gran === "coarse") h += (h.length > 1 ? "&" : "") + "skip";
+  if (document.body.classList.contains("present")) h += (h.length > 1 ? "&" : "") + "present";
+  if (h === "#") h = location.pathname + location.search;
+  try { history.replaceState(null, "", h); } catch (e) { /* sandboxed preview */ }
+}
+function readHash() {
+  const q = new URLSearchParams(location.hash.replace(/^#/, ""));
+  try {
+    if (q.get("runs")) { useInput(parseInputText("@runs " + q.get("runs") + (q.get("seed") ? "\n@seed " + q.get("seed") : ""))); D.preset = "custom"; }
+    else if (q.get("in")) { useInput(parseInputText(q.get("in").split(",").map(decodeURIComponent).join(" "))); D.preset = "custom"; }
+  } catch (e) { /* a broken link: keep the default */ }
+  if (q.has("skip")) D.gran = "coarse";
+  return q.has("present");
+}
+function rebuild() {
+  stepsStop();
+  recordSteps();
+  D.cur = 0;
+  el("presetSel").value = D.preset;
+  el("granSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.gran === D.gran));
+  stepsRender();
+  writeHash();
+}
+
+/* ==========================================================================
+   Presentation view, splitter, wiring
+   ========================================================================== */
+function setPresent(on) {
+  document.body.classList.toggle("present", on);
+  requestAnimationFrame(() => { fitPhaseBar(); stepsRender(); });
+  writeHash();
+}
+const SPLIT = { f: 0.58, def: 0.58 };
+function setSplit(f) {
+  SPLIT.f = clamp(f, 0.35, 0.8);
+  const st = document.querySelector(".stage");
+  st.style.setProperty("--lf", (100 * SPLIT.f).toFixed(2) + "fr");
+  st.style.setProperty("--rf", (100 * (1 - SPLIT.f)).toFixed(2) + "fr");
+  if (D.fine.length) { fitPhaseBar(); stepsRender(); }
+}
+function initSplitter() {
+  const sp = el("splitter"), st = document.querySelector(".stage");
+  let drag = false, raf = 0;
+  const moveTo = x => { const r = st.getBoundingClientRect(); cancelAnimationFrame(raf); raf = requestAnimationFrame(() => setSplit((x - r.left) / (r.width || 1))); };
+  sp.addEventListener("pointerdown", e => { drag = true; sp.classList.add("drag"); sp.setPointerCapture(e.pointerId); e.preventDefault(); });
+  sp.addEventListener("pointermove", e => { if (drag) moveTo(e.clientX); });
+  sp.addEventListener("pointerup", () => { drag = false; sp.classList.remove("drag"); });
+  sp.addEventListener("dblclick", () => setSplit(SPLIT.def));
+}
+function legends() {
+  const box = (fill, stroke, w, rx) => '<svg width="22" height="12"><rect x="1" y="1" width="20" height="10" rx="' + (rx || 2) + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + (w || 1) + '"/></svg>';
+  setMath(el("treeLegend"),
+    '<span class="item">' + box("var(--t-run)", "var(--t-run-line)") + "a run (its length inside)</span>" +
+    '<span class="item">' + box("var(--t-run)", "var(--wi-accent)", 2.2) + "a run the call knows from a " + M("\\Delta") + "</span>" +
+    '<span class="item">' + box("var(--t-leaf)", "var(--t-leaf-line)") + "a call that returned at once</span>" +
+    '<span class="item">' + box("var(--t-merged)", "var(--t-merged-line)", 1.2, 4) + "merged</span>" +
+    '<span class="item"><svg width="14" height="14"><circle cx="7" cy="7" r="5.5" fill="#cfc7bf" stroke="var(--wi-ink-strong)" stroke-width="1.5" opacity=".8"/></svg>merge node, on the cut</span>' +
+    '<span class="item"><svg width="16" height="16">' + scissors(8, 8, 12) + "</svg>the cut, at the run boundary next to the midpoint " + M("\\tfrac12") + "</span>");
+  setMath(el("detLegend"),
+    '<span class="item">' + box("var(--t-range)", "none", 0) + "the current call’s " + M("A[\\ell..r)") + "</span>" +
+    '<span class="item">' + box("var(--t-known)", "none", 0) + "a run known from a " + M("\\Delta") + "</span>" +
+    '<span class="item">' + box("var(--t-found)", "none", 0) + "the run around " + M("A[m]") + "</span>" +
+    '<span class="item"><svg width="34" height="10"><line x1="2" x2="30" y1="5" y2="5" stroke="var(--wi-accent-dark)" stroke-width="2.2" marker-end="url(#hd)"/></svg>a ' + M("\\Delta") + " pointing into " + M("A[\\ell..r)") + ": a known run</span>" +
+    '<span class="item"><svg width="34" height="10"><line x1="2" x2="30" y1="5" y2="5" stroke="var(--wi-ink-faint)" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#ho)"/></svg>pointing out of it: the wrong sign, no run known</span>');
+}
+const ABOUT =
+  "<p><b>Idea</b> Top-down mergesort, but instead of cutting at the midpoint, peek at the middle element " + M("A[m]") + ", find the run it lies in, " + M("A[i..j)") +
+  ", and cut at whichever end of that run is closer to the middle. So no run is ever cut in two.</p>" +
+  "<p><b>The Δ’s</b> Scanning a run twice would be wasteful, so each call is told the length of a run at each end, if one is known. " +
+  M("\\Delta_\\ell > 0") + " means that " + M("A[\\ell..\\ell+\\Delta_\\ell)") + " is a run; " + M("\\Delta_r < 0") + " that " + M("A[r+\\Delta_r..r)") + " is one. " +
+  "A " + M("\\Delta") + " with the other sign (or 0) carries no information — and with the wrong sign the tests in lines 3, 5 and 6 automatically fail, so no special case is needed. " +
+  "That is why the same " + M("\\Delta_g") + " can be passed to both parts: it points into one part (a known run) and out of the other.</p>" +
+  "<p><b>Cost</b> One can prove: merge cost at most " + M("\\mathscr H(\\ell_1,\\ldots,\\ell_r) + 2n") + ", where " + M("\\ell_1,\\ldots,\\ell_r") + " are the run lengths.</p>";
+
+function init() {
+  readColors();
+  buildCode();
+  el("presetSel").innerHTML = PRESETS.map(p => '<option value="' + p.key + '">' + esc(p.name) + "</option>").join("");
+  el("presetSel").onchange = () => { const v = el("presetSel").value; if (v === "custom") return; applyPreset(v); el("parseErr").textContent = ""; rebuild(); };
+  const setFrom = txt => {
+    try { useInput(parseInputText(txt)); D.preset = "custom"; el("parseErr").textContent = ""; rebuild(); return true; }
+    catch (e) { el("parseErr").textContent = e.message; return false; }
+  };
+  el("tokSet").onclick = () => setFrom(el("tokIn").value);
+  el("tokIn").onkeydown = e => { if (e.key === "Enter") setFrom(el("tokIn").value); };
+  el("loadBtn").onclick = () => setFrom(el("inputText").value);
+  el("inputText").value = "# the example of the slides: runs of these lengths\n@runs 5 3 3 14 1 2\n\n# or the elements themselves, e.g. algs4 tiny.txt:\n# S O R T E X A M P L E\n";
+  el("genN").onchange = () => { const p = PRESETS.find(q => q.key === D.preset); if (p && p.gen) { applyPreset(D.preset); rebuild(); } };
+  el("granSeg").querySelectorAll("button").forEach(b => b.onclick = () => {
+    const fi = D.vis[D.cur]; D.gran = b.dataset.gran;
+    el("granSeg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    buildVisible();
+    let k = 0; while (k + 1 < D.vis.length && D.vis[k + 1] <= fi) k++;
+    D.cur = k; stepsRender(); writeHash();
+  });
+  el("tagChk").onchange = () => { TAGS = el("tagChk").checked; recordSteps(); stepsRender(); };
+  el("sReset").onclick = () => { stepsStop(); D.cur = 0; stepsRender(); };
+  el("sBack").onclick = () => stepsGo(-1);
+  el("sStep").onclick = () => stepsGo(1);
+  el("sPlay").onclick = () => stepsPlay();
+  el("scrubber").oninput = () => { stepsStop(); D.cur = valToStep(+el("scrubber").value); stepsRender(); };
+  el("sSpeed").oninput = () => { el("sSpeedVal").textContent = el("sSpeed").value + "ms"; };
+  el("presBtn").onclick = () => setPresent(true);
+  el("exitPres").onclick = () => setPresent(false);
+  document.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("input[type=text], input[type=number], textarea, select")) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "Escape" && document.body.classList.contains("present")) { e.preventDefault(); setPresent(false); }
+    else if (e.target === el("splitter") && (e.key === "ArrowLeft" || e.key === "ArrowRight")) { e.preventDefault(); setSplit(SPLIT.f + (e.key === "ArrowLeft" ? -0.03 : 0.03)); }
+    else if (e.key === " " || e.key === "Spacebar") { e.preventDefault(); stepsPlay(); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); stepsGo(1); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); stepsGo(-1); }
+    else if (e.key === "Home") { e.preventDefault(); stepsStop(); D.cur = 0; stepsRender(); }
+    else if (e.key === "End") { e.preventDefault(); stepsStop(); D.cur = D.vis.length - 1; stepsRender(); }
+  });
+  let rz = null;
+  window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { fitPhaseBar(); stepsRender(); }, 80); });
+  initSplitter();
+  setMath(el("codeNote"), "The slide only says “similar” for extendRunLeft; above is its mirror image of extendRunRight: it returns the start " + M("i") + " of the run that contains " + M("A[j]") +
+          ". The lines of the initial call are those on the slide, too.");
+  legends();
+  setMath(el("aboutBox"), ABOUT);
+
+  applyPreset("slide");
+  const present = readHash();
+  recordSteps(); D.cur = 0;
+  el("presetSel").value = D.preset;
+  el("granSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.gran === D.gran));
+  if (present) document.body.classList.add("present");
+  stepsRender();
+  /* MathJax arrives later (deferred): then typeset the code and everything set so far */
+  const hook = () => {
+    if (!(window.MathJax && MathJax.startup && MathJax.startup.promise)) return;
+    MathJax.startup.promise.then(() => {
+      MathJax.typesetPromise([el("codeScroll")]).catch(() => {});
+      for (const id of ["statusBox", "varsBox", "aboutBox", "treeLegend", "detLegend", "codeNote"]) { const nd = el(id); const w = nd._want; nd._want = null; nd._busy = false; if (w) setMath(nd, w); }
+      stepsRender();
+    }).catch(() => {});
+  };
+  if (document.readyState === "complete") hook(); else window.addEventListener("load", hook);
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+</script>
+</body>
+</html>

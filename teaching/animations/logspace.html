@@ -1,0 +1,3143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Connectivity in logarithmic space · L, NL and Savitch</title>
+<style>
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#8d897c;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    --mono: var(--wi-font-mono, "DejaVu Sans Mono", Menlo, Consolas, monospace);
+    --hot-bg:#f6e6df; --good-bg:#e8f0e2; --warm-bg:#f7edd9; --cool-bg:#e1ecea;
+  }
+  * { box-sizing:border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0;
+         padding:calc(20px + env(safe-area-inset-top, 0px)) 26px calc(48px + env(safe-area-inset-bottom, 0px)); }
+  h1,h2,h3,.sim-title,.wi-caption { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  h2 { font-size:1.15rem; color:var(--wi-accent); margin:1.2em 0 .4em; }
+  h3 { font-size:.98rem; color:var(--wi-accent); margin:1em 0 .3em; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:18px;
+              flex-wrap:wrap; margin:0 0 6px; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 14px; max-width:96ch; line-height:1.5; }
+  code, .code { font-family:var(--mono); font-size:.82em; background:var(--wi-controls); padding:1px 5px; border-radius:3px; }
+  .prose { max-width:84ch; font-size:.92rem; line-height:1.6; }
+  .prose p { margin:.5em 0; }
+  .muted { color:var(--wi-ink-faint); }
+  .small { font-size:.8rem; }
+
+  /* --- tabs --- */
+  .tabs { display:flex; flex-wrap:wrap; gap:0; margin:4px 0 16px; border-bottom:1px solid var(--wi-border-soft); }
+  .tabs button { font-family:var(--wi-font-head); letter-spacing:.04em; font-size:.88rem; background:transparent;
+                 border:0; border-bottom:3px solid transparent; color:var(--wi-ink-soft); padding:7px 15px 6px;
+                 cursor:pointer; border-radius:0; }
+  .tabs button:hover { color:var(--wi-ink-strong); background:var(--wi-panel); }
+  .tabs button.on { color:var(--wi-accent); border-bottom-color:var(--wi-accent); font-weight:bold; }
+  .tabs .tsub { display:block; font-family:var(--wi-font-body); font-size:.68rem; letter-spacing:0; color:var(--wi-ink-faint); font-weight:normal; }
+  section.tab { display:none; }
+  section.tab.on { display:block; }
+  .subtabs { margin:0 0 12px; }
+
+  /* --- control chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:10px 18px; margin-bottom:12px; }
+  .ctl { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .ctl > label, .lbl { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer;
+           transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text;
+                font-size:1.02rem; line-height:1.1; padding:4px 0; width:2.5em; text-align:center; }
+  button.txt { font-size:.74rem; padding:5px 8px; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  input[type=number] { width:4.2em; }
+  input[type=range] { accent-color:var(--wi-accent); cursor:pointer; vertical-align:middle; }
+  .seg { display:inline-flex; flex-wrap:wrap; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+
+  /* --- transport --- */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:14px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; --thumb:8px; }
+  .progress input[type=range] { display:block; width:100%; margin:0; }
+  .stepno { font-family:var(--mono); font-size:.76rem; color:var(--wi-ink-faint);
+            white-space:nowrap; text-align:right; padding-top:4px; }
+  .phasebar { display:flex; margin:5px var(--thumb) 0; width:calc(100% - var(--thumb) - var(--thumb)); }
+  .phasebtn { position:relative; overflow:hidden; flex-grow:1; flex-basis:0; min-width:0; padding:3px 4px;
+              font-size:.68rem; line-height:1.3; font-family:var(--wi-font-head); letter-spacing:.03em;
+              background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-left-width:0;
+              border-radius:0; color:var(--wi-ink-faint); cursor:pointer; text-overflow:ellipsis; white-space:nowrap; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3;
+                    border-right:1px solid var(--wi-accent-soft); transition:width .12s linear; }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+
+  /* --- stage with draggable splitter --- */
+  .split { display:grid; grid-template-columns:var(--cols, minmax(0,1.4fr) 12px minmax(0,1fr)); gap:0; align-items:start; }
+  .split > .gutter { align-self:stretch; cursor:col-resize; position:relative; touch-action:none; min-height:80px; }
+  .split > .gutter::before { content:""; position:absolute; left:5px; top:6px; bottom:6px; width:2px; border-radius:1px;
+                             background:var(--wi-border-soft); transition:background .15s; }
+  .split > .gutter:hover::before, .split > .gutter.drag::before { background:var(--wi-accent-soft); }
+  .col-side { display:flex; flex-direction:column; gap:12px; min-width:0; }
+  .col-main { min-width:0; display:flex; flex-direction:column; gap:12px; }
+  @media (max-width:1000px) {
+    .split { grid-template-columns:1fr; row-gap:12px; }
+    .split > .gutter { display:none; }
+  }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+             border-radius:var(--wi-radius-lg); padding:12px 15px; min-width:0; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em;
+               color:var(--wi-ink-faint); margin:0 0 9px; display:flex; justify-content:space-between;
+               align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--mono);
+                    font-size:.9em; color:var(--wi-ink-soft); }
+  .svgbox { position:relative; width:100%; height:var(--h, 460px); background:var(--wi-bg); border-radius:var(--wi-radius); overflow:hidden; }
+  .svgbox > svg { display:block; position:absolute; left:0; top:0; touch-action:manipulation; }
+  .vgrip { height:11px; cursor:row-resize; position:relative; touch-action:none; margin-top:2px; }
+  .vgrip::before { content:""; position:absolute; left:calc(50% - 22px); width:44px; top:4px; height:3px; border-radius:2px;
+                   background:var(--wi-border-soft); }
+  .vgrip:hover::before, .vgrip.drag::before { background:var(--wi-accent-soft); }
+
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+            border-radius:var(--wi-radius); padding:10px 13px; font-size:.88rem;
+            color:var(--wi-ink-strong); min-height:76px; line-height:1.5; }
+  .status .ans { display:block; margin-top:6px; font-size:.95rem; color:var(--wi-accent); font-weight:bold; }
+  .status code { background:var(--wi-panel-2); }
+  .legend { display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:9px; font-size:.72rem; color:var(--wi-ink-soft); }
+  .legend .item { display:inline-block; }
+  .legend .item > .sw, .legend .item > .plab { vertical-align:-1px; margin-right:5px; }
+  .legend .item > .sw.ln { vertical-align:3px; }
+  .sim-title .nc { text-transform:none; letter-spacing:.03em; }
+  .sw { width:.85em; height:.85em; border-radius:50%; border:1.5px solid var(--wi-border); display:inline-block; }
+  .sw.sq { border-radius:2px; }
+  .sw.ln { width:1.6em; height:0; border-radius:0; border:0; border-top:3px solid; }
+  .note { font-size:.76rem; color:var(--wi-ink-faint); line-height:1.5; margin-top:8px; }
+  .note b { color:var(--wi-ink-soft); }
+  .cheat { border-left:3px solid var(--wi-examine); background:var(--warm-bg); padding:6px 10px; font-size:.78rem;
+           color:var(--wi-ink-strong); border-radius:0 var(--wi-radius) var(--wi-radius) 0; margin-top:8px; }
+
+  /* --- work tape / registers --- */
+  .tape { display:flex; flex-direction:column; gap:6px; }
+  .reg { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .reg .rn { font-family:var(--mono); font-size:.8rem; min-width:3.3em; color:var(--wi-ink-strong); }
+  .reg .rv { font-family:var(--mono); font-size:.8rem; color:var(--wi-ink-soft); min-width:2.5em; }
+  .bits { display:inline-flex; }
+  .bits span { display:inline-block; width:1.15em; height:1.45em; line-height:1.45em; text-align:center; font-family:var(--mono);
+               font-size:.78rem; border:1px solid var(--wi-border); border-left-width:0; background:var(--wi-panel-2); color:var(--wi-ink-strong); }
+  .bits span:first-child { border-left-width:1px; }
+  .bits.hot span { background:var(--hot-bg); border-color:var(--wi-accent-soft); }
+  .tapefoot { font-size:.74rem; color:var(--wi-ink-faint); margin-top:6px; }
+  .tapefoot b { color:var(--wi-accent); font-family:var(--mono); }
+  table.stk { border-collapse:collapse; font-size:.8rem; width:100%; }
+  table.stk th { font-family:var(--wi-font-head); font-weight:normal; font-size:.66rem; letter-spacing:.08em; text-transform:uppercase;
+                 color:var(--wi-ink-faint); text-align:left; padding:2px 6px; border-bottom:1px solid var(--wi-border-soft); }
+  table.stk td { font-family:var(--mono); padding:2px 6px; border-bottom:1px dashed var(--wi-border-soft); white-space:nowrap; }
+  table.stk tr.top td { background:var(--hot-bg); }
+  table.stk td.bitsc { color:var(--wi-ink-faint); font-size:.72rem; }
+  .meter { height:9px; background:var(--wi-panel-2); border:1px solid var(--wi-border-soft); border-radius:5px; overflow:hidden; margin-top:6px; }
+  .meter > div { height:100%; background:var(--wi-accent-soft); }
+
+  /* --- pseudocode --- */
+  details.code { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); padding:0; }
+  details.code > summary { cursor:pointer; padding:9px 15px; font-family:var(--wi-font-head);
+                           font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--wi-ink-faint); }
+  details.code[open] > summary { border-bottom:1px solid var(--wi-border-soft); color:var(--wi-accent); }
+  .codebody { padding:8px 6px 10px; overflow-x:auto; }
+  .cline { display:flex; gap:9px; padding:2px 9px; font-family:var(--mono); font-size:.75rem;
+           line-height:1.55; color:var(--wi-ink-strong); border-left:3px solid transparent; white-space:pre; }
+  .cline .ln { color:var(--wi-ink-faint); min-width:1.4em; text-align:right; user-select:none; flex:none; }
+  .cline > span:last-child { white-space:pre-wrap; }
+  .cline sub, .cline sup { font-size:.75em; line-height:0; }
+  .cline.on { background:var(--hot-bg); border-left-color:var(--wi-active); }
+  .cline .kw { color:var(--wi-accent); font-weight:bold; }
+  .cline .cm { color:var(--wi-ink-faint); font-style:italic; }
+  .codenote { font-size:.74rem; color:var(--wi-ink-faint); padding:2px 15px 10px; line-height:1.45; }
+
+  /* --- editor --- */
+  details.editor { margin-top:14px; background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:10px 16px; font-family:var(--wi-font-head);
+                             font-size:.78rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,300px) 1fr; gap:16px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  textarea { width:100%; height:170px; font-family:var(--mono); font-size:.78rem; background:var(--wi-panel-2);
+             color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.78rem; color:var(--wi-ink-soft); line-height:1.55; }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+
+  /* --- overview --- */
+  .cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:12px; }
+  .card { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); padding:11px 14px; font-size:.85rem; line-height:1.5; }
+  .card h3 { margin:0 0 4px; font-size:.9rem; }
+  table.tbl { border-collapse:collapse; font-size:.84rem; width:100%; }
+  table.tbl th { font-family:var(--wi-font-head); font-weight:normal; letter-spacing:.05em; text-align:left; color:var(--wi-ink-soft);
+                 border-bottom:1.5px solid var(--wi-border); padding:4px 8px; font-size:.78rem; }
+  table.tbl td { border-bottom:1px solid var(--wi-border-soft); padding:4px 8px; vertical-align:top; }
+  .scrollx { overflow-x:auto; }
+  .timeline { list-style:none; padding:0; margin:0; font-size:.84rem; }
+  .timeline li { display:grid; grid-template-columns:4.2em 10.5em 1fr; gap:10px; padding:4px 0; border-bottom:1px dashed var(--wi-border-soft); }
+  .timeline .yr { font-family:var(--mono); color:var(--wi-accent); font-size:.8rem; padding-top:1px; }
+  .timeline .bd { font-family:var(--mono); font-size:.8rem; color:var(--wi-ink-strong); }
+
+  /* --- zoo --- */
+  .zoo-text h3 { margin:.7em 0 .2em; font-size:.82rem; }
+  .zoo-text h3:first-child { margin-top:0; }
+  .zoo-text { font-size:.85rem; line-height:1.55; }
+  .zoo-text p { margin:.2em 0 .5em; }
+  .verdict { font-family:var(--wi-font-head); letter-spacing:.03em; padding:6px 10px; border-radius:var(--wi-radius);
+             background:var(--wi-controls); color:var(--wi-ink-strong); font-size:.82rem; margin-top:8px; }
+  .verdict b { color:var(--wi-accent); }
+  .formula { font-family:var(--mono); font-size:.76rem; background:var(--wi-panel-2); border:1px solid var(--wi-border-soft);
+             border-radius:var(--wi-radius); padding:6px 8px; line-height:1.7; word-break:break-word; }
+
+  /* --- SVG classes --- */
+  svg text { font-family:var(--wi-font-body); }
+  .nd circle, .nd rect { fill:var(--wi-panel-2); stroke:var(--wi-border); stroke-width:1.6; }
+  .nd text { font-size:14px; fill:var(--wi-ink-strong); text-anchor:middle; dominant-baseline:central; pointer-events:none; font-weight:bold; }
+  .nd.sm text { font-size:11px; font-weight:normal; }
+  .nd.s circle { stroke:var(--wi-queue); stroke-width:2.8; }
+  .nd.t circle { stroke:var(--wi-accent); stroke-width:2.8; stroke-dasharray:4 2.5; }
+  .nd.reach circle { fill:#efe3cf; }
+  .nd.path circle { fill:var(--hot-bg); }
+  .nd.covered circle { fill:#efe3cf; }
+  .nd.opt circle { fill:var(--warm-bg); stroke:var(--wi-examine); stroke-width:2.6; }
+  .nd.cur circle { fill:var(--wi-active); stroke:var(--wi-accent-dark); }
+  .nd.cur text { fill:var(--wi-panel-2); }
+  .nd.qu circle { fill:#d9e8e5; stroke:var(--wi-queue); stroke-width:2.6; }
+  .nd.qv circle { fill:#f3d9d2; stroke:var(--wi-accent); stroke-width:2.6; }
+  .nd.qw circle { fill:#f3e3bd; stroke:var(--wi-examine); stroke-width:2.6; }
+  .nd.good circle { fill:var(--good-bg); stroke:var(--wi-relax); stroke-width:2.4; }
+  .nd.dim { opacity:.35; }
+  .nd.helper circle { fill:var(--wi-bg); stroke-dasharray:3 2; }
+  .nd.click { cursor:pointer; }
+  .nd.click:hover circle { stroke:var(--wi-accent); stroke-width:3; }
+  .nd .ring { fill:none; stroke:var(--wi-accent); stroke-width:1.4; }
+  .ed { fill:none; stroke:var(--wi-border); stroke-width:1.6; }
+  .ah { fill:var(--wi-border); stroke:none; }
+  .ed.faint { stroke:var(--wi-border-soft); stroke-width:1.2; }   .ah.faint { fill:var(--wi-border-soft); }
+  .ed.path { stroke:var(--wi-accent); stroke-width:3.4; }          .ah.path { fill:var(--wi-accent); }
+  .ed.opt { stroke:var(--wi-examine); stroke-width:2.6; }          .ah.opt { fill:var(--wi-examine); }
+  .ed.good { stroke:var(--wi-relax); stroke-width:3; }             .ah.good { fill:var(--wi-relax); }
+  .ed.bad { stroke:var(--wi-active); stroke-width:2.6; stroke-dasharray:5 4; } .ah.bad { fill:var(--wi-active); }
+  .ed.query { stroke:var(--wi-accent); stroke-width:2.4; stroke-dasharray:7 5; } .ah.query { fill:var(--wi-accent); }
+  .ed.proved { stroke:var(--wi-relax); stroke-width:2.6; stroke-dasharray:7 4; } .ah.proved { fill:var(--wi-relax); }
+  .ed.pend { stroke:var(--wi-ink-faint); stroke-width:1.8; stroke-dasharray:2 4; } .ah.pend { fill:var(--wi-ink-faint); }
+  .ed.added { stroke:var(--wi-queue); stroke-width:1.8; stroke-dasharray:6 4; } .ah.added { fill:var(--wi-queue); }
+  .ed.wait { stroke:var(--wi-border); stroke-width:1.2; stroke-dasharray:3 3; } .ah.wait { fill:var(--wi-border); }
+  .ed.hstep { stroke:var(--wi-queue); stroke-width:1.6; }
+  .ed.gstep { stroke:var(--wi-border); stroke-width:1.6; }
+  .ed.zz { stroke:var(--wi-accent-soft); stroke-width:1.5; }
+  .ed.zzhot { stroke:var(--wi-accent); stroke-width:3.4; }
+  .ed.mover { stroke:var(--wi-active); stroke-width:4; }  .ah.mover { fill:var(--wi-active); }
+  .elab { font-size:12px; fill:var(--wi-ink-soft); text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  .elab.bg { stroke:var(--wi-bg); stroke-width:4; stroke-linejoin:round; paint-order:stroke; }
+  .plab { font-family:var(--mono) !important; font-size:10px; fill:var(--wi-ink-faint); text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  .plab.hot { fill:var(--wi-active); font-weight:bold; font-size:12px; }
+  .cloud { fill:rgba(250,246,237,.55); stroke:var(--wi-border-soft); stroke-width:1.2; stroke-dasharray:3 3; }
+  .cloudlab { font-family:var(--wi-font-head) !important; font-size:13px; fill:var(--wi-ink-faint); text-anchor:middle; dominant-baseline:central; letter-spacing:.04em; }
+  .axis { stroke:var(--wi-border); stroke-width:1; fill:none; }
+  .grid { stroke:var(--wi-border-soft); stroke-width:.8; stroke-dasharray:2 3; fill:none; }
+  .axlab { font-size:11.5px; fill:var(--wi-ink-faint); }
+  .axlab.mid { text-anchor:middle; }
+  .axlab.end { text-anchor:end; }
+  .ttl { font-family:var(--wi-font-head) !important; font-size:12px; letter-spacing:.06em; fill:var(--wi-ink-soft); }
+  .dot { fill:var(--wi-border); }
+  .dot.acc { fill:var(--wi-relax); }
+  .dot.run { fill:var(--wi-active); }
+  .dot.cur { fill:var(--wi-active); stroke:var(--wi-accent-dark); stroke-width:2; }
+  .seglink { stroke:var(--wi-border-soft); stroke-width:.8; }
+  .seglink.run { stroke:var(--wi-active); stroke-width:2.6; }
+  .cell { fill:var(--wi-panel-2); stroke:var(--wi-border); stroke-width:1; }
+  .cell.hot { fill:var(--hot-bg); stroke:var(--wi-active); stroke-width:2; }
+  .cell.read { fill:var(--cool-bg); stroke:var(--wi-queue); stroke-width:2; }
+  .cell.rev { fill:var(--warm-bg); stroke:var(--wi-examine); stroke-width:2; }
+  .cell.done { fill:#efe3cf; }
+  .cell.path { fill:var(--wi-accent-soft); stroke:var(--wi-accent); }
+  .cell.cur { fill:var(--wi-active); stroke:var(--wi-accent-dark); }
+  .ctext { font-family:var(--mono) !important; font-size:12px; fill:var(--wi-ink-strong); text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  .ctext.sm { font-size:10px; fill:var(--wi-ink-soft); }
+  .bar { fill:var(--wi-panel-2); stroke:var(--wi-border); stroke-width:1.2; }
+  .bar.active { fill:var(--hot-bg); stroke:var(--wi-active); stroke-width:2; }
+  .bar.ok { fill:var(--good-bg); stroke:var(--wi-relax); stroke-width:1.6; }
+  .bar.wait { fill:var(--wi-bg); stroke:var(--wi-border-soft); stroke-dasharray:3 3; }
+  .curve { fill:none; stroke-width:2.4; }
+  .curve.a { stroke:var(--wi-accent); }
+  .curve.b { stroke:var(--wi-queue); stroke-dasharray:6 4; }
+  .mapreg { stroke-width:1.5; }
+  .mapdot { cursor:pointer; }
+  .mapdot circle { fill:var(--wi-accent); stroke:var(--wi-panel-2); stroke-width:2; }
+  .mapdot:hover circle { fill:var(--wi-active); }
+  .mapdot text { font-size:13.5px; fill:var(--wi-ink-strong); dominant-baseline:central; }
+
+  .tooltip { position:fixed; z-index:40; pointer-events:none; background:var(--wi-panel-2);
+             border:1px solid var(--wi-border-strong); border-radius:var(--wi-radius);
+             padding:6px 9px; font-size:.76rem; color:var(--wi-ink-strong);
+             box-shadow:0 3px 10px rgba(0,0,0,.12); max-width:290px; display:none; line-height:1.45; }
+
+  @keyframes popin { from { opacity:0; transform:scale(.6); } to { opacity:1; transform:none; } }
+  .pop { animation:popin .3s cubic-bezier(.2,1.3,.5,1) both; transform-box:fill-box; transform-origin:center; }
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls { gap:8px 12px; padding:10px 12px; }
+    .tabs button { padding:6px 9px; font-size:.78rem; }
+    .phasebtn { font-size:.6rem; padding:3px 2px; }
+    .timeline li { grid-template-columns:3.6em 1fr; }
+    .timeline li .who { grid-column:2; }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    * { animation-duration:.001ms !important; transition-duration:.001ms !important; }
+  }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption { font-family: var(--wi-font-head); letter-spacing: .05em; }
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1>Connectivity with a logarithmic memory</h1>
+</div>
+<p class="subtitle">
+  Is there a path from <i>s</i> to <i>t</i>? With linear memory, BFS answers this for any graph. Here the
+  work tape holds only <i>O</i>(log <i>n</i>) bits — a handful of vertex names and counters. Three ways to cope:
+  <b>Reingold</b> (deterministic, undirected), <b>guessing</b> (nondeterministic, directed), and <b>Savitch</b>
+  (deterministic, directed, at the price of log² <i>n</i>). The last tab collects NL-complete problems and their reductions.
+  Arrow keys step through the animation of the open tab; space plays.
+</p>
+
+<nav class="tabs" id="tabs" role="tablist">
+  <button data-tab="map" role="tab">Map<span class="tsub">classes &amp; key ideas</span></button>
+  <button data-tab="ust" role="tab">L · undirected<span class="tsub">Reingold's algorithm</span></button>
+  <button data-tab="nl" role="tab">NL · directed<span class="tsub">guess the path</span></button>
+  <button data-tab="sav" role="tab">Savitch<span class="tsub">deterministic, log² n</span></button>
+  <button data-tab="zoo" role="tab">NL-complete<span class="tsub">problems &amp; reductions</span></button>
+</nav>
+
+<!-- =============================================================== MAP -->
+<section class="tab" id="tab-map">
+  <div class="split" data-split="map" style="--cols:minmax(0,1.25fr) 12px minmax(0,1fr)">
+    <div class="col-main">
+      <div class="sim-box">
+        <div class="sim-title"><span>Where the problems live</span><span class="rhs">click a problem</span></div>
+        <div class="scrollx"><svg id="mapSvg" width="760" height="440" viewBox="0 0 760 440" style="display:block;margin:0 auto;width:100%;max-width:760px;height:auto;min-width:560px"></svg></div>
+        <div class="note">Solid borders: classes; known strict separation: NL ⊊ PSPACE (space hierarchy, via NL ⊆ L² ⊊ PSPACE).
+          Whether L ≠ NL, NL ≠ P, or P ⊆ L² is open. RL sits between L and NL (dashed, it might equal either).</div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>Configuration graph of a log-space machine</span><span class="rhs">why STCON is the problem</span></div>
+        <div class="scrollx"><svg id="cfgSvg" width="700" height="250" viewBox="0 0 700 250" style="display:block;margin:0 auto;width:100%;max-width:700px;height:auto;min-width:520px"></svg></div>
+        <div class="prose small">
+          A <b>configuration</b> is a snapshot (state, input-head position, work-head position, work-tape contents).
+          With <i>s</i>(<i>n</i>) work cells there are at most |<i>Q</i>| · (<i>n</i>+2) · <i>s</i> · |Γ|<sup><i>s</i></sup>
+          of them — for <i>s</i> = <i>c</i> log <i>n</i> that is a polynomial. Draw an edge <i>c</i> → <i>c</i>′ whenever the
+          machine can move from <i>c</i> to <i>c</i>′ in one step. Then <i>M</i> accepts <i>x</i> exactly if an accepting
+          configuration is <b>reachable</b> from the start configuration. Three consequences:
+          (i) NL ⊆ P by BFS on this graph; (ii) every NL problem reduces to STCON, because a log-space transducer can print
+          the graph; (iii) Savitch's recursion runs on this graph <i>without writing it down</i> — the test
+          “<i>c</i> ⊢ <i>c</i>′?” needs only <i>O</i>(<i>s</i>) space — giving NSPACE(<i>s</i>) ⊆ DSPACE(<i>s</i>²)
+          for <i>s</i> ≥ log <i>n</i>.
+        </div>
+      </div>
+    </div>
+    <div class="gutter"></div>
+    <div class="col-side">
+      <div class="sim-box">
+        <div class="sim-title"><span>The machine model</span></div>
+        <div class="svgbox" id="tmSvg" style="--h:160px;background:transparent"></div>
+        <div class="prose small">
+          Read-only input of length <i>n</i> (free), a work tape of <i>O</i>(log <i>n</i>) cells (that is all that is
+          counted), and for <b>reductions</b> a write-only, left-to-right output tape (also free). Logarithmic space buys a
+          constant number of pointers into the input, or counters up to a polynomial. Log-space reductions compose
+          (recompute output bits on demand instead of storing them), so “≤<sub>L</sub>” is transitive and
+          L, NL are closed under it.
+        </div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>Algorithms for s-t connectivity</span></div>
+        <div class="scrollx"><table class="tbl">
+          <tr><th>Graphs</th><th>Algorithm</th><th>Space</th><th>Time</th></tr>
+          <tr><td>any</td><td>BFS / DFS</td><td><i>O</i>(<i>n</i> log <i>n</i>) bits</td><td><i>O</i>(<i>n</i>+<i>m</i>)</td></tr>
+          <tr><td>directed</td><td><a href="#nl">guess a path</a></td><td><i>O</i>(log <i>n</i>), nondet.</td><td>—</td></tr>
+          <tr><td>directed</td><td><a href="#sav">Savitch 1970</a></td><td><i>O</i>(log² <i>n</i>)</td><td><i>n</i><sup><i>O</i>(log <i>n</i>)</sup></td></tr>
+          <tr><td>directed</td><td>Barnes, Buss, Ruzzo, Schieber 1998</td><td><i>n</i> / 2<sup>Θ(√log <i>n</i>)</sup></td><td>poly</td></tr>
+          <tr><td>undirected</td><td>random walk, Aleliunas et&nbsp;al. 1979</td><td><i>O</i>(log <i>n</i>), randomized</td><td>poly</td></tr>
+          <tr><td>undirected</td><td><a href="#ust">Reingold 2005</a></td><td><i>O</i>(log <i>n</i>)</td><td>poly (huge degree)</td></tr>
+        </table></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>Undirected connectivity: deterministic space</span></div>
+        <ul class="timeline">
+          <li><span class="yr">1970</span><span class="bd">log² n</span><span class="who">Savitch (works for directed graphs, too)</span></li>
+          <li><span class="yr">1979</span><span class="bd">log n, random</span><span class="who">Aleliunas, Karp, Lipton, Lovász, Rackoff: random walks</span></li>
+          <li><span class="yr">1989</span><span class="bd">log<sup>3/2</sup> n</span><span class="who">Nisan, Szemerédi, Wigderson</span></li>
+          <li><span class="yr">2000</span><span class="bd">log<sup>4/3</sup> n</span><span class="who">Armoni, Ta-Shma, Wigderson, Zhou</span></li>
+          <li><span class="yr">2005</span><span class="bd">log n · log log n</span><span class="who">Trifonov, independently of</span></li>
+          <li><span class="yr">2005</span><span class="bd">log n</span><span class="who">Reingold — hence SL = L (Lewis–Papadimitriou's symmetric log-space)</span></li>
+        </ul>
+        <div class="note">For directed graphs, log² <i>n</i> from 1970 is still the best deterministic bound.
+          Immerman and Szelepcsényi (1987/88) showed NL = coNL: <i>non</i>-reachability is also in NL.</div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>Open, and worth knowing for research</span></div>
+        <div class="prose small" style="margin:0">
+          <p>Is L = NL? Equivalently: is STCON in L? Is STCON in DSPACE(<i>o</i>(log² <i>n</i>))? Reingold explicitly
+          suggested re-evaluating the belief that Savitch is optimal.</p>
+          <p>Is RL = L? Saks–Zhou give RL ⊆ L<sup>3/2</sup>; Nisan gives RL ⊆ SC (polynomial time <i>and</i> polylog space
+          simultaneously). Whether STCON ∈ SC is open.</p>
+          <p>Unambiguity: NL ⊆ UL/poly (Reinhardt–Allender 2000); planar directed reachability is in UL ∩ coUL
+          (Bourke–Tewari–Vinodchandran 2009).</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =============================================================== UST (Reingold) -->
+<section class="tab" id="tab-ust">
+  <p class="subtitle" style="margin-top:-4px">
+    The idea in one sentence: <i>first improve the graph's connectivity, then search it</i>. On a constant-degree
+    <b>expander</b>, every vertex is within <i>O</i>(log <i>n</i>) steps of every other in its component, so trying all
+    short walks takes only <i>O</i>(log <i>n</i>) bits (①). Reingold turns every component into an expander by repeated
+    <b>powering</b> (better connectivity, larger degree) and <b>zig-zag products</b> (degree back down) (②) — and
+    evaluates the resulting huge graph's neighbour function in place, with constant extra memory per level (③, ④).
+    The randomized algorithm that all this derandomizes — a plain random walk — is ⑤.
+  </p>
+  <div class="subtabs seg" id="ustSeg">
+    <button data-sub="walk" class="on">① Short walks on expanders</button>
+    <button data-sub="zz">② The zig-zag step</button>
+    <button data-sub="reg">③ Rotation map in place</button>
+    <button data-sub="all">④ All together</button>
+    <button data-sub="rw">⑤ Random walk (RL)</button>
+  </div>
+
+  <!-- ① walks -->
+  <div class="sub" id="sub-walk">
+    <div class="controls">
+      <div class="ctl"><label for="wPreset">Graph</label><select id="wPreset"></select></div>
+      <div class="ctl"><label for="wS">s</label><select id="wS"></select><label for="wT">t</label><select id="wT"></select></div>
+      <div class="ctl"><label for="wL">Walk length L</label><input type="number" id="wL" min="1" max="14" value="3"></div>
+      <div class="ctl"><span class="lbl">Detail</span>
+        <span class="seg" id="wGran"><button data-v="walk" class="on">One step per walk</button><button data-v="move">Every move</button></span></div>
+    </div>
+    <div class="transport" id="wTransport"></div>
+    <div class="split" data-split="walk">
+      <div class="col-main">
+        <div class="sim-box">
+          <div class="sim-title"><span>Walk given by the label sequence σ</span><span class="rhs" id="wMeta"></span></div>
+          <div class="svgbox" id="wBox" style="--h:470px"></div><div class="vgrip" data-for="wBox"></div>
+          <div class="legend">
+            <span class="item"><span class="sw" style="border-color:var(--wi-queue);border-width:2.5px"></span> s</span>
+            <span class="item"><span class="sw" style="border-color:var(--wi-accent);border-style:dashed;border-width:2.5px"></span> t</span>
+            <span class="item"><span class="sw" style="background:var(--wi-active);border-color:var(--wi-accent-dark)"></span> current vertex x</span>
+            <span class="item"><span class="sw ln" style="border-color:var(--wi-active)"></span> the current walk</span>
+            <span class="item"><span class="sw" style="background:#efe3cf"></span> hit by some earlier walk (picture only)</span>
+            <span class="item"><span class="plab" style="font-size:.7rem">2</span>&nbsp;port number at that end</span>
+          </div>
+        </div>
+      </div>
+      <div class="gutter"></div>
+      <div class="col-side">
+        <div class="sim-box"><div class="sim-title"><span>What just happened</span></div><div class="status" id="wStatus"></div></div>
+        <div class="sim-box">
+          <div class="sim-title"><span>Work tape</span><span class="rhs" id="wBits"></span></div>
+          <div class="tape" id="wTape"></div>
+          <div class="cheat">The shaded “already hit” vertices are drawn for <i>you</i> only. The algorithm keeps no
+            visited set — that would be Θ(<i>n</i>) bits. It just tries every σ, forgetting everything in between.</div>
+        </div>
+        <details class="code" open><summary>Pseudocode</summary><div class="codebody" id="wCode"></div>
+          <div class="codenote">Edges at each vertex are numbered 0, 1, … in the order they appear in the input; this numbering
+            is the <i>rotation map</i> Rot(<i>x</i>, <i>i</i>) = (<i>y</i>, <i>j</i>): the <i>i</i>-th edge at <i>x</i> leads to
+            <i>y</i> and is the <i>j</i>-th edge there. For non-regular inputs, label <i>i</i> means edge <i>i</i> mod deg(<i>x</i>).</div></details>
+      </div>
+    </div>
+    <details class="editor"><summary>Input (undirected graph)</summary>
+      <div class="editor-body">
+        <div><textarea id="wInput" spellcheck="false"></textarea>
+          <div style="margin-top:8px"><button class="pri" id="wLoad">Load</button></div><div class="err" id="wErr"></div></div>
+        <div class="hint" id="hintUndirected"></div>
+      </div>
+    </details>
+  </div>
+
+  <!-- ② zig-zag -->
+  <div class="sub" id="sub-zz" style="display:none">
+    <div class="controls">
+      <div class="ctl"><label for="zPreset">G (3-regular)</label><select id="zPreset"></select></div>
+      <div class="ctl"><label for="zV">start (v, a)</label><select id="zV"></select><select id="zA"></select></div>
+      <div class="ctl"><span class="lbl">H</span><span class="small">the triangle K<sub>3</sub> on {0,1,2}, degree 2, λ(H) = ½</span></div>
+    </div>
+    <div class="transport" id="zTransport"></div>
+    <div class="split" data-split="zz">
+      <div class="col-main">
+        <div class="sim-box">
+          <div class="sim-title"><span>Every vertex v of G becomes a cloud — a copy of H</span><span class="rhs" id="zMeta"></span></div>
+          <div class="svgbox" id="zBox" style="--h:520px"></div><div class="vgrip" data-for="zBox"></div>
+          <div class="legend">
+            <span class="item"><span class="sw ln" style="border-color:var(--wi-queue)"></span> H-edge inside a cloud (small step)</span>
+            <span class="item"><span class="sw ln" style="border-color:var(--wi-border)"></span> G-edge between clouds (big step)</span>
+            <span class="item"><span class="sw ln" style="border-color:var(--wi-active)"></span> the step being taken</span>
+            <span class="item"><span class="sw ln" style="border-color:var(--wi-accent-soft)"></span> zig-zag edge found</span>
+            <span class="item">click a small vertex to start there</span>
+          </div>
+        </div>
+      </div>
+      <div class="gutter"></div>
+      <div class="col-side">
+        <div class="sim-box"><div class="sim-title"><span>What just happened</span></div><div class="status" id="zStatus"></div></div>
+        <details class="code" open><summary>Rotation map of G ⓩ H</summary><div class="codebody" id="zCode"></div>
+          <div class="codenote" id="zRegs"></div></details>
+        <div class="sim-box">
+          <div class="sim-title"><span>Expansion, measured</span><span class="rhs">λ = 2nd largest |eigenvalue| of the walk matrix</span></div>
+          <div id="zSpec" class="small"></div>
+        </div>
+      </div>
+    </div>
+    <details class="editor"><summary>Input (3-regular graph G)</summary>
+      <div class="editor-body">
+        <div><textarea id="zInput" spellcheck="false"></textarea>
+          <div style="margin-top:8px"><button class="pri" id="zLoad">Load</button></div><div class="err" id="zErr"></div></div>
+        <div class="hint">algs4 graph format as in ①, but every vertex must have degree exactly 3 (a line <code>v v</code> is a
+          self-loop and contributes two ports at <i>v</i>). Port <i>a</i> of <i>v</i> = the <i>a</i>-th edge at <i>v</i> in input
+          order; it is also the name of the vertex (<i>v</i>, <i>a</i>) in <i>v</i>'s cloud. Optional coordinates after the edges.</div>
+      </div>
+    </details>
+  </div>
+
+  <!-- ③ registers -->
+  <div class="sub" id="sub-reg" style="display:none">
+    <div class="controls">
+      <div class="ctl"><span class="lbl">Evaluate Rot of G<sub>ℓ</sub> with ℓ =</span>
+        <span class="seg" id="rL"><button data-v="1">1</button><button data-v="2" class="on">2</button><button data-v="3">3</button></span></div>
+      <div class="ctl small muted"><span>Reingold's parameters: G<sub>i</sub> = (G<sub>i−1</sub> ⓩ H)<sup>8</sup>, H a (D<sup>16</sup>, D, ½)-graph,
+        G<sub>0</sub> is D<sup>16</sup>-regular. Values are symbolic — watch <i>which</i> cells are touched.</span></div>
+    </div>
+    <div class="transport" id="rTransport"></div>
+    <div class="split" data-split="reg">
+      <div class="col-main">
+        <div class="sim-box">
+          <div class="sim-title"><span>The shared registers — the whole work tape</span><span class="rhs" id="rMeta"></span></div>
+          <div class="svgbox" id="rBox" style="--h:150px"></div>
+          <div class="legend">
+            <span class="item"><span class="sw sq" style="background:var(--hot-bg);border-color:var(--wi-active)"></span> written by Rot<sub>H</sub> (a step in H)</span>
+            <span class="item"><span class="sw sq" style="background:var(--cool-bg);border-color:var(--wi-queue)"></span> rewritten by a look-up of Rot<sub>G</sub> on the input</span>
+            <span class="item"><span class="sw sq" style="background:var(--warm-bg);border-color:var(--wi-examine)"></span> labels being reversed</span>
+          </div>
+        </div>
+        <div class="sim-box">
+          <div class="sim-title"><span>Recursion tree (8 calls per level)</span><span class="rhs" id="rTreeMeta"></span></div>
+          <div class="svgbox" id="rTree" style="--h:200px"></div><div class="vgrip" data-for="rTree"></div>
+          <div class="note">Each leaf is one step in G<sub>0</sub>: an edge of G<sub>ℓ</sub> is a walk of 8<sup>ℓ</sup> steps in
+            G<sub>0</sub>, interleaved with 16·(8<sup>ℓ</sup>−1)/7 steps in copies of H. Only the path to the current node is
+            kept — as one small counter <i>j</i> per level.</div>
+        </div>
+      </div>
+      <div class="gutter"></div>
+      <div class="col-side">
+        <div class="sim-box"><div class="sim-title"><span>What just happened</span></div><div class="status" id="rStatus"></div></div>
+        <div class="sim-box"><div class="sim-title"><span>Recursion stack</span><span class="rhs" id="rStkMeta"></span></div><div id="rStack"></div></div>
+        <details class="code" open><summary>Rot of G<sub>i</sub>, in place (Reingold, Lemma 3.4)</summary><div class="codebody" id="rCode"></div>
+          <div class="codenote">Vertex of G<sub>i</sub> = (<i>v</i>, <i>a</i><sub>0</sub>, …, <i>a</i><sub>i−1</sub>), edge label = <i>a</i><sub>i</sub>
+            = <i>k</i><sub>i,1</sub> … <i>k</i><sub>i,16</sub> (16 labels of H). All levels work on the <i>same</i> variables;
+            the result overwrites the argument.</div></details>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ all together -->
+  <div class="sub" id="sub-all" style="display:none">
+    <div class="controls">
+      <div class="ctl"><label for="aN">n (vertices of the input)</label><input type="range" id="aN" min="1" max="12" step="0.25" value="3">
+        <span class="stepno" id="aNval"></span></div>
+      <div class="ctl"><label for="aD">D</label><select id="aD"><option>2</option><option>3</option><option selected>4</option><option>8</option><option>16</option></select>
+        <span class="small muted">degree of H — some constant for which a (D<sup>16</sup>, D, ½)-graph exists</span></div>
+    </div>
+    <div class="split" data-split="all" style="--cols:minmax(0,1.3fr) 12px minmax(0,1fr)">
+      <div class="col-main">
+        <div class="sim-box">
+          <div class="sim-title"><span>The pipeline</span></div>
+          <div class="svgbox" id="aPipe" style="--h:132px"></div>
+        </div>
+        <div class="sim-box">
+          <div class="sim-title"><span>Guaranteed spectral gap 1 − <span class="nc">λ</span>(G<sub>i</sub>), phase by phase</span><span class="rhs" id="aChartMeta"></span></div>
+          <div class="svgbox" id="aChart" style="--h:300px"></div><div class="vgrip" data-for="aChart"></div>
+          <div class="note">Solid: Reingold's Lemma 3.2, λ(G<sub>i</sub>) ≤ max{λ(G<sub>i−1</sub>)², ½} — the gap at least
+            (roughly) doubles per phase until λ ≤ ½. Dashed: the sharper bound behind it,
+            λ(G<sub>i</sub>) ≤ (1 − ⅜ (1 − λ(G<sub>i−1</sub>)))<sup>8</sup> (zig-zag theorem with λ(H) ≤ ½, then the 8th power).
+            Start: λ(G<sub>0</sub>) ≤ 1 − 1/(dN²) for a connected, non-bipartite d-regular graph on N vertices.</div>
+        </div>
+      </div>
+      <div class="gutter"></div>
+      <div class="col-side">
+        <div class="sim-box"><div class="sim-title"><span>The numbers for this n</span></div><div id="aNums"></div></div>
+        <div class="sim-box">
+          <div class="sim-title"><span>Step 0: make it regular and non-bipartite</span></div>
+          <div class="svgbox" id="aReg" style="--h:230px"></div>
+          <div class="prose small">Reingold's simple (not size-optimal) preprocessing: each vertex <i>v</i> becomes a cycle
+            (<i>v</i>,1), …, (<i>v</i>,<i>N</i>) (labels 1, 2); label 3 at (<i>v</i>,<i>w</i>) goes to (<i>w</i>,<i>v</i>) if
+            <i>vw</i> is an edge and is a self-loop otherwise; all labels &gt; 3 are self-loops. Components are preserved, the
+            self-loops kill bipartiteness, and the degree is the constant D<sup>16</sup>.</div>
+        </div>
+        <div class="sim-box">
+          <div class="sim-title"><span>Why only undirected?</span></div>
+          <div class="prose small" style="margin:0">Everything rests on the walk matrix being symmetric: then a connected,
+            non-bipartite graph has an inverse-polynomial spectral gap, powering raises λ to a power, and the zig-zag theorem
+            controls the product. For directed graphs a random walk from <i>s</i> can need exponential time to hit <i>t</i>,
+            there is no spectral gap to amplify, and no analogue of the transformation is known — STCON stays at Savitch's
+            log² <i>n</i>.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- ⑤ random walk -->
+  <div class="sub" id="sub-rw" style="display:none">
+    <div class="controls">
+      <div class="ctl"><label for="rwPreset">Graph</label><select id="rwPreset"></select></div>
+      <div class="ctl"><label for="rwS">s</label><select id="rwS"></select><label for="rwT">t</label><select id="rwT"></select></div>
+      <div class="ctl"><span class="lbl">Edges</span>
+        <span class="seg" id="rwDir"><button data-v="0" class="on">undirected</button><button data-v="1">directed</button></span></div>
+      <div class="ctl"><button class="txt" id="rwReroll">New random run</button></div>
+    </div>
+    <div class="transport" id="rwTransport"></div>
+    <div class="split" data-split="rw">
+      <div class="col-main">
+        <div class="sim-box">
+          <div class="sim-title"><span>One random walk from s</span><span class="rhs" id="rwMeta"></span></div>
+          <div class="svgbox" id="rwBox" style="--h:430px"></div><div class="vgrip" data-for="rwBox"></div>
+          <div class="legend">
+            <span class="item"><span class="sw" style="border-color:var(--wi-queue);border-width:2.5px"></span>s</span>
+            <span class="item"><span class="sw" style="border-color:var(--wi-accent);border-style:dashed;border-width:2.5px"></span>t</span>
+            <span class="item"><span class="sw" style="background:var(--wi-active);border-color:var(--wi-accent-dark)"></span>current vertex x</span>
+            <span class="item"><span class="sw ln" style="border-color:var(--wi-active)"></span>last few steps</span>
+            <span class="item"><span class="sw" style="background:rgba(194,133,119,.7)"></span>visited often (picture only)</span>
+          </div>
+        </div>
+        <div class="sim-box">
+          <div class="sim-title"><span>Hitting time of t, over 1000 independent runs</span><span class="rhs" id="rwHistMeta"></span></div>
+          <div class="svgbox" id="rwHist" style="--h:210px"></div><div class="vgrip" data-for="rwHist"></div>
+          <div class="legend">
+            <span class="item"><span class="sw ln" style="border-color:var(--wi-queue)"></span>exact expectation H(s,t)</span>
+            <span class="item"><span class="sw ln" style="border-color:var(--wi-examine);border-top-style:dashed"></span>bound 2m·dist(s,t)</span>
+            <span class="item"><span class="sw ln" style="border-color:var(--wi-accent)"></span>cut-off T = 4m(n−1)</span>
+          </div>
+        </div>
+      </div>
+      <div class="gutter"></div>
+      <div class="col-side">
+        <div class="sim-box"><div class="sim-title"><span>What just happened</span></div><div class="status" id="rwStatus"></div></div>
+        <div class="sim-box">
+          <div class="sim-title"><span>Work tape</span><span class="rhs" id="rwBits"></span></div>
+          <div class="tape" id="rwTape"></div>
+          <div class="cheat">Visit counts and the trail are drawn for <i>you</i>. The machine keeps only x and c; each coin
+            flip is read once from a one-way random tape and forgotten — that is the definition of RL.</div>
+        </div>
+        <div class="sim-box"><div class="sim-title"><span>Numbers</span></div><div id="rwNums" class="small"></div></div>
+        <details class="code" open><summary>Pseudocode (Aleliunas, Karp, Lipton, Lovász, Rackoff 1979)</summary><div class="codebody" id="rwCode"></div>
+          <div class="codenote">Undirected, connected: H(s,t) ≤ H(s,t) + H(t,s) = 2m·R_eff(s,t) ≤ 2m·dist(s,t) ≤ 2m(n−1)
+            (commute time = 2m × effective resistance). By Markov's inequality the walk misses t within T = 4m(n−1)
+            steps with probability ≤ ½; it never accepts wrongly. Here m counts parallel edges with multiplicity.</div></details>
+        <div class="sim-box">
+          <div class="sim-title"><span>What Reingold derandomizes</span></div>
+          <div class="prose small" style="margin:0">Replacing the coin flips by <i>all</i> possible flip sequences is exactly ①
+            — but a random walk needs polynomially many steps, so there are 2<sup>poly(n)</sup> sequences. Only on an expander,
+            where O(log n) steps suffice, does the enumeration fit in O(log n) bits; ②–④ build that expander.
+            Switch to <b>directed</b> on the reset-path preset to see why none of this helps for STCON.</div>
+        </div>
+      </div>
+    </div>
+    <details class="editor"><summary>Input (graph)</summary>
+      <div class="editor-body">
+        <div><textarea id="rwInput" spellcheck="false"></textarea>
+          <div style="margin-top:8px"><button class="pri" id="rwLoad">Load</button></div><div class="err" id="rwErr"></div></div>
+        <div class="hint">algs4 format as on the other panels; parallel edges and self-loops are allowed and are chosen
+          proportionally to their multiplicity (a line <code>v v</code> gives v two edge ends). The directive
+          <code>#! s=0 t=9 directed=1</code> presets s, t and the edge mode.</div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- =============================================================== NL -->
+<section class="tab" id="tab-nl">
+  <div class="controls">
+    <div class="ctl"><label for="nPreset">Digraph</label><select id="nPreset"></select></div>
+    <div class="ctl"><label for="nS">s</label><select id="nS"></select><label for="nT">t</label><select id="nT"></select></div>
+    <div class="ctl"><span class="lbl">Guesses</span>
+      <span class="seg" id="nPolicy"><button data-v="lucky" class="on">Lucky</button><button data-v="random">Random</button><button data-v="manual">You choose</button></span>
+      <button class="txt" id="nReroll" style="display:none">New random run</button></div>
+  </div>
+  <div class="transport" id="nTransport"></div>
+  <div class="split" data-split="nl">
+    <div class="col-main">
+      <div class="sim-box">
+        <div class="sim-title"><span>The digraph (read-only input)</span><span class="rhs" id="nMeta"></span></div>
+        <div class="svgbox" id="nBox" style="--h:470px"></div><div class="vgrip" data-for="nBox"></div>
+        <div class="legend">
+          <span class="item"><span class="sw" style="border-color:var(--wi-queue);border-width:2.5px"></span> s</span>
+          <span class="item"><span class="sw" style="border-color:var(--wi-accent);border-style:dashed;border-width:2.5px"></span> t</span>
+          <span class="item"><span class="sw" style="background:var(--wi-active);border-color:var(--wi-accent-dark)"></span> cur</span>
+          <span class="item"><span class="sw" style="background:var(--warm-bg);border-color:var(--wi-examine);border-width:2.5px"></span> possible guesses</span>
+          <span class="item"><span class="sw ln" style="border-color:var(--wi-accent)"></span> this branch so far (picture only)</span>
+        </div>
+      </div>
+      <details class="code" open><summary>Pseudocode</summary><div class="codebody" id="nCode"></div>
+        <div class="codenote">Accepts if <i>some</i> sequence of guesses leads to accept. A simple path has at most
+          <i>n</i>−1 edges, so the counter <i>c</i> may stop every branch after <i>n</i> moves.</div></details>
+    </div>
+    <div class="gutter"></div>
+    <div class="col-side">
+      <div class="sim-box"><div class="sim-title"><span>What just happened</span></div><div class="status" id="nStatus"></div></div>
+      <div class="sim-box">
+        <div class="sim-title"><span>Work tape</span><span class="rhs" id="nBits"></span></div>
+        <div class="tape" id="nTape"></div>
+        <div class="cheat" id="nCheat"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>All branches at once</span><span class="rhs" id="nCfgMeta"></span></div>
+        <div class="svgbox" id="nCfg" style="--h:300px"></div><div class="vgrip" data-for="nCfg"></div>
+        <div class="note">Column <i>c</i>, row <i>v</i>: a dot if some branch has cur = <i>v</i> after <i>c</i> moves.
+          These dots are the machine's <b>configurations</b> (line numbers aside). The computation tree may have exponentially
+          many branches, but they pass through only polynomially many configurations — which is exactly why BFS on this
+          picture puts NL inside P.</div>
+      </div>
+    </div>
+  </div>
+  <details class="editor"><summary>Input (directed graph)</summary>
+    <div class="editor-body">
+      <div><textarea id="nInput" spellcheck="false"></textarea>
+        <div style="margin-top:8px"><button class="pri" id="nLoad">Load</button></div><div class="err" id="nErr"></div></div>
+      <div class="hint" id="hintDirected"></div>
+    </div>
+  </details>
+</section>
+
+<!-- =============================================================== SAVITCH -->
+<section class="tab" id="tab-sav">
+  <div class="controls">
+    <div class="ctl"><label for="sPreset">Digraph</label><select id="sPreset"></select></div>
+    <div class="ctl"><label for="sS">s</label><select id="sS"></select><label for="sT">t</label><select id="sT"></select></div>
+    <div class="ctl"><span class="lbl">Detail</span>
+      <span class="seg" id="sGran"><button data-v="coarse" class="on">Base cases in one step</button><button data-v="fine">Every line</button></span></div>
+  </div>
+  <div class="transport" id="sTransport"></div>
+  <div class="split" data-split="sav">
+    <div class="col-main">
+      <div class="sim-box">
+        <div class="sim-title"><span>The question being asked right now</span><span class="rhs" id="sMeta"></span></div>
+        <div class="svgbox" id="sBox" style="--h:400px"></div><div class="vgrip" data-for="sBox"></div>
+        <div class="legend">
+          <span class="item"><span class="sw" style="background:#d9e8e5;border-color:var(--wi-queue);border-width:2.5px"></span> u</span>
+          <span class="item"><span class="sw" style="background:#f3d9d2;border-color:var(--wi-accent);border-width:2.5px"></span> v</span>
+          <span class="item"><span class="sw" style="background:#f3e3bd;border-color:var(--wi-examine);border-width:2.5px"></span> midpoint candidate w</span>
+          <span class="item"><span class="sw ln" style="border-color:var(--wi-accent);border-top-style:dashed"></span> current query u ⇝ v</span>
+          <span class="item"><span class="sw ln" style="border-color:var(--wi-relax);border-top-style:dashed"></span> already proved (by a frame lower in the stack)</span>
+        </div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>The stack as nested halves of a path of length 2<sup>k</sup></span><span class="rhs" id="sIvMeta"></span></div>
+        <div class="svgbox" id="sIv" style="--h:190px"></div><div class="vgrip" data-for="sIv"></div>
+      </div>
+    </div>
+    <div class="gutter"></div>
+    <div class="col-side">
+      <div class="sim-box"><div class="sim-title"><span>What just happened</span></div><div class="status" id="sStatus"></div></div>
+      <div class="sim-box">
+        <div class="sim-title"><span>Work tape = recursion stack</span><span class="rhs" id="sBits"></span></div>
+        <div id="sStack"></div>
+      </div>
+      <details class="code" open><summary>Pseudocode</summary><div class="codebody" id="sCode"></div>
+        <div class="codenote">“and” is evaluated left to right and stops early. Each frame stores <i>u</i>, <i>v</i>, <i>w</i>
+          and <i>i</i>; the recursion depth is <i>k</i>+1 = ⌈log₂ <i>n</i>⌉+1. Hence <i>O</i>(log² <i>n</i>) bits —
+          and the running time is <i>n</i><sup><i>O</i>(log <i>n</i>)</sup>, since nothing is ever remembered.</div></details>
+    </div>
+  </div>
+  <details class="editor"><summary>Input (directed graph)</summary>
+    <div class="editor-body">
+      <div><textarea id="sInput" spellcheck="false"></textarea>
+        <div style="margin-top:8px"><button class="pri" id="sLoad">Load</button></div><div class="err" id="sErr"></div></div>
+      <div class="hint" id="hintDirected2"></div>
+    </div>
+  </details>
+</section>
+
+<!-- =============================================================== ZOO -->
+<section class="tab" id="tab-zoo">
+  <div class="controls">
+    <div class="ctl"><label for="zoPreset">Example digraph</label><select id="zoPreset"></select></div>
+    <div class="ctl"><label for="zoS">s</label><select id="zoS"></select><label for="zoT">t</label><select id="zoT"></select></div>
+  </div>
+  <div class="controls" style="padding:8px 12px">
+    <div class="ctl"><span class="lbl">Reduce STCON to</span><span class="seg" id="zoSeg"></span></div>
+  </div>
+  <div class="split" data-split="zoo" style="--cols:minmax(0,1.5fr) 12px minmax(0,1fr)">
+    <div class="col-main">
+      <div class="sim-box">
+        <div class="sim-title"><span id="zoTitle" class="nc">The constructed instance</span><span class="rhs" id="zoMeta"></span></div>
+        <div class="svgbox" id="zoBox" style="--h:520px"></div><div class="vgrip" data-for="zoBox"></div>
+        <div class="legend" id="zoLegend"></div>
+      </div>
+    </div>
+    <div class="gutter"></div>
+    <div class="col-side">
+      <div class="sim-box">
+        <div class="sim-title"><span>Original instance (G, s, t)</span><span class="rhs" id="zoOrigMeta"></span></div>
+        <div class="svgbox" id="zoOrig" style="--h:220px"></div>
+      </div>
+      <div class="sim-box zoo-text" id="zoText"></div>
+    </div>
+  </div>
+  <div class="sim-box" style="margin-top:14px">
+    <div class="sim-title"><span>More NL-complete problems, in brief</span></div>
+    <div class="prose small" style="max-width:none">
+      <p><b>Distance.</b> “dist(<i>s</i>,<i>t</i>) ≤ <i>k</i>?” (guess a path, count to <i>k</i>; hard by taking <i>k</i> = <i>n</i>−1).
+        “dist(<i>s</i>,<i>t</i>) = <i>k</i>?” and “&gt; <i>k</i>?” are in NL only thanks to NL = coNL.</p>
+      <p><b>Acyclicity.</b> “Is G a DAG?” is the complement of cycle detection, hence NL-complete as well (NL = coNL).</p>
+      <p><b>Automata.</b> DFA emptiness, DFA universality and DFA equivalence (emptiness of the symmetric difference via the
+        product automaton, which a log-space machine can simulate on the fly); NFA emptiness and the NFA word problem.
+        Contrast: NFA <i>universality</i> and NFA equivalence are PSPACE-complete.</p>
+      <p><b>Logic.</b> 2-SAT and 2-UNSAT (shown above). Contrast: Horn-SAT is P-complete, 3-SAT NP-complete.</p>
+      <p><b>What drops into L instead.</b> Undirected s-t connectivity (Reingold; L-complete under first-order reductions),
+        and everything that reduces to it: is an undirected graph bipartite, a forest, connected; reachability when every
+        vertex has out-degree ≤ 1 (follow the unique pointer <i>n</i> steps). The step from “out-degree 1” to
+        “out-degree 2” is exactly where nondeterminism enters.</p>
+    </div>
+  </div>
+  <details class="editor"><summary>Input (directed graph)</summary>
+    <div class="editor-body">
+      <div><textarea id="zoInput" spellcheck="false"></textarea>
+        <div style="margin-top:8px"><button class="pri" id="zoLoad">Load</button></div><div class="err" id="zoErr"></div></div>
+      <div class="hint">Same format as on the other tabs; keep it small (≤ 7 vertices), since several constructions have
+        <i>n</i>² vertices. Optional directive line <code>#! s=0 t=5</code>.</div>
+    </div>
+  </details>
+</section>
+
+<div class="tooltip" id="tooltip"></div>
+<script>
+"use strict";
+/* ==========================================================================
+   Connectivity in small space: L, NL, Savitch.
+   One page, five tabs. Every animated panel precomputes a list of snapshots
+   ("steps") and renders snapshot i on demand; the transport bar only moves i.
+   All SVGs are drawn in screen pixels (viewBox = pixel size), so text has the
+   same size whatever the panel width.
+   ========================================================================== */
+
+const el = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const bitsFor = m => m <= 2 ? 1 : Math.ceil(Math.log2(m));         /* bits to write 0..m-1 */
+const binStr = (x, b) => x.toString(2).padStart(b, "0");
+/* "_x", "_{…}", "^x", "^{…}" in display strings -> real sub/superscripts */
+const subs = h => String(h).replace(/_\{([^}]*)\}/g, "<sub>$1</sub>").replace(/_([A-Za-z0-9ℓⓩ′]+)/g, "<sub>$1</sub>")
+                           .replace(/\^\{([^}]*)\}/g, "<sup>$1</sup>").replace(/\^([A-Za-z0-9ℓ]+)/g, "<sup>$1</sup>");
+const TS = (t, dy) => `<tspan dy="${dy}em" font-size="72%">${t}</tspan><tspan dy="${-dy}em">&#8203;</tspan>`;
+const subT = h => String(h).replace(/_\{([^}]*)\}|_([A-Za-z0-9ℓⓩ′]+)/g, (m, a, b) => TS(a ?? b, 0.3));
+const SUB = n => String(n).replace(/[0-9]/g, d => "₀₁₂₃₄₅₆₇₈₉"[d]);
+const SUP = n => String(n).replace(/[0-9-]/g, d => d === "-" ? "⁻" : "⁰¹²³⁴⁵⁶⁷⁸⁹"[d]);
+function mulberry(seed) {
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a);
+                 t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem("wi-logspace:" + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("wi-logspace:" + k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } }
+};
+const fmtNum = x => {
+  if (!isFinite(x)) return "∞";
+  if (Math.abs(x) < 1e6) return (Math.round(x * 1000) / 1000).toLocaleString("en-US");
+  const e = Math.floor(Math.log10(Math.abs(x)));
+  return (x / Math.pow(10, e)).toFixed(2) + "·10" + SUP(e);
+};
+
+/* ---------- input format --------------------------------------------------
+   algs4 Graph / Digraph format: V, E (one or two lines), then E lines "u v"
+   (extra tokens such as weights are ignored), then optionally exactly V lines
+   "x y" with drawing coordinates.  '#' starts a comment; a directive line
+   "#! s=0 t=7 L=3" presets the selects of the tab that loads it.          */
+function parseGraph(text) {
+  const dir = {}, lines = [];
+  for (const raw of text.split("\n")) {
+    const dm = raw.match(/^\s*#!(.*)$/);
+    if (dm) { for (const m of dm[1].matchAll(/([A-Za-z]+)\s*=\s*(-?\d+)/g)) dir[m[1]] = parseInt(m[2], 10); continue; }
+    const c = raw.replace(/#.*$/, "").trim();
+    if (c) lines.push(c.split(/\s+/));
+  }
+  if (!lines.length) throw new Error("Empty input.");
+  let n, m, li;
+  if (lines[0].length >= 2) { n = parseInt(lines[0][0], 10); m = parseInt(lines[0][1], 10); li = 1; }
+  else { if (lines.length < 2) throw new Error("Need E (number of edges) on the second line."); n = parseInt(lines[0][0], 10); m = parseInt(lines[1][0], 10); li = 2; }
+  if (!Number.isFinite(n) || n <= 0) throw new Error("V (number of vertices) must be a positive integer.");
+  if (!Number.isFinite(m) || m < 0) throw new Error("E (number of edges) must be a non-negative integer.");
+  if (n > 60) throw new Error("At most 60 vertices on this page — the pictures are meant to be read.");
+  const edges = [];
+  for (let k = 0; k < m; k++) {
+    if (li >= lines.length) throw new Error(`Expected ${m} edge line(s), only found ${k}.`);
+    const t = lines[li++], u = parseInt(t[0], 10), v = parseInt(t[1], 10);
+    if (t.length < 2 || !Number.isFinite(u) || !Number.isFinite(v)) throw new Error(`Edge ${k + 1}: expected two integers.`);
+    if (u < 0 || u >= n || v < 0 || v >= n) throw new Error(`Edge ${k + 1}: vertex out of range 0…${n - 1}.`);
+    edges.push([u, v]);
+  }
+  let pos = null;
+  const rest = lines.length - li;
+  if (rest) {
+    if (rest !== n) throw new Error(`After the edges, expected either nothing or exactly ${n} coordinate lines ("x y"), found ${rest}.`);
+    pos = [];
+    for (let v = 0; v < n; v++) {
+      const t = lines[li++], x = parseFloat(t[0]), y = parseFloat(t[1]);
+      if (t.length < 2 || !Number.isFinite(x) || !Number.isFinite(y)) throw new Error(`Vertex ${v}: expected two coordinates "x y".`);
+      pos.push({ x, y });
+    }
+  }
+  if (!pos) pos = forceLayout(n, edges);
+  return { n, edges, pos, dir };
+}
+
+/* Fruchterman–Reingold with a little gravity; deterministic. */
+function forceLayout(n, edges, seed = 11) {
+  const R = mulberry(seed), p = [];
+  for (let i = 0; i < n; i++) { const a = 2 * Math.PI * i / n; p.push({ x: Math.cos(a) + 0.05 * R(), y: Math.sin(a) + 0.05 * R() }); }
+  if (n === 1) return [{ x: 0, y: 0 }];
+  const k = Math.sqrt(4 / n);
+  let temp = 0.25;
+  for (let it = 0; it < 500; it++) {
+    const d = p.map(() => ({ x: 0, y: 0 }));
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      let dx = p[i].x - p[j].x, dy = p[i].y - p[j].y; const dist = Math.max(1e-3, Math.hypot(dx, dy));
+      const f = k * k / dist; dx /= dist; dy /= dist;
+      d[i].x += dx * f; d[i].y += dy * f; d[j].x -= dx * f; d[j].y -= dy * f;
+    }
+    for (const [u, v] of edges) {
+      if (u === v) continue;
+      let dx = p[u].x - p[v].x, dy = p[u].y - p[v].y; const dist = Math.max(1e-3, Math.hypot(dx, dy));
+      const f = dist * dist / k; dx /= dist; dy /= dist;
+      d[u].x -= dx * f; d[u].y -= dy * f; d[v].x += dx * f; d[v].y += dy * f;
+    }
+    for (let i = 0; i < n; i++) {
+      d[i].x -= p[i].x * 0.6; d[i].y -= p[i].y * 0.6;
+      const len = Math.max(1e-9, Math.hypot(d[i].x, d[i].y)), s = Math.min(len, temp) / len;
+      p[i].x += d[i].x * s; p[i].y += d[i].y * s;
+    }
+    temp *= 0.992;
+  }
+  return p;
+}
+
+/* abstract coordinates -> screen pixels, uniform scale, centred */
+function fit(pos, W, H, pad = 34, maxScale = Infinity) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of pos) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
+  const w = x1 - x0, h = y1 - y0;
+  let sc = Math.min(w > 1e-9 ? (W - 2 * pad) / w : Infinity, h > 1e-9 ? (H - 2 * pad) / h : Infinity, maxScale);
+  if (!isFinite(sc)) sc = 1;
+  sc = Math.max(sc, 0.01);
+  const ox = (W - w * sc) / 2 - x0 * sc, oy = (H - h * sc) / 2 - y0 * sc;
+  return pos.map(p => ({ x: p.x * sc + ox, y: p.y * sc + oy }));
+}
+/* keep tiny graphs from spreading over a huge canvas: cap the scale so that the
+   closest pair of vertices is at most `cap` pixels apart */
+function capScale(pos, cap) {
+  let best = Infinity;
+  for (let i = 0; i < pos.length; i++) for (let j = i + 1; j < pos.length; j++)
+    best = Math.min(best, Math.hypot(pos[i].x - pos[j].x, pos[i].y - pos[j].y));
+  return isFinite(best) && best > 1e-9 ? cap / best : Infinity;
+}
+
+const outAdj = g => { const a = Array.from({ length: g.n }, () => []);
+  g.edges.forEach(([u, v]) => { if (!a[u].includes(v)) a[u].push(v); }); return a; };
+function bfs(adj, s) {
+  const n = adj.length, dist = new Array(n).fill(Infinity), par = new Array(n).fill(-1);
+  dist[s] = 0; const q = [s];
+  for (let h = 0; h < q.length; h++) { const u = q[h]; for (const v of adj[u]) if (dist[v] === Infinity) { dist[v] = dist[u] + 1; par[v] = u; q.push(v); } }
+  return { dist, par };
+}
+function bfsPath(adj, s, t) {
+  if (!(t >= 0 && t < adj.length && s >= 0 && s < adj.length)) return null;
+  const { dist, par } = bfs(adj, s);
+  if (dist[t] === Infinity) return null;
+  const p = [t]; while (p[0] !== s) p.unshift(par[p[0]]); return p;
+}
+
+/* ---------- SVG drawing ---------------------------------------------------- */
+const U = (x, y) => { const l = Math.hypot(x, y) || 1; return [x / l, y / l]; };
+const f1 = x => Math.round(x * 10) / 10;
+
+/* geometry of one edge from P1 to P2 bending by `off` pixels to the left of the
+   canonical direction cA -> cB; returns path, arrow, midpoint, port anchors */
+function edgeGeom(P1, P2, r1, r2, off, canonA, canonB, arrowGap = 0) {
+  const dx = canonB.x - canonA.x, dy = canonB.y - canonA.y, L = Math.hypot(dx, dy) || 1;
+  const nx = -dy / L, ny = dx / L;
+  const mx = (P1.x + P2.x) / 2, my = (P1.y + P2.y) / 2;
+  const C = { x: mx + nx * 2 * off, y: my + ny * 2 * off };
+  const [ux1, uy1] = off ? U(C.x - P1.x, C.y - P1.y) : U(P2.x - P1.x, P2.y - P1.y);
+  const [ux2, uy2] = off ? U(C.x - P2.x, C.y - P2.y) : U(P1.x - P2.x, P1.y - P2.y);
+  const S = { x: P1.x + ux1 * r1, y: P1.y + uy1 * r1 }, E = { x: P2.x + ux2 * (r2 + arrowGap), y: P2.y + uy2 * (r2 + arrowGap) };
+  const d = off ? `M${f1(S.x)},${f1(S.y)} Q${f1(C.x)},${f1(C.y)} ${f1(E.x)},${f1(E.y)}` : `M${f1(S.x)},${f1(S.y)} L${f1(E.x)},${f1(E.y)}`;
+  const M = off ? { x: 0.25 * S.x + 0.5 * C.x + 0.25 * E.x, y: 0.25 * S.y + 0.5 * C.y + 0.25 * E.y } : { x: (S.x + E.x) / 2, y: (S.y + E.y) / 2 };
+  return { d, S, E, M, dirS: [ux1, uy1], dirE: [-ux2, -uy2] };
+}
+function arrowHead(E, dir, cls, len = 11, wid = 4.6) {
+  const [ux, uy] = dir, bx = E.x - ux * len, by = E.y - uy * len;
+  return `<polygon class="ah ${cls}" points="${f1(E.x)},${f1(E.y)} ${f1(bx - uy * wid)},${f1(by + ux * wid)} ${f1(bx + uy * wid)},${f1(by - ux * wid)}"/>`;
+}
+function loopGeom(P, r, ang, size = 1) {
+  const a1 = ang - 0.42, a2 = ang + 0.42, R = r * (3.1 + 0.9 * (size - 1));
+  const S = { x: P.x + Math.cos(a1) * r, y: P.y + Math.sin(a1) * r }, E = { x: P.x + Math.cos(a2) * (r + 1), y: P.y + Math.sin(a2) * (r + 1) };
+  const C1 = { x: P.x + Math.cos(a1 - 0.25) * R, y: P.y + Math.sin(a1 - 0.25) * R }, C2 = { x: P.x + Math.cos(a2 + 0.25) * R, y: P.y + Math.sin(a2 + 0.25) * R };
+  const d = `M${f1(S.x)},${f1(S.y)} C${f1(C1.x)},${f1(C1.y)} ${f1(C2.x)},${f1(C2.y)} ${f1(E.x)},${f1(E.y)}`;
+  const [ux, uy] = U(E.x - C2.x, E.y - C2.y);
+  return { d, E, dirE: [ux, uy], M: { x: P.x + Math.cos(ang) * R * 0.78, y: P.y + Math.sin(ang) * R * 0.78 } };
+}
+
+/* draws a (multi)graph; o = { P, n, edges, directed, nr(v), ncls(v), nlbl(v), ntip(v),
+   ecls(k) (null hides), elbl(k), plbl(k,end), plcls(k,end), off(k) (override bend), loopAng(v) } */
+function drawGraph(o) {
+  const n = o.n, P = o.P, nr = o.nr || (() => 15);
+  const groups = new Map();
+  o.edges.forEach((e, k) => { const a = Math.min(e[0], e[1]), b = Math.max(e[0], e[1]); const key = a + "," + b;
+    if (!groups.has(key)) groups.set(key, []); groups.get(key).push(k); });
+  const off = new Array(o.edges.length).fill(0), loopIdx = new Array(o.edges.length).fill(0);
+  for (const ks of groups.values()) {
+    const [a, b] = o.edges[ks[0]];
+    if (a === b) { ks.forEach((k, i) => loopIdx[k] = i); continue; }
+    const m = ks.length;
+    if (m > 1) ks.forEach((k, i) => off[k] = (i - (m - 1) / 2) * 26);
+  }
+  let edgesSvg = "", labels = "";
+  o.edges.forEach((e, k) => {
+    const cls = o.ecls ? o.ecls(k) : "";
+    if (cls === null) return;
+    const [u, v] = e;
+    const bend = o.off ? (o.off(k) ?? off[k]) : off[k];
+    let g;
+    if (u === v) {
+      const base = o.loopAng ? o.loopAng(u) : -Math.PI / 2;
+      g = loopGeom(P[u], nr(u), base + loopIdx[k] * 0.95, 1);
+      edgesSvg += `<path class="ed ${cls}" d="${g.d}"/>`;
+      if (o.directed) edgesSvg += arrowHead(g.E, g.dirE, cls, 9, 4);
+    } else {
+      const a = Math.min(u, v), b = Math.max(u, v);
+      g = edgeGeom(P[u], P[v], nr(u), nr(v), bend, P[a], P[b], o.directed ? 1 : 0);
+      edgesSvg += `<path class="ed ${cls}" d="${g.d}"/>`;
+      if (o.directed) edgesSvg += arrowHead(g.E, g.dirE, cls);
+      if (o.plbl) {
+        for (const end of [0, 1]) {
+          const t = o.plbl(k, end); if (t === null || t === undefined) continue;
+          const A = end === 0 ? g.S : g.E, dir = end === 0 ? g.dirS : [-g.dirE[0], -g.dirE[1]];
+          const x = A.x + dir[0] * 8 - dir[1] * 7, y = A.y + dir[1] * 8 + dir[0] * 7;
+          labels += `<text class="plab ${o.plcls ? o.plcls(k, end) : ""}" x="${f1(x)}" y="${f1(y)}">${t}</text>`;
+        }
+      }
+    }
+    if (o.elbl) { const t = o.elbl(k); if (t !== null && t !== undefined && t !== "")
+      labels += `<text class="elab bg" x="${f1(g.M.x)}" y="${f1(g.M.y)}">${t}</text>`; }
+  });
+  let nodes = "";
+  for (let v = 0; v < n; v++) {
+    if (o.nhide && o.nhide(v)) continue;
+    const c = o.ncls ? o.ncls(v) : "", r = nr(v), tip = o.ntip ? ` data-tip="${esc(o.ntip(v))}"` : "";
+    const ring = o.nring && o.nring(v) ? `<circle class="ring" r="${r + 4}"/>` : "";
+    nodes += `<g class="nd ${c}" data-v="${v}"${tip} transform="translate(${f1(P[v].x)},${f1(P[v].y)})">${ring}<circle r="${r}"/><text>${o.nlbl ? o.nlbl(v) : v}</text></g>`;
+  }
+  return `<g>${edgesSvg}</g><g>${o.mid || ""}</g><g>${labels}</g><g>${nodes}</g>`;
+}
+
+/* ---------- self-sizing SVG panels ---------------------------------------- */
+const BOXES = {};
+function mountBox(id, render, onClick) {
+  const host = el(id);
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  host.appendChild(svg);
+  const b = { host, svg, render, W: 0, H: 0 };
+  BOXES[id] = b;
+  if (onClick) svg.addEventListener("click", ev => { const g = ev.target.closest("[data-v]"); if (g) onClick(+g.dataset.v, g, ev); });
+  if (window.ResizeObserver) new ResizeObserver(() => refresh(id)).observe(host);
+  const h = LS.get("h:" + id, null); if (h) host.style.setProperty("--h", h + "px");
+  return b;
+}
+function refresh(id) {
+  const b = BOXES[id]; if (!b) return;
+  const W = b.host.clientWidth, H = b.host.clientHeight;
+  if (!W || !H) return;
+  b.W = W; b.H = H;
+  b.svg.setAttribute("width", W); b.svg.setAttribute("height", H); b.svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  b.svg.innerHTML = b.render(W, H) || "";
+}
+
+/* vertical grips: drag to resize the panel above */
+function initGrips() {
+  document.querySelectorAll(".vgrip").forEach(g => {
+    const host = el(g.dataset.for);
+    g.addEventListener("pointerdown", ev => {
+      ev.preventDefault(); g.setPointerCapture(ev.pointerId); g.classList.add("drag");
+      const y0 = ev.clientY, h0 = host.clientHeight;
+      const mv = e => { const h = clamp(h0 + e.clientY - y0, 120, 1400); host.style.setProperty("--h", h + "px"); };
+      const up = () => { g.classList.remove("drag"); g.removeEventListener("pointermove", mv); g.removeEventListener("pointerup", up);
+        LS.set("h:" + host.id, host.clientHeight); };
+      g.addEventListener("pointermove", mv); g.addEventListener("pointerup", up);
+    });
+  });
+}
+/* horizontal splitters between main and side column */
+function initSplits() {
+  document.querySelectorAll(".split[data-split]").forEach(sp => {
+    const key = "split:" + sp.dataset.split, gut = sp.querySelector(":scope > .gutter");
+    const set = f => sp.style.setProperty("--cols", `minmax(0,${f.toFixed(3)}fr) 12px minmax(0,${(1 - f).toFixed(3)}fr)`);
+    const saved = LS.get(key, null); if (saved) set(saved);
+    if (!gut) return;
+    gut.addEventListener("pointerdown", ev => {
+      ev.preventDefault(); gut.setPointerCapture(ev.pointerId); gut.classList.add("drag");
+      const r = sp.getBoundingClientRect();
+      let f = null;
+      const mv = e => { f = clamp((e.clientX - r.left) / r.width, 0.25, 0.8); set(f); };
+      const up = () => { gut.classList.remove("drag"); gut.removeEventListener("pointermove", mv); gut.removeEventListener("pointerup", up);
+        if (f !== null) LS.set(key, f); };
+      gut.addEventListener("pointermove", mv); gut.addEventListener("pointerup", up);
+    });
+  });
+}
+
+/* ---------- transport ------------------------------------------------------- */
+class Player {
+  constructor(hostId, opts) {
+    this.host = el(hostId); this.opts = opts; this.n = 1; this.i = 0; this.phases = []; this.timer = null;
+    const extras = (opts.extras || []).map((x, k) =>
+      `<button class="icon" data-x="${k}" title="${x.title}" aria-label="${x.title}">${x.icon}</button>`).join("");
+    this.host.innerHTML = `<div class="transport-row">
+      <span class="ctl" style="gap:6px">
+        <button class="icon" data-a="reset" title="Back to the first step (Home)" aria-label="Back to the first step">&#x21BA;</button>
+        <button class="icon" data-a="back" title="One step back (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+        <button class="icon pri" data-a="step" title="One step forward (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+        <button class="icon" data-a="play" title="Play / pause (space)" aria-label="Play">&#x25B6;&#xFE0E;</button>${extras}
+      </span>
+      <span class="progress"><input type="range" min="0" max="0" value="0" aria-label="Step"><div class="phasebar"></div></span>
+      <span class="stepno">— / —</span>
+      <span class="ctl" style="gap:6px"><span class="lbl">Speed</span>
+        <input type="range" class="spd" min="0" max="100" value="${LS.get("spd:" + hostId, opts.speed ?? 45)}" style="width:88px" aria-label="Speed">
+        <span class="stepno spdv"></span></span></div>`;
+    this.scrub = this.host.querySelector(".progress input");
+    this.bar = this.host.querySelector(".phasebar");
+    this.no = this.host.querySelector(".stepno");
+    this.spd = this.host.querySelector(".spd"); this.spdv = this.host.querySelector(".spdv");
+    this.playBtn = this.host.querySelector('[data-a="play"]');
+    this.host.addEventListener("click", ev => {
+      const b = ev.target.closest("button"); if (!b) return;
+      if (b.dataset.a) this.act(b.dataset.a);
+      else if (b.dataset.x !== undefined) { this.stop(); this.go(this.opts.extras[+b.dataset.x].fn(this.i)); }
+      else if (b.dataset.ph !== undefined) { this.stop(); this.go(this.phases[+b.dataset.ph].from); }
+    });
+    this.scrub.addEventListener("input", () => { this.stop(); this.go(+this.scrub.value); });
+    this.spd.addEventListener("input", () => { LS.set("spd:" + hostId, +this.spd.value); this.showSpeed(); });
+    this.showSpeed();
+  }
+  delay() { return Math.round(1600 * Math.pow(0.012, +this.spd.value / 100)); }
+  showSpeed() { this.spdv.textContent = this.delay() + "ms"; }
+  act(a) {
+    if (a === "reset") { this.stop(); this.go(0); }
+    else if (a === "back") { this.stop(); this.go(this.i - 1); }
+    else if (a === "step") { this.stop(); this.go(this.i + 1); }
+    else if (a === "end") { this.stop(); this.go(this.n - 1); }
+    else if (a === "play") { if (this.timer) this.stop(); else this.play(); }
+  }
+  play() {
+    if (this.i >= this.n - 1) this.go(0);
+    this.playBtn.innerHTML = "&#x23F8;&#xFE0E;";
+    const tick = () => { if (this.i >= this.n - 1) { this.stop(); return; } this.go(this.i + 1); this.timer = setTimeout(tick, this.delay()); };
+    this.timer = setTimeout(tick, this.delay());
+  }
+  stop() { if (this.timer) clearTimeout(this.timer); this.timer = null; this.playBtn.innerHTML = "&#x25B6;&#xFE0E;"; }
+  setSteps(n, phases, keep) {
+    this.stop();
+    this.n = Math.max(1, n); this.phases = phases || [];
+    this.scrub.max = this.n - 1;
+    this.bar.innerHTML = this.phases.map((p, k) =>
+      `<button class="phasebtn" data-ph="${k}" style="flex-grow:${p.to - p.from + 1}" title="${esc(p.name)}"><span class="fill"></span><span class="lab">${esc(p.name)}</span></button>`).join("");
+    this.go(keep === undefined ? 0 : keep);
+  }
+  go(i) {
+    this.i = clamp(i | 0, 0, this.n - 1);
+    this.scrub.value = this.i;
+    this.no.textContent = (this.i + 1) + " / " + this.n;
+    const btns = this.bar.children;
+    this.phases.forEach((p, k) => {
+      const b = btns[k]; if (!b) return;
+      const fr = this.i > p.to ? 1 : this.i < p.from ? 0 : (this.i - p.from + 1) / (p.to - p.from + 1);
+      b.classList.toggle("on", this.i >= p.from && this.i <= p.to);
+      b.classList.toggle("past", this.i > p.to);
+      const fl = b.firstChild; fl.style.width = (fr * 100) + "%"; fl.classList.toggle("empty", fr === 0);
+    });
+    this.opts.onRender(this.i);
+  }
+}
+
+/* phases helper for step builders */
+function Steps() {
+  const S = { list: [], phases: [] };
+  S.phase = name => { S.phases.push({ name, from: S.list.length, to: S.list.length }); };
+  S.add = o => { if (!S.phases.length) S.phase(""); o.ph = S.phases.length - 1; S.list.push(o); S.phases[S.phases.length - 1].to = S.list.length - 1; return o; };
+  S.done = () => { S.phases = S.phases.filter(p => p.to >= p.from && p.from < S.list.length);
+                   S.phases.forEach((p, k) => { const nx = S.phases[k + 1]; p.to = nx ? nx.from - 1 : S.list.length - 1; }); return S; };
+  return S;
+}
+
+/* ---------- pseudocode panels --------------------------------------------- */
+const K = w => `<span class="kw">${w}</span>`;
+const CM = t => `<span class="cm">▷ ${t}</span>`;
+function renderCode(id, lines) {
+  el(id).innerHTML = lines.map((l, k) => `<div class="cline" data-ln="${k + 1}"><span class="ln">${k + 1}</span><span>${subs(l)}</span></div>`).join("");
+}
+function hlCode(id, lns) {
+  const set = new Set(lns || []);
+  el(id).querySelectorAll(".cline").forEach(c => c.classList.toggle("on", set.has(+c.dataset.ln)));
+}
+
+/* ---------- registers ------------------------------------------------------- */
+function regHTML(name, val, nbits, hot, txt) {
+  let b = "";
+  const s = val === null || val === undefined ? "·".repeat(nbits) : binStr(val, nbits);
+  for (const ch of s) b += `<span>${ch}</span>`;
+  return `<div class="reg"><span class="rn">${name}</span><span class="bits${hot ? " hot" : ""}">${b}</span><span class="rv">${txt ?? (val === null || val === undefined ? "" : "= " + val)}</span></div>`;
+}
+
+/* ---------- presets & selects ---------------------------------------------- */
+function fillSelect(sel, items, value) {
+  sel.innerHTML = items.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join("");
+  if (value !== undefined) sel.value = value;
+}
+function vertexOptions(n) { return Array.from({ length: n }, (_, v) => [v, String(v)]); }
+
+/* ---------- tooltip ---------------------------------------------------------- */
+function initTooltip() {
+  const tt = el("tooltip");
+  document.addEventListener("mouseover", ev => {
+    const g = ev.target.closest && ev.target.closest("[data-tip]");
+    if (!g) { tt.style.display = "none"; return; }
+    tt.innerHTML = g.dataset.tip; tt.style.display = "block";
+  });
+  document.addEventListener("mousemove", ev => {
+    if (tt.style.display !== "block") return;
+    tt.style.left = Math.min(ev.clientX + 14, window.innerWidth - 300) + "px"; tt.style.top = (ev.clientY + 14) + "px";
+  });
+}
+
+const HINT_FORMAT = (directed) => `
+  First <code>V</code>, then <code>E</code> (same or next line), then <code>E</code> lines <code>u v</code>
+  ${directed ? "for the edge <i>u</i> → <i>v</i>" : "(undirected; parallel edges and self-loops allowed)"}, vertices
+  0…V−1 — the algs4 <code>${directed ? "Digraph" : "Graph"}</code> format, e.g. <code>${directed ? "tinyDG.txt" : "tinyG.txt"}</code>.
+  Extra tokens on an edge line (weights) are ignored. After the edges you may add exactly V lines <code>x y</code> with
+  drawing coordinates (as produced by the graph editor); otherwise a spring layout is used.
+  <code>#</code> starts a comment; a line like <code>#! s=0 t=5</code> presets s and t.`;
+</script>
+<script>
+"use strict";
+/* ============================ preset graphs ============================ */
+const TINYDG = `13
+22
+4 2
+2 3
+3 2
+6 0
+0 1
+2 0
+11 12
+12 9
+9 10
+9 11
+7 9
+10 12
+11 4
+4 3
+3 5
+6 8
+8 6
+5 4
+0 5
+6 4
+6 9
+7 6
+0.91 -1.46
+3.58 -2.05
+1.25 -3.46
+-0.58 -4.11
+-0.35 -1.4
+-1.54 -2.83
+-1.22 0.49
+-2.13 2.61
+-3.86 0.34
+-0.08 2.74
+0.69 5.0
+1.37 0.94
+1.96 3.2`;
+const EX6 = `6 9
+0 1
+0 2
+0 4
+1 3
+2 1
+3 4
+3 5
+4 2
+5 4
+0 1
+1 0
+1 2
+2 0
+2 2
+3 1`;
+const DIGRAPHS = {
+  "tinyDG.txt (13 V, 22 E)": "#! s=12 t=1\n" + TINYDG,
+  "tinyDG.txt, t not reachable": "#! s=0 t=6\n" + TINYDG,
+  "Small example (6 V)": "#! s=0 t=5\n" + EX6,
+  "Same, t not reachable": "#! s=1 t=0\n" + EX6,
+  "DAG with dead ends (10 V)": `#! s=0 t=9
+10 11
+0 1
+0 2
+1 3
+1 4
+2 4
+2 5
+3 8
+4 6
+4 7
+6 8
+7 9
+0 1.5
+1 0.5
+1 2.5
+2 0
+2 1.5
+2 3
+3 0.8
+3 2.2
+4 0.3
+4 2`,
+  "One-way street: t → s, not s ⇝ t": `#! s=0 t=4
+5 6
+4 0
+0 1
+1 2
+2 3
+3 1
+4 3
+0 0
+1 0
+2 0.6
+1 1.2
+0 1.2`,
+  "Hub with out-degree 4 (6 V)": `#! s=0 t=5
+6 7
+0 1
+0 2
+0 3
+0 4
+2 5
+4 5
+5 3
+0 1.5
+1.2 0
+1.2 1
+1.2 2
+1.2 3
+2.4 1.5`,
+  "Path of 8 vertices": `#! s=0 t=7
+8 7
+0 1
+1 2
+2 3
+3 4
+4 5
+5 6
+6 7
+0 0
+1 0.5
+2 0
+3 0.5
+4 0
+5 0.5
+6 0
+7 0.5`,
+  "Directed 5-cycle": `#! s=1 t=0
+5 5
+0 1
+1 2
+2 3
+3 4
+4 0
+0 -1
+0.95 -0.31
+0.59 0.81
+-0.59 0.81
+-0.95 -0.31`
+};
+const NL_PRESETS = ["tinyDG.txt (13 V, 22 E)", "tinyDG.txt, t not reachable", "Small example (6 V)", "DAG with dead ends (10 V)",
+                    "One-way street: t → s, not s ⇝ t", "Directed 5-cycle"];
+const SAV_PRESETS = ["Small example (6 V)", "Same, t not reachable", "Path of 8 vertices", "Directed 5-cycle",
+                     "One-way street: t → s, not s ⇝ t", "DAG with dead ends (10 V)"];
+
+/* shared wiring for "preset select + s/t selects + editor" */
+function wireGraphInput(prefix, presets, table, onLoad) {
+  const sel = el(prefix + "Preset"), inp = el(prefix + "Input"), err = el(prefix + "Err");
+  fillSelect(sel, presets.map(p => [p, p]));
+  const load = (text, fromPreset) => {
+    try {
+      const g = parseGraph(text);
+      err.textContent = "";
+      if (fromPreset) inp.value = text;
+      onLoad(g);
+    } catch (e) { err.textContent = e.message; }
+  };
+  sel.addEventListener("change", () => { LS.set("preset:" + prefix, sel.value); load(table[sel.value], true); });
+  el(prefix + "Load").addEventListener("click", () => load(inp.value, false));
+  const saved = LS.get("preset:" + prefix, null);
+  if (saved && presets.includes(saved)) sel.value = saved;
+  return () => load(table[sel.value], true);
+}
+function wireST(prefix, n, dir, onChange, defT) {
+  const S = el(prefix + "S"), T = el(prefix + "T");
+  fillSelect(S, vertexOptions(n)); fillSelect(T, vertexOptions(n));
+  S.value = dir.s !== undefined && dir.s < n ? dir.s : 0;
+  T.value = dir.t !== undefined && dir.t < n ? dir.t : (defT ?? n - 1);
+  S.onchange = T.onchange = () => onChange(+S.value, +T.value);
+  return [+S.value, +T.value];
+}
+function wireSeg(id, onChange) {
+  const seg = el(id);
+  seg.addEventListener("click", ev => {
+    const b = ev.target.closest("button"); if (!b) return;
+    seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    onChange(b.dataset.v);
+  });
+}
+const segVal = id => el(id).querySelector("button.on").dataset.v;
+
+/* ============================ NL: guess a path ============================ */
+const NL = { g: null, s: 0, t: 0, policy: "lucky", seed: 1, guesses: [], S: null, out: [] };
+
+function nlCodeLines() {
+  return [
+    `${K("NL-STCON")}(G, s, t):`,
+    `   cur ← s;  c ← 0`,
+    `   ${K("while")} c &lt; n:`,
+    `      ${K("if")} cur = t:  ${K("accept")}`,
+    `      ${K("guess")} v with (cur, v) ∈ E      ${CM("no such v: this branch rejects")}`,
+    `      cur ← v;  c ← c + 1`,
+    `   ${K("reject")}                              ${CM("this branch ran out of moves")}`
+  ];
+}
+/* line numbers: 1 header, 2 init, 3 while, 4 if, 5 guess, 6 move, 7 reject */
+
+function nlBuild() {
+  const g = NL.g, n = g.n, s = NL.s, t = NL.t, out = NL.out = outAdj(g);
+  const rev = Array.from({ length: n }, () => []);
+  out.forEach((l, u) => l.forEach(v => rev[v].push(u)));
+  const distT = bfs(rev, t).dist;
+  /* all branches: R[c][v] — some branch has cur = v after c moves */
+  const R = [new Array(n).fill(false)]; R[0][s] = true;
+  const ways = [new Array(n).fill(0)]; ways[0][s] = 1;
+  let leaves = 0, configs = 1;
+  for (let c = 0; c <= n; c++) {
+    if (c === n) { for (let v = 0; v < n; v++) if (R[c][v]) leaves += ways[c][v]; break; }
+    R.push(new Array(n).fill(false)); ways.push(new Array(n).fill(0));
+    for (let v = 0; v < n; v++) {
+      if (!R[c][v]) continue;
+      if (v === t || !out[v].length) { leaves += ways[c][v]; continue; }
+      for (const w of out[v]) { R[c + 1][w] = true; ways[c + 1][w] += ways[c][v]; }
+    }
+    configs += R[c + 1].filter(x => x).length;
+  }
+  NL.R = R; NL.leaves = leaves; NL.configs = configs; NL.distT = distT;
+
+  const S = Steps(), rnd = mulberry(NL.seed * 7919 + 13);
+  let cur = s, c = 0, path = [s], k = 0;
+  const reach = distT[s] < Infinity;
+  S.phase("start");
+  S.add({ ln: [2], cur, c, path: [s], hot: ["cur", "c"],
+          msg: `Start: <code>cur ← ${s}</code>, <code>c ← 0</code>. These two numbers are the entire work tape — ` +
+               `${bitsFor(n)} + ${bitsFor(n + 1)} bits. The graph sits on the read-only input tape.` });
+  for (;;) {
+    if (c >= n) {
+      S.add({ ln: [3, 7], cur, c, path: path.slice(), verdict: "reject",
+              msg: `<code>c = ${c} = n</code>: a branch that has not met t after n moves is going round in circles. ` +
+                   `<b>This branch rejects.</b> (Without the counter it could loop forever.)` });
+      break;
+    }
+    if (cur === t) {
+      S.add({ ln: [3, 4], cur, c, path: path.slice(), verdict: "accept",
+              msg: `<code>cur = ${t} = t</code> after ${c} move${c === 1 ? "" : "s"}: <b>this branch accepts</b> — and one ` +
+                   `accepting branch is enough for the machine to accept.` });
+      break;
+    }
+    const opts = out[cur];
+    S.add({ ln: [3, 4], cur, c, path: path.slice(),
+            msg: `<code>c = ${c} &lt; n = ${n}</code> and <code>cur = ${cur} ≠ t</code>: keep going.` });
+    if (!opts.length) {
+      S.add({ ln: [5], cur, c, path: path.slice(), opts: [], verdict: "reject",
+              msg: `Vertex ${cur} has no out-neighbour: there is nothing to guess, <b>this branch rejects</b>. ` +
+                   `Other branches may still accept.` });
+      break;
+    }
+    let v, how = "";
+    if (NL.policy === "lucky") {
+      const good = opts.filter(x => distT[x] === distT[cur] - 1);
+      if (good.length) { v = good[0]; how = " The lucky guess lies on a shortest path to t."; }
+      else { v = opts[0]; how = " No branch from here can reach t at all — every guess is equally doomed; we follow the first."; }
+    } else if (NL.policy === "random") {
+      v = opts[Math.floor(rnd() * opts.length)]; how = " (picked at random)";
+    } else {
+      if (k < NL.guesses.length && opts.includes(NL.guesses[k])) v = NL.guesses[k];
+      else {
+        S.add({ ln: [5], cur, c, path: path.slice(), opts, await: true, k,
+                msg: `<b>Your guess.</b> The machine forks into ${opts.length} branch${opts.length === 1 ? "" : "es"}; ` +
+                     `click a highlighted out-neighbour of ${cur} to follow one of them:<br>` +
+                     opts.map(x => `<button class="txt" data-guess="${x}">${x}</button>`).join(" ") });
+        break;
+      }
+    }
+    S.phase("move " + (c + 1));
+    S.add({ ln: [5], cur, c, path: path.slice(), opts, choice: v, k,
+            msg: `<b>Guess</b> among the out-neighbours {${opts.join(", ")}}: the computation forks, one branch per choice. ` +
+                 `This branch takes <b>${v}</b>.${how}` +
+                 (NL.policy === "manual" ? `<br><span class="muted">Change your mind: ${opts.filter(x => x !== v).map(x =>
+                   `<button class="txt" data-guess="${x}" data-k="${k}">${x}</button>`).join(" ") || "—"}</span>` : "") });
+    cur = v; c++; k++; path.push(v);
+    S.add({ ln: [6], cur, c, path: path.slice(), hot: ["cur", "c"],
+            msg: `<code>cur ← ${v}</code>, <code>c ← ${c}</code>. The previous vertex is overwritten: the path itself is never ` +
+                 `stored, only where we are and how far we have walked.` });
+  }
+  if (!reach) {
+    const last = S.list[S.list.length - 1];
+    last.msg += `<span class="ans">t is not reachable from s: every branch rejects, so the machine rejects.</span>`;
+  } else if (S.list[S.list.length - 1].verdict === "accept") {
+    S.list[S.list.length - 1].msg += `<span class="ans">Accept: s ⇝ t.</span>`;
+  } else if (S.list[S.list.length - 1].verdict === "reject") {
+    S.list[S.list.length - 1].msg += `<span class="ans" style="color:var(--wi-ink-soft)">This branch failed — but t is reachable, so other branches accept (the green dots on the right).</span>`;
+  }
+  NL.S = S.done();
+  NL.player.setSteps(NL.S.list.length, NL.S.phases, NL.jump ?? 0);
+  NL.jump = undefined;
+}
+
+function nlRender(i) {
+  const st = NL.S.list[i];
+  hlCode("nCode", st.ln);
+  el("nStatus").innerHTML = subs(st.msg);
+  const n = NL.g.n;
+  el("nMeta").textContent = `n = ${n}, |E| = ${NL.g.edges.length}`;
+  const bc = bitsFor(n), bk = bitsFor(n + 1);
+  el("nBits").textContent = `${bc + bk} bits`;
+  el("nTape").innerHTML = regHTML("cur", st.cur, bc, (st.hot || []).includes("cur")) + regHTML("c", st.c, bk, (st.hot || []).includes("c")) +
+    `<div class="tapefoot">⌈log₂ n⌉ + ⌈log₂(n+1)⌉ = <b>${bc + bk}</b> bits for n = ${n}, whatever the graph. ` +
+    `The guessed v needs no extra room: it is written straight into cur.</div>`;
+  el("nCheat").innerHTML = NL.policy === "lucky"
+    ? "<b>Lucky mode cheats:</b> it peeks at a BFS from t to pick guesses on a shortest path. The machine itself knows nothing of the kind — it accepts because <i>some</i> branch accepts; the dots below show all branches."
+    : NL.policy === "random" ? "<b>One random branch.</b> A rejecting random run proves nothing: acceptance means that <i>some</i> branch accepts. Compare with the dots below."
+    : "<b>You are the nondeterminism.</b> Click any highlighted vertex; going back and clicking another one explores a different branch.";
+  refresh("nBox"); refresh("nCfg");
+}
+function nlGraphSvg(W, H) {
+  if (!NL.S) return "";
+  const st = NL.S.list[NL.player.i], g = NL.g;
+  const P = fit(g.pos, W, H, 34, capScale(g.pos, 150));
+  const onPath = new Set(); for (let j = 0; j + 1 < st.path.length; j++) onPath.add(st.path[j] + ">" + st.path[j + 1]);
+  const opts = new Set(st.opts && st.verdict !== "reject" ? st.opts : []);
+  const pathV = new Set(st.path);
+  const clickable = NL.policy === "manual" && st.opts && st.opts.length;
+  return drawGraph({ P, n: g.n, edges: g.edges, directed: true,
+    ncls: v => [v === NL.s ? "s" : "", v === NL.t ? "t" : "", v === st.cur ? "cur" : opts.has(v) ? "opt" : pathV.has(v) ? "path" : "",
+                clickable && opts.has(v) ? "click" : ""].join(" "),
+    ecls: k => { const [u, v] = g.edges[k]; return onPath.has(u + ">" + v) ? "path" : (u === st.cur && opts.has(v)) ? "opt" : ""; } });
+}
+function nlCfgSvg(W, H) {
+  if (!NL.S) return "";
+  const st = NL.S.list[NL.player.i], n = NL.g.n, R = NL.R, out = NL.out, t = NL.t;
+  const padL = 30, padR = 14, padT = 14, padB = 26;
+  const X = c => padL + (n ? c * (W - padL - padR) / n : 0), Y = v => padT + (n > 1 ? v * (H - padT - padB) / (n - 1) : (H - padT - padB) / 2);
+  let s = "";
+  for (let c = 0; c < n; c++) for (let v = 0; v < n; v++) if (R[c][v] && v !== t) for (const w of out[v]) if (R[c + 1][w])
+    s += `<line class="seglink" x1="${f1(X(c))}" y1="${f1(Y(v))}" x2="${f1(X(c + 1))}" y2="${f1(Y(w))}"/>`;
+  for (let j = 0; j + 1 < st.path.length; j++)
+    s += `<line class="seglink run" x1="${f1(X(j))}" y1="${f1(Y(st.path[j]))}" x2="${f1(X(j + 1))}" y2="${f1(Y(st.path[j + 1]))}"/>`;
+  for (let c = 0; c <= n; c++) for (let v = 0; v < n; v++) if (R[c][v]) {
+    const cls = v === t ? "acc" : "";
+    s += `<circle class="dot ${cls}" cx="${f1(X(c))}" cy="${f1(Y(v))}" r="${v === t ? 4.5 : 3.2}"/>`;
+  }
+  s += `<circle class="dot cur" cx="${f1(X(st.c))}" cy="${f1(Y(st.cur))}" r="5.5"/>`;
+  for (let v = 0; v < n; v++) s += `<text class="axlab end" x="${padL - 9}" y="${f1(Y(v))}" dominant-baseline="central" style="${v === t ? "fill:var(--wi-accent);font-weight:bold" : ""}">${v}</text>`;
+  const stepL = n > 16 ? 4 : n > 8 ? 2 : 1;
+  for (let c = 0; c <= n; c += stepL) s += `<text class="axlab mid" x="${f1(X(c))}" y="${H - 8}">${c}</text>`;
+  el("nCfgMeta").textContent = `${NL.configs} configurations · ${fmtNum(NL.leaves)} branch${NL.leaves === 1 ? "" : "es"}`;
+  return s;
+}
+function nlInit() {
+  renderCode("nCode", nlCodeLines());
+  el("hintDirected").innerHTML = HINT_FORMAT(true);
+  el("hintDirected2").innerHTML = HINT_FORMAT(true);
+  NL.player = new Player("nTransport", { onRender: nlRender });
+  mountBox("nBox", nlGraphSvg, v => {
+    const st = NL.S.list[NL.player.i];
+    if (NL.policy !== "manual" || !st.opts || !st.opts.includes(v)) return;
+    nlGuess(v, st.k);
+  });
+  mountBox("nCfg", nlCfgSvg);
+  el("nStatus").addEventListener("click", ev => {
+    const b = ev.target.closest("[data-guess]"); if (!b) return;
+    const st = NL.S.list[NL.player.i];
+    nlGuess(+b.dataset.guess, b.dataset.k !== undefined ? +b.dataset.k : st.k);
+  });
+  wireSeg("nPolicy", v => { NL.policy = v; el("nReroll").style.display = v === "random" ? "" : "none"; NL.guesses = []; nlBuild(); });
+  el("nReroll").addEventListener("click", () => { NL.seed++; nlBuild(); });
+  const loadPreset = wireGraphInput("n", NL_PRESETS, DIGRAPHS, g => {
+    NL.g = g; NL.guesses = [];
+    [NL.s, NL.t] = wireST("n", g.n, g.dir, (s, t) => { NL.s = s; NL.t = t; NL.guesses = []; nlBuild(); });
+    nlBuild();
+  });
+  loadPreset();
+}
+function nlGuess(v, k) {
+  NL.guesses = NL.guesses.slice(0, k); NL.guesses.push(v);
+  nlBuild();
+  const idx = NL.S.list.findIndex(x => x.k === k && x.choice !== undefined);
+  NL.player.go(idx >= 0 ? idx + 1 : NL.S.list.length - 1);
+}
+
+/* ============================ Savitch ============================ */
+const SV = { g: null, s: 0, t: 0, gran: "coarse", S: null, k: 0 };
+function svCodeLines() {
+  return [
+    `${K("STCON")}(G, s, t):  ${K("return")} REACH(s, t, ⌈log₂ n⌉)`,
+    `${K("REACH")}(u, v, i):     ${CM("path u ⇝ v of length ≤ 2^i ?")}`,
+    `   ${K("if")} i = 0:`,
+    `      ${K("return")} u = v  ${K("or")}  (u, v) ∈ E`,
+    `   ${K("for")} w = 0, 1, …, n−1:      ${CM("midpoint candidate")}`,
+    `      ${K("if")} REACH(u, w, i−1)  ${K("and")}  REACH(w, v, i−1):`,
+    `         ${K("return")} true`,
+    `   ${K("return")} false`
+  ];
+}
+function svBuild() {
+  const g = SV.g, n = g.n, s = SV.s, t = SV.t, fine = SV.gran === "fine";
+  const k = SV.k = n <= 1 ? 0 : Math.ceil(Math.log2(n));
+  const E = Array.from({ length: n }, () => new Array(n).fill(false));
+  g.edges.forEach(([u, v]) => E[u][v] = true);
+  const S = Steps(), stack = []; let calls = 0;
+  const CAP = 60000, TOOBIG = {};
+  const snap = (ln, msg, extra) => {
+    if (S.list.length >= CAP) throw TOOBIG;
+    return S.add(Object.assign({ ln, msg, st: stack.map(f => [f.u, f.v, f.i, f.w, f.h]), calls }, extra || {}));
+  };
+  const P2 = i => 2 ** i;
+  function reach(u, v, i) {
+    const f = { u, v, i, w: -1, h: 0 }; stack.push(f); calls++;
+    if (i === 0) {
+      const r = u === v || E[u][v];
+      const why = u === v ? `u = v = ${u}: a path of length 0` : E[u][v] ? `(${u}, ${v}) is an edge` : `${u} ≠ ${v} and (${u}, ${v}) is no edge`;
+      if (fine) {
+        snap([2], `Call <code>REACH(${u}, ${v}, 0)</code>: a path of length ≤ 1?`);
+        snap([3, 4], `Base case: ${why} → <b>${r}</b>.`, { ret: r });
+      } else snap([2, 3, 4], `<code>REACH(${u}, ${v}, 0)</code>: ${why} → <b>${r}</b>.`, { ret: r, leaf: true });
+      stack.pop(); return r;
+    }
+    snap([2], `Call <code>REACH(${u}, ${v}, ${i})</code>: a path ${u} ⇝ ${v} of length ≤ ${P2(i)}? ` +
+              `If so, it has a midpoint w with both halves of length ≤ ${P2(i - 1)}.`, { call: true });
+    for (let w = 0; w < n; w++) {
+      f.w = w; f.h = 0;
+      if (stack.length === 1) S.phase("w = " + w);
+      if (fine || i > 1)
+        snap([5], `Midpoint candidate <b>w = ${w}</b> for ${u} ⇝ ${v}: first ask ${u} ⇝ ${w} within ${P2(i - 1)}.`);
+      f.h = 1;
+      const r1 = reach(u, w, i - 1);
+      if (!r1) { snap([6], `${u} ⇝ ${w} within ${P2(i - 1)} fails, so the second call is skipped; try the next w.`, { fail: 1 }); continue; }
+      f.h = 2;
+      snap([6], `${u} ⇝ ${w} within ${P2(i - 1)} ✓ — only w is kept, not how we got there. Now ${w} ⇝ ${v}?`);
+      const r2 = reach(w, v, i - 1);
+      if (r2) { snap([7], `Both halves hold: ${u} ⇝ ${w} ⇝ ${v} has length ≤ ${P2(i)}. Return <b>true</b>.`, { ret: true }); stack.pop(); return true; }
+      snap([6], `${w} ⇝ ${v} within ${P2(i - 1)} fails; try the next w.`, { fail: 2 });
+    }
+    f.w = -1; f.h = 0;
+    snap([8], `No midpoint works: there is no path ${u} ⇝ ${v} of length ≤ ${P2(i)}. Return <b>false</b>.`, { ret: false });
+    stack.pop(); return false;
+  }
+  let res = null, truncated = false;
+  S.phase("start");
+  try {
+    snap([1], `<code>STCON(G, ${s}, ${t})</code> with n = ${n}: k = ⌈log₂ ${n}⌉ = ${k}, and 2<sup>${k}</sup> = ${P2(k)} ≥ n − 1, ` +
+              `so a path exists iff REACH(${s}, ${t}, ${k}) holds.`);
+    res = reach(s, t, k);
+    S.phase("result");
+    snap([1], `<code>REACH(${s}, ${t}, ${k})</code> = <b>${res}</b>. ${calls.toLocaleString("en-US")} calls in total, ` +
+              `never more than ${k + 1} frames on the stack at once.` +
+              `<span class="ans">${res ? `t is reachable from s.` : `t is not reachable from s.`}</span>`, { final: res });
+  } catch (e) {
+    if (e !== TOOBIG) throw e;
+    truncated = true;
+    S.list[S.list.length - 1].msg += `<span class="ans">Stopped after ${CAP.toLocaleString("en-US")} steps — Savitch's running time is n^{O(log n)}. Try a graph with ≤ 8 vertices.</span>`;
+  }
+  SV.S = S.done(); SV.truncated = truncated;
+  SV.player.setSteps(SV.S.list.length, SV.S.phases);
+}
+const svDepth = i => SV.S.list[i].st.length;
+function svOver(i) {
+  const st = SV.S.list[i], d = st.st.length, L = SV.S.list;
+  let j = i + 1;
+  if (st.call) { while (j < L.length && L[j].st.length >= d) j++; }
+  else { while (j < L.length && L[j].st.length > d) j++; }
+  return Math.min(j, L.length - 1);
+}
+function svOut(i) {
+  const d = svDepth(i), L = SV.S.list; let j = i + 1;
+  while (j < L.length && L[j].st.length >= d) j++;
+  return Math.min(j, L.length - 1);
+}
+function svRender(i) {
+  const st = SV.S.list[i], n = SV.g.n, k = SV.k, b = bitsFor(n), bi = bitsFor(k + 1);
+  hlCode("sCode", st.ln);
+  el("sStatus").innerHTML = subs(st.msg);
+  el("sMeta").textContent = `n = ${n}, k = ${k}, calls so far: ${st.calls.toLocaleString("en-US")}`;
+  const per = 3 * b + bi + 1;
+  let rows = st.st.map((f, d) => {
+    const [u, v, ii, w, h] = f;
+    const top = d === st.st.length - 1;
+    const half = h === 1 ? "1st" : h === 2 ? "2nd" : "—";
+    return `<tr class="${top ? "top" : ""}"><td>${ii}</td><td>${u}</td><td>${v}</td><td>${w < 0 ? "–" : w}</td><td>${half}</td>` +
+           `<td class="bitsc">${binStr(u, b)} ${binStr(v, b)} ${w < 0 ? "·".repeat(b) : binStr(w, b)} ${binStr(ii, bi)} ${h === 2 ? 1 : 0}</td></tr>`;
+  }).reverse().join("");
+  const used = st.st.length * per, max = (k + 1) * per;
+  el("sBits").textContent = `${used} / ${max} bits`;
+  el("sStack").innerHTML = `<table class="stk"><tr><th>i</th><th>u</th><th>v</th><th>w</th><th>half</th><th>bits: u v w i half</th></tr>${rows ||
+    `<tr><td colspan="6" class="muted" style="font-family:inherit">empty</td></tr>`}</table>` +
+    `<div class="meter"><div style="width:${max ? 100 * used / max : 0}%"></div></div>` +
+    `<div class="tapefoot">Each frame: 3⌈log₂ n⌉ + ⌈log₂(k+1)⌉ + 1 = <b>${per}</b> bits; at most k+1 = ${k + 1} frames: ` +
+    `<b>${max}</b> bits = <i>O</i>(log² n). (A real implementation stores even less: v and u are recoverable from the frame below.)</div>`;
+  refresh("sBox"); refresh("sIv");
+}
+function svGraphSvg(W, H) {
+  if (!SV.S) return "";
+  const st = SV.S.list[SV.player.i], g = SV.g;
+  const P = fit(g.pos, W, H, 40, capScale(g.pos, 160));
+  const top = st.st[st.st.length - 1];
+  const [u, v, ii, w, h] = top || [-1, -1, -1, -1, 0];
+  let over = "";
+  const arc = (a, b, cls, lbl, bend) => {
+    if (a === b) return "";
+    const A = Math.min(a, b), B = Math.max(a, b);
+    const geo = edgeGeom(P[a], P[b], 19, 19, (a < b ? 1 : -1) * bend, P[A], P[B], 1);
+    return `<path class="ed ${cls}" d="${geo.d}"/>` + arrowHead(geo.E, geo.dirE, cls, 12, 5) +
+           (lbl ? `<text class="elab bg" x="${f1(geo.M.x)}" y="${f1(geo.M.y)}" style="fill:var(--wi-ink-strong)">${lbl}</text>` : "");
+  };
+  st.st.forEach((f, d) => {
+    const [fu, fv, fi, fw, fh] = f; if (d === st.st.length - 1) return;
+    if (fh === 2) over += arc(fu, fw, "proved", "≤" + 2 ** (fi - 1), 34);
+    if (fh === 1 && fw >= 0) over += arc(fw, fv, "pend", "", 34);
+  });
+  if (top) {
+    if (ii === 0) {
+      const ok = u === v || g.edges.some(e => e[0] === u && e[1] === v);
+      if (u !== v) over += arc(u, v, ok ? "good" : "bad", ok ? "edge ✓" : "no edge", 0);
+    } else {
+      over += arc(u, v, "query", "≤ " + 2 ** ii + " ?", 48);
+      if (w >= 0 && h === 2) over += arc(u, w, "proved", "≤" + 2 ** (ii - 1), 30);
+    }
+  }
+  const cls = x => {
+    const c = [x === SV.s ? "s" : "", x === SV.t ? "t" : ""];
+    if (top) { if (x === u) c.push("qu"); else if (x === v) c.push("qv"); else if (x === w && ii > 0) c.push("qw"); }
+    return c.join(" ");
+  };
+  const ecls = kk => { const [a, b] = g.edges[kk]; return (top && ii === 0 && a === u && b === v) ? "good" : "faint"; };
+  return drawGraph({ P, n: g.n, edges: g.edges, directed: true, ncls: cls, ecls, mid: over });
+}
+function svIntervalSvg(W, H) {
+  if (!SV.S) return "";
+  const st = SV.S.list[SV.player.i], k = SV.k, Ltot = 2 ** k;
+  const padL = 46, padR = 22, top0 = 26;
+  const rows = k + 1, rh = Math.min(34, (H - top0 - 10) / Math.max(1, rows));
+  const X = p => padL + p * (W - padL - padR) / Ltot;
+  let s = `<line class="axis" x1="${X(0)}" y1="${top0 - 8}" x2="${X(Ltot)}" y2="${top0 - 8}"/>`;
+  const tickEvery = Ltot <= 16 ? 1 : Ltot <= 64 ? 4 : 16;
+  for (let p = 0; p <= Ltot; p += tickEvery) s += `<line class="axis" x1="${f1(X(p))}" y1="${top0 - 11}" x2="${f1(X(p))}" y2="${top0 - 5}"/>` +
+    (p % (tickEvery * (Ltot > 16 ? 1 : 2)) === 0 || p === Ltot ? `<text class="axlab mid" x="${f1(X(p))}" y="${top0 - 16}">${p}</text>` : "");
+  s += `<text class="axlab" x="4" y="${top0 - 16}">length</text>`;
+  let lo = 0;
+  st.st.forEach((f, d) => {
+    const [u, v, i, w, h] = f, isTop = d === st.st.length - 1;
+    const y = top0 + d * rh, bh = Math.max(12, rh - 12), len = 2 ** i, x0 = X(lo), x1 = X(lo + len);
+    s += `<text class="axlab" x="4" y="${f1(y + bh / 2)}" dominant-baseline="central">i = ${i}</text>`;
+    if (i === 0) {
+      const c = isTop ? (st.ret === true ? "ok" : st.ret === false ? "active" : "active") : "active";
+      s += `<rect class="bar ${st.ret === true && isTop ? "ok" : c}" x="${f1(x0)}" y="${f1(y)}" width="${f1(x1 - x0)}" height="${f1(bh)}" rx="3"/>`;
+    } else {
+      const mid = X(lo + len / 2);
+      let lc = "wait", rc = "wait";
+      if (w >= 0) {
+        if (h === 2) { lc = "ok"; rc = isTop ? "wait" : "active"; }
+        else if (h === 1) { lc = isTop ? "wait" : "active"; }
+        if (isTop && st.fail === 1) lc = "active";
+        if (isTop && st.fail === 2) rc = "active";
+      }
+      s += `<rect class="bar ${lc}" x="${f1(x0)}" y="${f1(y)}" width="${f1(mid - x0)}" height="${f1(bh)}" rx="3"/>`;
+      s += `<rect class="bar ${rc}" x="${f1(mid)}" y="${f1(y)}" width="${f1(x1 - mid)}" height="${f1(bh)}" rx="3"/>`;
+      if (isTop && st.fail) s += `<text class="ctext" x="${f1(st.fail === 1 ? (x0 + mid) / 2 : (mid + x1) / 2)}" y="${f1(y + bh / 2)}" style="fill:var(--wi-active);font-weight:bold">✗</text>`;
+      if (w >= 0) s += `<line x1="${f1(mid)}" y1="${f1(y - 3)}" x2="${f1(mid)}" y2="${f1(y + bh + 3)}" stroke="var(--wi-examine)" stroke-width="2"/>` +
+        `<text class="ctext" x="${f1(mid + 5)}" y="${f1(y + bh / 2)}" style="fill:var(--wi-examine);font-weight:bold;text-anchor:start">w=${w}</text>`;
+      if (h === 2) lo += len / 2;
+    }
+    s += `<text class="ctext" x="${f1(x0 + 9)}" y="${f1(y + bh / 2)}" style="fill:var(--wi-queue);font-weight:bold">${u}</text>`;
+    s += `<text class="ctext" x="${f1(x1 - 9)}" y="${f1(y + bh / 2)}" style="fill:var(--wi-accent);font-weight:bold">${v}</text>`;
+  });
+  el("sIvMeta").innerHTML = subs(`2^k = ${Ltot}; a frame at level i covers 2^i`);
+  return s;
+}
+function svInit() {
+  renderCode("sCode", svCodeLines());
+  SV.player = new Player("sTransport", { onRender: svRender, speed: 55, extras: [
+    { icon: "&#x21B7;", title: "Step over this call (skip what happens inside)", fn: i => svOver(i) },
+    { icon: "&#x2934;", title: "Run until the current call returns", fn: i => svOut(i) }] });
+  mountBox("sBox", svGraphSvg);
+  mountBox("sIv", svIntervalSvg);
+  wireSeg("sGran", v => { SV.gran = v; svBuild(); });
+  const loadPreset = wireGraphInput("s", SAV_PRESETS, DIGRAPHS, g => {
+    SV.g = g;
+    [SV.s, SV.t] = wireST("s", g.n, g.dir, (s, t) => { SV.s = s; SV.t = t; svBuild(); });
+    svBuild();
+  });
+  loadPreset();
+}
+</script>
+<script>
+"use strict";
+/* ============================ undirected presets ============================ */
+function ringPos(k, r, phase = -Math.PI / 2) { return Array.from({ length: k }, (_, i) => [r * Math.cos(phase + 2 * Math.PI * i / k), r * Math.sin(phase + 2 * Math.PI * i / k)]); }
+function graphText(n, edges, pos, dir) {
+  return (dir ? "#! " + dir + "\n" : "") + `${n} ${edges.length}\n` + edges.map(e => e.join(" ")).join("\n") + "\n" +
+         pos.map(p => p.map(x => Math.round(x * 100) / 100).join(" ")).join("\n");
+}
+const PETERSEN = (() => { const e = []; for (let i = 0; i < 5; i++) { e.push([i, (i + 1) % 5]); e.push([i, i + 5]); e.push([5 + i, 5 + (i + 2) % 5]); }
+  return { e, p: ringPos(5, 2).concat(ringPos(5, 1)) }; })();
+const PRISM = k => { const e = []; for (let i = 0; i < k; i++) { e.push([i, (i + 1) % k]); e.push([i, i + k]); e.push([k + i, k + (i + 1) % k]); }
+  return { e, p: ringPos(k, 2).concat(ringPos(k, 1.15)) }; };
+const CUBE = (() => { const e = [], p = [];
+  for (let v = 0; v < 8; v++) { for (const b of [1, 2, 4]) if (!(v & b)) e.push([v, v | b]);
+    const x = v & 1, y = (v >> 1) & 1; p.push(v & 4 ? [0.65 + 0.7 * x, 0.65 + 0.7 * y] : [2 * x, 2 * y]); }
+  return { e, p }; })();
+const K4 = { e: [[0, 1], [0, 2], [0, 3], [1, 2], [2, 3], [3, 1]], p: [[0, 0.1]].concat(ringPos(3, 1.4)) };
+const K33 = { e: [[0, 3], [0, 4], [0, 5], [1, 3], [1, 4], [1, 5], [2, 3], [2, 4], [2, 5]], p: [[0, 0], [1.5, 0], [3, 0], [0, 1.6], [1.5, 1.6], [3, 1.6]] };
+const TINYG = `13
+13
+0 5
+4 3
+0 1
+9 12
+6 4
+5 4
+0 2
+11 12
+9 10
+0 6
+7 8
+9 11
+5 3
+1.97 -0.41
+3.13 -0.55
+1.83 -1.59
+0.0 0.64
+0.93 1.13
+0.84 -0.01
+2.03 0.79
+4.13 0.5
+4.13 -0.5
+5.89 -0.15
+6.28 -1.0
+5.13 0.38
+5.96 0.77`;
+const UGRAPHS = {
+  "Petersen graph (3-regular, diameter 2)": graphText(10, PETERSEN.e, PETERSEN.p, "s=0 t=7 L=2"),
+  "Prism C8 × K2 (3-regular, diameter 5)": graphText(16, PRISM(8).e, PRISM(8).p, "s=0 t=12 L=3"),
+  "Cube Q3 (3-regular, diameter 3)": graphText(8, CUBE.e, CUBE.p, "s=0 t=7 L=3"),
+  "Path of 6 vertices (diameter 5)": graphText(6, [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5]], [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0]], "s=0 t=5 L=5"),
+  "tinyG.txt (13 V, 3 components)": "#! s=0 t=9 L=3\n" + TINYG
+};
+const ZGRAPHS = {
+  "Petersen graph (10 V)": graphText(10, PETERSEN.e, PETERSEN.p),
+  "Prism C5 × K2 (10 V)": graphText(10, PRISM(5).e, PRISM(5).p),
+  "K4 (4 V)": graphText(4, K4.e, K4.p),
+  "Cube Q3 (8 V, bipartite)": graphText(8, CUBE.e, CUBE.p),
+  "K3,3 (6 V, bipartite)": graphText(6, K33.e, K33.p),
+  "Prism C8 × K2 (16 V, bipartite, poor expander)": graphText(16, PRISM(8).e, PRISM(8).p)
+};
+
+/* rotation map from the input order: port i of v = i-th edge end at v */
+function portsOf(g) {
+  const P = Array.from({ length: g.n }, () => []), portNo = g.edges.map(() => [-1, -1]);
+  g.edges.forEach(([u, v], k) => { P[u].push({ to: v, k, end: 0 }); P[v].push({ to: u, k, end: 1 }); });
+  P.forEach(l => l.forEach((p, i) => portNo[p.k][p.end] = i));
+  const rot = P.map(l => l.map(p => [p.to, portNo[p.k][1 - p.end]]));
+  return { P, portNo, rot };
+}
+
+/* symmetric eigenvalues by cyclic Jacobi */
+function eigSym(M) {
+  const n = M.length, a = M.map(r => r.slice());
+  for (let sweep = 0; sweep < 80; sweep++) {
+    let off = 0;
+    for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) off += a[p][q] * a[p][q];
+    if (off < 1e-22) break;
+    for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) {
+      if (Math.abs(a[p][q]) < 1e-14) continue;
+      const th = (a[q][q] - a[p][p]) / (2 * a[p][q]);
+      const t = Math.sign(th || 1) / (Math.abs(th) + Math.sqrt(th * th + 1));
+      const c = 1 / Math.sqrt(t * t + 1), s = t * c;
+      for (let k = 0; k < n; k++) { const akp = a[k][p], akq = a[k][q]; a[k][p] = c * akp - s * akq; a[k][q] = s * akp + c * akq; }
+      for (let k = 0; k < n; k++) { const apk = a[p][k], aqk = a[q][k]; a[p][k] = c * apk - s * aqk; a[q][k] = s * apk + c * aqk; }
+    }
+  }
+  return a.map((r, i) => r[i]);
+}
+function lambda2(M) {
+  const ev = eigSym(M).sort((x, y) => y - x);
+  ev.shift();                       /* the eigenvalue 1 of the all-ones vector */
+  return Math.min(1, Math.max(0, ...ev.map(Math.abs)));
+}
+
+/* ============================ ① short walks ============================ */
+const WK = { g: null, s: 0, t: 0, L: 3, gran: "walk", S: null };
+function wkCodeLines() {
+  return [
+    `${K("for each")} σ = (σ₁, …, σ_L) ∈ {0,…,d−1}^L:  ${CM("a counter")}`,
+    `   x ← s`,
+    `   ${K("for")} j = 1, …, L:`,
+    `      ${K("if")} x = t:  ${K("accept")}`,
+    `      (x, ·) ← Rot(x, σ_j)    ${CM("edge σ_j out of x")}`,
+    `   ${K("if")} x = t:  ${K("accept")}`,
+    `${K("reject")}`
+  ];
+}
+function wkBuild() {
+  const g = WK.g, n = g.n, s = WK.s, t = WK.t, L = WK.L;
+  const { P, portNo } = portsOf(g); WK.P = P; WK.portNo = portNo;
+  const d = Math.max(1, ...P.map(l => l.length)); WK.d = d;
+  WK.dist = bfs(P.map(l => l.map(p => p.to)), s).dist[t];
+  const total = Math.pow(d, L);
+  const S = Steps();
+  WK.firstHit = new Array(n).fill(Infinity);
+  let gran = WK.gran; WK.forced = false;
+  if (total > 60000) {
+    S.phase("too many");
+    S.add({ ln: [1], sigma: new Array(L).fill(0), j: 0, x: s, path: [s], used: [],
+            msg: `d<sup>L</sup> = ${d}<sup>${L}</sup> = ${fmtNum(total)} label sequences — too many to animate. Lower L.` });
+    WK.S = S.done(); WK.player.setSteps(1, WK.S.phases); return;
+  }
+  if (gran === "move" && total * (L + 1) > 60000) { gran = "walk"; WK.forced = true; }
+  const sigma = new Array(L).fill(0);
+  let accepted = false, lastFirst = -1;
+  const mark = path => { const idx = S.list.length - 1; for (const v of path) if (WK.firstHit[v] === Infinity) WK.firstHit[v] = idx; };
+  const seqStr = sg => "(" + sg.join(", ") + ")";
+  for (let idx = 0; idx < total && !accepted; idx++) {
+    if (L && sigma[0] !== lastFirst) { S.phase("σ₁ = " + sigma[0]); lastFirst = sigma[0]; }
+    if (!L && idx === 0) S.phase("σ = ()");
+    let x = s; const path = [s], used = [];
+    const sg = sigma.slice();
+    if (gran === "move") {
+      S.add({ ln: [1, 2], sigma: sg, j: 0, x, path: [s], used: [], idx,
+              msg: `Walk #${idx + 1} of ${fmtNum(total)}: σ = ${seqStr(sg)}. Start again at <code>x = s = ${s}</code> — ` +
+                   `nothing of the previous walk is remembered.` });
+      mark(path);
+    }
+    let hit = x === t ? 0 : -1;
+    for (let j = 1; j <= L && hit < 0; j++) {
+      const deg = P[x].length;
+      if (!deg) { path.push(x); used.push(null); continue; }
+      const lab = sigma[j - 1], p = P[x][lab % deg];
+      used.push({ k: p.k, end: p.end, from: x, to: p.to, lab, port: lab % deg });
+      const from = x; x = p.to; path.push(x);
+      if (x === t) hit = j;
+      if (gran === "move") {
+        S.add({ ln: [3, 4, 5], sigma: sg, j, x, path: path.slice(), used: used.slice(), idx,
+                msg: `j = ${j}: <code>x = ${from} ≠ t</code>, label σ${SUB(j)} = ${lab}` +
+                     (deg !== d ? ` (mod deg ${deg} = ${lab % deg})` : "") + `: Rot(${from}, ${lab % deg}) = (${x}, ${portNo[p.k][1 - p.end]}), so <code>x ← ${x}</code>.` });
+        mark(path);
+      }
+    }
+    if (hit >= 0) {
+      accepted = true;
+      S.add({ ln: hit < L ? [4] : [6], sigma: sg, j: hit, x, path: path.slice(), used: used.slice(), idx, verdict: "accept",
+              msg: `σ = ${seqStr(sg)} reaches <code>x = t = ${t}</code> after ${hit} step${hit === 1 ? "" : "s"}: <b>accept</b>. ` +
+                   `This was walk #${idx + 1}; the algorithm stops at the first success.` +
+                   `<span class="ans">s and t are connected.</span>` });
+      mark(path);
+    } else if (gran === "walk") {
+      S.add({ ln: [1, 2, 3, 4, 5, 6], sigma: sg, j: L, x, path: path.slice(), used: used.slice(), idx,
+              msg: `Walk #${idx + 1} of ${fmtNum(total)}: σ = ${seqStr(sg)} gives ${path.join(" → ")} — misses t. Next σ.` });
+      mark(path);
+    }
+    for (let j = L - 1; j >= 0; j--) { sigma[j]++; if (sigma[j] < d) break; sigma[j] = 0; }
+  }
+  if (!accepted) {
+    S.phase("reject");
+    const why = WK.dist === Infinity ? `Correct: t lies in a different component.`
+      : `<b>Wrong answer!</b> dist(s, t) = ${WK.dist} &gt; L = ${L}. The walks must be at least as long as the distance — on a ` +
+        `bounded-degree <i>expander</i> L = <i>O</i>(log n) always suffices, and that is the whole point of making the graph one.`;
+    S.add({ ln: [7], sigma: new Array(L).fill(d - 1), j: L, x: s, path: [s], used: [], verdict: "reject",
+            msg: `All ${fmtNum(total)} label sequences tried, none visits t: <b>reject</b>. ${why}` +
+                 `<span class="ans">${WK.dist === Infinity ? "Not connected." : "Not found — L too small."}</span>` });
+  }
+  WK.S = S.done();
+  WK.player.setSteps(WK.S.list.length, WK.S.phases);
+}
+function wkRender(i) {
+  const st = WK.S.list[i], n = WK.g.n, d = WK.d, L = WK.L;
+  hlCode("wCode", st.ln);
+  el("wStatus").innerHTML = subs(st.msg) + (WK.forced ? `<div class="note">(Too many moves for “every move”; showing one step per walk.)</div>` : "");
+  el("wMeta").textContent = `d = ${d} · d^L = ${fmtNum(Math.pow(d, L))} walks · dist(s,t) = ${WK.dist === Infinity ? "∞" : WK.dist}`;
+  const bd = bitsFor(d), bj = bitsFor(L + 1), bx = bitsFor(n);
+  const digits = st.sigma.map((x, j) => `<span style="${j + 1 === st.j && !st.verdict ? "background:var(--hot-bg);border-color:var(--wi-accent-soft)" : ""}">${x}</span>`).join("");
+  el("wTape").innerHTML =
+    `<div class="reg"><span class="rn">σ</span><span class="bits">${digits || "<span>–</span>"}</span><span class="rv">L·⌈log₂ d⌉ = ${L * bd} bits</span></div>` +
+    regHTML("j", st.j, bj, false) + regHTML("x", st.x, bx, false) +
+    `<div class="tapefoot">With d constant and L = <i>c</i>·log n, this is <i>O</i>(log n) bits. ` +
+    `The number of walks, d<sup>L</sup> = n<sup><i>c</i> log d</sup>, is only a polynomial — time, not space.</div>`;
+  el("wBits").textContent = `${L * bd + bj + bx} bits`;
+  refresh("wBox");
+}
+function wkGraphSvg(W, H) {
+  if (!WK.S) return "";
+  const i = WK.player.i, st = WK.S.list[i], g = WK.g;
+  const P = fit(g.pos, W, H, 40, capScale(g.pos, 170));
+  const usedPorts = new Set(st.used.filter(Boolean).map(u => u.k + ":" + u.end));
+  const onPath = new Set(st.path);
+  let over = "";
+  const seen = {};
+  st.used.forEach((u, m) => {
+    if (!u) return;
+    const last = m === st.used.length - 1, cls = last ? "mover" : "path";
+    if (u.from === u.to) { const lg = loopGeom(P[u.from], 15, -Math.PI / 2, 1.3); over += `<path class="ed ${cls}" d="${lg.d}"/>` + arrowHead(lg.E, lg.dirE, cls, 10, 4.5); return; }
+    const key = Math.min(u.from, u.to) + "," + Math.max(u.from, u.to); seen[key] = (seen[key] || 0) + 1;
+    const a = Math.min(u.from, u.to), b = Math.max(u.from, u.to);
+    const bend = (u.from < u.to ? 1 : -1) * (7 + 6 * (seen[key] - 1));
+    const geo = edgeGeom(P[u.from], P[u.to], 17, 17, bend, P[a], P[b], 1);
+    over += `<path class="ed ${cls}" d="${geo.d}"/>` + arrowHead(geo.E, geo.dirE, cls, 11, 5);
+  });
+  return drawGraph({ P, n: g.n, edges: g.edges, directed: false, mid: over,
+    ncls: v => [v === WK.s ? "s" : "", v === WK.t ? "t" : "", v === st.x ? "cur" : onPath.has(v) ? "path" : WK.firstHit[v] < i ? "covered" : ""].join(" "),
+    ecls: () => "faint",
+    plbl: (k, end) => WK.portNo[k][end], plcls: (k, end) => usedPorts.has(k + ":" + end) ? "hot" : "",
+    loopAng: () => -Math.PI / 2 });
+}
+function wkInit() {
+  renderCode("wCode", wkCodeLines());
+  el("hintUndirected").innerHTML = HINT_FORMAT(false) + ` A directive <code>L=…</code> presets the walk length.`;
+  WK.player = new Player("wTransport", { onRender: wkRender, speed: 50 });
+  mountBox("wBox", wkGraphSvg);
+  wireSeg("wGran", v => { WK.gran = v; wkBuild(); });
+  el("wL").addEventListener("change", () => { WK.L = clamp(+el("wL").value || 1, 1, 14); el("wL").value = WK.L; wkBuild(); });
+  const loadPreset = wireGraphInput("w", Object.keys(UGRAPHS), UGRAPHS, g => {
+    WK.g = g;
+    if (g.dir.L) { WK.L = clamp(g.dir.L, 1, 14); el("wL").value = WK.L; }
+    [WK.s, WK.t] = wireST("w", g.n, g.dir, (s, t) => { WK.s = s; WK.t = t; wkBuild(); });
+    wkBuild();
+  });
+  loadPreset();
+}
+
+/* ============================ ② zig-zag ============================ */
+/* H = K3 on {0,1,2}; port 0 of a leads to a+1 (arriving on port 1), port 1 leads to a+2 (arriving on port 0) */
+const ROTH = (a, i) => i === 0 ? [(a + 1) % 3, 1] : [(a + 2) % 3, 0];
+const ZZ = { g: null, rot: null, v: 0, a: 0, S: null };
+function zzCodeLines() {
+  return [
+    `Rot${SUB("")}_GⓩH((v, a), (i, j)):`,
+    `   (a′, i′) ← Rot_H(a, i)    ${CM("zig, in cloud v")}`,
+    `   (w, b′) ← Rot_G(v, a′)    ${CM("big step along a G-edge")}`,
+    `   (b, j′) ← Rot_H(b′, j)    ${CM("zag, in cloud w")}`,
+    `   ${K("return")} ((w, b), (j′, i′))`
+  ];
+}
+function zzLoad(g) {
+  const { P, portNo, rot } = portsOf(g);
+  const bad = P.findIndex(l => l.length !== 3);
+  if (bad >= 0) throw new Error(`Vertex ${bad} has degree ${P[bad].length}; G must be 3-regular (H = K3 has 3 vertices).`);
+  ZZ.g = g; ZZ.P = P; ZZ.portNo = portNo; ZZ.rot = rot;
+  const N = g.n;
+  const MG = Array.from({ length: N }, () => new Array(N).fill(0));
+  for (let v = 0; v < N; v++) for (let a = 0; a < 3; a++) MG[v][rot[v][a][0]] += 1 / 3;
+  const zz = (v, a, i, j) => { const [a1, i1] = ROTH(a, i), [w, b1] = rot[v][a1], [b, j1] = ROTH(b1, j); return [w, b, j1, i1, a1, b1]; };
+  ZZ.zz = zz;
+  const MZ = Array.from({ length: 3 * N }, () => new Array(3 * N).fill(0));
+  ZZ.allEdges = [];
+  for (let v = 0; v < N; v++) for (let a = 0; a < 3; a++) for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
+    const [w, b] = zz(v, a, i, j); MZ[3 * v + a][3 * w + b] += 1 / 4;
+    if (3 * v + a <= 3 * w + b) ZZ.allEdges.push([3 * v + a, 3 * w + b]);
+  }
+  ZZ.lamG = lambda2(MG); ZZ.lamZ = lambda2(MZ);
+  ZZ.bip = (() => { const col = new Array(N).fill(-1); for (let s = 0; s < N; s++) { if (col[s] >= 0) continue; col[s] = 0; const q = [s];
+      for (let h = 0; h < q.length; h++) { const u = q[h]; for (const [w] of rot[u]) { if (col[w] < 0) { col[w] = 1 - col[u]; q.push(w); } else if (col[w] === col[u]) return false; } } } return true; })();
+  fillSelect(el("zV"), vertexOptions(N), 0); fillSelect(el("zA"), [[0, "0"], [1, "1"], [2, "2"]], 0);
+  ZZ.v = 0; ZZ.a = 0;
+}
+function zzBuild() {
+  const v = ZZ.v, a = ZZ.a, S = Steps(), found = [];
+  S.phase("clouds");
+  S.add({ k: "intro", ln: [], found: [],
+          msg: `Replace every vertex v of G by a <b>cloud</b>: a copy of H whose vertices (v, 0), (v, 1), (v, 2) stand for the ` +
+               `three edge ends at v. Inside a cloud the H-edges (teal); between clouds the G-edges, now a perfect matching ` +
+               `of cloud vertices. Starting vertex: (${v}, ${a}).` });
+  for (const [i, j] of [[0, 0], [0, 1], [1, 0], [1, 1]]) {
+    const [w, b, j1, i1, a1, b1] = ZZ.zz(v, a, i, j);
+    S.phase(`label (${i},${j})`);
+    const reg = { i, j, a1, i1 };
+    S.add({ k: "zig", ln: [2], i, j, a1, i1, found: found.slice(), reg,
+            msg: `Edge label (i, j) = (${i}, ${j}). <b>Zig:</b> Rot_H(${a}, ${i}) = (${a1}, ${i1}) — move inside the cloud of ${v} from (${v}, ${a}) to (${v}, ${a1}).` });
+    Object.assign(reg, { w, b1 });
+    S.add({ k: "big", ln: [3], i, j, a1, i1, w, b1, found: found.slice(), reg: Object.assign({}, reg),
+            msg: `<b>Big step:</b> Rot_G(${v}, ${a1}) = (${w}, ${b1}). The position ${a1} inside the cloud names an edge of G — follow it to the cloud of ${w}.` });
+    Object.assign(reg, { b, j1 });
+    S.add({ k: "zag", ln: [4], i, j, a1, i1, w, b1, b, j1, found: found.slice(), reg: Object.assign({}, reg),
+            msg: `<b>Zag:</b> Rot_H(${b1}, ${j}) = (${b}, ${j1}) — a final small step inside the cloud of ${w}.` });
+    found.push([3 * v + a, 3 * w + b, i, j]);
+    S.add({ k: "out", ln: [5], i, j, a1, i1, w, b1, b, j1, found: found.slice(), reg: Object.assign({}, reg),
+            msg: `So Rot_GⓩH((${v}, ${a}), (${i}, ${j})) = ((${w}, ${b}), (${j1}, ${i1})). Note the reversed label (j′, i′): walking it ` +
+                 `back from (${w}, ${b}) retraces zag, big step, zig.` });
+  }
+  S.phase("all of G ⓩ H");
+  S.add({ k: "all", ln: [], found: found.slice(),
+          msg: `Doing this at every one of the 3N = ${3 * ZZ.g.n} vertices gives G ⓩ H: degree 2² = 4 instead of 3, but the ` +
+               `expansion of G survives up to a constant factor (right). In Reingold's parameters H has D¹⁶ vertices and degree D, ` +
+               `so the product has degree D², and the 8th power brings it back to D¹⁶ while squaring λ three times.` });
+  ZZ.S = S.done();
+  ZZ.player.setSteps(ZZ.S.list.length, ZZ.S.phases);
+}
+function zzLayout(W, H) {
+  const g = ZZ.g, N = g.n;
+  const prelim = fit(g.pos, W, H, 60, capScale(g.pos, 220));
+  let md = Infinity; for (let u = 0; u < N; u++) for (let v = u + 1; v < N; v++) md = Math.min(md, Math.hypot(prelim[u].x - prelim[v].x, prelim[u].y - prelim[v].y));
+  const rc = clamp(0.34 * (isFinite(md) ? md : 120), 20, 52);
+  const Pb = fit(g.pos, W, H, rc + 26, capScale(g.pos, 220));
+  let cx = 0, cy = 0; Pb.forEach(p => { cx += p.x; cy += p.y; }); cx /= N; cy /= N;
+  const Ps = [];
+  for (let v = 0; v < N; v++) {
+    const ang = ZZ.rot[v].map(([w]) => w === v ? Math.atan2(Pb[v].y - cy, Pb[v].x - cx) : Math.atan2(Pb[w].y - Pb[v].y, Pb[w].x - Pb[v].x));
+    for (let it = 0; it < 6; it++) for (let x = 0; x < 3; x++) for (let y = x + 1; y < 3; y++) {
+      let dlt = ang[y] - ang[x]; while (dlt > Math.PI) dlt -= 2 * Math.PI; while (dlt < -Math.PI) dlt += 2 * Math.PI;
+      if (Math.abs(dlt) < 0.9) { const push = (0.9 - Math.abs(dlt)) / 2 * (dlt >= 0 ? 1 : -1); ang[x] -= push; ang[y] += push; }
+    }
+    Ps.push(ang.map(t => ({ x: Pb[v].x + rc * Math.cos(t), y: Pb[v].y + rc * Math.sin(t) })));
+  }
+  return { Pb, Ps, rc };
+}
+function zzSvg(W, H) {
+  if (!ZZ.S) return "";
+  const st = ZZ.S.list[ZZ.player.i], g = ZZ.g, N = g.n, { Pb, Ps, rc } = zzLayout(W, H);
+  const SP = x => Ps[Math.floor(x / 3)][x % 3];
+  const all = st.k === "all";
+  let s = "";
+  for (let v = 0; v < N; v++) s += `<circle class="cloud" cx="${f1(Pb[v].x)}" cy="${f1(Pb[v].y)}" r="${f1(rc + 13)}"/>` +
+    `<text class="cloudlab" x="${f1(Pb[v].x)}" y="${f1(Pb[v].y)}">${v}</text>`;
+  const line = (A, B, cls, bend = 0, arrow = false) => {
+    const geo = edgeGeom(A, B, 9, 9, bend, A, B, arrow ? 1 : 0);
+    return `<path class="ed ${cls}" d="${geo.d}"/>` + (arrow ? arrowHead(geo.E, geo.dirE, cls.split(" ")[0], 10, 4.5) : "");
+  };
+  if (!all) {
+    for (let v = 0; v < N; v++) for (let a = 0; a < 3; a++) s += line(Ps[v][a], Ps[v][(a + 1) % 3], "hstep");
+    g.edges.forEach(([u, v], k) => {
+      const A = Ps[u][ZZ.portNo[k][0]], B = Ps[v][ZZ.portNo[k][1]];
+      s += u === v ? line(A, B, "gstep", 22) : line(A, B, "gstep");
+    });
+  }
+  const ffound = all ? ZZ.allEdges : st.found;
+  ffound.forEach(e => { if (e[0] === e[1]) return; s += line(SP(e[0]), SP(e[1]), all ? "zz" : "zz", 14); });
+  if (all) st.found.forEach(e => { if (e[0] !== e[1]) s += line(SP(e[0]), SP(e[1]), "zzhot", 14); });
+  const v = ZZ.v, a = ZZ.a;
+  const cls = {};
+  cls[3 * v + a] = "qu";
+  if (st.k === "zig" || st.k === "big" || st.k === "zag" || st.k === "out") {
+    const A0 = Ps[v][a], A1 = Ps[v][st.a1];
+    if (st.k === "zig") s += line(A0, A1, "mover", 0, true);
+    else s += line(A0, A1, "path", 0, true);
+    cls[3 * v + st.a1] = "qw";
+    if (st.k !== "zig") {
+      const B1 = Ps[st.w][st.b1];
+      s += st.w === v ? line(A1, B1, st.k === "big" ? "mover" : "path", 22, true) : line(A1, B1, st.k === "big" ? "mover" : "path", 0, true);
+      cls[3 * st.w + st.b1] = "qw";
+    }
+    if (st.k === "zag" || st.k === "out") {
+      const B1 = Ps[st.w][st.b1], B = Ps[st.w][st.b];
+      s += line(B1, B, st.k === "zag" ? "mover" : "path", 0, true);
+      cls[3 * st.w + st.b] = "qv";
+      if (st.k === "out") s += line(Ps[v][a], B, "zzhot", 14);
+    }
+  }
+  for (let x = 0; x < 3 * N; x++) {
+    const p = SP(x), vv = Math.floor(x / 3), aa = x % 3;
+    s += `<g class="nd sm click ${cls[x] || ""}" data-v="${x}" data-tip="vertex (${vv}, ${aa}) of G ⓩ H" transform="translate(${f1(p.x)},${f1(p.y)})"><circle r="9"/><text>${aa}</text></g>`;
+  }
+  return s;
+}
+function zzRender(i) {
+  const st = ZZ.S.list[i];
+  hlCode("zCode", st.ln);
+  el("zStatus").innerHTML = subs(st.msg);
+  el("zMeta").textContent = `G: N = ${ZZ.g.n}, degree 3   ·   G ⓩ H: ${3 * ZZ.g.n} vertices, degree 4`;
+  const r = st.reg || {};
+  const show = (nm, x) => `<code>${nm} = ${x === undefined ? "·" : x}</code>`;
+  el("zRegs").innerHTML = subs(`Registers: ${show("v", ZZ.v)} ${show("a", ZZ.a)} ${show("i", r.i)} ${show("j", r.j)} ${show("a′", r.a1)} ${show("i′", r.i1)} ` +
+    `${show("w", r.w)} ${show("b′", r.b1)} ${show("b", r.b)} ${show("j′", r.j1)} — besides one vertex name of G, only O(1) bits.`);
+  const lg = ZZ.lamG, lz = ZZ.lamZ, al = 0.5;
+  const f = 0.5 * (1 - al * al) * lg + 0.5 * Math.sqrt((1 - al * al) ** 2 * lg * lg + 4 * al * al);
+  const cor = 1 - 0.5 * (1 - al * al) * (1 - lg);
+  const fx = x => x.toFixed(4);
+  el("zSpec").innerHTML = subs(`<table class="tbl">
+    <tr><th></th><th>λ</th><th>gap 1 − λ</th></tr>
+    <tr><td>G</td><td>${fx(lg)}</td><td>${fx(1 - lg)}</td></tr>
+    <tr><td>H = K₃</td><td>0.5000</td><td>0.5000</td></tr>
+    <tr><td><b>G ⓩ H</b></td><td><b>${fx(lz)}</b></td><td><b>${fx(1 - lz)}</b></td></tr>
+    <tr><td class="muted">RVW bound f(λ_G, ½)</td><td class="muted">≤ ${fx(f)}</td><td class="muted">≥ ${fx(1 - f)}</td></tr>
+    <tr><td class="muted">Reingold Cor. 2.10</td><td class="muted">≤ ${fx(cor)}</td><td class="muted">≥ ⅜ · gap(G) = ${fx(1 - cor)}</td></tr>
+    <tr><td>(G ⓩ H)⁸</td><td>${fx(Math.pow(lz, 8))}</td><td>${fx(1 - Math.pow(lz, 8))}</td></tr></table>
+    <div class="note">${lg > 1 - 1e-9 ? (ZZ.bip ? "G is <b>bipartite</b>: −1 is an eigenvalue, so λ(G) = 1 and the theorem promises nothing. Reingold adds self-loops to every vertex first." :
+      "G is disconnected: λ = 1.") :
+      `The zig-zag step loses at most a constant factor of the gap (here ×${fx((1 - lz) / (1 - lg))}, guaranteed ≥ ⅜), and powering wins it back with interest.` +
+      (Math.abs(f - lz) < 1e-9 ? ` <b>Observation:</b> here λ(G ⓩ H) equals the RVW bound f(λ_G, ½) to machine precision (it does on every non-bipartite preset). ` +
+        `Plausibly because K₃ is extremal: its walk matrix acts as −½ on every vector orthogonal to the constants, so nothing in the proof's estimates is slack. Do not expect this for other H.` : "")}</div>`);
+  refresh("zBox");
+}
+function zzInit() {
+  renderCode("zCode", zzCodeLines());
+  ZZ.player = new Player("zTransport", { onRender: zzRender, speed: 35 });
+  mountBox("zBox", zzSvg, x => { ZZ.v = Math.floor(x / 3); ZZ.a = x % 3; el("zV").value = ZZ.v; el("zA").value = ZZ.a; zzBuild(); ZZ.player.go(1); });
+  el("zV").addEventListener("change", () => { ZZ.v = +el("zV").value; zzBuild(); });
+  el("zA").addEventListener("change", () => { ZZ.a = +el("zA").value; zzBuild(); });
+  const loadPreset = wireGraphInput("z", Object.keys(ZGRAPHS), ZGRAPHS, g => { try { zzLoad(g); el("zErr").textContent = ""; zzBuild(); } catch (e) { el("zErr").textContent = e.message; } });
+  loadPreset();
+}
+
+/* ============================ ③ rotation map in place ============================ */
+const RG = { ell: 2, S: null };
+const aSub = i => "a" + SUB(i), kSub = (i, j) => "k" + SUB(i) + "," + SUB(j);
+const vtxOf = i => i === 0 ? "v" : "(v, " + Array.from({ length: i }, (_, x) => aSub(x)).join(", ") + ")";
+function rgCodeLines() {
+  return [
+    `${K("Rot")}_i:   ${CM("on (v, a₀,…,a_{i−1}), a_i — in place")}`,
+    `   ${K("if")} i = 0:  (v, a₀) ← Rot_G(v, a₀);  ${K("return")}  ${CM("input look-up")}`,
+    `   ${K("for")} j = 1, …, 16:`,
+    `      (a_{i−1}, k_{i,j}) ← Rot_H(a_{i−1}, k_{i,j})  ${CM("in H")}`,
+    `      ${K("if")} j ${K("is odd")}:  Rot_{i−1}      ${CM("big step in G_{i−1}")}`,
+    `      ${K("if")} j = 16:  reverse k_{i,1}, …, k_{i,16}`
+  ];
+}
+function rgBuild() {
+  const ell = RG.ell, S = Steps(), stack = [], path = [];
+  let done = 0;
+  const snap = (kind, ln, msg, touch) => S.add({ kind, ln, msg, touch: touch || {}, st: stack.map(f => [f.i, f.j]), path: path.slice(), done });
+  function rot(i) {
+    stack.push({ i, j: 0 });
+    if (i === 0) {
+      snap("base", [2], `Level 0: <code>(v, a₀) ← Rot_G(v, a₀)</code> — look the edge up on the read-only input tape. One step in G₀. ` +
+                        `(${(done + 1).toLocaleString("en-US")} of ${Math.pow(8, ell).toLocaleString("en-US")} such steps.)`, { v: "read", a0: "read" });
+      done++; stack.pop(); return;
+    }
+    snap("call", [1], `Call Rot_${i}: the registers hold the vertex ${vtxOf(i)} of G${SUB(i)} and its edge label ${aSub(i)}. ` +
+                      `They will be overwritten by the result — no copy is made.`);
+    for (let j = 1; j <= 16; j++) {
+      stack[stack.length - 1].j = j;
+      if (stack.length === 1 && j % 2) S.phase("zig-zag step " + (j + 1) / 2 + " of 8");
+      snap("H", [4], `Level ${i}, j = ${j}: <code>(${aSub(i - 1)}, ${kSub(i, j)}) ← Rot_H(${aSub(i - 1)}, ${kSub(i, j)})</code> — ` +
+                     `a ${j % 2 ? "zig" : "zag"} inside the copy of H named by ${aSub(i - 1)}.`, { ["a" + (i - 1)]: "hot", ["k" + i + "_" + j]: "hot" });
+      if (j % 2 === 1) {
+        snap("rec", [5], `j odd: the big step. Apply Rot_${i - 1} to the vertex ${vtxOf(i - 1)} of G${SUB(i - 1)} with label ${aSub(i - 1)} — ` +
+                         `the cloud position doubles as an edge label, exactly as in the zig-zag product (②). Push a counter, recurse.`);
+        path.push((j - 1) / 2); rot(i - 1); path.pop();
+      }
+      if (j === 16) snap("rev", [6], `j = 16: reverse k${SUB(i)},₁ … k${SUB(i)},₁₆. The returned label must describe the same edge seen from ` +
+                                     `the other end — for a power, the walk backwards.`, { ["a" + i]: "rev" });
+    }
+    snap("ret", [3], `Rot_${i} done: ${vtxOf(i)}, ${aSub(i)} now hold Rot of G${SUB(i)} applied to the input. Pop its counter.`);
+    stack.pop();
+  }
+  S.phase("start");
+  rot(ell);
+  S.phase("done");
+  snap("end", [], `One edge of G${SUB(ell)} evaluated: ${Math.pow(8, ell).toLocaleString("en-US")} look-ups in G₀, ` +
+                  `${(16 * (Math.pow(8, ell) - 1) / 7).toLocaleString("en-US")} steps in H, and never more than ${ell + 1} counters on the stack.` +
+                  `<span class="ans">Space: one vertex name + (ℓ+1) · O(1) bits.</span>`);
+  RG.S = S.done();
+  RG.player.setSteps(RG.S.list.length, RG.S.phases);
+}
+function rgRegsSvg(W, H) {
+  if (!RG.S) return "";
+  const st = RG.S.list[RG.player.i], ell = RG.ell, t = st.touch;
+  const pad = 14, gap = 12, wv = 58, wa = 50;
+  const sw = clamp((W - 2 * pad - wv - wa - (ell + 1) * gap) / (16 * ell), 5, 17);
+  let x = pad; const y = 44, h = 28;
+  const pos = {};
+  let s = "";
+  const cell = (cx, w, cls, label, sub) => `<rect class="cell ${cls}" x="${f1(cx)}" y="${y}" width="${f1(w)}" height="${h}" rx="2"/>` +
+    (label ? `<text class="ttl" x="${f1(cx + w / 2)}" y="${y - 10}" text-anchor="middle">${label}</text>` : "") +
+    (sub ? `<text class="ctext sm" x="${f1(cx + w / 2)}" y="${f1(y + h / 2)}">${sub}</text>` : "");
+  s += cell(x, wv, t.v || "", "v", "∈ [N]"); pos.v = [x, wv]; x += wv + gap;
+  s += cell(x, wa, t.a0 || "", "a₀", "∈ [D¹⁶]"); pos[0] = [x, wa]; x += wa + gap;
+  for (let i = 1; i <= ell; i++) {
+    const whole = t["a" + i];
+    pos[i] = [x, 16 * sw];
+    for (let j = 1; j <= 16; j++) {
+      const c = t["k" + i + "_" + j] || (whole === "rev" ? "rev" : whole === "hot" ? "hot" : "");
+      s += `<rect class="cell ${c}" x="${f1(x + (j - 1) * sw)}" y="${y}" width="${f1(sw)}" height="${h}"/>`;
+      if (t["k" + i + "_" + j]) s += `<text class="ctext sm" x="${f1(x + (j - 0.5) * sw)}" y="${y + h + 12}" style="fill:var(--wi-active)">k${SUB(i)},${SUB(j)}</text>`;
+    }
+    if (whole === "hot") s += `<rect x="${f1(x - 2)}" y="${y - 2}" width="${f1(16 * sw + 4)}" height="${h + 4}" fill="none" stroke="var(--wi-active)" stroke-width="2.4" rx="3"/>`;
+    s += `<text class="ttl" x="${f1(x + 8 * sw)}" y="${y - 10}" text-anchor="middle">${aSub(i)} = ${kSub(i, 1)} … ${kSub(i, 16)}</text>`;
+    if (whole === "rev") for (let m = 1; m <= 8; m++) {
+      const xa = x + (m - 0.5) * sw, xb = x + (16 - m + 0.5) * sw, hh = 8 + (8 - m) * 2.2;
+      s += `<path d="M${f1(xa)},${y + h + 2} Q${f1((xa + xb) / 2)},${f1(y + h + 2 + hh * 2)} ${f1(xb)},${y + h + 2}" fill="none" stroke="var(--wi-examine)" stroke-width="1.2"/>`;
+    }
+    x += 16 * sw + gap;
+  }
+  /* brackets for the frame on top of the stack */
+  const top = st.st[st.st.length - 1];
+  if (top) {
+    const i = top[0], yb = y + h + (t["a" + i] === "rev" ? 34 : 24);
+    const x0 = pos.v[0], x1 = i === 0 ? pos.v[0] + pos.v[1] : pos[i - 1][0] + pos[i - 1][1];
+    const lx0 = pos[i][0], lx1 = pos[i][0] + pos[i][1];
+    const br = (a, b, lbl, col) => `<path d="M${f1(a)},${yb - 6} L${f1(a)},${yb} L${f1(b)},${yb} L${f1(b)},${yb - 6}" fill="none" stroke="${col}" stroke-width="1.4"/>` +
+      `<text class="axlab mid" x="${f1((a + b) / 2)}" y="${yb + 13}" style="fill:${col}">${lbl}</text>`;
+    s += br(x0, x1, `vertex of G${SUB(i)}`, "var(--wi-queue)") + br(lx0, lx1, `its edge label`, "var(--wi-accent)");
+  }
+  el("rMeta").textContent = `log N + ${ell + 1}·16·log D bits`;
+  return s;
+}
+function rgTreeSvg(W, H) {
+  if (!RG.S) return "";
+  const st = RG.S.list[RG.player.i], ell = RG.ell, pad = 56, padR = 12;
+  const rows = ell + 1, rh = Math.min(38, (H - 16) / rows), bh = Math.max(8, rh - 10);
+  const depth = st.st.length - 1;
+  let s = "";
+  for (let r = 0; r < rows; r++) {
+    const cnt = Math.pow(8, r), w = (W - pad - padR) / cnt, y = 8 + r * rh, lvl = ell - r;
+    const span = Math.pow(8, ell - r);
+    s += `<text class="axlab" x="4" y="${f1(y + bh / 2)}" dominant-baseline="central">G${SUB(lvl)}</text>`;
+    let curIdx = -1;
+    if (r <= depth) { curIdx = 0; for (let q = 0; q < r; q++) curIdx = curIdx * 8 + st.path[q]; }
+    if (w >= 3) {
+      for (let q = 0; q < cnt; q++) {
+        const done = st.done >= (q + 1) * span;
+        const c = q === curIdx ? (r === depth ? "cur" : "path") : done ? "done" : "";
+        s += `<rect class="cell ${c}" x="${f1(pad + q * w + 0.5)}" y="${f1(y)}" width="${f1(Math.max(1, w - 1))}" height="${f1(bh)}" rx="${w > 8 ? 2 : 0}"/>`;
+      }
+    } else {
+      const doneCnt = Math.floor(st.done / span);
+      s += `<rect class="cell" x="${pad}" y="${f1(y)}" width="${f1(W - pad - padR)}" height="${f1(bh)}"/>`;
+      if (doneCnt) s += `<rect class="cell done" x="${pad}" y="${f1(y)}" width="${f1(doneCnt * w)}" height="${f1(bh)}" style="stroke:none"/>`;
+      if (curIdx >= 0) s += `<rect class="cell ${r === depth ? "cur" : "path"}" x="${f1(pad + curIdx * w - 1)}" y="${f1(y - 2)}" width="${f1(Math.max(3, w + 2))}" height="${f1(bh + 4)}" style="stroke:none"/>`;
+    }
+  }
+  el("rTreeMeta").textContent = `${st.done.toLocaleString("en-US")} / ${Math.pow(8, ell).toLocaleString("en-US")} look-ups in G₀`;
+  return s;
+}
+function rgRender(i) {
+  const st = RG.S.list[i];
+  hlCode("rCode", st.ln);
+  el("rStatus").innerHTML = subs(st.msg);
+  const rows = st.st.map((f, d) => `<tr class="${d === st.st.length - 1 ? "top" : ""}"><td>Rot_${f[0]}</td><td>${f[0] === 0 ? "–" : f[1]}</td>` +
+    `<td class="bitsc">${f[0] === 0 ? "" : binStr(f[1], 5)}</td></tr>`).reverse().join("");
+  el("rStack").innerHTML = `<table class="stk"><tr><th>level</th><th>j</th><th>bits</th></tr>${rows || `<tr><td colspan="3" class="muted">empty</td></tr>`}</table>` +
+    `<div class="tapefoot">One 5-bit counter per level (it also tells where to resume after the recursive call): ` +
+    `<b>(ℓ+1)·5</b> bits. With ℓ = <i>O</i>(log N) levels: <i>O</i>(log N) for the stack, plus the shared registers.</div>`;
+  el("rStkMeta").textContent = `${st.st.filter(f => f[0] > 0).length * 5} bits`;
+  refresh("rBox"); refresh("rTree");
+}
+function rgInit() {
+  renderCode("rCode", rgCodeLines());
+  RG.player = new Player("rTransport", { onRender: rgRender, speed: 55 });
+  mountBox("rBox", rgRegsSvg); mountBox("rTree", rgTreeSvg);
+  wireSeg("rL", v => { RG.ell = +v; rgBuild(); });
+  rgBuild();
+}
+
+/* ============================ ④ all together ============================ */
+const AL = {};
+function alCompute() {
+  const lg10n = +el("aN").value, D = +el("aD").value;
+  const log2n = lg10n * Math.log2(10), log2N = 2 * log2n, log2d = 16 * Math.log2(D);
+  const log2inv = log2d + 2 * log2N;                     /* log2 (1/gamma0), gamma0 = 1/(d N^2) */
+  /* smallest l with (1 - g0)^(2^l) < 1/2; for tiny g0: 2^l > ln2 / g0 */
+  const ell = Math.max(0, Math.floor(log2inv + Math.log2(Math.LN2)) + 1);
+  const log2Nl = log2N + ell * log2d;
+  return { lg10n, D, log2n, log2N, log2d, log2inv, ell, log2Nl };
+}
+function alRender() {
+  const c = AL.c = alCompute();
+  el("aNval").textContent = "n = 10" + SUP(Math.round(c.lg10n * 100) / 100);
+  const L10 = x => (x * Math.LOG10E * Math.LN2);
+  const pw = x => { const e = L10(x); return e < 6 ? fmtNum(Math.pow(2, x)) : "10" + SUP(Math.round(e)); };
+  const bitsV = Math.ceil(c.log2N) + (c.ell + 1) * 16 * Math.log2(c.D);
+  el("aNums").innerHTML = subs(`<table class="tbl">
+    <tr><td>vertices of G₀ = G_reg</td><td>N = n² = ${pw(c.log2N)}</td></tr>
+    <tr><td>degree of every G_i</td><td>D¹⁶ = 2<sup>${Math.round(c.log2d)}</sup></td></tr>
+    <tr><td>gap of G₀ at least</td><td>1/(D¹⁶ N²) = 2<sup>−${Math.round(c.log2inv)}</sup></td></tr>
+    <tr><td>phases ℓ</td><td><b>${c.ell}</b> ≈ log₂(D¹⁶N²) = <i>O</i>(log n)</td></tr>
+    <tr><td>vertices of G_ℓ</td><td>N·D<sup>16ℓ</sup> = ${pw(c.log2Nl)} ≈ n<sup>${Math.round(c.log2Nl / c.log2n)}</sup></td></tr>
+    <tr><td>bits of one vertex name of G_ℓ</td><td>${Math.round(bitsV).toLocaleString("en-US")} ≈ ${(bitsV / c.log2n).toFixed(0)} · log₂ n</td></tr>
+    <tr><td>stack of counters</td><td>(ℓ+1)·5 = ${(c.ell + 1) * 5} bits</td></tr>
+    <tr><td>G₀-steps per edge of G_ℓ</td><td>8<sup>ℓ</sup> = ${pw(3 * c.ell)}</td></tr></table>
+    <div class="note">Every line is <i>O</i>(log n) bits or poly(n) work — but look at the exponents. Reingold's algorithm settles a
+      question about space; it is not meant to be run.</div>`);
+  refresh("aPipe"); refresh("aChart"); refresh("aReg");
+}
+function alPipeSvg(W, H) {
+  if (!AL.c) return "";
+  const c = AL.c;
+  const L10 = x => Math.round(x * Math.LOG10E * Math.LN2);
+  const boxes = [
+    ["Input G", ["n vertices, any degree,", "given as adjacency lists", `n = 10${SUP(Math.round(c.lg10n * 100) / 100)}`]],
+    ["G₀ = G_reg", ["cycle of length n per vertex,", "D¹⁶-regular, self-loops", `N = n² = 10${SUP(L10(c.log2N))}`]],
+    ["G_i = (G_{i−1} ⓩ H)⁸", ["degree stays D¹⁶,", "gap doubles until λ ≤ ½", `i = 1 … ℓ = ${c.ell}`]],
+    ["Search G_ℓ", ["all walks of length", "O(log N_ℓ) from (s, 1…1)", `N_ℓ = 10${SUP(L10(c.log2Nl))}`]]
+  ];
+  const cols = W >= 720 ? 4 : 2, rowsN = Math.ceil(4 / cols);
+  const gx = 24, gy = 26, bw = (W - 20 - (cols - 1) * gx) / cols, bh = Math.min(108, (H - 20 - (rowsN - 1) * gy) / rowsN);
+  let s = "";
+  const at = k => ({ x: 10 + (k % cols) * (bw + gx), y: 10 + Math.floor(k / cols) * (bh + gy) });
+  boxes.forEach(([ttl, lines], k) => {
+    const p = at(k);
+    s += `<rect class="bar ${k === 2 ? "active" : ""}" x="${f1(p.x)}" y="${f1(p.y)}" width="${f1(bw)}" height="${f1(bh)}" rx="5"/>`;
+    s += `<text x="${f1(p.x + bw / 2)}" y="${f1(p.y + 20)}" text-anchor="middle" style="font-family:var(--wi-font-head);font-size:14px;fill:var(--wi-accent);letter-spacing:.04em">${subT(ttl)}</text>`;
+    lines.forEach((ln, m) => s += `<text x="${f1(p.x + bw / 2)}" y="${f1(p.y + 44 + m * 19)}" text-anchor="middle" style="font-size:${bw < 170 ? 12.5 : 13.5}px;fill:${m === 2 ? "var(--wi-ink-strong)" : "var(--wi-ink-soft)"};${m === 2 ? "font-weight:bold" : ""}">${subT(ln)}</text>`);
+    if (k < 3) {
+      const q = at(k + 1);
+      if (q.y === p.y) { const y = p.y + bh / 2; s += `<path class="ed path" d="M${f1(p.x + bw + 3)},${f1(y)} L${f1(q.x - 6)},${f1(y)}"/>` + arrowHead({ x: q.x - 3, y }, [1, 0], "path"); }
+      else { const x0 = p.x + bw / 2, y0 = p.y + bh + 3, x1 = q.x + bw / 2, y1 = q.y - 4;
+        s += `<path class="ed path" d="M${f1(x0)},${f1(y0)} C${f1(x0)},${f1(y0 + gy)} ${f1(x1)},${f1(y1 - gy)} ${f1(x1)},${f1(y1 - 3)}"/>` + arrowHead({ x: x1, y: y1 }, [0, 1], "path"); }
+    }
+  });
+  return s;
+}
+function alChartSvg(W, H) {
+  if (!AL.c) return "";
+  const c = AL.c, ell = c.ell;
+  const g0 = Math.pow(2, -c.log2inv);
+  const lem = [g0], shp = [g0];
+  for (let i = 1; i <= ell; i++) {
+    const g = lem[i - 1]; lem.push(Math.min(g * (2 - g), 0.5));
+    const h = shp[i - 1]; shp.push(-Math.expm1(8 * Math.log1p(-3 * h / 8)));
+  }
+  const ymin = Math.floor(Math.log10(g0)) - 1;
+  const padL = 52, padR = 16, padT = 14, padB = 34;
+  const X = i => padL + (ell ? i / ell : 0) * (W - padL - padR), Y = g => padT + (Math.log10(g) / ymin) * (H - padT - padB);
+  let s = `<line class="axis" x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}"/><line class="axis" x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}"/>`;
+  const ystep = Math.max(1, Math.ceil(-ymin / 8));
+  for (let e = 0; e >= ymin; e -= ystep) s += `<line class="grid" x1="${padL}" y1="${f1(Y(Math.pow(10, e)))}" x2="${W - padR}" y2="${f1(Y(Math.pow(10, e)))}"/>` +
+    `<text class="axlab end" x="${padL - 6}" y="${f1(Y(Math.pow(10, e)))}" dominant-baseline="central">10${SUP(e).replace("⁰", e === 0 ? "⁰" : "⁰")}</text>`;
+  const half = Y(0.5);
+  s += `<line x1="${padL}" y1="${f1(half)}" x2="${W - padR}" y2="${f1(half)}" stroke="var(--wi-relax)" stroke-width="1.2" stroke-dasharray="5 4"/>` +
+       `<text class="axlab" x="${W - padR - 4}" y="${f1(half - 7)}" text-anchor="end" style="fill:var(--wi-relax)">λ = ½</text>`;
+  const xstep = Math.max(1, Math.ceil(ell / 10 / 5) * 5);
+  for (let i = 0; i <= ell; i += xstep) s += `<text class="axlab mid" x="${f1(X(i))}" y="${H - padB + 15}">${i}</text>`;
+  s += `<text class="axlab mid" x="${f1((padL + W - padR) / 2)}" y="${H - 4}">phase i</text>`;
+  const poly = arr => arr.map((g, i) => `${f1(X(i))},${f1(Y(g))}`).join(" ");
+  s += `<polyline class="curve b" points="${poly(shp)}"/><polyline class="curve a" points="${poly(lem)}"/>`;
+  const hit = shp.findIndex(g => g >= 0.5);
+  if (hit > 0) s += `<circle cx="${f1(X(hit))}" cy="${f1(half)}" r="4" fill="var(--wi-queue)"/>`;
+  s += `<circle cx="${f1(X(ell))}" cy="${f1(Y(lem[ell]))}" r="4.5" fill="var(--wi-accent)"/>`;
+  el("aChartMeta").textContent = `ℓ = ${ell}` + (hit > 0 ? `, sharper bound reaches ½ at i = ${hit}` : "");
+  return s;
+}
+function alRegSvg(W, H) {
+  /* Reingold's G_reg for a tiny G: triangle 0-1-2 with a pendant vertex 3 at 2 */
+  const N = 4, E = [[0, 1], [1, 2], [2, 0], [2, 3]];
+  const adj = (a, b) => E.some(e => (e[0] === a && e[1] === b) || (e[0] === b && e[1] === a));
+  const base = [[0, 0], [1.6, -0.2], [1.1, 1.3], [2.6, 1.9]].map(([x, y]) => ({ x, y }));
+  const leftW = Math.min(150, W * 0.3);
+  const PL = fit(base, leftW, H, 30);
+  const PR0 = fit(base, W - leftW - 10, H - 18, 44).map(p => ({ x: p.x + leftW + 10, y: p.y + 18 }));
+  let s = drawGraph({ P: PL, n: N, edges: E, directed: false, nr: () => 11 });
+  s += `<text class="ttl" x="${f1(leftW / 2)}" y="14" text-anchor="middle">G</text><text class="ttl" x="${f1(leftW + 10 + (W - leftW - 10) / 2)}" y="14" text-anchor="middle">${subT("G_reg")}: labels 1, 2 (cycles), 3 (edges); loops for the rest</text>`;
+  let cx = 0, cy = 0; PR0.forEach(p => { cx += p.x; cy += p.y; }); cx /= N; cy /= N;
+  const r = clamp((W - leftW) * 0.06, 13, 24);
+  const Q = [];
+  for (let v = 0; v < N; v++) {
+    Q.push([]);
+    for (let w = 0; w < N; w++) {
+      const ang = w === v ? Math.atan2(PR0[v].y - cy, PR0[v].x - cx) : Math.atan2(PR0[w].y - PR0[v].y, PR0[w].x - PR0[v].x);
+      Q[v].push({ x: PR0[v].x + r * Math.cos(ang), y: PR0[v].y + r * Math.sin(ang), ang });
+    }
+    /* spread ports pointing in nearly the same direction */
+    const order = Q[v].map((q, w) => [q.ang, w]).sort((a, b) => a[0] - b[0]);
+    for (let it = 0; it < 4; it++) for (let m = 0; m < N; m++) {
+      const [a1, w1] = order[m], [a2, w2] = order[(m + 1) % N]; let d = a2 - a1; if (m === N - 1) d += 2 * Math.PI;
+      if (d < 0.75) { order[m][0] -= (0.75 - d) / 2; order[(m + 1) % N][0] += (0.75 - d) / 2; }
+    }
+    order.forEach(([a, w]) => { Q[v][w] = { x: PR0[v].x + r * Math.cos(a), y: PR0[v].y + r * Math.sin(a), ang: a }; });
+  }
+  for (let v = 0; v < N; v++) s += `<circle class="cloud" cx="${f1(PR0[v].x)}" cy="${f1(PR0[v].y)}" r="${f1(r + 9)}"/>`;
+  for (let v = 0; v < N; v++) for (let w = 0; w < N; w++) {
+    const A = Q[v][w], B = Q[v][(w + 1) % N];
+    s += `<line class="ed hstep" x1="${f1(A.x)}" y1="${f1(A.y)}" x2="${f1(B.x)}" y2="${f1(B.y)}"/>`;
+    if (w !== v && adj(v, w) && v < w) { const C = Q[w][v]; s += `<line class="ed gstep" style="stroke-width:2" x1="${f1(A.x)}" y1="${f1(A.y)}" x2="${f1(C.x)}" y2="${f1(C.y)}"/>`; }
+    if (w === v || !adj(v, w)) { const lg = loopGeom(A, 4.5, A.ang, 0.55); s += `<path class="ed faint" style="stroke:var(--wi-ink-faint)" d="${lg.d}"/>`; }
+  }
+  for (let v = 0; v < N; v++) for (let w = 0; w < N; w++)
+    s += `<g class="nd sm" data-tip="(${v}, ${w})" transform="translate(${f1(Q[v][w].x)},${f1(Q[v][w].y)})"><circle r="4.5"/></g>`;
+  return s;
+}
+function alInit() {
+  mountBox("aPipe", alPipeSvg); mountBox("aChart", alChartSvg); mountBox("aReg", alRegSvg);
+  el("aN").addEventListener("input", alRender); el("aD").addEventListener("change", alRender);
+  alRender();
+}
+
+/* sub-tab switching */
+const UST = { sub: "walk" };
+function ustShow(sub) {
+  UST.sub = sub; LS.set("ustsub", sub);
+  document.querySelectorAll("#ustSeg button").forEach(b => b.classList.toggle("on", b.dataset.sub === sub));
+  for (const k of ["walk", "zz", "reg", "all", "rw"]) el("sub-" + k).style.display = k === sub ? "" : "none";
+  Object.keys(BOXES).forEach(refresh);
+}
+function ustInit() {
+  wkInit(); zzInit(); rgInit(); alInit(); rwInit();
+  el("ustSeg").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b) ustShow(b.dataset.sub); });
+  ustShow(LS.get("ustsub", "walk"));
+}
+</script>
+<script>
+"use strict";
+/* ============================ ⑤ random walks (RL) ============================ */
+const RWGRAPHS = (() => {
+  const lolli = { e: [], p: [] };
+  for (let i = 0; i < 6; i++) for (let j = i + 1; j < 6; j++) lolli.e.push([i, j]);
+  for (let i = 5; i < 11; i++) lolli.e.push([i, i + 1]);
+  ringPos(6, 1, Math.PI / 3).forEach(p => lolli.p.push(p));
+  for (let i = 6; i < 12; i++) lolli.p.push([1 + 0.62 * (i - 5), 0]);
+  const reset = { e: [], p: [] }, R = 14;
+  for (let i = 0; i < R - 1; i++) { reset.e.push([i, i + 1]); reset.e.push([i, 0]); }
+  for (let i = 0; i < R; i++) { const a = Math.PI - i * Math.PI / (R - 1); reset.p.push([2 * Math.cos(a), -1.3 * Math.sin(a)]); }
+  const multi = { e: [[0, 1]], p: [] };
+  for (let k = 0; k < 5; k++) multi.e.push([1, 2]);
+  multi.e.push([2, 3], [3, 4], [4, 5]);
+  for (let i = 0; i < 6; i++) multi.p.push([i, i % 2 ? 0.25 : 0]);
+  return {
+    "Lollipop: K6 plus a path (12 V)": graphText(12, lolli.e, lolli.p, "s=0 t=11"),
+    "Same lollipop, walking back (t → clique)": graphText(12, lolli.e, lolli.p, "s=11 t=0"),
+    "Path with resets (14 V) — try directed": graphText(14, reset.e, reset.p, "s=0 t=13 directed=1"),
+    "Multigraph: 5 parallel edges on a path": graphText(6, multi.e, multi.p, "s=0 t=5"),
+    "Petersen graph (10 V)": graphText(10, PETERSEN.e, PETERSEN.p, "s=0 t=7"),
+    "tinyG.txt (13 V, 3 components)": "#! s=0 t=6\n" + TINYG
+  };
+})();
+const RW = { g: null, s: 0, t: 0, directed: false, seed: 1, S: null };
+
+function rwNbrs() {
+  const n = RW.g.n, A = Array.from({ length: n }, () => []);
+  RW.g.edges.forEach(([u, v], k) => { A[u].push({ to: v, k }); if (!RW.directed) A[v].push({ to: u, k }); });
+  return A;
+}
+/* exact expected hitting times of `t` (absorbing), Infinity where t is missed with positive probability */
+function hitTimes(A, t) {
+  const n = A.length, rev = Array.from({ length: n }, () => []);
+  A.forEach((l, u) => l.forEach(e => rev[e.to].push(u)));
+  const canReach = bfs(rev, t).dist.map(d => d < Infinity);
+  const fin = new Array(n).fill(false);
+  for (let v = 0; v < n; v++) {
+    if (!canReach[v]) continue;
+    let ok = true; const seen = new Array(n).fill(false); seen[v] = true; const q = [v];
+    for (let h = 0; h < q.length && ok; h++) { const u = q[h]; if (u === t) continue;
+      if (!A[u].length) { ok = false; break; }
+      for (const e of A[u]) { if (!canReach[e.to]) { ok = false; break; } if (!seen[e.to]) { seen[e.to] = true; q.push(e.to); } } }
+    fin[v] = ok;
+  }
+  const idx = [], at = new Array(n).fill(-1);
+  for (let v = 0; v < n; v++) if (fin[v] && v !== t) { at[v] = idx.length; idx.push(v); }
+  const k = idx.length, M = Array.from({ length: k }, () => new Array(k + 1).fill(0));
+  idx.forEach((v, r) => { M[r][r] += 1; M[r][k] = 1; const d = A[v].length; for (const e of A[v]) if (e.to !== t) M[r][at[e.to]] -= 1 / d; });
+  for (let c = 0; c < k; c++) {
+    let p = c; for (let r = c + 1; r < k; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    [M[c], M[p]] = [M[p], M[c]];
+    for (let r = 0; r < k; r++) { if (r === c || !M[r][c]) continue; const f = M[r][c] / M[c][c]; for (let j = c; j <= k; j++) M[r][j] -= f * M[c][j]; }
+  }
+  const h = new Array(n).fill(Infinity); h[t] = 0;
+  idx.forEach((v, r) => h[v] = M[r][k] / M[r][r]);
+  return h;
+}
+function rwCodeLines() {
+  return [
+    `${K("RW-STCON")}(G, s, t):              ${CM("one-sided error")}`,
+    `   x ← s`,
+    `   ${K("for")} c = 1, …, T:               ${CM("T = 4m(n−1)")}`,
+    `      ${K("if")} x = t:  ${K("accept")}`,
+    `      x ← a uniformly random neighbour of x`,
+    `   ${K("if")} x = t:  ${K("accept")}`,
+    `   ${K("reject")}             ${CM("wrong w.p. ≤ ½ if s ⇝ t")}`
+  ];
+}
+function rwBuild() {
+  const g = RW.g, n = g.n, s = RW.s, t = RW.t, A = RW.A = rwNbrs();
+  const m = g.edges.length, T = RW.T = Math.max(1, 4 * m * (n - 1));
+  RW.H = hitTimes(A, t); RW.Hback = hitTimes(A, s);
+  RW.dist = bfs(A.map(l => l.map(e => e.to)), s).dist[t];
+  /* one run, for the animation */
+  const rnd = mulberry(RW.seed * 104729 + 7), CAP = 4000;
+  const xs = [s], taken = [null];
+  let x = s, c = 0, hit = x === t, stuck = false;
+  while (!hit && c < Math.min(T, CAP)) {
+    if (!A[x].length) { stuck = true; break; }
+    const e = A[x][Math.floor(rnd() * A[x].length)];
+    x = e.to; c++; xs.push(x); taken.push(e.k); if (x === t) hit = true;
+  }
+  RW.xs = xs; RW.taken = taken;
+  const S = Steps(), L = xs.length, chunk = Math.max(1, Math.ceil((L - 1) / 8));
+  S.phase("start");
+  S.add({ i: 0, ln: [2], msg: `<code>x ← s = ${s}</code>. The walk will take at most T = 4m(n−1) = ${T.toLocaleString("en-US")} steps.` });
+  for (let i = 1; i < L; i++) {
+    if ((i - 1) % chunk === 0) S.phase(`c = ${i}–${Math.min(L - 1, i + chunk - 1)}`);
+    const from = xs[i - 1], deg = A[from].length;
+    S.add({ i, ln: [3, 4, 5], msg: `c = ${i}: x = ${from} ≠ t, so pick one of its ${deg} ${RW.directed ? "out-edge" : "edge end"}${deg === 1 ? "" : "s"} ` +
+            `uniformly at random (≈ log₂ ${deg} fresh random bits, read once): <code>x ← ${xs[i]}</code>.` });
+  }
+  const last = S.list[S.list.length - 1];
+  S.phase("result");
+  if (hit) S.add({ i: L - 1, ln: [L - 1 < T ? 4 : 6], verdict: "accept",
+                   msg: `x = t after ${L - 1} step${L === 2 ? "" : "s"}: <b>accept</b>. A walk only ever reaches t along edges, so an accept is never wrong.` +
+                        `<span class="ans">s and t are connected.</span>` });
+  else if (stuck) S.add({ i: L - 1, ln: [5], verdict: "reject", msg: `Vertex ${x} has no out-edge: the walk is stuck. <b>Reject</b>.` +
+                        (RW.dist < Infinity ? `<span class="ans" style="color:var(--wi-ink-soft)">Wrong — t is reachable; this is why directed walks are hopeless.</span>` : "") });
+  else if (c >= T) S.add({ i: L - 1, ln: [7], verdict: "reject", msg: `T = ${T.toLocaleString("en-US")} steps without meeting t: <b>reject</b>. ` +
+                        (RW.dist === Infinity ? `Correct: t is not reachable.` : RW.directed
+     ? `Wrong — t <i>is</i> reachable. For directed graphs nothing bounds the error: a T-step walk can succeed with exponentially small probability, so repetition does not rescue polynomial time.`
+     : `This is the one-sided error — t <i>is</i> reachable. Since the error is ≤ ½, repeating k times pushes it to 2<sup>−k</sup>.`) });
+  else S.add({ i: L - 1, ln: [3], msg: `Animation stopped after ${CAP.toLocaleString("en-US")} steps (T = ${T.toLocaleString("en-US")} would go on). ` +
+                        `The histogram below shows how such runs end.` });
+  void last;
+  RW.S = S.done();
+  /* 1000 runs for the histogram */
+  const runs = [], R = 1000, budget = 2.5e7, per = Math.max(T, isFinite(RW.H[s]) ? Math.ceil(12 * RW.H[s]) : T) * 1;
+  const rnd2 = mulberry(RW.seed * 7 + 3); let used = 0;
+  for (let r = 0; r < R && used < budget; r++) {
+    let y = s, cc = 0;
+    const cap = Math.min(per, budget - used);
+    while (y !== t && cc < cap && A[y].length) { y = A[y][Math.floor(rnd2() * A[y].length)].to; cc++; }
+    used += cc; runs.push(y === t ? cc : Infinity);
+  }
+  RW.runs = runs; RW.cap = per;
+  RW.player.setSteps(RW.S.list.length, RW.S.phases);
+}
+function rwRender(i) {
+  const st = RW.S.list[i], n = RW.g.n, m = RW.g.edges.length, x = RW.xs[st.i];
+  hlCode("rwCode", st.ln);
+  el("rwStatus").innerHTML = subs(st.msg);
+  const bx = bitsFor(n), bc = bitsFor(RW.T + 1);
+  el("rwTape").innerHTML = regHTML("x", x, bx, st.i > 0) + regHTML("c", st.i, bc, false) +
+    `<div class="tapefoot">⌈log₂ n⌉ + ⌈log₂(T+1)⌉ = <b>${bx + bc}</b> bits — T is a polynomial, so its counter is <i>O</i>(log n).</div>`;
+  el("rwBits").textContent = `${bx + bc} bits`;
+  el("rwMeta").textContent = `n = ${n}, m = ${m}${RW.directed ? " arcs" : ""}, step ${st.i} of ${RW.xs.length - 1}`;
+  const H = RW.H[RW.s], Hb = RW.Hback[RW.t], fin = runs => runs.filter(r => r <= RW.T).length;
+  const fmtH = h => isFinite(h) ? fmtNum(Math.round(h * 10) / 10) : "∞";
+  const miss = RW.runs.length ? 1 - fin(RW.runs) / RW.runs.length : 0;
+  let rows = `<tr><td>expected hitting time H(s, t)</td><td><b>${fmtH(H)}</b></td></tr>
+    <tr><td>H(t, s), the way back</td><td>${fmtH(Hb)}</td></tr>`;
+  if (!RW.directed && isFinite(H) && isFinite(Hb))
+    rows += `<tr><td>commute time / 2m = R_eff(s, t)</td><td>${fmtNum(Math.round((H + Hb) / (2 * m) * 1000) / 1000)}</td></tr>
+      <tr><td>bound 2m·dist(s, t)</td><td>${fmtNum(2 * m * RW.dist)}</td></tr>`;
+  rows += `<tr><td>cut-off T = 4m(n−1)</td><td>${RW.T.toLocaleString("en-US")}</td></tr>
+    <tr><td>P[miss within T], Markov</td><td>${isFinite(H) ? "≤ " + Math.min(1, H / RW.T).toFixed(3) : "—"}</td></tr>
+    <tr><td>P[miss within T], 1000 runs</td><td>${miss.toFixed(3)}</td></tr>`;
+  let note = "";
+  if (RW.directed) note = isFinite(H) && H > RW.T
+    ? `With directed edges there is no polynomial bound: here H(s, t) = ${fmtH(H)} ≈ 2<sup>${Math.log2(H).toFixed(1)}</sup>, and the walk missed t within T in ${(100 * miss).toFixed(0)}% of the runs. Each extra vertex on the reset path doubles H.`
+    : isFinite(H) ? `Directed, but this graph happens to be benign; the reset-path preset is not.` : `Directed: the walk can get trapped where t is unreachable, so it misses t with positive probability.`;
+  else if (RW.dist === Infinity) note = `t is in another component: every run rejects, correctly.`;
+  else if (isFinite(H) && isFinite(Hb) && Math.max(H, Hb) > 3 * Math.min(H, Hb)) note = `Hitting times are not symmetric — only their sum, the commute time, is a property of the pair.`;
+  el("rwNums").innerHTML = subs(`<table class="tbl">${rows}</table>`) + (note ? `<div class="note">${note}</div>` : "");
+  refresh("rwBox"); refresh("rwHist");
+}
+function rwSvg(W, H) {
+  if (!RW.S) return "";
+  const st = RW.S.list[RW.player.i], g = RW.g, n = g.n, P = fit(g.pos, W, H, 40, capScale(g.pos, 170));
+  const cnt = new Array(n).fill(0); for (let k = 0; k <= st.i; k++) cnt[RW.xs[k]]++;
+  const mx = Math.max(1, ...cnt), x = RW.xs[st.i];
+  let over = "";
+  const lo = Math.max(1, st.i - 5);
+  for (let k = lo; k <= st.i; k++) {
+    const a = RW.xs[k - 1], b = RW.xs[k], cls = k === st.i ? "mover" : "path";
+    if (a === b) { let cx = 0, cy = 0; P.forEach(p => { cx += p.x / n; cy += p.y / n; });
+      const lg = loopGeom(P[a], 15, Math.atan2(P[a].y - cy, P[a].x - cx) || -Math.PI / 2, 1.3); over += `<path class="ed ${cls}" d="${lg.d}"/>` + arrowHead(lg.E, lg.dirE, cls, 10, 4.5); continue; }
+    const A = Math.min(a, b), B = Math.max(a, b);
+    const geo = edgeGeom(P[a], P[b], 17, 17, (a < b ? 1 : -1) * 8, P[A], P[B], 1);
+    over += `<path class="ed ${cls}" d="${geo.d}" style="opacity:${0.35 + 0.65 * (k - lo + 1) / (st.i - lo + 1)}"/>` + arrowHead(geo.E, geo.dirE, cls, 11, 5);
+  }
+  let cx = 0, cy = 0; P.forEach(p => { cx += p.x / n; cy += p.y / n; });
+  const svg = drawGraph({ P, n, edges: g.edges, directed: RW.directed, mid: over,
+    loopAng: v => Math.hypot(P[v].x - cx, P[v].y - cy) < 1 ? -Math.PI / 2 : Math.atan2(P[v].y - cy, P[v].x - cx),
+    ncls: v => [v === RW.s ? "s" : "", v === RW.t ? "t" : "", v === x ? "cur" : ""].join(" "),
+    ntip: v => `vertex ${v}: visited ${cnt[v]}× so far` + (isFinite(RW.H[v]) ? `, H(${v}, t) = ${fmtNum(Math.round(RW.H[v] * 10) / 10)}` : ", never hits t surely"),
+    ecls: () => "faint" });
+  /* tint visited vertices by count (inline style beats the class fill) */
+  return svg.replace(/<g class="nd ([^"]*)" data-v="(\d+)"([^>]*)><circle r="(\d+)"\/>/g, (all, cls, v, rest, r) => {
+    const a = cnt[+v] / mx;
+    const fill = cls.includes("cur") || !cnt[+v] ? "" : ` style="fill:rgba(194,133,119,${(0.12 + 0.68 * a).toFixed(2)})"`;
+    return `<g class="nd ${cls}" data-v="${v}"${rest}><circle r="${r}"${fill}/>`;
+  });
+}
+function rwHistSvg(W, H) {
+  if (!RW.runs) return "";
+  const runs = RW.runs, finite = runs.filter(isFinite).sort((a, b) => a - b), Hst = RW.H[RW.s];
+  const bound = RW.directed || RW.dist === Infinity ? null : 2 * RW.g.edges.length * RW.dist;
+  const q99 = finite.length ? finite[Math.floor(0.99 * (finite.length - 1))] : 1;
+  const xmax = Math.max(RW.T, q99, isFinite(Hst) ? Hst : 0, bound || 0) * 1.04;
+  const padL = 38, padR = 14, padT = 12, padB = 30, bins = 50, bw = xmax / bins;
+  const cnt = new Array(bins).fill(0); let beyond = 0;
+  for (const r of runs) { if (!isFinite(r) || r >= xmax) beyond++; else cnt[Math.floor(r / bw)]++; }
+  const cmax = Math.max(1, ...cnt);
+  const X = v => padL + v / xmax * (W - padL - padR), Y = c => H - padB - c / cmax * (H - padT - padB);
+  let s = `<line class="axis" x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}"/><line class="axis" x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}"/>`;
+  cnt.forEach((c, k) => { if (c) s += `<rect x="${f1(X(k * bw) + 0.5)}" y="${f1(Y(c))}" width="${f1(Math.max(1, X(bw) - padL - 1))}" height="${f1(H - padB - Y(c))}" fill="${(k + 1) * bw <= RW.T ? "var(--wi-border)" : "var(--wi-accent-soft)"}"/>`; });
+  const vline = (v, col, dash, lbl, dy) => `<line x1="${f1(X(v))}" y1="${padT}" x2="${f1(X(v))}" y2="${H - padB}" stroke="${col}" stroke-width="2"${dash ? ' stroke-dasharray="5 4"' : ""}/>` +
+    `<text class="axlab" x="${f1(X(v) + 4)}" y="${padT + 10 + dy}" style="fill:${col}">${lbl}</text>`;
+  if (isFinite(Hst) && Hst <= xmax) s += vline(Hst, "var(--wi-queue)", false, "H", 0);
+  if (bound) s += vline(bound, "var(--wi-examine)", true, "2m·dist", 14);
+  s += vline(RW.T, "var(--wi-accent)", false, "T", 28);
+  for (let k = 0; k <= 4; k++) { const v = xmax * k / 4; s += `<text class="axlab mid" x="${f1(X(v))}" y="${H - padB + 15}">${fmtNum(Math.round(v))}</text>`; }
+  s += `<text class="axlab mid" x="${f1((padL + W - padR) / 2)}" y="${H - 3}">steps until t is hit</text>`;
+  el("rwHistMeta").textContent = beyond ? `${beyond} of ${runs.length} runs beyond the plot (or never)` : `${runs.length} runs`;
+  return s;
+}
+function rwInit() {
+  renderCode("rwCode", rwCodeLines());
+  RW.player = new Player("rwTransport", { onRender: rwRender, speed: 70 });
+  mountBox("rwBox", rwSvg); mountBox("rwHist", rwHistSvg);
+  const setDir = d => { RW.directed = d; el("rwDir").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === (d ? "1" : "0"))); };
+  wireSeg("rwDir", v => { RW.directed = v === "1"; rwBuild(); });
+  el("rwReroll").addEventListener("click", () => { RW.seed++; rwBuild(); });
+  const loadPreset = wireGraphInput("rw", Object.keys(RWGRAPHS), RWGRAPHS, g => {
+    RW.g = g; setDir(!!g.dir.directed);
+    [RW.s, RW.t] = wireST("rw", g.n, g.dir, (s, t) => { RW.s = s; RW.t = t; rwBuild(); });
+    rwBuild();
+  });
+  loadPreset();
+}
+</script>
+<script>
+"use strict";
+/* ============================ NL-complete problems ============================ */
+const ZOO_PRESETS = ["Small example (6 V)", "Same, t not reachable", "Hub with out-degree 4 (6 V)", "Directed 5-cycle", "One-way street: t → s, not s ⇝ t"];
+const REDS = [["stcon", "Reachability"], ["dag", "DAG reachability"], ["co", "Unreachability"], ["2sat", "2-SAT"],
+              ["scc", "Strong connectivity"], ["cycle", "Cycle detection"], ["nfa", "NFA word problem"],
+              ["dfa", "DFA non-emptiness"], ["deg2", "Out-degree ≤ 2"]];
+const ZO = { g: null, s: 0, t: 0, red: "dag" };
+const yesno = b => b ? "<b>yes</b>" : "<b>no</b>";
+const LETTER = v => String.fromCharCode(97 + (v % 26));
+
+function zoInfo() {
+  const g = ZO.g, n = g.n, s = ZO.s, t = ZO.t, adj = outAdj(g);
+  const dist = bfs(adj, s).dist, R = dist[t] < Infinity, path = bfsPath(adj, s, t);
+  return { g, n, s, t, adj, dist, R, path };
+}
+function pathEdgeSet(path) { const S = new Set(); if (path) for (let k = 0; k + 1 < path.length; k++) S.add(path[k] + ">" + path[k + 1]); return S; }
+function rowOrder(g) { return g.pos.map((p, v) => [p.y, p.x, v]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map(x => x[2]); }
+
+function layered(I, withBack) {
+  const { g, n, s, t } = I;
+  const order = rowOrder(g), row = new Array(n); order.forEach((v, r) => row[v] = r);
+  const id = (i, v) => i * n + v, nodes = [], edges = [];
+  for (let i = 0; i < n; i++) for (let v = 0; v < n; v++) nodes.push({ x: i * 1.15, y: row[v] * 0.8, lbl: v, r: 11, tip: `(${v}, layer ${i})` });
+  for (let i = 0; i + 1 < n; i++) {
+    for (const [u, v] of g.edges) edges.push({ u: id(i, u), v: id(i + 1, v), cls: "" });
+    for (let v = 0; v < n; v++) edges.push({ u: id(i, v), v: id(i + 1, v), cls: "wait" });
+  }
+  const ladj = Array.from({ length: n * n }, () => []);
+  edges.forEach(e => ladj[e.u].push(e.v));
+  const ld = bfs(ladj, id(0, s)), lp = bfsPath(ladj, id(0, s), id(n - 1, t));
+  nodes.forEach((nd, x) => { if (ld.dist[x] === Infinity) nd.cls = "dim"; });
+  nodes[id(0, s)].cls = "s"; nodes[id(n - 1, t)].cls = "t";
+  const pe = pathEdgeSet(lp);
+  edges.forEach(e => { if (pe.has(e.u + ">" + e.v)) e.cls = "path"; });
+  if (lp) lp.forEach(x => { if (x !== id(0, s) && x !== id(n - 1, t)) nodes[x].cls = "path"; });
+  if (withBack) edges.push({ u: id(n - 1, t), v: id(0, s), cls: lp ? "path" : "added", off: -Math.max(60, 26 * n), back: true });
+  const extra = P => { let h = ""; for (let i = 0; i < n; i++) h += `<text class="axlab mid" x="${f1(P[id(i, order[0])].x)}" y="${f1(P[id(i, order[0])].y - 22)}">layer ${i}</text>`; return h; };
+  return { nodes, edges, extra, lp, sp: id(0, s), tp: id(n - 1, t) };
+}
+
+const ZOO_BUILD = {
+  stcon(I) {
+    const { g, s, t, path, R } = I, pe = pathEdgeSet(path), on = new Set(path || []);
+    return { nodes: g.pos.map((p, v) => ({ x: p.x, y: p.y, lbl: v, cls: v === s ? "s" : v === t ? "t" : on.has(v) ? "path" : "" })),
+      edges: g.edges.map(([u, v]) => ({ u, v, cls: pe.has(u + ">" + v) ? "path" : "" })),
+      title: "The configuration graph is the instance",
+      legend: `<span class="item"><span class="sw ln" style="border-color:var(--wi-accent)"></span> a shortest s-t path</span>`,
+      text: `<h3>Problem</h3><p>STCON: given a digraph G and vertices s, t — is there a path s ⇝ t?</p>
+        <h3>In NL</h3><p>Guess the path one vertex at a time, keeping only the current vertex and a step counter (tab <a href="#nl">NL</a>).</p>
+        <h3>NL-hard</h3><p>Let M decide A in space c·log n. On input x, a log-space transducer prints the <b>configuration graph</b>
+        of M on x: loop over all pairs of configurations (each O(log n) bits), print the edge c → c′ if M can step from c to c′ —
+        a local check that reads one input symbol. Add one sink t* with edges from all accepting configurations.
+        Then x ∈ A ⇔ t* is reachable from the start configuration.</p>
+        <p class="muted">Every other card reduces <i>from</i> STCON, so each of those problems is NL-hard by composing reductions.</p>`,
+      verdict: `t reachable from s: ${yesno(R)}` };
+  },
+  dag(I) {
+    const L = layered(I, false);
+    return { nodes: L.nodes, edges: L.edges, extra: L.extra, title: "Layered copy: vertices (v, i), edges go one layer right",
+      legend: `<span class="item"><span class="sw ln" style="border-color:var(--wi-border)"></span> (u,i) → (v,i+1) for u→v ∈ E</span>
+        <span class="item"><span class="sw ln" style="border-color:var(--wi-border);border-top-style:dashed"></span> wait: (v,i) → (v,i+1)</span>
+        <span class="item"><span class="sw" style="opacity:.4"></span> unreachable from (s,0)</span>`,
+      text: `<h3>Problem</h3><p>STCON restricted to acyclic digraphs (even to <i>layered</i> ones, all edges from layer i to i+1).</p>
+        <h3>In NL</h3><p>A special case of STCON.</p>
+        <h3>NL-hard: STCON ≤<sub>L</sub> DAG-STCON</h3><p>Vertices V × {0, …, n−1}; for every edge u → v and every i &lt; n−1 an edge
+        (u, i) → (v, i+1), and a waiting edge (v, i) → (v, i+1). Ask for (s, 0) ⇝ (t, n−1).</p>
+        <h3>Why it works</h3><p>Edges only go right, so there is no cycle. A path s ⇝ t of length ℓ ≤ n−1 lifts to
+        (s,0) → … → (t,ℓ), then waits until layer n−1; any path in the copy projects to a walk in G. The transducer just runs
+        two nested loops — no memory beyond two indices.</p>`,
+      verdict: `t reachable from s in G: ${yesno(I.R)} ⇔ (t, ${I.n - 1}) reachable from (s, 0): ${yesno(!!L.lp)}` };
+  },
+  co(I) {
+    const { g, s, t, dist, R } = I;
+    return { nodes: g.pos.map((p, v) => ({ x: p.x, y: p.y, lbl: v, cls: [v === s ? "s" : v === t ? "t" : "", dist[v] < Infinity ? "reach" : ""].join(" ") })),
+      edges: g.edges.map(([u, v]) => ({ u, v, cls: dist[u] < Infinity ? "" : "faint" })),
+      title: "Same graph — the question is whether t is outside the shaded set",
+      legend: `<span class="item"><span class="sw" style="background:#efe3cf"></span> reachable from s</span>`,
+      text: `<h3>Problem</h3><p>co-STCON: is t <i>not</i> reachable from s?</p>
+        <h3>In NL — Immerman–Szelepcsényi</h3><p><b>Inductive counting.</b> Let r<sub>i</sub> = number of vertices within distance i of s.
+        Knowing r<sub>i</sub>, a machine can certify r<sub>i+1</sub>: for each candidate v, re-walk over all u, guess paths to exactly
+        r<sub>i</sub> of them (so it is sure to have seen all), and check whether some is v or an in-neighbour of v. With r<sub>n−1</sub> in hand,
+        certify that t is absent by exhibiting r<sub>n−1</sub> other reachable vertices. Only O(1) counters and vertex names are stored.</p>
+        <h3>NL-hard</h3><p>For A ∈ NL, also Ā ∈ coNL = NL, so Ā ≤<sub>L</sub> STCON via some f; then x ∈ A ⇔ f(x) ∈ co-STCON.</p>
+        <p class="muted">This is the reason several of the following problems (2-SAT, “dist &gt; k”, acyclicity) lie in NL at all.</p>`,
+      verdict: `t unreachable: ${yesno(!R)}` };
+  },
+  "2sat"(I) {
+    const { g, n, s, t, path, R, dist } = I;
+    let x0 = Infinity, x1 = -Infinity; g.pos.forEach(p => { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); });
+    const w = Math.max(1e-6, x1 - x0), shift = x1 + 0.55 * w + 0.6;
+    const nodes = [];
+    for (let v = 0; v < n; v++) nodes.push({ x: g.pos[v].x, y: g.pos[v].y, lbl: "x" + SUB(v), r: 16, tip: `literal x${SUB(v)}` });
+    for (let v = 0; v < n; v++) nodes.push({ x: shift + (x1 - g.pos[v].x), y: g.pos[v].y, lbl: "¬x" + SUB(v), r: 16, tip: `literal ¬x${SUB(v)}` });
+    const edges = [];
+    for (const [u, v] of g.edges) { edges.push({ u, v, cls: "" }); edges.push({ u: n + v, v: n + u, cls: "" }); }
+    edges.push({ u: n + s, v: s, cls: "added", off: 30 }); edges.push({ u: t, v: n + t, cls: "added", off: 30 });
+    if (R) {
+      const pe = pathEdgeSet(path), cyc = new Set();
+      path.forEach(v => { cyc.add(v); cyc.add(n + v); });
+      edges.forEach(e => {
+        if (e.u < n && e.v < n && pe.has(e.u + ">" + e.v)) e.cls = "path";
+        if (e.u >= n && e.v >= n && pe.has((e.v - n) + ">" + (e.u - n))) e.cls = "path";
+        if (e.cls === "added") e.cls = "path";
+      });
+      nodes.forEach((nd, x) => { if (cyc.has(x)) nd.cls = "path"; });
+    } else {
+      for (let v = 0; v < n; v++) { const val = dist[v] < Infinity; nodes[val ? v : n + v].cls = "good"; }
+    }
+    nodes[s].cls = (nodes[s].cls || "") + " s"; nodes[n + t].cls = (nodes[n + t].cls || "") + " t";
+    const cl = g.edges.map(([u, v]) => `(¬x${SUB(u)} ∨ x${SUB(v)})`);
+    cl.push(`(x${SUB(s)})`, `(¬x${SUB(t)})`);
+    return { nodes, edges, title: "Implication graph of φ: a clause (a ∨ b) gives ¬a → b and ¬b → a",
+      legend: `<span class="item"><span class="sw ln" style="border-color:var(--wi-border)"></span> from an edge clause</span>
+        <span class="item"><span class="sw ln" style="border-color:var(--wi-queue);border-top-style:dashed"></span> from the unit clauses</span>
+        ${R ? `<span class="item"><span class="sw ln" style="border-color:var(--wi-accent)"></span> x${SUB(s)} ⇝ ¬x${SUB(s)} ⇝ x${SUB(s)}: contradiction</span>`
+            : `<span class="item"><span class="sw" style="background:var(--good-bg);border-color:var(--wi-relax)"></span> true literal: x_v ⇔ v reachable from s</span>`}`,
+      text: `<h3>Problem</h3><p>2-SAT: is a CNF formula with ≤ 2 literals per clause satisfiable? (2-UNSAT: is it unsatisfiable?)</p>
+        <h3>In NL</h3><p>φ is unsatisfiable iff some variable x has paths x ⇝ ¬x and ¬x ⇝ x in the implication graph — guess x and both
+        paths. So 2-UNSAT ∈ NL and 2-SAT ∈ coNL = NL.</p>
+        <h3>NL-hard: STCON ≤<sub>L</sub> 2-UNSAT</h3><p>One variable per vertex, a clause (¬x<sub>u</sub> ∨ x<sub>v</sub>), i.e. x<sub>u</sub> → x<sub>v</sub>,
+        per edge, plus the units (x<sub>s</sub>) and (¬x<sub>t</sub>):</p>
+        <div class="formula">${cl.join(" ∧ ")}</div>
+        <h3>Why it works</h3><p>If s ⇝ t, the implications force x<sub>t</sub> = true, contradicting ¬x<sub>t</sub>. If not, set x<sub>v</sub> = true exactly
+        for the v reachable from s: every implication x<sub>u</sub> → x<sub>v</sub> holds, x<sub>s</sub> is true, x<sub>t</sub> false.
+        Complementing (NL = coNL) makes 2-SAT itself NL-complete.</p>`,
+      verdict: `s ⇝ t: ${yesno(R)} ⇔ φ unsatisfiable: ${yesno(R)}` };
+  },
+  scc(I) {
+    const { g, n, s, t, path, R } = I, pe = pathEdgeSet(path), on = new Set(path || []);
+    const has = new Set(g.edges.map(([u, v]) => u + ">" + v));
+    const edges = g.edges.map(([u, v]) => ({ u, v, cls: pe.has(u + ">" + v) ? "path" : "" }));
+    const add = (u, v) => { if (u !== v && !has.has(u + ">" + v)) { has.add(u + ">" + v); edges.push({ u, v, cls: "added" }); } };
+    for (let v = 0; v < n; v++) add(v, s);
+    for (let v = 0; v < n; v++) add(t, v);
+    return { nodes: g.pos.map((p, v) => ({ x: p.x, y: p.y, lbl: v, cls: [v === s ? "s" : v === t ? "t" : on.has(v) ? "path" : "", R ? "" : ""].join(" ") })),
+      edges, title: "G plus v → s for all v, and t → v for all v",
+      legend: `<span class="item"><span class="sw ln" style="border-color:var(--wi-queue);border-top-style:dashed"></span> added edges</span>
+        <span class="item"><span class="sw ln" style="border-color:var(--wi-accent)"></span> s ⇝ t inside G</span>`,
+      text: `<h3>Problem</h3><p>STRONG-CONN: is every vertex reachable from every other vertex?</p>
+        <h3>In NL</h3><p>Loop deterministically over all pairs (u, v); for each, guess a path u ⇝ v. A branch that fails a guess rejects;
+        a branch survives all n² tests iff the graph is strongly connected. The loop indices and the guessed path need O(log n) bits.</p>
+        <h3>NL-hard: STCON ≤<sub>L</sub> STRONG-CONN</h3><p>Add an edge v → s from every vertex and t → v to every vertex.</p>
+        <h3>Why it works</h3><p>If s ⇝ t in G, then any u → s ⇝ t → w. Conversely take a shortest s ⇝ t path in the new graph: an edge into s
+        would revisit s, and edges out of t can only come after reaching t — so it uses original edges only.</p>`,
+      verdict: `s ⇝ t in G: ${yesno(R)} ⇔ new graph strongly connected: ${yesno(R)}` };
+  },
+  cycle(I) {
+    const L = layered(I, true);
+    return { nodes: L.nodes, edges: L.edges, extra: L.extra, title: "Layered DAG plus one back edge (t, n−1) → (s, 0)",
+      legend: `<span class="item"><span class="sw ln" style="border-color:var(--wi-queue);border-top-style:dashed"></span> the back edge</span>
+        <span class="item"><span class="sw ln" style="border-color:var(--wi-accent)"></span> the only possible cycle</span>`,
+      text: `<h3>Problem</h3><p>CYCLE: does a digraph contain a directed cycle? (Its complement, “is G a DAG?”, is NL-complete too, by NL = coNL.)</p>
+        <h3>In NL</h3><p>Guess a vertex v, then guess a walk of at most n steps from v; accept if it returns to v.</p>
+        <h3>NL-hard: DAG-STCON ≤<sub>L</sub> CYCLE</h3><p>Start from an acyclic instance — here the layered copy from the DAG card — and add the
+        single edge t → s. Every cycle must use it, so a cycle exists iff s ⇝ t in the DAG.</p>
+        <p class="muted">Reductions compose: G ↦ layered DAG ↦ plus back edge is one log-space map STCON ≤<sub>L</sub> CYCLE.
+        Adding t → s to G itself would not work — G may have cycles of its own.</p>`,
+      verdict: `s ⇝ t in G: ${yesno(I.R)} ⇔ cycle in the new graph: ${yesno(!!L.lp)}` };
+  },
+  nfa(I) {
+    const { g, n, s, t, path, R } = I, pe = pathEdgeSet(path), on = new Set(path || []);
+    const edges = g.edges.map(([u, v]) => ({ u, v, cls: pe.has(u + ">" + v) ? "path" : "", lbl: "a" }));
+    for (let v = 0; v < n; v++) edges.push({ u: v, v, cls: R && v === t ? "path" : "wait", lbl: "a" });
+    return { nodes: g.pos.map((p, v) => ({ x: p.x, y: p.y, lbl: "q" + SUB(v), cls: v === s ? "s" : on.has(v) ? "path" : "", ring: v === t })),
+      edges, start: s, title: `NFA over {a}: states = vertices, input word a${SUP(n - 1)}`,
+      legend: `<span class="item"><span class="sw ln" style="border-color:var(--wi-border)"></span> a-transition from an edge</span>
+        <span class="item"><span class="sw ln" style="border-color:var(--wi-border);border-top-style:dashed"></span> a-self-loop on every state</span>
+        <span class="item">◎ accepting state t, ▸ start state s</span>`,
+      text: `<h3>Problem</h3><p>NFA-ACCEPT: given an NFA N and a word w, does N accept w?</p>
+        <h3>In NL</h3><p>Guess the run: keep the current state and the position in w — O(log |N| + log |w|) bits.</p>
+        <h3>NL-hard: STCON ≤<sub>L</sub> NFA-ACCEPT</h3><p>States V, start s, accepting {t}, alphabet {a}; a transition u →<sup>a</sup> v per
+        edge, and u →<sup>a</sup> u for every state; the word is w = a<sup>n−1</sup>.</p>
+        <h3>Why it works</h3><p>An accepting run reads n−1 letters along edges and self-loops: it is a path s ⇝ t, padded by waiting.
+        Without the self-loops one would need the exact path length.</p>
+        <p class="muted">The same map shows NFA emptiness NL-hard (drop the word). DFAs need another trick — next card.</p>`,
+      verdict: `s ⇝ t: ${yesno(R)} ⇔ a${SUP(n - 1)} ∈ L(N): ${yesno(R)}` };
+  },
+  dfa(I) {
+    const { g, n, s, t, path, R } = I, pe = pathEdgeSet(path), on = new Set(path || []);
+    return { nodes: g.pos.map((p, v) => ({ x: p.x, y: p.y, lbl: "q" + SUB(v), cls: v === s ? "s" : on.has(v) ? "path" : "", ring: v === t })),
+      edges: g.edges.map(([u, v]) => ({ u, v, cls: pe.has(u + ">" + v) ? "path" : "", lbl: LETTER(v) })), start: s,
+      title: "DFA: the letter names the target state",
+      legend: `<span class="item">letter <code>${LETTER(0)}</code>, <code>${LETTER(1)}</code>, … = “go to state 0, 1, …”; missing transitions lead to a rejecting dead state</span>`,
+      text: `<h3>Problem</h3><p>DFA-NONEMPTY: does a DFA accept at least one word?</p>
+        <h3>In NL</h3><p>Guess an accepted word letter by letter while simulating the DFA; |Q| letters suffice (pumping).</p>
+        <h3>NL-hard: STCON ≤<sub>L</sub> DFA-NONEMPTY</h3><p>States V plus a dead state, start s, accepting {t}; alphabet {σ<sub>v</sub> : v ∈ V};
+        δ(u, σ<sub>v</sub>) = v if u → v is an edge, the dead state otherwise.</p>
+        <h3>Why it works</h3><p>Each letter determines its target, so the automaton is deterministic. A word is accepted iff its letters
+        spell a path from s to t.${R ? ` Here, for instance, the word <code>${path.slice(1).map(LETTER).join("") || "ε"}</code>.` : ""}</p>
+        <p class="muted">The nondeterminism of NL moved from the machine into the choice of the <i>word</i>.</p>`,
+      verdict: `s ⇝ t: ${yesno(R)} ⇔ L(A) ≠ ∅: ${yesno(R)}` };
+  },
+  deg2(I) {
+    const { g, n, s, t, adj } = I;
+    const nodes = g.pos.map((p, v) => ({ x: p.x, y: p.y, lbl: v, cls: v === s ? "s" : v === t ? "t" : "" }));
+    const edges = [];
+    let helpers = 0;
+    for (let v = 0; v < n; v++) {
+      const L = adj[v];
+      if (L.length <= 2) { L.forEach(w => edges.push({ u: v, v: w, cls: "" })); continue; }
+      let cur = v;
+      for (let j = 0; j < L.length - 2; j++) {
+        const rest = L.slice(j + 1); let cx = 0, cy = 0; rest.forEach(w => { cx += g.pos[w].x; cy += g.pos[w].y; }); cx /= rest.length; cy /= rest.length;
+        const f = 0.3 + 0.2 * j;
+        const id = nodes.length; helpers++;
+        nodes.push({ x: g.pos[v].x + f * (cx - g.pos[v].x), y: g.pos[v].y + f * (cy - g.pos[v].y), lbl: v + "′".repeat(j + 1), cls: "helper", r: 11, tip: `helper vertex of ${v}` });
+        edges.push({ u: cur, v: L[j], cls: "" }); edges.push({ u: cur, v: id, cls: "added" });
+        cur = id;
+      }
+      edges.push({ u: cur, v: L[L.length - 2], cls: "" }); edges.push({ u: cur, v: L[L.length - 1], cls: "" });
+    }
+    const nadj = Array.from({ length: nodes.length }, () => []); edges.forEach(e => nadj[e.u].push(e.v));
+    const p = bfsPath(nadj, s, t), pe = pathEdgeSet(p);
+    edges.forEach(e => { if (pe.has(e.u + ">" + e.v)) e.cls = "path"; });
+    if (p) p.forEach(x => { if (x !== s && x !== t) nodes[x].cls = (nodes[x].cls || "") + " path"; });
+    return { nodes, edges, title: helpers ? "Each vertex of out-degree k > 2 becomes a chain of k−1 vertices" : "Nothing to do: every out-degree is already ≤ 2 — try the hub example",
+      legend: `<span class="item"><span class="sw" style="border-style:dashed"></span> helper vertex</span>
+        <span class="item"><span class="sw ln" style="border-color:var(--wi-queue);border-top-style:dashed"></span> chain edge</span>`,
+      text: `<h3>Problem</h3><p>STCON for digraphs in which every vertex has out-degree ≤ 2 (the same trick also bounds the in-degree).</p>
+        <h3>NL-hard</h3><p>Replace v with out-neighbours w<sub>1</sub>, …, w<sub>k</sub> by a chain v = c<sub>0</sub> → c<sub>1</sub> → … → c<sub>k−2</sub>, where c<sub>j</sub>
+        also points to w<sub>j+1</sub> and c<sub>k−2</sub> to w<sub>k−1</sub> and w<sub>k</sub>. Reachability among original vertices is unchanged.</p>
+        <h3>Contrast</h3><p>With out-degree ≤ 1 the problem is in L: follow the unique pointer for n steps. So a <b>single binary choice</b>
+        per step is all the nondeterminism NL needs — exactly the “guess” in the NL tab, restricted to two options.</p>`,
+      verdict: `s ⇝ t in G: ${yesno(I.R)} ⇔ s ⇝ t in the new graph: ${yesno(!!p)}` };
+  }
+};
+function zoBuild() {
+  const I = zoInfo();
+  ZO.I = I; ZO.inst = ZOO_BUILD[ZO.red](I);
+  const R = ZO.inst;
+  el("zoTitle").textContent = R.title;
+  el("zoLegend").innerHTML = subs(`<span class="item"><span class="sw" style="border-color:var(--wi-queue);border-width:2.5px"></span> s / start</span>
+     <span class="item"><span class="sw" style="border-color:var(--wi-accent);border-style:dashed;border-width:2.5px"></span> t / target</span>` + R.legend);
+  el("zoText").innerHTML = R.text + `<div class="verdict">On this example: ${R.verdict}</div>`;
+  el("zoMeta").textContent = `${R.nodes.length} vertices, ${R.edges.length} edges`;
+  el("zoOrigMeta").textContent = `n = ${I.n}, s = ${I.s}, t = ${I.t}`;
+  refresh("zoBox"); refresh("zoOrig");
+}
+function zoSvg(W, H) {
+  if (!ZO.inst) return "";
+  const R = ZO.inst;
+  const pos = R.nodes.map(nd => ({ x: nd.x, y: nd.y }));
+  const big = R.nodes.length > 20;
+  const P = fit(pos, W, H, big ? 40 : 48, capScale(pos, big ? 90 : 150));
+  const g = drawGraph({ P, n: R.nodes.length, edges: R.edges.map(e => [e.u, e.v]), directed: true,
+    nr: v => R.nodes[v].r || 15, nlbl: v => R.nodes[v].lbl, ncls: v => R.nodes[v].cls || "", ntip: v => R.nodes[v].tip || "",
+    nring: v => !!R.nodes[v].ring,
+    ecls: k => R.edges[k].cls, elbl: k => R.edges[k].lbl, off: k => R.edges[k].off });
+  let extra = R.extra ? R.extra(P) : "";
+  if (R.start !== undefined) { const p = P[R.start]; extra += `<path class="ed path" d="M${f1(p.x - 52)},${f1(p.y)} L${f1(p.x - 20)},${f1(p.y)}"/>` + arrowHead({ x: p.x - 17, y: p.y }, [1, 0], "path"); }
+  return extra + g;
+}
+function zoOrigSvg(W, H) {
+  if (!ZO.I) return "";
+  const { g, s, t, path } = ZO.I, pe = pathEdgeSet(path), on = new Set(path || []);
+  const P = fit(g.pos, W, H, 26, capScale(g.pos, 110));
+  return drawGraph({ P, n: g.n, edges: g.edges, directed: true, nr: () => 12,
+    ncls: v => v === s ? "s" : v === t ? "t" : on.has(v) ? "path" : "", ecls: k => pe.has(g.edges[k][0] + ">" + g.edges[k][1]) ? "path" : "" });
+}
+function zoInit() {
+  el("zoSeg").innerHTML = REDS.map(([k, t]) => `<button data-v="${k}" class="${k === ZO.red ? "on" : ""}">${t}</button>`).join("");
+  ZO.red = LS.get("zored", "dag");
+  el("zoSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === ZO.red));
+  wireSeg("zoSeg", v => { ZO.red = v; LS.set("zored", v); zoBuild(); });
+  mountBox("zoBox", zoSvg); mountBox("zoOrig", zoOrigSvg);
+  const loadPreset = wireGraphInput("zo", ZOO_PRESETS, DIGRAPHS, g => {
+    if (g.n > 9) { el("zoErr").textContent = "Please use at most 9 vertices here — several constructions have n² vertices."; return; }
+    ZO.g = g;
+    [ZO.s, ZO.t] = wireST("zo", g.n, g.dir, (s, t) => { ZO.s = s; ZO.t = t; zoBuild(); });
+    zoBuild();
+  });
+  loadPreset();
+}
+
+/* ============================ map tab figures ============================ */
+function drawMap() {
+  const dot = (x, y, lbl, go, anchor = "start", dx = 9) =>
+    `<g class="mapdot" data-go="${go}" tabindex="0" role="link" aria-label="${esc(lbl)}"><circle cx="${x}" cy="${y}" r="6"/>` +
+    `<text x="${x + (anchor === "end" ? -dx : dx)}" y="${y}" text-anchor="${anchor}">${lbl}</text></g>`;
+  const lab = (x, y, t, size = 15, col = "var(--wi-ink-soft)", anchor = "middle") =>
+    `<text x="${x}" y="${y}" text-anchor="${anchor}" style="font-family:var(--wi-font-head);font-size:${size}px;letter-spacing:.06em;fill:${col}">${t}</text>`;
+  el("mapSvg").innerHTML =
+    `<rect class="mapreg" x="8" y="8" width="744" height="424" rx="18" fill="#efe4d0" stroke="var(--wi-border)"/>` +
+    lab(28, 34, "PSPACE", 16, "var(--wi-ink-soft)", "start") +
+    `<ellipse class="mapreg" cx="300" cy="238" rx="252" ry="180" fill="rgba(42,106,99,.07)" stroke="var(--wi-queue)"/>` +
+    `<ellipse class="mapreg" cx="470" cy="238" rx="252" ry="180" fill="rgba(144,32,21,.06)" stroke="var(--wi-accent-soft)"/>` +
+    lab(110, 118, "P", 17, "var(--wi-queue)") + lab(660, 118, "L²", 17, "var(--wi-accent)") +
+    `<text x="660" y="138" text-anchor="middle" class="axlab">= DSPACE(log² n)</text>` +
+    `<ellipse class="mapreg" cx="385" cy="250" rx="122" ry="134" fill="rgba(250,246,237,.9)" stroke="var(--wi-border-strong)"/>` +
+    lab(385, 138, "NL = coNL", 15, "var(--wi-ink-strong)") +
+    `<ellipse cx="385" cy="282" rx="92" ry="94" fill="none" stroke="var(--wi-border)" stroke-dasharray="5 4"/>` +
+    lab(464, 286, "RL", 12.5, "var(--wi-ink-faint)") +
+    `<ellipse class="mapreg" cx="385" cy="300" rx="66" ry="62" fill="var(--wi-panel-2)" stroke="var(--wi-border-strong)"/>` +
+    lab(385, 264, "L = SL", 14, "var(--wi-ink-strong)") +
+    dot(338, 302, "USTCON", "ust") +
+    `<text x="347" y="322" class="axlab">Reingold</text>` +
+    dot(320, 168, "STCON", "nl") + dot(320, 190, "2-SAT, CYCLE, …", "zoo") +
+    dot(118, 300, "Circuit Value, Horn-SAT", "") +
+    `<text x="127" y="320" class="axlab">P-complete</text>` +
+    dot(40, 400, "TQBF, NFA universality", "", "start") +
+    `<text x="49" y="418" class="axlab">PSPACE-complete</text>` +
+    `<g class="mapdot" data-go="sav"><path d="M470,178 C540,150 590,190 610,232" fill="none" stroke="var(--wi-accent)" stroke-width="2"/>` +
+    arrowHead({ x: 612, y: 236 }, [0.4, 0.92], "path") +
+    `<text x="548" y="152" style="font-size:13.5px;fill:var(--wi-accent)">Savitch: NL ⊆ L²</text></g>` +
+    `<text x="560" y="300" class="axlab">STCON ∈ L² , no better</text><text x="560" y="315" class="axlab">deterministic bound known</text>`;
+  el("mapSvg").addEventListener("click", ev => { const g = ev.target.closest("[data-go]"); if (g && g.dataset.go) gotoTab(g.dataset.go); });
+  el("mapSvg").addEventListener("keydown", ev => { const g = ev.target.closest("[data-go]"); if (g && g.dataset.go && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); gotoTab(g.dataset.go); } });
+
+  /* configuration graph sketch */
+  let s = "";
+  const cellRow = (x, y, vals, w, head, cls) => vals.map((v, k) =>
+    `<rect class="cell ${k === head ? "hot" : cls || ""}" x="${x + k * w}" y="${y}" width="${w}" height="22"/><text class="ctext" x="${x + k * w + w / 2}" y="${y + 11}">${v}</text>`).join("");
+  s += `<text class="ttl" x="10" y="20">one configuration</text>`;
+  s += `<text class="axlab" x="10" y="52">input</text>` + cellRow(56, 38, ["x₁", "x₂", "x₃", "…", "…", "xₙ"], 30, 2);
+  s += `<text class="axlab" x="10" y="92">work</text>` + cellRow(56, 78, ["0", "1", "1", "0", "1"], 24, 1, "done");
+  s += `<rect class="bar active" x="56" y="122" width="58" height="30" rx="4"/><text class="ctext" x="85" y="137">q₃</text>`;
+  s += `<text class="axlab" x="10" y="176">(q, i, j, w): |Q|·(n+2)·s·|Γ|ˢ</text><text class="axlab" x="10" y="192">= poly(n) for s = O(log n)</text>`;
+  s += `<text class="axlab" x="10" y="208">each one fits in O(log n) bits</text>`;
+  const C = [[330, 120], [395, 60], [400, 175], [470, 105], [475, 205], [545, 50], [550, 150], [615, 95], [620, 200], [680, 140], [520, 230]];
+  const E = [[0, 1], [0, 2], [1, 3], [2, 3], [2, 4], [3, 5], [3, 6], [4, 6], [6, 7], [5, 7], [6, 8], [7, 9], [4, 10], [10, 8], [8, 9]];
+  const run = new Set(["0>2", "2>3", "3>6", "6>7", "7>9"]);
+  const P = C.map(([x, y]) => ({ x, y }));
+  s += drawGraph({ P, n: C.length, edges: E, directed: true, nr: () => 11, nlbl: v => v === 0 ? "c₀" : "",
+    ncls: v => v === 0 ? "s" : v === 9 ? "t" : run.has("x") ? "" : "", nring: v => v === 9,
+    ecls: k => run.has(E[k][0] + ">" + E[k][1]) ? "path" : "" });
+  s += `<text class="ttl" x="300" y="20">configuration graph G(M, x)</text><text class="axlab mid" x="680" y="170">acc</text>`;
+  s += `<text class="axlab" x="300" y="244">M accepts x ⇔ acc is reachable from c₀ — an STCON instance</text>`;
+  el("cfgSvg").innerHTML = s;
+}
+function tmSvg(W, H) {
+  const x0 = 82, cw = 22, tape = (y, n, lbl, sub, cls, head, arrow) => {
+    let h = `<text class="axlab" x="4" y="${y + 12}">${lbl}</text><text class="axlab" x="4" y="${y + 25}" style="font-size:10.5px">${sub}</text>`;
+    for (let k = 0; k < n; k++) h += `<rect class="cell ${k === head ? "hot" : cls}" x="${x0 + k * cw}" y="${y}" width="${cw}" height="22"/>`;
+    if (arrow) h += `<path class="ed" d="M${x0 + n * cw + 6},${y + 11} L${x0 + n * cw + 26},${y + 11}"/>` + arrowHead({ x: x0 + n * cw + 30, y: y + 11 }, [1, 0], "");
+    return h;
+  };
+  const nIn = Math.max(6, Math.floor((W - x0 - 10) / cw)), nW = Math.max(3, Math.min(6, Math.round(Math.log2(nIn) + 1)));
+  let s = tape(8, nIn, "input", "read-only, free", "", 3) + tape(56, nW, "work", "O(log n) cells", "done", 1) +
+          tape(104, Math.min(nIn - 3, 9), "output", "write-only, →", "", 4, true);
+  s += `<text class="axlab" x="${x0 + nW * cw + 12}" y="72" style="fill:var(--wi-accent)">← the only memory that counts</text>`;
+  return s;
+}
+
+/* ============================ tabs, keys, start ============================ */
+const TABS = ["map", "ust", "nl", "sav", "zoo"];
+let curTab = "map";
+function gotoTab(name) {
+  if (!TABS.includes(name)) return;
+  curTab = name; LS.set("tab", name);
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
+  document.querySelectorAll("section.tab").forEach(s => s.classList.toggle("on", s.id === "tab-" + name));
+  [NL, SV, WK, ZZ, RG, RW].forEach(o => o.player && o.player.stop());
+  if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+  requestAnimationFrame(() => Object.keys(BOXES).forEach(refresh));
+}
+function activePlayer() {
+  if (curTab === "nl") return NL.player;
+  if (curTab === "sav") return SV.player;
+  if (curTab === "ust") return { walk: WK.player, zz: ZZ.player, reg: RG.player, rw: RW.player }[UST.sub] || null;
+  return null;
+}
+function init() {
+  initSplits(); initGrips(); initTooltip();
+  drawMap(); mountBox("tmSvg", tmSvg);
+  ustInit(); nlInit(); svInit(); zoInit();
+  el("tabs").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b) gotoTab(b.dataset.tab); });
+  window.addEventListener("hashchange", () => gotoTab(location.hash.slice(1)));
+  document.addEventListener("keydown", ev => {
+    if (ev.target.closest && ev.target.closest("input, textarea, select")) return;
+    if (ev.altKey || ev.ctrlKey || ev.metaKey) return;
+    const p = activePlayer(); if (!p) return;
+    const map = { ArrowRight: "step", ArrowLeft: "back", " ": "play", Home: "reset", End: "end" };
+    const a = map[ev.key]; if (!a) return;
+    if (ev.key === " " && ev.target.closest && ev.target.closest("button")) ev.target.blur();
+    ev.preventDefault(); p.act(a);
+  });
+  const h = location.hash.slice(1);
+  gotoTab(TABS.includes(h) ? h : LS.get("tab", "map"));
+}
+init();
+</script>
+</body>
+</html>

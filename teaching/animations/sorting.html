@@ -8,6 +8,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sorting · elementary methods, mergesort and quicksort, step by step</title>
+<script>
+  /* MathJax, for the formulas of the "Measure & plot" view: TeX in \( \), with Euler letters */
+  window.MathJax = {
+    tex: { inlineMath: [["\\(", "\\)"]] },
+    loader: { load: ["[mathjax-euler-extension]/chtml"],
+              paths: { "mathjax-euler-extension": "https://cdn.jsdelivr.net/npm/@mathjax/mathjax-euler-font-extension@4" } },
+    options: { enableMenu: false },
+    startup: { typeset: false }
+  };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"></script>
 <style>
   /* Same token values as /css/animations.css, repeated so the page also works when opened directly. */
   :root {
@@ -75,6 +86,8 @@
   .seg { display:inline-flex; flex-wrap:wrap; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
   .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
   .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg:not(.open) button.xtra { display:none; }
+  .seg button.xmore { font-style:italic; color:var(--wi-ink-soft); }
   .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
   .seg button.on:hover:not(:disabled) { background:var(--wi-accent-dark); color:var(--wi-panel-2); }
   .modes button { font-size:.9rem; padding:7px 16px; }
@@ -255,6 +268,27 @@
                    50%  { transform:translate(calc(var(--dx) / 2 + var(--lx)), calc(var(--dy) / 2 + var(--ly))); }
                    to   { transform:translate(0px, 0px); } }
   .sv-fly { animation:fly var(--dur, 450ms) ease-in-out both; }
+  .sv-inv  { font-family:var(--wi-font-body); font-size:14px; font-style:italic; fill:var(--wi-ink-strong); text-anchor:middle; }
+  .vars .cnt > span[title] { cursor:help; }
+
+  /* --- measure & plot --- */
+  .meas-box { padding:12px 16px 12px; }
+  .mleg { display:flex; flex-wrap:wrap; gap:2px 20px; font-size:.82rem; color:var(--wi-ink-soft); margin:0 0 5px; min-height:1.7em; align-items:center; }
+  .mleg .item { display:inline-flex; align-items:center; gap:6px; }
+  .mplot svg { display:block; background:var(--wi-bg); border-radius:var(--wi-radius); cursor:crosshair; touch-action:pan-y; }
+  .readout { font-size:.86rem; color:var(--wi-ink-strong); background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+             border-radius:var(--wi-radius); padding:7px 13px; margin-top:10px; height:5.1em; overflow-y:auto; line-height:1.6; }
+  .readout .dim { color:var(--wi-ink-faint); }
+  .vsplit { height:18px; cursor:row-resize; touch-action:none; display:flex; align-items:center; justify-content:center; }
+  .vsplit::before { content:""; height:4px; width:110px; border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .vsplit:hover::before, .vsplit.drag::before, .vsplit:focus-visible::before { background:var(--wi-accent-soft); }
+  .vsplit:focus-visible { outline:none; }
+  .pl-tick { font-family:var(--wi-font-mono); font-size:11px; fill:var(--wi-ink-faint); }
+  .pl-lab  { font-family:var(--wi-font-body); font-size:14px; font-style:italic; fill:var(--wi-ink-soft); }
+  .mj-buf  { position:absolute; left:-10000px; top:0; visibility:hidden; }
+  #view-measure .note { max-width:120ch; font-size:.8rem; }
+  #view-measure .note code { white-space:nowrap; }
+
   /* presentation view */
   .only-p { display:none !important; }
   body.present .only-p { display:inline-flex !important; }
@@ -291,6 +325,7 @@ body { font-family: var(--wi-font-body); }
       <button data-mode="demo" role="tab">Demo</button>
       <button data-mode="steps" role="tab">Step by step</button>
       <button data-mode="grid" role="tab">All at once</button>
+      <button data-mode="measure" role="tab" title="Element visits of mergesort for every n up to a bound, against the exact solution of the recurrence">Measure &amp; plot</button>
     </span>
   </span>
 </div>
@@ -349,9 +384,11 @@ body { font-family: var(--wi-font-body); }
     <div class="ctl hide-p">
       <span class="lbl">One step is</span>
       <span class="seg" id="dClock">
+        <button data-clock="vis" class="on" title="Each element visit is a step: per pass (a scan, a partitioning step, the copy or the merge loop of a merge), every element read or written counts once">an element visit</button>
         <button data-clock="cmp" title="Each call of less() is a step, together with the swaps or copies it causes">a comparison</button>
-        <button data-clock="mov" title="Each swap is a step (for mergesort: each element copy), together with the comparisons leading to the next one">a swap or copy</button>
-        <button data-clock="op" class="on" title="Each call of less() and each swap or element copy is a step of its own">a comparison, swap or copy</button>
+        <button data-clock="mov" class="xtra" title="Each swap is a step (for mergesort: each element copy), together with the comparisons leading to the next one">a swap or copy</button>
+        <button data-clock="op" class="xtra" title="Each call of less() and each swap or element copy is a step of its own">a comparison, swap or copy</button>
+        <button class="xmore" title="Other ways to count a step">other…</button>
       </span>
     </div>
   </div>
@@ -493,9 +530,11 @@ body { font-family: var(--wi-font-body); }
     <div class="ctl">
       <span class="lbl">One step is</span>
       <span class="seg" id="gClock">
+        <button data-clock="vis" class="on" title="Each element visit is a step: per pass (a scan, a partitioning step, the copy or the merge loop of a merge), every element read or written counts once">an element visit</button>
         <button data-clock="cmp" title="Each call of less() is a step, together with the swaps or copies it causes">a comparison</button>
-        <button data-clock="mov" title="Each swap is a step (for mergesort: each element copy), together with the comparisons leading to the next one">a swap or copy</button>
-        <button data-clock="op" class="on" title="Each call of less() and each swap or element copy is a step of its own">a comparison, swap or copy</button>
+        <button data-clock="mov" class="xtra" title="Each swap is a step (for mergesort: each element copy), together with the comparisons leading to the next one">a swap or copy</button>
+        <button data-clock="op" class="xtra" title="Each call of less() and each swap or element copy is a step of its own">a comparison, swap or copy</button>
+        <button class="xmore" title="Other ways to count a step">other…</button>
       </span>
     </div>
     <div class="ctl" id="gRowsCtl" style="flex-basis:100%;gap:6px 12px">
@@ -506,6 +545,50 @@ body { font-family: var(--wi-font-body); }
   </div>
   <table class="grid" id="gridTable"></table>
   <p class="note" id="gridNote"></p>
+</section>
+
+<!-- ================================================================ MEASURE & PLOT -->
+<section id="view-measure" class="hidden">
+  <div class="controls">
+    <div class="ctl">
+      <span class="lbl">Algorithm</span>
+      <span class="seg" id="mAlgoSeg">
+        <button data-malgo="merge">Top-down mergesort</button>
+        <button data-malgo="mergeBU">Bottom-up mergesort</button>
+        <button data-malgo="quick">Quicksort</button>
+      </span>
+    </div>
+    <div class="ctl hidden" id="mQuickCtl" style="gap:8px 18px">
+      <span class="ctl"><span class="lbl">Pivot</span>
+        <span class="seg" id="mPivSeg"><button data-piv="random">random</button><button data-piv="first" title="A[l] — on random inputs as good as a random pivot">A[l]</button><button data-piv="m3">median of 3</button></span></span>
+      <span class="ctl"><span class="lbl">Runs per n</span>
+        <span class="seg" id="mTrSeg"><button data-tr="1">1</button><button data-tr="10">10</button><button data-tr="50">50</button></span></span>
+    </div>
+    <div class="ctl">
+      <label for="mN">n up to</label>
+      <input type="range" id="mN" min="0" max="1000" value="460" style="width:150px" aria-label="Largest n (8 to 2048)">
+      <span class="val" id="mNVal" style="min-width:3em">150</span>
+      <span class="seg" id="mNSeg">
+        <button data-n="150">150</button><button data-n="512">512</button><button data-n="2048">2048</button>
+      </span>
+    </div>
+    <div class="ctl" id="mMergeCtl" style="gap:6px 18px">
+      <label class="chk"><input type="checkbox" id="mPow2"> <span id="mPow2Lab">assume n = 2^k</span></label>
+      <label class="chk" id="mUpCtl"><input type="checkbox" id="mUp"> <span id="mUpLab">round n up to a power of 2</span></label>
+    </div>
+  </div>
+  <div class="sim-box meas-box">
+    <div class="sim-title"><span>Element visits</span><span class="rhs" id="mProg"></span></div>
+    <div class="mleg" id="mLegTop"></div>
+    <div class="mplot" id="mWrapTop"><svg id="mSvgTop"></svg></div>
+    <div class="sim-title" style="margin-top:14px"><span>Linear term, divided by n</span><span class="rhs" id="mRange"></span></div>
+    <div class="mleg" id="mLegBot"></div>
+    <div class="mplot" id="mWrapBot"><svg id="mSvgBot"></svg></div>
+    <div class="readout" id="mRead"></div>
+  </div>
+  <div class="vsplit" id="mSplit" role="separator" aria-orientation="horizontal" tabindex="0"
+       title="Drag to change the height of the plots (double-click: back to the default)"></div>
+  <p class="note" id="mNote"></p>
 </section>
 
 <script>
@@ -609,6 +692,8 @@ class Run {
     this.nc = 0;                                   /* calls of less()           */
     this.ns = 0;                                   /* calls of swap()           */
     this.nm = 0;                                   /* element copies (merge)    */
+    this.nv = 0;                                   /* element visits: per pass, each element read or written counts once */
+    this.seen = new Set();                         /* the elements visited in the current pass */
     this.rng = mulberry32(opts.seed || 1);
     this.pivotRule = opts.pivot || "random";
     this.runsVariant = opts.runs || "both";       /* powersort: which runs extend_run finds */
@@ -620,8 +705,15 @@ class Run {
     this.range = null;                             /* [lo, hi] currently worked on (inclusive) */
     this.pivotId = -1;
   }
-  less(x, y) { this.nc++; return cmpVals(this.vals[x], this.vals[y]) < 0; }
-  swap(i, j) { this.ns++; const A = this.A, t = A[i]; A[i] = A[j]; A[j] = t; }
+  less(x, y) { this.nc++; this.touch(x); this.touch(y); return cmpVals(this.vals[x], this.vals[y]) < 0; }
+  swap(i, j) { this.ns++; const A = this.A, t = A[i]; this.touch(A[i]); this.touch(A[j]); A[i] = A[j]; A[j] = t; }
+  /* Element visits.  A pass (one scan of selection-, bubble- or insertionsort, one partitioning step,
+     the copy loop or the merge loop of a merge, one run detection) visits every element it reads or
+     writes once — an element kept at hand (the pivot, the current minimum, the element being
+     inserted or bubbled along) is not counted again.  So a partition of k elements is k visits, and
+     a merge of k elements 2k (copy to aux, then merge back).                                        */
+  touch(id) { if (!this.seen.has(id)) { this.seen.add(id); this.nv++; } }
+  pass() { this.seen = new Set(); }
   randInt(k) { return Math.floor(this.rng() * k); }            /* random.nextInt(k) */
   call(label, site) { this.stack = this.stack.concat([{ label, site }]); }
   ret() { this.stack = this.stack.slice(0, -1); }
@@ -991,13 +1083,14 @@ function* gSelection(R) {
   yield S("sel.2", { v: { n }, msg: () => c("n = A.length = " + n) + "." });
   for (let i = 0; ; ++i) {
     const reg = [{ a: 0, b: i, cls: "final" }];
+    R.pass();
     const go = i < n;
     yield S("sel.3", { mile: 1, v: { n, i }, ptr: { i }, reg,
       msg: () => go ? "Outer loop, " + c("i = " + i) + ". Invariant: " + c("A[0.." + i + ")") +
                       (i ? " contains the " + i + " smallest elements, in sorted order." : " is still empty.")
                     : c("i = n = " + n) + ": the loop ends — " + c("A[0.." + n + ")") + " is sorted." });
     if (!go) break;
-    let min = A[i], minPos = i;
+    let min = A[i], minPos = i; R.touch(min);
     yield S("sel.4", { v: { n, i, minPos }, ptr: { i, minPos }, reg,
       msg: () => "Start the search for the minimum of " + c("A[" + i + ".." + n + ")") + " with " + c("min = A[" + i + "] = " + L(min)) + ", " + c("minPos = " + i) + "." });
     for (let j = i + 1; ; ++j) {
@@ -1035,6 +1128,7 @@ function* gBubble(R) {
   yield S("bub.2", { v: { n }, msg: () => c("n = A.length = " + n) + "." });
   for (let i = 0; ; ++i) {
     const reg = [{ a: 0, b: i, cls: "final" }];
+    R.pass();
     const go = i <= n - 2;
     yield S("bub.3", { mile: 1, v: { n, i }, ptr: { i }, reg,
       msg: () => go ? "Outer loop, " + c("i = " + i) + ". " + (i ? "The minima of earlier passes have reached the surface: " + c("A[0.." + i + ")") + " is final." : "Nothing is known yet.")
@@ -1070,6 +1164,7 @@ function* gBubbleImproved(R) {
   let t = 0, pass = 0;
   yield S("bi.2", { v: { n, t }, ptr: { t }, msg: () => c("n = " + n + "; t = 0") + "." });
   while (true) {
+    R.pass();
     const go = t !== n;
     yield S("bi.3", { mile: 1, v: { n, t }, ptr: { t }, reg: [{ a: 0, b: t, cls: "final" }],
       msg: () => go ? c("t = " + t + " ≠ n") + ". Invariant (line 3): " + c("A[0.." + t + ")") + (t ? " contains the " + t + " smallest elements, sorted." : " is empty.")
@@ -1111,6 +1206,7 @@ function* gInsertion(R) {
   yield S("ins.1", { mile: 1, msg: () => "<b>insertionSort</b>: the card player's method. The hand is the prefix of the array; insert the next card by swapping it to the left until its left neighbour is not larger." });
   yield S("ins.2", { v: { n }, msg: () => c("n = A.length = " + n) + "." });
   for (let i = 1; ; ++i) {
+    R.pass();
     const go = i < n;
     yield S("ins.3", { mile: 1, v: { n, i }, ptr: go ? { i } : {}, reg: [{ a: 0, b: Math.min(i, n), cls: go ? "sorted" : "final" }],
       msg: () => go ? c("i = " + i) + ". Invariant (line 3): " + c("A[0.." + i + ")") + " is sorted. Now insert " + c("A[" + i + "] = " + L(A[i])) + "."
@@ -1148,6 +1244,7 @@ function* gBinaryInsertion(R) {
   yield S("bins.1", { mile: 1, msg: () => "<b>binaryInsertionSort</b>: insertionsort, but the position of " + c("A[i]") + " in the sorted prefix is found by binary search; then " + c("A[i]") + " is swapped to the left up to that position." });
   yield S("bins.2", { v: { n }, msg: () => c("n = A.length = " + n) + "." });
   for (let i = 1; ; ++i) {
+    R.pass();
     const go = i < n;
     yield S("bins.3", { mile: 1, v: { n, i }, ptr: go ? { i } : {}, reg: [{ a: 0, b: Math.min(i, n), cls: go ? "sorted" : "final" }],
       msg: () => go ? c("i = " + i) + ". Invariant: " + c("A[0.." + i + ")") + " is sorted. Now insert " + c("A[" + i + "] = " + lab(A[i])) + "."
@@ -1205,6 +1302,7 @@ function* gMerge(R, lo, mid, hi, site, pre) {
   const V = o => Object.assign({ lo, mid, hi }, o);
   yield S("mg.1", { mile: 1, v: V({}), ptr: { lo, mid, hi }, reg: runs, mrg: { phase: "start", lo, mid, hi },
     msg: () => c("merge(a, aux, " + lo + ", " + mid + ", " + hi + ")") + ": " + c("a[" + lo + ".." + mid + "]") + " and " + c("a[" + (mid + 1) + ".." + hi + "]") + " are sorted runs; afterwards " + c("a[" + lo + ".." + hi + "]") + " shall be sorted." });
+  R.pass();                                         /* the copy loop: one pass */
   for (let k = lo; ; k++) {
     const go = k <= hi;
     yield S("mg.3", { v: V({ k }), ptr: go ? { k } : {}, reg: runs, mrg: { phase: "copy", lo, mid, hi, k },
@@ -1212,11 +1310,12 @@ function* gMerge(R, lo, mid, hi, site, pre) {
                     : c("k = hi + 1") + ": " + c("aux[" + lo + ".." + hi + "]") + " now holds a copy of both runs." });
     if (!go) break;
     const old = aux[k];
-    aux[k] = a[k]; R.nm++;
+    aux[k] = a[k]; R.nm++; R.touch(a[k]);
     yield S("mg.4", { ev: "copy", mv: { from: ["a", k], to: ["aux", k], old }, v: V({ k }), ptr: { k }, reg: runs, mrg: { phase: "copy", lo, mid, hi, k },
       msg: () => c("aux[" + k + "] = a[" + k + "] = " + L(a[k])) + "." });
   }
   let i = lo, j = mid + 1;
+  R.pass();                                         /* the merge loop: another */
   yield S("mg.6", { mile: 1, v: V({ i, j }), pa: { lo, i, mid, j, hi }, reg: runs, mrg: { phase: "merge", lo, mid, hi, i, j, k: lo },
     msg: () => "Merge back from " + c("aux") + " into " + c("a") + ": " + c("i = lo = " + lo) + " walks the first run, " + c("j = mid+1 = " + (mid + 1)) + " the second." });
   for (let k = lo; ; k++) {
@@ -1228,7 +1327,7 @@ function* gMerge(R, lo, mid, hi, site, pre) {
     if (!go) break;
     let src;
     if (i > mid) {
-      src = j; const old = a[k]; a[k] = aux[j++]; R.nm++;
+      src = j; const old = a[k]; a[k] = aux[j++]; R.nm++; R.touch(a[k]);
       yield S("mg.9", { ev: "write", mv: { from: ["aux", src], to: ["a", k], old }, v: V({ i, j, k }), ptr: { k }, pa: { lo, i, mid, j, hi }, reg: runs, mrg: M(),
         msg: () => c("i > mid") + ": the first run is used up, so " + c("a[" + k + "] = aux[j++] = " + L(a[k])) + "." });
       continue;
@@ -1236,7 +1335,7 @@ function* gMerge(R, lo, mid, hi, site, pre) {
     yield S("mg.9", { v: V({ i, j, k }), ptr: { k }, pa: { lo, i, mid, j, hi }, reg: runs, mrg: M(),
       msg: () => c("i = " + i + " ≤ mid") + ": the first run still has elements." });
     if (j > hi) {
-      src = i; const old = a[k]; a[k] = aux[i++]; R.nm++;
+      src = i; const old = a[k]; a[k] = aux[i++]; R.nm++; R.touch(a[k]);
       yield S("mg.10", { ev: "write", mv: { from: ["aux", src], to: ["a", k], old }, v: V({ i, j, k }), ptr: { k }, pa: { lo, i, mid, j, hi }, reg: runs, mrg: M(),
         msg: () => c("j > hi") + ": the second run is used up, so " + c("a[" + k + "] = aux[i++] = " + L(a[k])) + "." });
       continue;
@@ -1248,18 +1347,19 @@ function* gMerge(R, lo, mid, hi, site, pre) {
       msg: () => c("less(aux[" + j + "], aux[" + i + "])") + ": " + L(aux[j]) + " &lt; " + L(aux[i]) + "? " +
                  (r ? YES + " — take it from the second run." : NO + " — take " + c("aux[i]") + " from the first run" + (R.vals[aux[i]] === R.vals[aux[j]] ? " (on ties the first run wins: this keeps mergesort stable)" : "") + ".") });
     if (r) {
-      src = j; const old = a[k]; a[k] = aux[j++]; R.nm++;
+      src = j; const old = a[k]; a[k] = aux[j++]; R.nm++; R.touch(a[k]);
       yield S("mg.11", { ev: "write", mv: { from: ["aux", src], to: ["a", k], old }, v: V({ i, j, k }), ptr: { k }, pa: { lo, i, mid, j, hi }, reg: runs, mrg: M(),
         msg: () => c("a[" + k + "] = aux[j++] = " + L(a[k])) + "." });
     } else {
-      src = i; const old = a[k]; a[k] = aux[i++]; R.nm++;
+      src = i; const old = a[k]; a[k] = aux[i++]; R.nm++; R.touch(a[k]);
       yield S("mg.12", { ev: "write", mv: { from: ["aux", src], to: ["a", k], old }, v: V({ i, j, k }), ptr: { k }, pa: { lo, i, mid, j, hi }, reg: runs, mrg: M(),
         msg: () => c("a[" + k + "] = aux[i++] = " + L(a[k])) + "." });
     }
   }
   yield S("mg.14", { mile: 1, v: V({}), reg: [{ a: lo, b: hi + 1, cls: "sorted" }], mrg: { phase: "done", lo, mid, hi },
     trace: { label: (pre || "") + "merge(a, aux, " + lo + ", " + mid + ", " + hi + ")", short: lo + ".." + hi, range: [lo, hi] },
-    msg: () => c("a[" + lo + ".." + hi + "]") + " is sorted." });
+    msg: () => c("a[" + lo + ".." + hi + "]") + " is sorted. This merge visited each of its " + (hi - lo + 1) + " elements twice — copied to " + c("aux") +
+               " and written back: " + 2 * (hi - lo + 1) + " element visits." });
   R.ret();
   R.range = prevRange;
 }
@@ -1274,7 +1374,8 @@ function* gMergeTD(R) {
   yield* gSortTD(R, 0, n - 1, "ms.13");
   R.ret();
   yield S("ms.14", { mile: 1, done: 1, reg: [{ a: 0, b: n, cls: "final" }],
-    msg: () => "Sorted. " + c("less") + " was called " + R.nc + " times; " + R.nm + " element copies (to " + c("aux") + " and back)." });
+    msg: () => "Sorted. " + c("less") + " was called " + R.nc + " times; " + R.nm + " element visits (copies to " + c("aux") + " and back) — " +
+               (R.nm === mergeC(n) ? "exactly" : "but") + " <i>C</i>(" + n + ") = " + mergeC(n) + ", the solution of <i>C</i>(<i>n</i>) = <i>C</i>(⌊<i>n</i>/2⌋) + <i>C</i>(⌈<i>n</i>/2⌉) + 2<i>n</i>, whatever the input." });
 }
 function* gSortTD(R, lo, hi, site) {
   R.call("sort(a, aux, " + lo + ", " + hi + ")", site);
@@ -1331,8 +1432,14 @@ function* gMergeBU(R) {
   }
   R.ret();
   yield S("bu.8", { mile: 1, done: 1, reg: [{ a: 0, b: N, cls: "final" }],
-    msg: () => "Sorted. " + c("less") + " was called " + R.nc + " times; " + R.nm + " element copies." });
+    msg: () => "Sorted. " + c("less") + " was called " + R.nc + " times; " + R.nm + " element visits (copies to " + c("aux") + " and back). " +
+               "Top-down mergesort needs <i>C</i>(" + N + ") = " + mergeC(N) + (R.nm === mergeC(N) ? " — the same here." : ".") });
 }
+
+/* the loop invariant of partition, as zones of A[l..r): A[l] = p | ≤ p | ? | ≥ p  (what is known so far) */
+const invZones = (l, r, sm, lg) => [{ a: l, b: l + 1, k: "p" }, { a: l + 1, b: sm, k: "le" }, { a: sm, b: lg, k: "unk" }, { a: lg, b: r, k: "ge" }];
+const invDone  = (l, r, j) => [{ a: l, b: j, k: "le" }, { a: j, b: j + 1, k: "p" }, { a: j + 1, b: r, k: "ge" }];
+const invNone  = (l, r) => [{ a: l, b: r, k: "unk" }];
 
 /* ---- Quicksort ----------------------------------------------------------- */
 const PIVOT_BLOCK = { random: "pvR", first: "pvB", m3: "pvM" };
@@ -1346,7 +1453,8 @@ function* gQuick(R) {
   yield* gQs(R, 0, n, "qs.2");
   R.ret();
   yield S("qs.3", { mile: 1, done: 1, reg: [{ a: 0, b: n, cls: "final" }],
-    msg: () => "Sorted. " + c("less") + " was called " + R.nc + " times, " + c("swap") + " " + R.ns + " times." });
+    msg: () => "Sorted. " + c("less") + " was called " + R.nc + " times, " + c("swap") + " " + R.ns + " times; " + R.nv +
+               " element visits — every partitioning step visits each element of its subarray exactly once." });
 }
 function* gQs(R, l, r, site) {
   const A = R.A, L = id => R.L(id);
@@ -1445,32 +1553,34 @@ function* gChoosePivot(R, l, r) {
 function* gPartition(R, l, r, site) {
   const A = R.A, L = id => R.L(id);
   R.call("partition(A, " + l + ", " + r + ")", site);
-  yield S("pt.1", { mile: 1, v: { l, r }, ptr: { l, r }, reg: [{ a: l, b: r, cls: "range" }],
+  R.pass();                                         /* one partitioning step, choosing the pivot included: one pass */
+  yield S("pt.1", { mile: 1, v: { l, r }, ptr: { l, r }, reg: [{ a: l, b: r, cls: "range" }], inv: invNone(l, r),
     msg: () => c("partition(A, " + l + ", " + r + ")") + ": rearrange " + c("A[" + l + ".." + r + ")") + " around a pivot and return its final position." });
-  yield S("pt.3", { v: { l, r }, ptr: { l, r }, reg: [{ a: l, b: r, cls: "range" }], msg: () => "First choose the pivot: " + c("choosePivot(" + l + ", " + r + ")") + "." });
+  yield S("pt.3", { v: { l, r }, ptr: { l, r }, reg: [{ a: l, b: r, cls: "range" }], inv: invNone(l, r), msg: () => "First choose the pivot: " + c("choosePivot(" + l + ", " + r + ")") + "." });
   const pv = yield* gChoosePivot(R, l, r);
   R.swap(l, pv);
   R.pivotId = A[l];
-  yield S("pt.3", { ev: "swap", sw: [l, pv], v: { l, r }, ptr: { l, r }, reg: [{ a: l, b: r, cls: "range" }], piv: 1,
+  yield S("pt.3", { ev: "swap", sw: [l, pv], v: { l, r }, ptr: { l, r }, reg: [{ a: l, b: r, cls: "range" }], inv: invZones(l, r, l + 1, r), piv: 1,
     msg: () => c("swap(A, " + l + ", " + pv + ")") + (pv === l ? ": the pivot " + c("p = " + L(A[l])) + " already is at " + c("A[l]") + "." : ": the pivot " + c("p = " + L(A[l])) + " moves to " + c("A[l]") + ".") });
   let i = l, j = r, sm = l + 1, lg = r;           /* A(l..sm) <= p,  A[lg..r) >= p  -- what is known so far */
   const reg = () => [{ a: l + 1, b: sm, cls: "le" }, { a: lg, b: r, cls: "ge" }];
+  const IV = () => invZones(l, r, sm, lg);
   const V = () => ({ l, r, i, j });
-  yield S("pt.4", { v: V(), ptr: { i, j }, reg: reg(), piv: 1, msg: () => c("i = l = " + l + ", j = r = " + r) + "." });
+  yield S("pt.4", { v: V(), ptr: { i, j }, reg: reg(), inv: IV(), piv: 1, msg: () => c("i = l = " + l + ", j = r = " + r) + "." });
   while (true) {
-    yield S("pt.5", { v: V(), ptr: { i, j }, reg: reg(), piv: 1,
+    yield S("pt.5", { v: V(), ptr: { i, j }, reg: reg(), inv: IV(), piv: 1,
       msg: () => "Loop invariant: " + c("A[l] = p") + ", everything left of " + c("i") + " is " + c("≤ p") + ", everything right of " + c("j") + " is " + c("≥ p") + "; the elements in between are still unknown." });
     while (true) {
       ++i;
       if (i < r) {
         const cr = R.less(A[i], A[l]);
         if (cr) sm = i + 1;
-        yield S("pt.6", { ev: "cmp", cmp: [l, i], res: cr, v: V(), ptr: { i, j }, reg: reg(), piv: 1, stop: cr ? null : "i",
+        yield S("pt.6", { ev: "cmp", cmp: [l, i], res: cr, v: V(), ptr: { i, j }, reg: reg(), inv: IV(), piv: 1, stop: cr ? null : "i",
           msg: () => c("++i → " + i) + ", " + c("less(A[" + i + "], A[l])") + ": " + L(A[i]) + " &lt; " + L(A[l]) + "? " +
                      (cr ? YES + " — keep going." : NO + " — " + c("i") + " stops: " + L(A[i]) + " belongs to the right.") });
         if (!cr) break;
       } else {
-        yield S("pt.6", { v: V(), ptr: { i, j }, reg: reg(), piv: 1, msg: () => c("++i → " + i + " = r") + ": " + c("i") + " stops at the end of the range." });
+        yield S("pt.6", { v: V(), ptr: { i, j }, reg: reg(), inv: IV(), piv: 1, msg: () => c("++i → " + i + " = r") + ": " + c("i") + " stops at the end of the range." });
         break;
       }
     }
@@ -1479,33 +1589,33 @@ function* gPartition(R, l, r, site) {
       if (j > l) {
         const cr = R.less(A[l], A[j]);
         if (cr) lg = j;
-        yield S("pt.7", { ev: "cmp", cmp: [l, j], res: cr, v: V(), ptr: { i, j }, reg: reg(), piv: 1, stop: cr ? (i < r && i < j ? "i" : null) : (i < j ? "ij" : null),
+        yield S("pt.7", { ev: "cmp", cmp: [l, j], res: cr, v: V(), ptr: { i, j }, reg: reg(), inv: IV(), piv: 1, stop: cr ? (i < r && i < j ? "i" : null) : (i < j ? "ij" : null),
           msg: () => c("--j → " + j) + ", " + c("less(A[l], A[" + j + "])") + ": " + L(A[l]) + " &lt; " + L(A[j]) + "? " +
                      (cr ? YES + " — keep going." : NO + " — " + c("j") + " stops: " + L(A[j]) + " belongs to the left.") });
         if (!cr) break;
       } else {
-        yield S("pt.7", { v: V(), ptr: { i, j }, reg: reg(), piv: 1, msg: () => c("--j → " + j + " = l") + ": " + c("j") + " stops at the pivot." });
+        yield S("pt.7", { v: V(), ptr: { i, j }, reg: reg(), inv: IV(), piv: 1, msg: () => c("--j → " + j + " = l") + ": " + c("j") + " stops at the pivot." });
         break;
       }
     }
     if (i >= j) {
-      yield S("pt.8", { v: V(), ptr: { i, j }, reg: reg(), piv: 1,
+      yield S("pt.8", { v: V(), ptr: { i, j }, reg: reg(), inv: IV(), piv: 1,
         msg: () => c("i = " + i + " ≥ j = " + j) + ": the indices have crossed — break. " + c("j") + " is the last position of the left part." });
       break;
     }
-    yield S("pt.8", { v: V(), ptr: { i, j }, reg: reg(), piv: 1, stop: "ij", msg: () => c("i = " + i + " < j = " + j) + ": both stopped on the wrong side." });
+    yield S("pt.8", { v: V(), ptr: { i, j }, reg: reg(), inv: IV(), piv: 1, stop: "ij", msg: () => c("i = " + i + " < j = " + j) + ": both stopped on the wrong side." });
     R.swap(i, j);
     sm = i + 1; lg = j;
-    yield S("pt.9", { ev: "swap", sw: [i, j], v: V(), ptr: { i, j }, reg: reg(), piv: 1,
+    yield S("pt.9", { ev: "swap", sw: [i, j], v: V(), ptr: { i, j }, reg: reg(), inv: IV(), piv: 1,
       msg: () => c("swap(A, " + i + ", " + j + ")") + ": now " + L(A[i]) + " ≤ p is on the left and " + L(A[j]) + " ≥ p on the right." });
   }
   R.swap(l, j);
-  yield S("pt.11", { ev: "swap", sw: [l, j], v: V(), ptr: { i, j }, piv: 1,
+  yield S("pt.11", { ev: "swap", sw: [l, j], v: V(), ptr: { i, j }, piv: 1, inv: invDone(l, r, j),
     reg: [{ a: l, b: j, cls: "le" }, { a: j + 1, b: r, cls: "ge" }],
     msg: () => c("swap(A, l, j)") + ": the pivot " + L(A[j]) + " moves to position " + j + (j === l ? " — it already was there" : "") + ": its final position." });
-  yield S("pt.12", { mile: 1, v: V(), ptr: { j }, piv: 1, reg: [{ a: l, b: j, cls: "le" }, { a: j + 1, b: r, cls: "ge" }],
+  yield S("pt.12", { mile: 1, v: V(), ptr: { j }, piv: 1, inv: invDone(l, r, j), reg: [{ a: l, b: j, cls: "le" }, { a: j + 1, b: r, cls: "ge" }],
     trace: { label: "partition(A, " + l + ", " + r + ") → " + j, short: l + ".." + (r - 1), range: [l, r - 1] },
-    msg: () => c("return j = " + j) + "." });
+    msg: () => c("return j = " + j) + ". This partitioning step visited each of the " + (r - l) + " elements of " + c("A[" + l + ".." + r + ")") + " once: " + (r - l) + " element visits." });
   R.ret();
   R.pivotId = -1;
   return j;
@@ -1522,7 +1632,7 @@ function* gMergeCheck(R) {
   yield* gSortCheck(R, 0, n - 1, "mc.14");
   R.ret();
   yield S("mc.15", { mile: 1, done: 1, reg: [{ a: 0, b: n, cls: "final" }],
-    msg: () => "Sorted. " + c("less") + " was called " + R.nc + " times; " + R.nm + " element copies; " + R.skipped + " of " + (R.skipped + R.merges) + " merges were skipped." });
+    msg: () => "Sorted. " + c("less") + " was called " + R.nc + " times; " + R.nm + " element visits (without the check: <i>C</i>(" + n + ") = " + mergeC(n) + "); " + R.skipped + " of " + (R.skipped + R.merges) + " merges were skipped." });
 }
 function* gSortCheck(R, lo, hi, site) {
   const a = R.A, L = id => R.L(id);
@@ -1550,6 +1660,7 @@ function* gSortCheck(R, lo, hi, site) {
   yield* gSortCheck(R, mid + 1, hi, "mc.6");
   yield S("mc.7", { v: { lo, mid, hi }, ptr: { lo, mid, hi }, reg: halves,
     msg: () => "Both halves are sorted. Before merging, check whether they are already in order: compare the last element of the left half with the first of the right." });
+  R.pass();
   const r = R.less(a[mid + 1], a[mid]);
   R.range = [lo, hi];
   yield S("mc.7", { ev: "cmp", cmp: [mid, mid + 1], res: r, v: { lo, mid, hi }, ptr: { lo, mid, hi }, reg: halves,
@@ -1563,7 +1674,7 @@ function* gSortCheck(R, lo, hi, site) {
     R.skipped++;
     yield S("mc.9", { mile: 1, v: { lo, mid, hi }, ptr: { lo, hi }, reg: [{ a: lo, b: hi + 1, cls: "sorted" }],
       trace: { label: "sort(a, aux, " + lo + ", " + hi + "): in order, no merge", short: "(" + lo + ".." + hi + ")", range: [lo, hi] },
-      msg: () => "Return without merging — no element copies for " + c("a[" + lo + ".." + hi + "]") + ", just one comparison." });
+      msg: () => "Return without merging — no element visits for " + c("a[" + lo + ".." + hi + "]") + ", just one comparison." });
   }
   R.ret(); R.range = prevRange;
 }
@@ -1648,6 +1759,7 @@ function* gExtendRun(R, i, site, dec) {
   const A = R.A, n = A.length, L = id => R.L(id), both = R.runsVariant === "both";
   const blk = both ? "erB" : "erI", fname = both ? "extend_run" : "extend_run_increasing_only";
   R.call(fname + "(a, " + i + ")", site);
+  R.pass();
   const prevRange = R.range;
   const P = (ln, o) => dec(S(blk + "." + ln, o));
   const reg = j => [{ a: i, b: j, cls: "range" }];
@@ -1810,11 +1922,13 @@ function* gMergePy(R, lo, m, hiX, site, dec) {
   yield P("mi.2", { v: V({ MERGE_COST: R.mergeCost }), ptr, reg: runs2, mrg: start, msg: () => c("MERGE_COST") + " counts the total length of all merges — the usual cost measure for merging strategies." });
   R.mergeCost += hiX - lo;
   yield P("mi.3", { v: V({ MERGE_COST: R.mergeCost }), ptr, reg: runs2, mrg: start, msg: () => c("MERGE_COST += j − i = " + (hiX - lo)) + " → " + c(R.mergeCost) + "." });
+  R.pass();
   for (let k = lo; k < hiX; k++) {
-    const old = aux[k]; aux[k] = a[k]; R.nm++;
+    const old = aux[k]; aux[k] = a[k]; R.nm++; R.touch(a[k]);
     yield P("mi.4", { ev: "copy", mv: { from: ["a", k], to: ["aux", k], old }, v: V({ MERGE_COST: R.mergeCost }), ptr, reg: runs2, mrg: { phase: "copy", lo, mid, hi, k },
       msg: () => (k === lo ? c("a[i:m]") + " and " + c("a[m:j]") + " are copies of the two runs — " + c("run1") + " and " + c("run2") + ", drawn in the row below. " : "") + "Copy " + L(a[k]) + "." });
   }
+  R.pass();
   R.call("merge(run1, run2)", "mi.4");
   let p1 = lo, p2 = m, k = lo;                          /* heads of run1, run2 in the slice row; k = lo + len(result) */
   const pa = () => { const o = {}; if (p1 < m) o.run1 = p1; if (p2 < hiX) o.run2 = p2; return o; };
@@ -1823,7 +1937,7 @@ function* gMergePy(R, lo, m, hiX, site, dec) {
   yield P("mgp.1", { mile: 1, v: V2(), pa: pa(), reg: runs2, mrg: M(), msg: () => c("merge(run1, run2)") + ": repeatedly move the smaller of the two heads to " + c("result") + "." });
   yield P("mgp.2", { v: V2(), pa: pa(), reg: runs2, mrg: M(), msg: () => c("result = []") + ": the output list — drawn in place, where " + c("a[i:j] = result") + " will put it." });
   const put = (from, ln, txt) => {
-    const src = from === 1 ? p1++ : p2++, old = a[k]; a[k] = aux[src]; R.nm++; k++;
+    const src = from === 1 ? p1++ : p2++, old = a[k]; a[k] = aux[src]; R.nm++; R.touch(a[k]); k++;
     return P(ln, { ev: "write", mv: { from: ["aux", src], to: ["a", k - 1], old }, v: V2(), pa: pa(), reg: runs2, mrg: M(k - 1), msg: () => txt(L(a[k - 1])) });
   };
   while (true) {
@@ -1872,6 +1986,7 @@ const ALGOS = {
                     moves: "swap", pivot: true }
 };
 const ALGO_ORDER = ["selection", "bubble", "bubbleImproved", "insertion", "binaryInsertion", "merge", "mergeCheck", "mergeBU", "powersort", "quick"];
+const VISIT_TIP = "Element visits: in each pass (one scan, one partitioning step, the copy or the merge loop of a merge, one run detection) every element that is read or written counts once; an element kept at hand — the pivot, the current minimum, the element being inserted — is not counted again.";
 const PIVOT_NAME = { random: "random pivot", first: "pivot A[l]", m3: "median-of-3 pivot" };
 
 const ABOUT = {
@@ -1891,7 +2006,9 @@ const ABOUT = {
              "<p><b>Correctness</b> Invariant: <code>A[0..i)</code> is sorted (in line 3).</p>" +
              "<p><b>Cost</b> At most ½<i>n</i>² + <i>O</i>(<i>n</i>) comparisons and swaps: every swap removes one inversion.</p>",
   merge:     "<p><b>Idea</b> Split into halves, sort both recursively, then merge the two sorted runs — via the auxiliary array <code>aux</code>: copy <code>a[lo..hi]</code> there, then merge back.</p>" +
-             "<p><b>Cost</b> Between ½ <i>n</i> lg <i>n</i> and <i>n</i> lg <i>n</i> comparisons: the running time hardly depends on the data. Needs Θ(<i>n</i>) extra space.</p>",
+             "<p><b>Cost</b> Between ½ <i>n</i> lg <i>n</i> and <i>n</i> lg <i>n</i> comparisons: the running time hardly depends on the data. Needs Θ(<i>n</i>) extra space.</p>" +
+             "<p><b>Element visits</b> Every merge copies its elements to <code>aux</code> and back: <i>C</i>(<i>n</i>) = <i>C</i>(⌊<i>n</i>/2⌋) + <i>C</i>(⌈<i>n</i>/2⌉) + 2<i>n</i> visits for every input, " +
+             "between 2<i>n</i> lg <i>n</i> and 2<i>n</i> lg <i>n</i> + 0.172<i>n</i> — see <i>Measure &amp; plot</i>.</p>",
   mergeCheck: "<p><b>Idea</b> Top-down mergesort, but before merging compare the last element of the left half with the first of the right: if they are in order, the whole range already is — skip the merge.</p>" +
              "<p><b>Cost</b> One extra comparison per merge, but on a sorted input all merges are skipped: <i>n</i>−1 comparisons and no copies. Random inputs hardly ever profit. Still <i>n</i> lg <i>n</i> in the worst case.</p>",
   powersort: "<p><b>Idea</b> Use the sortedness the input already has: cut it into maximal runs (increasing, or strictly decreasing and reversed), then merge neighbouring runs. The order of the merges is decided by the <i>power</i> of each run boundary — the depth at which the dyadic grid first separates the midpoints of the two runs — and a stack that keeps powers strictly increasing: a new boundary with power <i>p</i> first merges away all runs on top with power ≥ <i>p</i>.</p>" +
@@ -1900,8 +2017,11 @@ const ABOUT = {
   mergeBU:   "<p><b>Idea</b> Mergesort without recursion: pass through the array merging subarrays of size 1, then 2, 4, 8, …</p>" +
              "<p><b>Cost</b> Also at most <i>n</i> lg <i>n</i> comparisons; about 10% slower than top-down mergesort on typical systems.</p>",
   quick:     "<p><b>Idea</b> Partition around a pivot, which lands at its final position; then sort both sides recursively.</p>" +
-             "<p><b>Correctness</b> Loop invariant (lines 5–10): <code>A[l] = p</code> | <code>≤ p</code> | ? | <code>≥ p</code>, with <code>i</code> and <code>j</code> at the ends of the unknown middle.</p>" +
-             "<p><b>Cost</b> Expected ~ 2<i>n</i> ln <i>n</i> ≈ 1.39 <i>n</i> lg <i>n</i> comparisons with random pivots (median of 3: ~ 12/7 <i>n</i> ln <i>n</i>); worst case ~ ½<i>n</i>².</p>"
+             "<p><b>Correctness</b> Loop invariant (lines 5–10): <code>A[l] = p</code> | <code>≤ p</code> | ? | <code>≥ p</code>, with <code>i</code> and <code>j</code> at the ends of the unknown middle. " +
+             "The strip under the array shows it, filled in with what the scans have found out so far.</p>" +
+             "<p><b>Cost</b> Expected ~ 2<i>n</i> ln <i>n</i> ≈ 1.39 <i>n</i> lg <i>n</i> comparisons with random pivots (median of 3: ~ 12/7 <i>n</i> ln <i>n</i>); worst case ~ ½<i>n</i>².</p>" +
+             "<p><b>Element visits</b> Partitioning <i>k</i> elements visits each of them once: <i>k</i> visits. So the visits are the sum of the subarray sizes over all partitions — " +
+             "in expectation also ~ 2<i>n</i> ln <i>n</i> ≈ 1.39 <i>n</i> lg <i>n</i>, against 2<i>n</i> lg <i>n</i> for mergesort, which visits every element twice per merge.</p>"
 };
 
 /* ==========================================================================
@@ -2213,8 +2333,9 @@ function svgBars(W, snap, R, algo, anim) {
   const Hb = n > 40 ? 170 : 205;
   const base = topM + Hb;
   const pA = layoutPointers(s.ptr, n);
-  const valY = base + 17, idxY = base + (showVal ? 32 : 14), ptr0 = idxY + 16;
-  const PR = D.ptrRows || { a: pA.rows, aux: 0, final: !!snap.final };
+  const PR = D.ptrRows || { a: pA.rows, aux: 0, final: !!snap.final, inv: !!s.inv };
+  const INV_H = 20, invRow = PR.inv || !!s.inv;        /* partition: a strip for the loop invariant, the pointers below it */
+  const valY = base + 17, idxY = base + (showVal ? 32 : 14), invY = idxY + 9, ptr0 = idxY + 16 + (invRow ? INV_H + 13 : 0);
   const aEnd = ptr0 + Math.max(pA.rows, PR.a) * 17 + (PR.final || snap.final ? 10 : 0);
   let h = aEnd + 8, body = "";
   const bh = m => (0.06 + 0.94 * m) * Hb;
@@ -2338,6 +2459,22 @@ function svgBars(W, snap, R, algo, anim) {
       const hh = bh(mag[snap.A[k]]);
       body += '<text class="sv-ptr" x="' + cx(k) + '" y="' + (base - hh - 8) + '" style="fill:var(--wi-examine)">✗</text>';
     }
+  }
+
+  /* ---- partition: the loop invariant  p | ≤ p | ? | ≥ p  as a strip under the array ---- */
+  if (s.inv) {
+    const FILL = { p: "var(--wi-panel)", le: "var(--t-le)", unk: "var(--wi-panel-2)", ge: "var(--t-ge)" };
+    const LAB = { p: "p", le: '<tspan font-style="normal">≤</tspan> p', unk: "?", ge: '<tspan font-style="normal">≥</tspan> p' };
+    const LW = { p: 8, le: 24, unk: 8, ge: 24 };
+    let x0 = Infinity, x1 = -Infinity;
+    for (const z of s.inv) {
+      if (!(z.b > z.a)) continue;
+      const x = padL + z.a * pitch, w = (z.b - z.a) * pitch;
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x + w);
+      body += '<rect x="' + x.toFixed(1) + '" y="' + invY + '" width="' + w.toFixed(1) + '" height="' + INV_H + '" style="fill:' + FILL[z.k] + '" stroke="var(--wi-ink-faint)" stroke-width=".8"/>';
+      if (w >= LW[z.k] + 4) body += '<text class="sv-inv" x="' + (x + w / 2).toFixed(1) + '" y="' + (invY + 14.5) + '"' + (z.k === "p" ? ' style="fill:var(--wi-accent)"' : "") + '>' + LAB[z.k] + '</text>';
+    }
+    if (x1 > x0) body += '<rect x="' + x0.toFixed(1) + '" y="' + invY + '" width="' + (x1 - x0).toFixed(1) + '" height="' + INV_H + '" fill="none" stroke="var(--wi-ink-soft)" stroke-width="1.2"/>';
   }
 
   /* ---- pointers under A ---- */
@@ -2515,7 +2652,10 @@ class Sim {
     this.it = ALGOS[key].gen(this.R);
     this.buf = null; this.done = false; this.doneAt = 0; this.hl = null;
   }
-  peek() { if (!this.buf) { const r = this.it.next(); this.buf = r.done ? { end: 1 } : r.value; } return this.buf; }
+  peek() {
+    if (!this.buf) { const nv0 = this.R.nv, r = this.it.next(); this.buf = r.done ? { end: 1 } : r.value; if (!r.done) this.buf._dv = this.R.nv - nv0; }
+    return this.buf;
+  }
   take() { const s = this.peek(); this.buf = null; return s; }
   note(s, hl, clock) {
     if (s.ev === "cmp") { if (clock !== "mov") { hl.cmp = s.cmp; hl.cin = s.cin; } }
@@ -2523,22 +2663,25 @@ class Sim {
     else if (s.mv) hl.mv.push(s.mv);
     else if (s.ev === "rev") hl.rev.push(s.rev);
   }
-  /* clock "cmp": one call of less() plus everything up to the next one;
+  /* clock "vis" (default): one element visit, see Run.touch;
+     clock "cmp": one call of less() plus everything up to the next one;
      clock "mov": one swap (or element copy) plus the comparisons up to the next one;
      clock "op":  one call of less(), one swap or one element copy.                  */
   tick(clock, t) {
     if (this.done) return;
+    /* clock "vis": a step that visits k new elements takes k ticks — wait out the rest */
+    if (this.debt > 0) { this.debt--; if (!this.debt && this.endPending) this.finish(t); return; }
     const hl = { cmp: null, cin: null, sw: [], mv: [], rev: [] };
-    const counts = clock === "cmp" ? (s => s.ev === "cmp") : clock === "mov" ? (s => isOp(s) && s.ev !== "cmp") : isOp;
+    const counts = clock === "cmp" ? (s => s.ev === "cmp") : clock === "mov" ? (s => isOp(s) && s.ev !== "cmp") : clock === "vis" ? (s => s._dv > 0) : isOp;
     for (;;) {
       const s = this.take();
-      if (s.end) { this.finish(t); break; }
+      if (s.end) { this.end(t); break; }
       this.note(s, hl, clock);
-      if (counts(s)) break;
+      if (counts(s)) { if (clock === "vis") this.debt = s._dv - 1; break; }
     }
     while (!this.done) {                         /* absorb what follows, up to the next counted event */
       const s = this.peek();
-      if (s.end) { this.take(); this.finish(t); break; }
+      if (s.end) { this.take(); this.end(t); break; }
       if (counts(s)) break;
       if (isOp(s)) { this.take(); this.note(s, hl, clock); continue; }   /* swaps after a comparison, comparisons after a swap */
       this.take();
@@ -2546,23 +2689,25 @@ class Sim {
     this.hl = hl;
   }
   finish(t) { this.done = true; this.doneAt = t; }
+  end(t) { if (this.debt > 0) this.endPending = true; else this.finish(t); }
   /* peek() has already run the generator up to the buffered step's yield, i.e.
      that step's less()/swap()/copy has happened; show the state before it.   */
   view() {
     const b = this.buf, R = this.R;
-    let A = R.A, nc = R.nc, ns = R.ns, nm = R.nm;
+    let A = R.A, nc = R.nc, ns = R.ns, nm = R.nm, nv = R.nv;
     if (b && !b.end) {
+      nv -= b._dv || 0;
       if (b.ev === "cmp") nc--;
       else if (b.ev === "swap") { A = A.slice(); const [p, q] = b.sw, t = A[p]; A[p] = A[q]; A[q] = t; ns--; }
       else if (b.mv) { nm--; if (b.mv.to[0] === "a") { A = A.slice(); A[b.mv.to[1]] = b.mv.old; } }
       else if (b.ev === "rev") { A = A.slice(); const [p, q] = b.rev; for (let x = p, y = q - 1; x < y; x++, y--) { const t = A[x]; A[x] = A[y]; A[y] = t; } nm -= q - p; }
     }
-    return { A, nc, ns, nm };
+    return { A, nc, ns, nm, nv };
   }
   countsHTML(short) {
     const R = this.view(), mv = ALGOS[this.key].moves === "copy";
-    const a = short ? R.nc + " cmp · " + (mv ? R.nm + " copies" : R.ns + " swaps")
-                    : R.nc + " comparisons · " + (mv ? R.nm + " copies" : R.ns + " swaps");
+    const a = short ? R.nv + " vis · " + R.nc + " cmp · " + (mv ? R.nm + " copies" : R.ns + " swaps")
+                    : R.nv + " visits · " + R.nc + " comparisons · " + (mv ? R.nm + " copies" : R.ns + " swaps");
     return '<span>' + a + '</span>' + (this.done ? '<span class="ok">✓ sorted</span>' : "");
   }
 }
@@ -2570,7 +2715,7 @@ class Sim {
 const speedOf = v => Math.max(1, Math.round(Math.pow(10, v / 100 * 3.3)));
 
 class Lockstep {
-  constructor(o) { Object.assign(this, { sims: [], ticks: 0, playing: false, clock: "op", speed: 40, acc: 0, last: 0 }, o); }
+  constructor(o) { Object.assign(this, { sims: [], ticks: 0, playing: false, clock: "vis", speed: 40, acc: 0, last: 0 }, o); }
   allDone() { return this.sims.every(s => s.done); }
   step() {
     if (this.allDone()) return false;
@@ -2605,9 +2750,10 @@ class Lockstep {
    ========================================================================== */
 const ST = { mode: "demo", algo: "selection", pivot: "random", runs: "both", power: "fast", present: false };
 const SUBTITLE = {
-  demo:  "One algorithm on four kinds of input, side by side and in lock step. Choose what one step is — a comparison, a swap, or either — and a panel that finishes early really did less of that work.",
+  demo:  "One algorithm on four kinds of input, side by side and in lock step. Choose what one step is — an element visit, a comparison, a swap, or either — and a panel that finishes early really did less of that work.",
   steps: "One algorithm, one input, one line of code at a time. The code is the one from the slides; the highlighted line is the one being executed.",
-  grid:  "Every algorithm on every kind of input at once. Within a column all panels start from the same input, and one step means the same everywhere."
+  grid:  "Every algorithm on every kind of input at once. Within a column all panels start from the same input, and one step means the same everywhere.",
+  measure: "Mergesort or quicksort, run for every input size up to a bound: the measured element visits against their leading term, and what is left over — for mergesort the exact sawtooth between 0 and 0.172 n, for quicksort random values around their expectation."
 };
 
 /* ==========================================================================
@@ -2712,7 +2858,8 @@ function gridSyncControls() {
   el("gChips").classList.toggle("hidden", !GRID.chipsOpen);
   el("gChips").querySelectorAll(".chip").forEach(b => { b.classList.toggle("on", GRID.on.has(b.dataset.row)); b.setAttribute("aria-pressed", GRID.on.has(b.dataset.row)); });
   el("gN").value = sliderOfN(GRID.n); el("gNVal").textContent = GRID.n;
-  el("gClock").querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.clock === gridLS.clock));
+  el("gClock").querySelectorAll("button[data-clock]").forEach(x => x.classList.toggle("on", x.dataset.clock === gridLS.clock));
+  if (["mov", "op"].includes(gridLS.clock)) { el("gClock").classList.add("open"); el("gClock").querySelector(".xmore").textContent = "fewer"; }
 }
 const gridLS = new Lockstep({ draw: () => gridDraw(), ui: () => gridUI() });
 
@@ -2861,8 +3008,13 @@ function recordSteps() {
   const key = ST.algo;
   const R = new Run(D.inp, { pivot: ST.pivot, seed: D.seed, runs: ST.runs, power: ST.power });
   const fine = [];
+  let lastInv = null;
   for (const s of ALGOS[key].gen(R)) {
-    fine.push({ s, A: R.A.slice(), aux: ALGOS[key].aux ? R.aux.slice() : null, nc: R.nc, ns: R.ns, nm: R.nm,
+    /* inside partition (e.g. while choosePivot runs) the strip keeps showing the invariant */
+    if (s.inv) lastInv = s.inv;
+    else if (lastInv && R.stack.some(fr => fr.label.startsWith("partition("))) s.inv = lastInv;
+    else lastInv = null;
+    fine.push({ s, A: R.A.slice(), aux: ALGOS[key].aux ? R.aux.slice() : null, nc: R.nc, ns: R.ns, nm: R.nm, nv: R.nv,
                 stack: R.stack, final: R.final, range: R.range, pivotId: R.pivotId, msg: s.msg ? s.msg() : "" });
     if (fine.length > 400000) break;
   }
@@ -2877,7 +3029,7 @@ function recordSteps() {
     if (f.s.stk) for (const r of f.s.stk) mp = Math.max(mp, r[2]);
     if (f.s.pw && f.s.pw.l) mp = Math.max(mp, f.s.pw.l);
   }
-  D.ptrRows = { a: ra, aux: rx, final: fin };
+  D.ptrRows = { a: ra, aux: rx, final: fin, inv: fine.some(f => f.s.inv) };
   D.maxPow = mp;                                 /* rows of the powersort panel: powers 0..maxPow */
   /* phases: a trace step ends one */
   const ph = []; let from = 0;
@@ -2967,10 +3119,15 @@ function stepsRender() {
     const changed = prevS && prevS.v && k in prevS.v && prevS.v[k] !== v;     /* flash a variable that just changed */
     vh += '<code' + (changed ? ' class="chg" style="--dur:' + Math.round(1.4 * dur) + 'ms"' : "") + '>' + esc(k) + ' = ' + v + '</code>';
   }
-  const mv = algo.moves === "copy";
+  const mv = algo.moves === "copy", msort = algo.aux && !algo.powersort, nn = f.A.length;
   vh = (vh ? '<span class="k">Variables</span> ' + vh : "") +
-        '<span class="cnt"><span><span class="k">calls of less</span> <code>' + f.nc + '</code></span>' +
-        '<span><span class="k">' + (mv ? "element copies" : "calls of swap") + '</span> <code>' + (mv ? f.nm : f.ns) + '</code></span></span>';
+        '<span class="cnt"><span title="' + VISIT_TIP + (msort ? ' Here: each copy a[k] → aux[k] and each write back into a[k] — every merge visits each of its elements twice.' : '') +
+        '"><span class="k">element visits</span> <code>' + f.nv + '</code></span>' +
+        (msort ? '<span title="' + (D.key === "merge" ? "C(n) = C(⌊n/2⌋) + C(⌈n/2⌉) + 2n: the element visits of top-down mergesort for every input of size n — what the counter reaches at the end."
+                                                       : "C(n) = C(⌊n/2⌋) + C(⌈n/2⌉) + 2n: the element visits of plain top-down mergesort, for comparison.") +
+                 '"><span class="k">C(' + nn + ')</span> <code>' + mergeC(nn) + '</code></span>' : '') +
+        '<span><span class="k">calls of less</span> <code>' + f.nc + '</code></span>' +
+        (msort ? '' : '<span><span class="k">' + (mv ? "element copies" : "calls of swap") + '</span> <code>' + (mv ? f.nm : f.ns) + '</code></span>') + '</span>';
   el("varsBox").innerHTML = vh;
   el("stackBox").innerHTML = f.stack.length
     ? '<span class="k" style="font-family:var(--wi-font-head);font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--wi-ink-faint)">Call stack</span> ' +
@@ -2994,6 +3151,9 @@ function stepsRender() {
   if (s.ev === "swap") lg += '<span class="item"><span class="sw" style="border:2px solid var(--wi-active);background:none"></span>swapped</span>';
   if (s.mv) lg += '<span class="item"><span class="sw" style="border:2px solid var(--wi-active);background:none"></span>' + (s.mv.to[0] === "aux" ? "copied to aux" : "written back to a") + "</span>";
   if (s.piv) lg += '<span class="item"><svg width="22" height="8"><line x1="0" x2="22" y1="4" y2="4" stroke="var(--wi-accent)" stroke-width="1.6" stroke-dasharray="5 3"/></svg>pivot value <code>p</code></span>';
+  if (s.inv) lg += '<span class="item"><svg width="56" height="12"><rect x="0.5" y="0.5" width="8" height="11" fill="var(--wi-panel)" stroke="var(--wi-ink-faint)"/>' +
+                   '<rect x="8.5" y="0.5" width="16" height="11" fill="var(--t-le)" stroke="var(--wi-ink-faint)"/><rect x="24.5" y="0.5" width="16" height="11" fill="var(--wi-panel-2)" stroke="var(--wi-ink-faint)"/>' +
+                   '<rect x="40.5" y="0.5" width="15" height="11" fill="var(--t-ge)" stroke="var(--wi-ink-faint)"/></svg>loop invariant <code>p | ≤ p | ? | ≥ p</code>, as far as known</span>';
   if (s.stop) lg += '<span class="item"><span style="color:var(--wi-examine);font-weight:bold">✗</span>on the wrong side: <code>i</code> / <code>j</code> stops here</span>';
   if (f.final && f.final.some(x => x)) lg += '<span class="item"><svg width="10" height="10"><circle cx="5" cy="5" r="3" fill="var(--wi-relax)"/></svg>known final position</span>';
   if (s.mrg && (s.mrg.phase === "merge")) lg += '<span class="item"><span class="sw" style="background:var(--wi-ramp-lo);opacity:.35"></span>faded: already taken, or an outdated value</span>';
@@ -3069,11 +3229,578 @@ function stepsPlayUI() {
 }
 
 /* ==========================================================================
+   Measure & plot: element visits of mergesort for every n up to N
+
+   The counts come from running mergesort, not from the recurrence: below is
+   the Sedgewick–Wayne code of the step-by-step view once more, as plain loops
+   with a counter at each element copy (the generators record every step and
+   are far too slow for thousands of sorts).  The page's tests check that both
+   count the same, and that top-down mergesort matches the recurrence.
+   ========================================================================== */
+const MEAS_DEF_H = 470, MEAS_NMIN = 8, MEAS_NMAX = 2048, MEAS_N = 150;
+const MEAS = { algo: "merge", N: MEAS_N, pow2: false, up: false, trials: 10, data: { merge: [], mergeBU: [] }, job: 0, h: MEAS_DEF_H, hover: 0, geo: null };
+const measNOfSlider = v => Math.round(MEAS_NMIN * Math.pow(MEAS_NMAX / MEAS_NMIN, v / 1000));
+const measSliderOfN = n => Math.round(1000 * Math.log(n / MEAS_NMIN) / Math.log(MEAS_NMAX / MEAS_NMIN));
+
+/* C(n) = C(⌊n/2⌋) + C(⌈n/2⌉) + 2n for n ≥ 2, C(0) = C(1) = 0 */
+const MC_MEMO = [0, 0];
+function mergeC(n) {
+  while (MC_MEMO.length <= n) { const m = MC_MEMO.length; MC_MEMO.push(MC_MEMO[m >> 1] + MC_MEMO[m - (m >> 1)] + 2 * m); }
+  return MC_MEMO[n];
+}
+const fracLg = x => { const l = Math.log2(x); return l - Math.floor(l); };
+/* (C(n) − 2n lg n) / n, exactly: 2(2 − {lg n} − 2^(1−{lg n})) */
+const linTerm = x => { const f = fracLg(x); return 2 * (2 - f - Math.pow(2, 1 - f)); };
+const LIN_MAX = 2 * (1 - Math.LOG2E + Math.log2(Math.LOG2E));      /* ≈ 0.17214, at {lg n} = 1 − lg lg e */
+
+/* sort a random permutation of size n, count element visits (copies a → aux and aux → a) */
+function measureVisits(algo, n, rng) {
+  const a = new Float64Array(n), aux = new Float64Array(n);
+  for (let i = 0; i < n; i++) a[i] = i;
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; }
+  let v = 0;
+  const merge = (lo, mid, hi) => {
+    for (let k = lo; k <= hi; k++) { aux[k] = a[k]; v++; }
+    let i = lo, j = mid + 1;
+    for (let k = lo; k <= hi; k++) {
+      if      (i > mid)         a[k] = aux[j++];
+      else if (j > hi)          a[k] = aux[i++];
+      else if (aux[j] < aux[i]) a[k] = aux[j++];
+      else                      a[k] = aux[i++];
+      v++;
+    }
+  };
+  if (algo === "mergeBU") {
+    for (let sz = 1; sz < n; sz = sz + sz)
+      for (let lo = 0; lo < n - sz; lo += sz + sz) merge(lo, lo + sz - 1, Math.min(lo + sz + sz - 1, n - 1));
+  } else {
+    const sort = (lo, hi) => { if (hi <= lo) return; const mid = lo + ((hi - lo) >> 1); sort(lo, mid); sort(mid + 1, hi); merge(lo, mid, hi); };
+    sort(0, n - 1);
+  }
+  for (let i = 1; i < n; i++) if (a[i - 1] > a[i]) throw new Error("measureVisits: not sorted");
+  return v;
+}
+
+/* ---- Measure & plot: quicksort ----------------------------------------------------------
+   Visits of quicksort are random, so for every n several random permutations are sorted
+   (independent pivots, too).  The code is the Java of the step-by-step view once more, as
+   plain loops: every partitioning step visits each element of A[l..r) exactly once, so it
+   adds r − l (the tests check this against the step-by-step counter).                        */
+const MEAS_TRIALS = [1, 10, 50];
+const measKey = () => MEAS.algo === "quick" ? "quick|" + ST.pivot + "|" + MEAS.trials : MEAS.algo;
+const measData = () => MEAS.data[measKey()] || (MEAS.data[measKey()] = []);
+const MQ = { A: new Float64Array(MEAS_NMAX), st: new Int32Array(4 * MEAS_NMAX + 8) };
+function measureQuick(n, rule, rng) {
+  const A = MQ.A, st = MQ.st;
+  for (let i = 0; i < n; i++) A[i] = i;
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = A[i]; A[i] = A[j]; A[j] = t; }
+  const rand = k => Math.floor(rng() * k), swap = (i, j) => { const t = A[i]; A[i] = A[j]; A[j] = t; };
+  let v = 0, sp = 0;
+  st[sp++] = 0; st[sp++] = n;
+  while (sp) {
+    const r = st[--sp], l = st[--sp];
+    if (r - l <= 1) continue;
+    v += r - l;                                    /* this partitioning step visits A[l..r) once */
+    let pv;
+    if (rule === "first") pv = l;
+    else if (rule === "m3" && r - l >= 10) {       /* choosePivot: median of three distinct random positions (sort3) */
+      const i1 = l + rand(r - l); let i2, i3;
+      do i2 = l + rand(r - l); while (i2 === i1);
+      do i3 = l + rand(r - l); while (i3 === i1 || i3 === i2);
+      if (A[i2] < A[i1]) swap(i1, i2);
+      if (A[i3] < A[i1]) swap(i1, i3);
+      if (A[i3] < A[i2]) swap(i2, i3);
+      pv = i2;
+    } else pv = l + rand(r - l);
+    swap(l, pv);
+    let i = l, j = r;
+    for (;;) {
+      do ++i; while (i < r && A[i] < A[l]);
+      do --j; while (j > l && A[l] < A[j]);
+      if (i >= j) break;
+      swap(i, j);
+    }
+    swap(l, j);
+    st[sp++] = j + 1; st[sp++] = r; st[sp++] = l; st[sp++] = j;
+  }
+  for (let i = 1; i < n; i++) if (A[i - 1] > A[i]) throw new Error("measureQuick: not sorted");
+  return v;
+}
+/* the expected visits: E(n) = n + Σ_k P[pivot has rank k] (E(k) + E(n−1−k)), E(0) = E(1) = 0;
+   for a uniform rank (random pivot, or A[l] on a random permutation) E(n) = 2(n+1)H_n − (10n+1)/3 */
+const EXPQ = {};
+function expQuick(rule) {
+  const key = rule === "m3" ? "m3" : "uni";
+  if (EXPQ[key]) return EXPQ[key];
+  const E = new Float64Array(MEAS_NMAX + 1);
+  if (key === "uni") { let H = 1; for (let n = 2; n <= MEAS_NMAX; n++) { H += 1 / n; E[n] = 2 * (n + 1) * H - (10 * n + 1) / 3; } }
+  else {
+    const S = new Float64Array(MEAS_NMAX + 2);      /* S[m] = E(0) + … + E(m−1) */
+    for (let n = 2; n <= MEAS_NMAX; n++) {
+      let s = 0;
+      if (n < 10) s = 2 * S[n] / n;
+      else { const c3 = n * (n - 1) * (n - 2) / 6; for (let k = 1; k < n - 1; k++) s += k * (n - 1 - k) / c3 * (E[k] + E[n - 1 - k]); }
+      E[n] = n + s; S[n + 1] = S[n] + E[n];
+    }
+  }
+  return (EXPQ[key] = E);
+}
+const QLEAD = rule => rule === "m3" ? 12 / 7 : 2;          /* E(n) ~ c n ln n */
+const QLEAD_TEX = rule => rule === "m3" ? "\\tfrac{12}{7}" : "2";
+const QLIN = 2 * 0.5772156649015329 - 10 / 3;              /* the linear term for uniform ranks: 2γ − 10/3 */
+
+function measStaticQuick() {
+  const rule = ST.pivot, c = QLEAD_TEX(rule), many = MEAS.trials > 1;
+  const band = '<svg width="12" height="14"><line x1="6" x2="6" y1="1" y2="13" stroke="var(--wi-accent-soft)" stroke-width="5" opacity=".6"/></svg>';
+  setMath(el("mLegTop"),
+    (many ? item(band, "quicksort, measured: from the smallest to the largest of " + MEAS.trials + " runs") + item(SWL("--wi-accent", "", 1.4), "their mean")
+          : item(SWD, "quicksort \\(C(n)\\), measured")) +
+    item(SWL("--wi-accent-dark", "", 1.7), "expected: \\(\\mathbb E[C(n)]\\)") +
+    item(SWL("--wi-ink-soft"), "\\(" + c + "n\\ln n\\)") +
+    item(SWL("--wi-queue", "", 1.3), "mergesort: \\(C(n) \\approx 2n\\lg n\\)"));
+  setMath(el("mLegBot"),
+    (many ? item(band, "\\(\\bigl(C(n) - " + c + "n\\ln n\\bigr)/n\\), measured, smallest to largest") + item(SWL("--wi-accent", "", 1.4), "mean")
+          : item(SWB, "\\(\\bigl(C(n) - " + c + "n\\ln n\\bigr)/n\\), measured")) +
+    item(SWL("--wi-accent-dark", "", 1.7), "expected") +
+    (rule !== "m3" ? item(SWL("--wi-accent", "5 3", 1.2), "limit \\(2\\gamma - \\tfrac{10}{3} \\approx " + QLIN.toFixed(3) + "\\)") : ""));
+  setMath(el("mNote"),
+    "<b>What is counted.</b> Element visits: every partitioning step visits each element of its subarray " + "\\(A[\\ell..r)\\) once, so quicksort makes " +
+    "\\(C(n) = \\sum (r - \\ell)\\) visits, summed over all partitioning steps. For every \\(n \\le N\\) the page sorts " + (many ? MEAS.trials + " random permutations" : "a random permutation") +
+    " of size \\(n\\) with the code of the step-by-step view (pivot rule: " + PIVOT_NAME[rule] + ") and counts. Unlike for mergesort, the count depends on the pivots, so it is random." +
+    "<br><b>Expectation.</b> " + (rule !== "m3"
+      ? "With a uniformly random pivot rank — a random pivot, or " + "\\(A[\\ell]\\)" + " on a random permutation, as partitioning keeps the subarrays random — " +
+        "\\(\\mathbb E[C(n)] = n + \\frac2n \\sum_{k \\lt n} \\mathbb E[C(k)]\\), with the exact solution \\(\\mathbb E[C(n)] = 2(n+1)H_n - \\frac{10n+1}{3} = 2n\\ln n + (2\\gamma - \\tfrac{10}{3})n + O(\\log n)\\) " +
+        "\\(\\approx 1.39\\,n\\lg n - 2.18\\,n\\). The linear term tends to \\(2\\gamma - \\tfrac{10}{3}\\)."
+      : "The median of three random elements has rank \\(k\\) with probability \\(k(n-1-k)/\\binom n3\\) (below 10 elements the code takes a random pivot); the curve is the exact solution of the " +
+        "resulting recurrence, computed numerically: \\(\\mathbb E[C(n)] \\sim \\tfrac{12}{7}\\, n\\ln n \\approx 1.19\\,n\\lg n\\).") +
+    "<br><b>Concentration.</b> The spread of the measured values hardly grows in the lower plot: the standard deviation of " + "\\(C(n)\\)" + " is only linear in \\(n\\) (about \\(0.65\\,n\\) for random pivots), " +
+    "while the cost itself is \\(\\Theta(n\\log n)\\). Large deviations, say twice the expected cost, are extremely unlikely." +
+    "<br><b>Against mergesort.</b> Mergesort visits every element twice per merge, \\(2n\\lg n\\) visits; quicksort visits it once per partitioning step, about \\(1.39\\,n\\lg n\\) on average. " +
+    "<br><b>Prepared links.</b> E.g. <code>#measure&amp;algo=quick&amp;trials=50&amp;upto=512</code>, with <code>&amp;pivot=first</code> or <code>&amp;pivot=m3</code>.");
+}
+
+function measDrawQuick() {
+  const N = MEAS.N, rule = ST.pivot, d = measData(), have = Math.min(N, d.length - 1), E = expQuick(rule), cl = QLEAD(rule);
+  const G = measGeo(); MEAS.geo = G;
+  const { W, padL, padR, pw, X } = G, pitch = pw / N;
+  const hTop = Math.round(MEAS.h * 0.4), hBot = MEAS.h - hTop;
+  const xt = niceTicks(0, N, Math.max(3, Math.floor(pw / 80))).filter(v => v > 0);
+  const mean = n => d[n].mean;
+  const lead = x => cl * x * Math.log(x);
+  const sample = f => { let s = ""; for (let px = X(1); px <= X(N) + 0.01; px += 1.5) { const x = Math.max(1, (px - padL) / pw * N); s += (s ? "L" : "M") + px.toFixed(1) + "," + f(x).toFixed(1); } return s; };
+  const axes = (y0, y1, ticks, Y, labelX) => {
+    let s = "";
+    for (const v of ticks) { const y = Y(v);
+      s += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y + '" y2="' + y + '" stroke="var(--wi-border-soft)" stroke-width=".7" opacity=".7"/>' +
+           '<text class="pl-tick" x="' + (padL - 7) + '" y="' + (y + 4) + '" text-anchor="end">' + fmtTick(v) + "</text>"; }
+    for (const v of xt) s += '<line x1="' + X(v) + '" x2="' + X(v) + '" y1="' + y1 + '" y2="' + (y1 + 4) + '" stroke="var(--wi-ink-faint)"/>' +
+                             (labelX && X(v) < W - padR - 24 ? '<text class="pl-tick" x="' + X(v) + '" y="' + (y1 + 16) + '" text-anchor="middle">' + v + "</text>" : "");
+    return s + '<path d="M' + padL + "," + y0 + " V" + y1 + " H" + (W - padR) + '" fill="none" stroke="var(--wi-ink-faint)" stroke-width="1"/>';
+  };
+  /* measured: a band from the smallest to the largest run, and the mean — or the single runs as dots */
+  const measured = (Y, f) => {
+    if (have < 1) return "";
+    if (MEAS.trials === 1) {
+      if (pitch >= 3) { let m = ""; for (let n = 1; n <= have; n++) m += '<circle cx="' + X(n).toFixed(1) + '" cy="' + Y(f(n, d[n].a[0])).toFixed(1) + '" r="' + Math.min(2.2, pitch / 3).toFixed(2) + '" fill="var(--wi-accent)"/>'; return m; }
+      let s = ""; for (let n = 1; n <= have; n++) s += (s ? "L" : "M") + X(n).toFixed(1) + "," + Y(f(n, d[n].a[0])).toFixed(1);
+      return '<path d="' + s + '" fill="none" stroke="var(--wi-accent)" stroke-width="1"/>';
+    }
+    let band = "", line = "";
+    const bw = Math.max(1, Math.min(4, pitch * 0.6));
+    for (let n = 1; n <= have; n++) {
+      const lo = f(n, d[n].min), hi = f(n, d[n].max);          /* f is increasing in the count */
+      band += "M" + X(n).toFixed(1) + "," + Y(lo).toFixed(1) + "V" + Math.min(Y(hi), Y(lo) - 0.8).toFixed(1);
+      line += (line ? "L" : "M") + X(n).toFixed(1) + "," + Y(f(n, mean(n))).toFixed(1);
+    }
+    return '<path d="' + band + '" stroke="var(--wi-accent-soft)" stroke-width="' + bw.toFixed(1) + '" opacity=".6"/>' +
+           '<path d="' + line + '" fill="none" stroke="var(--wi-accent)" stroke-width="1.4"/>';
+  };
+  /* ---- top: C(n) ---- */
+  {
+    const y0 = 10, y1 = hTop - 10;
+    let ymax = Math.max(mergeC(N), lead(N), E[N]);
+    for (let n = 1; n <= have; n++) if (d[n].max > ymax) ymax = d[n].max;
+    ymax *= 1.04;
+    const Y = y => y1 - y / ymax * (y1 - y0);
+    let b = axes(y0, y1, niceTicks(0, ymax, Math.max(2, Math.floor((y1 - y0) / 45))), Y, false);
+    let ms = ""; for (let n = 1; n <= N; n++) ms += (ms ? "L" : "M") + X(n).toFixed(1) + "," + Y(mergeC(n)).toFixed(1);
+    b += '<path d="' + ms + '" fill="none" stroke="var(--wi-queue)" stroke-width="1.3"/>';
+    b += '<path d="' + sample(x => Y(lead(x))) + '" fill="none" stroke="var(--wi-ink-soft)" stroke-width="1.4"/>';
+    b += measured(Y, (n, x) => x);
+    let es = ""; for (let n = 1; n <= N; n++) es += (es ? "L" : "M") + X(n).toFixed(1) + "," + Y(E[n]).toFixed(1);
+    b += '<path d="' + es + '" fill="none" stroke="var(--wi-accent-dark)" stroke-width="1.7"/>';
+    b += '<line id="mHovT" y1="' + y0 + '" y2="' + y1 + '" stroke="var(--wi-active)" stroke-width="1" visibility="hidden"/><circle id="mHovTc" r="4.5" fill="none" stroke="var(--wi-active)" stroke-width="1.6" visibility="hidden"/>';
+    const sv = el("mSvgTop");
+    sv.setAttribute("width", W); sv.setAttribute("height", hTop); sv.setAttribute("viewBox", "0 0 " + W + " " + hTop);
+    sv.innerHTML = b; sv._Y = Y; sv._v = n => mean(n);
+  }
+  /* ---- bottom: (C(n) − c n ln n)/n ---- */
+  {
+    const y0 = 10, y1 = hBot - 24;
+    const res = (n, x) => n <= 1 ? 0 : (x - lead(n)) / n;
+    let lo = Math.min(0, QLIN), hi = 0;
+    const from = Math.min(have, Math.max(2, Math.floor(N / 50)));                /* the very smallest n would squash the plot */
+    for (let n = 2; n <= N; n++) { const e = res(n, E[n]); if (n >= from) { lo = Math.min(lo, e); hi = Math.max(hi, e); } }
+    for (let n = Math.max(2, from); n <= have; n++) { lo = Math.min(lo, res(n, d[n].min)); hi = Math.max(hi, res(n, d[n].max)); }
+    const pad = (hi - lo) * 0.06 || 0.5; lo -= pad; hi += pad;
+    const Y = y => y1 - (clamp(y, lo, hi) - lo) / (hi - lo) * (y1 - y0);
+    let b = axes(y0, y1, niceTicks(lo, hi, Math.max(2, Math.floor((y1 - y0) / 42))), Y, true);
+    b += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + Y(0) + '" y2="' + Y(0) + '" stroke="var(--wi-ink-faint)" stroke-width="1"/>';
+    if (rule !== "m3") b += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + Y(QLIN) + '" y2="' + Y(QLIN) + '" stroke="var(--wi-accent)" stroke-width="1.2" stroke-dasharray="5 3" opacity=".85"/>' +
+                           '<text class="pl-tick" x="' + (padL + 6) + '" y="' + (Y(QLIN) + 13) + '" style="fill:var(--wi-accent)">' + QLIN.toFixed(3) + "</text>";
+    b += measured(Y, res);
+    let es = ""; for (let n = 2; n <= N; n++) es += (es ? "L" : "M") + X(n).toFixed(1) + "," + Y(res(n, E[n])).toFixed(1);
+    b += '<path d="' + es + '" fill="none" stroke="var(--wi-accent-dark)" stroke-width="1.7"/>';
+    b += '<text class="pl-lab" x="' + (W - padR) + '" y="' + (y1 + 18) + '" text-anchor="end">n</text>';
+    b += '<line id="mHovB" y1="' + y0 + '" y2="' + y1 + '" stroke="var(--wi-active)" stroke-width="1" visibility="hidden"/><circle id="mHovBc" r="4.5" fill="none" stroke="var(--wi-active)" stroke-width="1.6" visibility="hidden"/>';
+    const sv = el("mSvgBot");
+    sv.setAttribute("width", W); sv.setAttribute("height", hBot); sv.setAttribute("viewBox", "0 0 " + W + " " + hBot);
+    sv.innerHTML = b; sv._Y = Y; sv._v = n => res(n, mean(n));
+    el("mRange").textContent = have >= 2 ? "expected for n = " + N + ": " + res(N, E[N]).toFixed(3) : "";
+  }
+  el("mProg").textContent = have < N ? "measuring … n = " + have + " of " + N : "measured for n = 1 … " + N + ", " + MEAS.trials + (MEAS.trials > 1 ? " runs" : " run") + " each";
+  if (MEAS.hover) measHover(MEAS.hover, true);
+}
+function measReadoutQuick(n) {
+  const d = measData(), rule = ST.pivot, E = expQuick(rule), c = QLEAD_TEX(rule), cl = QLEAD(rule);
+  let h;
+  if (!n) h = '<span class="dim">Point at a plot to read off the numbers for one \\(n\\). For \\(n \\le ' + MAX_N + "\\) a click opens a random input of that size in the step-by-step view.</span>";
+  else if (n === 1) h = "\\(n = 1\\): nothing to partition, no element visits.";
+  else {
+    const a = d[n].a.slice().sort((x, y) => x - y), m = d[n].mean, ld = cl * n * Math.log(n);
+    h = "\\(n = " + n + "\\): " + (a.length > 1 ? a.length + " runs made from \\(" + a[0] + "\\) to \\(" + a[a.length - 1] + "\\) element visits, mean \\(" + m.toFixed(1) + "\\)"
+                                                  : "one run made \\(" + a[0] + "\\) element visits") +
+        "; expected \\(\\mathbb E[C(" + n + ")] = " + E[n].toFixed(1) + "\\); mergesort: \\(C(" + n + ") = " + mergeC(n) + "\\)." +
+        "<br>\\(\\bigl(C(n) - " + c + "n\\ln n\\bigr)/n = " + ((m - ld) / n).toFixed(3) + "\\)" + (a.length > 1 ? " on average" : "") + "; expected \\(" + ((E[n] - ld) / n).toFixed(3) + "\\).";
+    if (n <= MAX_N) h += ' <span class="dim">Click to step through it.</span>';
+  }
+  setMath(el("mRead"), h);
+}
+
+/* measure n = 1, 2, … up to N, a few milliseconds per frame, drawing as it goes */
+function measCompute() {
+  const d = measData();
+  if (d.length > MEAS.N) return;
+  const job = ++MEAS.job;
+  const work = () => {
+    if (job !== MEAS.job || ST.mode !== "measure") return;
+    const algo = MEAS.algo, dd = measData(), t0 = performance.now(), salt = { random: 1, first: 2, m3: 3 }[ST.pivot] || 0;
+    while (dd.length <= MEAS.N && performance.now() - t0 < 40) {
+      const n = dd.length;
+      if (algo === "quick") {                     /* the runs for this n, and their smallest, largest and mean value */
+        const a = []; let mi = Infinity, mx = -Infinity, sm = 0;
+        for (let t = 0; t < MEAS.trials; t++) { const v = n === 0 ? 0 : measureQuick(n, ST.pivot, mulberry32(n * 7919 + t * 104729 + salt * 15485863)); a.push(v); mi = Math.min(mi, v); mx = Math.max(mx, v); sm += v; }
+        dd.push({ a, min: mi, max: mx, mean: sm / a.length });
+      }
+      else dd.push(n === 0 ? 0 : measureVisits(algo, n, mulberry32(n * 7919 + 17)));
+    }
+    const fin = dd.length > MEAS.N;
+    if (fin || performance.now() - (MEAS.drawn || 0) > 200) { measDraw(); MEAS.drawn = performance.now(); }   /* redrawing is the expensive part */
+    if (!fin) requestAnimationFrame(work);
+  };
+  requestAnimationFrame(work);
+}
+
+function niceTicks(lo, hi, k) {
+  const span = hi - lo; if (!(span > 0)) return [lo];
+  const s0 = span / Math.max(1, k), mag = Math.pow(10, Math.floor(Math.log10(s0))), r = s0 / mag;
+  const step = (r < 1.5 ? 1 : r < 3 ? 2 : r < 7 ? 5 : 10) * mag, t = [];
+  for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + 1e-9 * step; v += step) t.push(+v.toFixed(10));
+  return t;
+}
+const fmtTick = v => Math.abs(v) >= 1000 ? v.toLocaleString("en") : String(+v.toFixed(3));
+
+/* ---- MathJax: typeset off-screen, then swap in, so that the text never flashes as TeX ---- */
+const mjReady = () => !!(window.MathJax && MathJax.typesetPromise && MathJax.startup && MathJax.startup.document);
+function setMath(node, html) {
+  if (node._want === html) return;
+  node._want = html;
+  if (!mjReady()) { node.innerHTML = html; return; }
+  if (node._busy) return;                         /* the newest request is picked up when the current one is done */
+  node._busy = true;
+  const want = html, tmp = document.createElement("div");
+  tmp.className = "mj-buf"; tmp.style.fontSize = getComputedStyle(node).fontSize; tmp.innerHTML = want;
+  document.body.appendChild(tmp);
+  MathJax.typesetPromise([tmp]).then(() => {
+    if (MathJax.typesetClear) MathJax.typesetClear([node]);
+    node.replaceChildren(...tmp.childNodes);
+  }).catch(() => { node.innerHTML = want; }).finally(() => {
+    tmp.remove(); node._busy = false;
+    if (node._want !== want) { const w = node._want; node._want = null; setMath(node, w); }
+  });
+}
+const MEAS_MATH = ["mPow2Lab", "mUpLab", "mLegTop", "mLegBot", "mNote", "mRead"];
+function measMathReady() {                        /* MathJax has arrived: typeset what was set before */
+  for (const id of MEAS_MATH) { const nd = el(id); nd._want = null; nd._busy = false; }
+  setMath(el("mPow2Lab"), MEAS_LAB.pow2); setMath(el("mUpLab"), MEAS_LAB.up);
+  measStatic();
+  if (ST.mode === "measure") { measDraw(); measReadout(MEAS.hover); }
+}
+const MEAS_LAB = { pow2: "assume \\(n = 2^k\\)", up: "round \\(n\\) up to a power of 2" };
+
+const SWD = '<svg width="14" height="10"><circle cx="7" cy="5" r="3" fill="var(--wi-accent)"/></svg>';
+const SWL = (col, dash, w) => '<svg width="24" height="10"><line x1="1" x2="23" y1="5" y2="5" stroke="var(' + col + ')" stroke-width="' + (w || 1.6) + '"' + (dash ? ' stroke-dasharray="' + dash + '"' : "") + '/></svg>';
+const SWB = '<svg width="12" height="12"><rect x="2" y="2" width="8" height="10" fill="var(--wi-accent-soft)" opacity=".55"/><circle cx="6" cy="2.5" r="1.8" fill="var(--wi-accent)"/></svg>';
+const SWP = '<svg width="10" height="14"><line x1="5" x2="5" y1="0" y2="14" stroke="var(--wi-accent-soft)" stroke-width="1.2" stroke-dasharray="2 2"/></svg>';
+const item = (sw, txt) => '<span class="item">' + sw + "<span>" + txt + "</span></span>";
+
+function measStatic() {
+  if (MEAS.algo === "quick") return measStaticQuick();
+  const td = MEAS.algo === "merge";
+  setMath(el("mLegTop"), td
+    ? item(SWD, "\\(C(n)\\), measured") + item(SWL("--wi-ink-soft"), "\\(2n\\lg n\\)") +
+      (MEAS.up ? item(SWL("--wi-examine", "5 3"), "\\(C\\bigl(2^{\\lceil \\lg n\\rceil}\\bigr)\\): \\(n\\) rounded up to a power of 2") : "") + item(SWP, "\\(n = 2^k\\)")
+    : item(SWD, "\\(C_{\\mathrm{BU}}(n)\\), bottom-up, measured") + item(SWL("--wi-queue", "", 1.3), "\\(C(n)\\), top-down") +
+      item(SWL("--wi-ink-soft"), "\\(2n\\lg n\\)") + item(SWP, "\\(n = 2^k\\)"));
+  setMath(el("mLegBot"), td
+    ? item(SWB, "\\(\\bigl(C(n) - 2n\\lg n\\bigr)/n\\), measured") +
+      item(SWL("--wi-accent-dark"), "\\(2\\bigl(2 - \\{\\lg n\\} - 2^{1-\\{\\lg n\\}}\\bigr)\\), exact") +
+      item(SWL("--wi-accent", "5 3", 1.2), "maximum \\(2(1 - \\lg e + \\lg\\lg e) \\approx 0.172\\)")
+    : item(SWB, "\\(\\bigl(C_{\\mathrm{BU}}(n) - 2n\\lg n\\bigr)/n\\), measured") +
+      item(SWL("--wi-accent-dark"), "top-down, exact: \\(2\\bigl(2 - \\{\\lg n\\} - 2^{1-\\{\\lg n\\}}\\bigr)\\)") +
+      item(SWL("--wi-accent", "5 3", 1.2), "\\(\\approx 0.172\\)"));
+  const common =
+    "<b>What is counted.</b> Element visits — reads and/or writes of an element. In the code of the step-by-step view these are the copies " +
+    "<code>aux[k] = a[k]</code> and the writes back into <code>a[k]</code>: every merge visits each of its elements twice. " +
+    "For every \\(n \\le N\\) the page sorts a random permutation of size \\(n\\) with that code and counts. Which permutation does not matter: " +
+    "the merges, and hence the visits, are the same for every input of size \\(n\\) — best and worst case coincide.";
+  setMath(el("mNote"), td
+    ? common +
+      "<br><b>The sawtooth.</b> The visits satisfy \\(C(n) = C(\\lfloor n/2\\rfloor) + C(\\lceil n/2\\rceil) + 2n\\) with \\(C(1) = 0\\), whose exact solution is " +
+      "\\(C(n) = 2n\\lg n + \\bigl(2 - \\{\\lg n\\} - 2^{1-\\{\\lg n\\}}\\bigr)2n\\) with \\(\\{x\\} = x - \\lfloor x\\rfloor\\). " +
+      "The bracket depends only on the fractional part of \\(\\lg n\\), so the picture repeats between consecutive powers of two, stretched by a factor 2: " +
+      "the linear term is \\(0\\) at \\(n = 2^k\\) and largest at \\(n \\approx 2\\ln 2\\cdot 2^k \\approx 1.39\\cdot 2^k\\), where it is " +
+      "\\(2(1 - \\lg e + \\lg\\lg e) \\approx 0.1721\\). Hence \\(2n\\lg n \\le C(n) \\le 2n\\lg n + 0.172\\,n\\)." +
+      "<br><b>Assume \\(n = 2^k\\)</b> keeps only the values the simplified analysis looks at — all on the zero line. " +
+      "<b>Round \\(n\\) up</b> shows the easy bound for other \\(n\\), \\(C(n) \\le C\\bigl(2^{\\lceil\\lg n\\rceil}\\bigr)\\): just above a power of two it is about twice too large." +
+      "<br><b>Prepared links.</b> The address remembers the settings, e.g. <code>#measure&amp;algo=merge&amp;upto=2048&amp;pow2</code> " +
+      "(<code>algo</code>: <code>merge</code> or <code>mergeBU</code>; <code>upto</code>: " + MEAS_NMIN + " to " + MEAS_NMAX + "; flags <code>pow2</code> and <code>up</code>)."
+    : common +
+      "<br><b>Bottom-up mergesort</b> merges along fixed boundaries: in the pass with <code>sz</code> = \\(2^s\\), blocks of length \\(2^s\\) starting at multiples of \\(2^{s+1}\\). " +
+      "Unless \\(n\\) is a power of two the last block is short, and some merges are lopsided: just above a power of two, the few elements at the end only take part in the very last merge, " +
+      "which visits all \\(n\\) elements for very little progress. The linear term is larger than for top-down mergesort and no longer a function of \\(\\{\\lg n\\}\\) alone. " +
+      "The curve is top-down mergesort's, for comparison." +
+      "<br><b>Prepared links.</b> E.g. <code>#measure&amp;algo=mergeBU&amp;upto=512</code>.");
+}
+
+/* plot geometry, shared by both panels (and by the pointer) */
+function measGeo() {
+  const W = Math.max(320, el("mWrapTop").clientWidth), padL = 66, padR = 20, pw = W - padL - padR;
+  return { W, padL, padR, pw, X: x => padL + x / MEAS.N * pw };
+}
+
+function measDraw() {
+  if (ST.mode !== "measure") return;
+  if (MEAS.algo === "quick") return measDrawQuick();
+  const N = MEAS.N, algo = MEAS.algo, td = algo === "merge", d = MEAS.data[algo], have = Math.min(N, d.length - 1);
+  const G = measGeo(); MEAS.geo = G;
+  const { W, padL, padR, pw, X } = G, pitch = pw / N;
+  const hTop = Math.round(MEAS.h * 0.4), hBot = MEAS.h - hTop;
+  const pows = []; for (let p = 1; p <= N; p *= 2) pows.push(p);
+  const xt = niceTicks(0, N, Math.max(3, Math.floor(pw / 80))).filter(v => v > 0);
+  const sample = f => { let s = ""; const x0 = X(1); for (let px = x0; px <= X(N) + 0.01; px += 1.5) { const x = Math.max(1, (px - padL) / pw * N); s += (s ? "L" : "M") + px.toFixed(1) + "," + f(x).toFixed(1); } return s; };
+  const powLines = (y0, y1) => pows.map(p => '<line x1="' + X(p) + '" x2="' + X(p) + '" y1="' + y0 + '" y2="' + y1 + '" stroke="var(--wi-accent-soft)" stroke-width="' + (MEAS.pow2 ? 1.3 : 1) +
+                                             '" stroke-dasharray="2 3" opacity="' + (MEAS.pow2 ? 0.95 : 0.6) + '"/>').join("");
+  const axes = (y0, y1, ticks, Y, labelX) => {
+    let s = "";
+    for (const v of ticks) {
+      const y = Y(v);
+      s += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y + '" y2="' + y + '" stroke="var(--wi-border-soft)" stroke-width=".7" opacity=".7"/>' +
+           '<text class="pl-tick" x="' + (padL - 7) + '" y="' + (y + 4) + '" text-anchor="end">' + fmtTick(v) + "</text>";
+    }
+    for (const v of xt) s += '<line x1="' + X(v) + '" x2="' + X(v) + '" y1="' + y1 + '" y2="' + (y1 + 4) + '" stroke="var(--wi-ink-faint)"/>' +
+                             (labelX && X(v) < W - padR - 24 ? '<text class="pl-tick" x="' + X(v) + '" y="' + (y1 + 16) + '" text-anchor="middle">' + v + "</text>" : "");
+    s += '<path d="M' + padL + "," + y0 + " V" + y1 + " H" + (W - padR) + '" fill="none" stroke="var(--wi-ink-faint)" stroke-width="1"/>';
+    return s;
+  };
+
+  /* ---- top: C(n) and 2n lg n ---- */
+  {
+    const y0 = 10, y1 = hTop - 10;
+    const upTo = 1 << Math.ceil(Math.log2(Math.max(1, N)));
+    let ymax = 2 * N * Math.log2(N);
+    for (let n = 1; n <= have; n++) ymax = Math.max(ymax, d[n]);
+    if (!td) ymax = Math.max(ymax, mergeC(N));
+    if (td && MEAS.up) ymax = Math.max(ymax, mergeC(upTo));
+    ymax *= 1.04;
+    const Y = y => y1 - y / ymax * (y1 - y0);
+    let b = axes(y0, y1, niceTicks(0, ymax, Math.max(2, Math.floor((y1 - y0) / 45))), Y, false) + powLines(y0, y1);
+    if (td && MEAS.up) {                          /* C(2^⌈lg x⌉): constant on (2^(k−1), 2^k] */
+      let s = "M" + X(1) + "," + Y(0);
+      for (let k = 1; (1 << (k - 1)) < N; k++) { const v = mergeC(1 << k), xa = X(1 << (k - 1)), xb = X(Math.min(N, 1 << k)); s += " V" + Y(v).toFixed(1) + " H" + xb.toFixed(1); }
+      b += '<path d="' + s + '" fill="none" stroke="var(--wi-examine)" stroke-width="1.5" stroke-dasharray="5 3"/>';
+    }
+    if (!td) { let s = ""; for (let n = 1; n <= N; n++) s += (s ? "L" : "M") + X(n).toFixed(1) + "," + Y(mergeC(n)).toFixed(1); b += '<path d="' + s + '" fill="none" stroke="var(--wi-queue)" stroke-width="1.3"/>'; }
+    b += '<path d="' + sample(x => Y(2 * x * Math.log2(x))) + '" fill="none" stroke="var(--wi-ink-soft)" stroke-width="1.6"/>';
+    let m = "";
+    if (pitch >= 3) for (let n = 1; n <= have; n++) m += '<circle cx="' + X(n).toFixed(1) + '" cy="' + Y(d[n]).toFixed(1) + '" r="' + Math.min(2.2, pitch / 3).toFixed(2) + '" fill="var(--wi-accent)"/>';
+    else if (have >= 1) { let s = ""; for (let n = 1; n <= have; n++) s += (s ? "L" : "M") + X(n).toFixed(1) + "," + Y(d[n]).toFixed(1); m = '<path d="' + s + '" fill="none" stroke="var(--wi-accent)" stroke-width="1.5"/>'; }
+    b += MEAS.pow2 ? '<g opacity=".15">' + m + "</g>" + pows.filter(p => p <= have).map(p => '<circle cx="' + X(p) + '" cy="' + Y(d[p]) + '" r="3.6" fill="var(--wi-accent)" stroke="var(--wi-panel-2)" stroke-width="1"/>').join("") : m;
+    b += '<line id="mHovT" y1="' + y0 + '" y2="' + y1 + '" stroke="var(--wi-active)" stroke-width="1" visibility="hidden"/><circle id="mHovTc" r="4.5" fill="none" stroke="var(--wi-active)" stroke-width="1.6" visibility="hidden"/>';
+    const sv = el("mSvgTop");
+    sv.setAttribute("width", W); sv.setAttribute("height", hTop); sv.setAttribute("viewBox", "0 0 " + W + " " + hTop);
+    sv.innerHTML = b; sv._Y = Y; sv._v = n => d[n];
+  }
+
+  /* ---- bottom: (C(n) − 2n lg n)/n ---- */
+  {
+    const y0 = 10, y1 = hBot - 24;
+    const res = n => n <= 1 ? 0 : (d[n] - 2 * n * Math.log2(n)) / n;
+    let lo = 0, hi = 0.2, best = 1;
+    for (let n = 1; n <= have; n++) { const r = res(n); if (r < lo) lo = r; if (r > hi) hi = r; if (r > res(best)) best = n; }
+    if (!td) hi *= 1.06;
+    const Y = y => y1 - (y - lo) / (hi - lo) * (y1 - y0), Y0 = Y(0);
+    let b = axes(y0, y1, niceTicks(lo, hi, Math.max(2, Math.floor((y1 - y0) / 42))), Y, true) + powLines(y0, y1);
+    b += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + Y(LIN_MAX) + '" y2="' + Y(LIN_MAX) + '" stroke="var(--wi-accent)" stroke-width="1.2" stroke-dasharray="5 3" opacity=".85"/>' +
+         '<text class="pl-tick" x="' + (W - padR - 2) + '" y="' + (Y(LIN_MAX) - 4) + '" text-anchor="end" style="fill:var(--wi-accent)">0.172</text>';
+    let m = "";
+    if (have >= 1) {
+      if (pitch >= 2) {
+        const bw = Math.max(1, pitch * 0.72);
+        for (let n = 1; n <= have; n++) {
+          const y = Y(res(n));
+          m += '<rect x="' + (X(n) - bw / 2).toFixed(1) + '" y="' + Math.min(y, Y0).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.abs(y - Y0).toFixed(1) + '" fill="var(--wi-accent-soft)" opacity=".55"/>';
+          if (pitch >= 3.5) m += '<circle cx="' + X(n).toFixed(1) + '" cy="' + y.toFixed(1) + '" r="1.6" fill="var(--wi-accent)"/>';
+        }
+      } else {
+        let s = "";
+        for (let n = 1; n <= have; n++) s += "L" + X(n).toFixed(1) + "," + Y(res(n)).toFixed(1);
+        m = '<path d="M' + X(1).toFixed(1) + "," + Y0 + s + "L" + X(have).toFixed(1) + "," + Y0 + 'Z" fill="var(--wi-accent-soft)" opacity=".55"/>' +
+            '<path d="M' + s.slice(1) + '" fill="none" stroke="var(--wi-accent)" stroke-width="1"/>';
+      }
+    }
+    const curve = '<path d="' + sample(x => Y(linTerm(x))) + '" fill="none" stroke="var(--wi-accent-dark)" stroke-width="1.7"/>';
+    b += MEAS.pow2 ? '<g opacity=".15">' + m + "</g>" + '<g opacity=".2">' + curve + "</g>" +
+                     pows.filter(p => p <= have).map(p => '<circle cx="' + X(p) + '" cy="' + Y(res(p)) + '" r="3.6" fill="var(--wi-accent)" stroke="var(--wi-panel-2)" stroke-width="1"/>').join("")
+                   : m + curve;
+    b += '<text class="pl-lab" x="' + (W - padR) + '" y="' + (y1 + 18) + '" text-anchor="end">n</text>';
+    b += '<line id="mHovB" y1="' + y0 + '" y2="' + y1 + '" stroke="var(--wi-active)" stroke-width="1" visibility="hidden"/><circle id="mHovBc" r="4.5" fill="none" stroke="var(--wi-active)" stroke-width="1.6" visibility="hidden"/>';
+    const sv = el("mSvgBot");
+    sv.setAttribute("width", W); sv.setAttribute("height", hBot); sv.setAttribute("viewBox", "0 0 " + W + " " + hBot);
+    sv.innerHTML = b; sv._Y = Y; sv._v = res;
+    el("mRange").textContent = have >= 2 ? "largest for n ≤ " + have + ": " + res(best).toFixed(4) + " at n = " + best : "";
+  }
+  el("mProg").textContent = have < N ? "measuring … n = " + have + " of " + N : "measured for n = 1 … " + N;
+  if (MEAS.hover) measHover(MEAS.hover, true);
+}
+
+/* the pointer: a vertical line in both panels, and the numbers for that n */
+function measHover(n, keepText) {
+  const d = measData(), have = Math.min(MEAS.N, d.length - 1), G = MEAS.geo;
+  const T = el("mSvgTop"), B = el("mSvgBot");
+  const lt = el("mHovT"), lb = el("mHovB"), ct = el("mHovTc"), cb = el("mHovBc");
+  if (!G || !lt) return;
+  if (!(n >= 1 && n <= have)) {
+    for (const x of [lt, lb, ct, cb]) x.setAttribute("visibility", "hidden");
+    MEAS.hover = 0; if (!keepText) measReadout(0); return;
+  }
+  MEAS.hover = n;
+  const x = G.X(n);
+  for (const [ln, c, Y, v] of [[lt, ct, T._Y, T._v(n)], [lb, cb, B._Y, B._v(n)]]) {
+    ln.setAttribute("x1", x); ln.setAttribute("x2", x); ln.setAttribute("visibility", "visible");
+    c.setAttribute("cx", x); c.setAttribute("cy", Y(v)); c.setAttribute("visibility", "visible");
+  }
+  if (!keepText) measReadout(n);
+}
+function measReadout(n) {
+  if (MEAS.algo === "quick") return measReadoutQuick(n);
+  const d = MEAS.data[MEAS.algo], td = MEAS.algo === "merge";
+  let h;
+  if (!n) {
+    h = MEAS.pow2
+      ? "With \\(n = 2^k\\) only, the linear term is always \\(0\\): \\(C(2^k) = 2k\\cdot 2^k\\) exactly. The simplification sees nothing of the up to \\(0.172\\,n\\) in between."
+      : '<span class="dim">Point at a plot to read off the numbers for one \\(n\\). For \\(n \\le ' + MAX_N + "\\) a click opens a random input of that size in the step-by-step view.</span>";
+  } else if (n === 1) {
+    h = "\\(n = 1\\): nothing to merge, " + (td ? "\\(C(1) = 0\\)." : "no element visits.");
+  } else {
+    const v = d[n], ln = 2 * n * Math.log2(n), r = (v - ln) / n, f = fracLg(n), k = Math.log2(n), pw = Number.isInteger(k);
+    const fl = n >> 1, cl = n - fl, cn = mergeC(n);
+    const head = "\\(n = " + n + (pw ? " = 2^{" + k + "}" : "") + "\\): ";
+    if (td) {
+      h = head + "measured \\(C(" + n + ") = " + v + "\\) element visits " +
+          (v === cn ? "\\(= C(" + fl + ") + C(" + cl + ") + 2\\cdot" + n + " = " + mergeC(fl) + " + " + mergeC(cl) + " + " + 2 * n + "\\) ✓"
+                    : "— the recurrence gives \\(" + cn + "\\) ✗") +
+          "<br>\\(2n\\lg n = " + ln.toFixed(2) + "\\), so \\(\\bigl(C(n) - 2n\\lg n\\bigr)/n = " + r.toFixed(4) + "\\); exact: \\(\\{\\lg n\\} = " + f.toFixed(4) +
+          "\\), \\(2\\bigl(2 - \\{\\lg n\\} - 2^{1-\\{\\lg n\\}}\\bigr) = " + Math.abs(linTerm(n)).toFixed(4) + "\\)" + (pw ? " — a power of two" : "") + ".";
+    } else {
+      const df = v - cn;
+      h = head + "bottom-up mergesort makes \\(C_{\\mathrm{BU}}(" + n + ") = " + v + "\\) element visits; top-down: \\(C(" + n + ") = " + cn + "\\)" +
+          (df ? " (" + (df > 0 ? "+" : "−") + Math.abs(df) + ")" : " (the same)") + "." +
+          "<br>\\(\\bigl(C_{\\mathrm{BU}}(n) - 2n\\lg n\\bigr)/n = " + r.toFixed(4) + "\\); top-down: \\(" + Math.abs(linTerm(n)).toFixed(4) + "\\).";
+    }
+    if (n <= MAX_N) h += ' <span class="dim">Click to step through it.</span>';
+  }
+  setMath(el("mRead"), h);
+}
+
+function measBuild() {
+  MEAS.algo = ST.algo === "mergeBU" || ST.algo === "quick" ? ST.algo : "merge";
+  el("mAlgoSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.malgo === MEAS.algo));
+  el("mN").value = measSliderOfN(MEAS.N); el("mNVal").textContent = MEAS.N;
+  el("mNSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.n === MEAS.N));
+  el("mPow2").checked = MEAS.pow2; el("mUp").checked = MEAS.up;
+  el("mUpCtl").classList.toggle("hidden", MEAS.algo !== "merge");
+  el("mMergeCtl").classList.toggle("hidden", MEAS.algo === "quick");
+  el("mQuickCtl").classList.toggle("hidden", MEAS.algo !== "quick");
+  el("mPivSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.piv === ST.pivot));
+  el("mTrSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.tr === MEAS.trials));
+  measStatic();
+  MEAS.hover = 0;
+  measDraw(); measReadout(0);
+  measCompute();
+}
+
+function measInit() {
+  el("mAlgoSeg").querySelectorAll("button").forEach(b => b.onclick = () => { ST.algo = b.dataset.malgo; measBuild(); writeHash(); });
+  el("mPivSeg").querySelectorAll("button").forEach(b => b.onclick = () => { setPivot(b.dataset.piv, true); measBuild(); writeHash(); });
+  el("mTrSeg").querySelectorAll("button").forEach(b => b.onclick = () => { MEAS.trials = +b.dataset.tr; measBuild(); writeHash(); });
+  const setN = n => { MEAS.N = clamp(n, MEAS_NMIN, MEAS_NMAX); el("mNVal").textContent = MEAS.N; el("mN").value = measSliderOfN(MEAS.N);
+                      el("mNSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.n === MEAS.N));
+                      MEAS.hover = 0; measDraw(); measReadout(0); measCompute(); writeHash(); };
+  el("mN").oninput = () => setN(measNOfSlider(+el("mN").value));
+  el("mNSeg").querySelectorAll("button").forEach(b => b.onclick = () => setN(+b.dataset.n));
+  el("mPow2").onchange = () => { MEAS.pow2 = el("mPow2").checked; measDraw(); measReadout(MEAS.hover); writeHash(); };
+  el("mUp").onchange = () => { MEAS.up = el("mUp").checked; measStatic(); measDraw(); writeHash(); };
+  setMath(el("mPow2Lab"), MEAS_LAB.pow2); setMath(el("mUpLab"), MEAS_LAB.up);
+  /* the pointer */
+  const nAt = (sv, e) => {
+    const G = MEAS.geo; if (!G) return 0;
+    const x = e.clientX - sv.getBoundingClientRect().left;
+    if (x < G.padL - 8 || x > G.W - G.padR + 8) return 0;
+    return clamp(Math.round((x - G.padL) / G.pw * MEAS.N), 1, MEAS.N);
+  };
+  for (const id of ["mSvgTop", "mSvgBot"]) {
+    const sv = el(id);
+    sv.addEventListener("pointermove", e => { const n = nAt(sv, e); if (n !== MEAS.hover) measHover(n); });
+    sv.addEventListener("pointerleave", () => measHover(0));
+    sv.addEventListener("click", e => {
+      const n = nAt(sv, e), have = measData().length - 1;
+      if (!(n >= 1 && n <= Math.min(MAX_N, have))) return;
+      ST.algo = MEAS.algo; D.userInput = true;   /* quicksort: with the same pivot rule */
+      el("genN").value = n; applyPreset("g-random"); el("presetSel").value = "g-random";
+      setMode("steps");
+    });
+  }
+  /* height of the plots: drag the handle below them */
+  const sp = el("mSplit");
+  let y0 = 0, h0 = 0, drag = false, raf = 0;
+  const setH = h => { MEAS.h = clamp(Math.round(h), 280, 1100); cancelAnimationFrame(raf); raf = requestAnimationFrame(() => measDraw()); };
+  sp.addEventListener("pointerdown", e => { drag = true; y0 = e.clientY; h0 = MEAS.h; sp.classList.add("drag"); sp.setPointerCapture(e.pointerId); e.preventDefault(); });
+  sp.addEventListener("pointermove", e => { if (drag) setH(h0 + e.clientY - y0); });
+  sp.addEventListener("pointerup", () => { drag = false; sp.classList.remove("drag"); });
+  sp.addEventListener("dblclick", () => setH(MEAS_DEF_H));
+  sp.addEventListener("keydown", e => { if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); setH(MEAS.h + (e.key === "ArrowUp" ? -30 : 30)); } });
+  /* MathJax arrives later (deferred script) */
+  const hook = () => { if (window.MathJax && MathJax.startup && MathJax.startup.promise) MathJax.startup.promise.then(measMathReady).catch(() => {}); };
+  if (document.readyState === "complete") hook(); else window.addEventListener("load", hook);
+}
+
+/* ==========================================================================
    Wiring
    ========================================================================== */
 const algoTitle = () => ALGOS[ST.algo].name + (ST.algo === "quick" && ST.pivot !== "random" ? ", " + PIVOT_NAME[ST.pivot] : "");
 function setPresent(on) {
-  if (on && ST.mode === "grid") on = false;       /* only for Demo and Step by step */
+  if (on && (ST.mode === "grid" || ST.mode === "measure")) on = false;       /* only for Demo and Step by step */
   ST.present = on;
   document.body.classList.toggle("present", on);
   el("pageTitle").textContent = on ? algoTitle() : "Sorting";
@@ -3083,11 +3810,11 @@ function setPresent(on) {
 }
 function setMode(m) {
   ST.mode = m;
-  if (m === "grid" && ST.present) { ST.present = false; document.body.classList.remove("present"); el("pageTitle").textContent = "Sorting"; }
-  el("presBtn").classList.toggle("hidden", m === "grid");
+  if ((m === "grid" || m === "measure") && ST.present) { ST.present = false; document.body.classList.remove("present"); el("pageTitle").textContent = "Sorting"; }
+  el("presBtn").classList.toggle("hidden", m === "grid" || m === "measure");
   document.querySelectorAll("#modeSeg button").forEach(b => { b.classList.toggle("on", b.dataset.mode === m); b.setAttribute("aria-selected", b.dataset.mode === m); });
-  for (const v of ["demo", "steps", "grid"]) el("view-" + v).classList.toggle("hidden", v !== m);
-  el("algoBar").classList.toggle("hidden", m === "grid");
+  for (const v of ["demo", "steps", "grid", "measure"]) el("view-" + v).classList.toggle("hidden", v !== m);
+  el("algoBar").classList.toggle("hidden", m === "grid" || m === "measure");
   el("subtitle").textContent = SUBTITLE[m];
   if (m !== "demo") demoLS.pause();
   if (m !== "grid") gridLS.pause();
@@ -3102,6 +3829,7 @@ function refreshView() {
   document.querySelectorAll("#algoSeg button").forEach(b => b.classList.toggle("on", b.dataset.algo === ST.algo));
   if (ST.mode === "demo") demoBuild();
   else if (ST.mode === "grid") { if (!GRID.cells.length) gridBuild(); else gridDraw(); }
+  else if (ST.mode === "measure") measBuild();
   else {
     if (!D.userInput) { applyPreset(DEFAULT_PRESET[ST.algo]); el("presetSel").value = D.preset; }
     stepsRebuild(false);
@@ -3128,12 +3856,16 @@ function writeHash() {
   if (ST.mode === "steps" && D.userInput) q.set("in", D.text.split(" ").join(","));
   if (ST.mode === "steps" && D.seed !== 1) q.set("seed", D.seed);
   let h = "#" + ST.mode + "&" + q.toString().replace(/%2C/g, ",") + (ST.present ? "&present" : "");
+  if (ST.mode === "measure")
+    h = "#measure&algo=" + MEAS.algo + (MEAS.N !== MEAS_N ? "&upto=" + MEAS.N : "") +
+        (MEAS.algo === "quick" ? (ST.pivot !== "random" ? "&pivot=" + ST.pivot : "") + (MEAS.trials !== 10 ? "&trials=" + MEAS.trials : "")
+                               : (MEAS.pow2 ? "&pow2" : "") + (MEAS.up ? "&up" : ""));
   if (ST.mode === "grid") {
     const g = [], ids = GRID_ROWS.filter(r => GRID.on.has(r.id)).map(r => r.id);
     const pre = presetOfSel();
     if (!(pre && pre.id === "standard")) g.push("algos=" + (pre ? pre.id : ids.join(",")));
     if (GRID.n !== GRID_N) g.push("n=" + GRID.n);
-    if (gridLS.clock !== "op") g.push("clock=" + gridLS.clock);
+    if (gridLS.clock !== "vis") g.push("clock=" + gridLS.clock);
     if (GRID.seed !== 1) g.push("seed=" + GRID.seed);
     h = "#grid" + (g.length ? "&" + g.join("&") : "");
   }
@@ -3158,15 +3890,20 @@ function readHash() {
     GRID.on = new Set(ids || GRID_DEFAULT);
     const n = parseInt(q.get("n"), 10);
     GRID.n = n >= 5 && n <= GRID_NMAX ? n : GRID_N;
-    gridLS.clock = ["cmp", "mov"].includes(q.get("clock")) ? q.get("clock") : "op";
+    gridLS.clock = ["cmp", "mov", "op"].includes(q.get("clock")) ? q.get("clock") : "vis";
     GRID.seed = seed || 1;
     GRID.cells = [];                       /* rebuild with these settings */
     if (el("gRowsCtl").querySelector("input[data-row]")) gridSyncControls();
+  } else if (mode === "measure") {
+    const n = parseInt(q.get("upto"), 10);
+    MEAS.N = n >= MEAS_NMIN && n <= MEAS_NMAX ? n : MEAS_N;
+    MEAS.pow2 = q.has("pow2"); MEAS.up = q.has("up");
+    MEAS.trials = MEAS_TRIALS.includes(+q.get("trials")) ? +q.get("trials") : 10;
   } else if (seed) D.seed = seed;
   if (q.get("in")) {
     try { setInputText(q.get("in").replace(/,/g, " ")); D.userInput = true; D.preset = "custom"; } catch (e) { /* ignore a broken link */ }
   }
-  if (["demo", "steps", "grid"].includes(mode)) ST.mode = mode;
+  if (["demo", "steps", "grid", "measure"].includes(mode)) ST.mode = mode;
 }
 
 /* ---------- draggable divider between array and code (step by step) ---------- */
@@ -3214,8 +3951,8 @@ function init() {
   el("dN").oninput = () => { DEMO.nBy[ST.algo] = +el("dN").value; el("dNVal").textContent = el("dN").value; demoBuild(); };
   const dSp = () => { demoLS.speed = speedOf(+el("dSpeed").value); el("dSpeedVal").textContent = demoLS.speed + " steps/s"; };
   el("dSpeed").oninput = dSp; dSp();
-  el("dClock").querySelectorAll("button").forEach(b => b.onclick = () => {
-    el("dClock").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  el("dClock").querySelectorAll("button[data-clock]").forEach(b => b.onclick = () => {
+    el("dClock").querySelectorAll("button[data-clock]").forEach(x => x.classList.toggle("on", x === b));
     demoLS.clock = b.dataset.clock; demoBuild();
   });
 
@@ -3227,8 +3964,8 @@ function init() {
   el("gN").oninput = () => { GRID.n = nOfSlider(+el("gN").value); el("gNVal").textContent = GRID.n; gridBuild(); };
   const gSp = () => { gridLS.speed = gridSpeedOf(+el("gSpeed").value); el("gSpeedVal").textContent = gridLS.speed.toLocaleString("en") + " steps/s"; };
   el("gSpeed").oninput = gSp; gSp();
-  el("gClock").querySelectorAll("button").forEach(b => b.onclick = () => {
-    el("gClock").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  el("gClock").querySelectorAll("button[data-clock]").forEach(b => b.onclick = () => {
+    el("gClock").querySelectorAll("button[data-clock]").forEach(x => x.classList.toggle("on", x === b));
     gridLS.clock = b.dataset.clock; gridBuild();
   });
   /* algorithm selection: presets, plus "Choose…" for toggle chips */
@@ -3245,11 +3982,13 @@ function init() {
   });
   gridSyncControls();
   el("gridNote").innerHTML = "<b>Reading the grid.</b> Rows are algorithms, columns kinds of input; all panels of a column sort the same input. " +
-    "Under each panel: calls of <code>less()</code>, and swaps (or, for mergesort, element copies). " +
+    "Under each panel: element visits, calls of <code>less()</code>, and swaps (or, for the mergesorts, element copies). " +
+    "<b>Element visits</b>: in each pass — one scan of the elementary methods, one partitioning step, the copy loop or the merge loop of a merge, one run detection — every element read or written counts once; " +
+    "an element kept at hand (the pivot, the current minimum, the element being inserted) is not counted again. A partition of <i>k</i> elements is <i>k</i> visits, a merge of <i>k</i> elements 2<i>k</i>. " +
     "The moment a panel turns ✓ is exactly its number of steps: comparisons, swaps (copies), or both — as chosen under <i>One step is</i>. " +
     "<br><b>Prepared links.</b> The address remembers the selection, e.g. " +
     "<code>#grid&amp;algos=insertion,merge,quick,quick-first&amp;n=40&amp;clock=cmp&amp;seed=3</code> " +
-    "(<code>clock</code>: <code>cmp</code>, <code>mov</code> for swaps/copies, default both). " +
+    "(<code>clock</code>: <code>vis</code> for element visits, the default; <code>cmp</code>; <code>mov</code> for swaps/copies; <code>op</code> for both). " +
     "Row names: " + GRID_ROWS.map(r => "<code>" + r.id + "</code>").join(", ") + ", or a preset: " +
     GRID_PRESETS.map(p => "<code>" + p.id + "</code>").join(", ") + ". Up to " + GRID_NMAX + " elements. " +
     "<code>seed</code> fixes the inputs and random pivots.";
@@ -3302,6 +4041,7 @@ function init() {
     if (e.target === el("splitter") && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
       e.preventDefault(); setSplit(SPLIT.f + (e.key === "ArrowLeft" ? -0.03 : 0.03)); return;
     }
+    if (m === "measure") return;
     if (e.key === " " || e.key === "Spacebar") {
       e.preventDefault();
       if (m === "demo") demoLS.toggle(); else if (m === "grid") gridLS.toggle(); else stepsPlay();
@@ -3315,7 +4055,7 @@ function init() {
   let rz = null;
   window.addEventListener("resize", () => {
     clearTimeout(rz);
-    rz = setTimeout(() => { if (ST.mode === "demo") demoDraw(); else if (ST.mode === "grid") gridDraw(); else stepsRender(); }, 80);
+    rz = setTimeout(() => { if (ST.mode === "demo") demoDraw(); else if (ST.mode === "grid") gridDraw(); else if (ST.mode === "measure") measDraw(); else stepsRender(); }, 80);
   });
   window.addEventListener("hashchange", () => { readHash(); if (ST.mode === "grid") gridSyncControls(); setMode(ST.mode); setPresent(ST.present); });
   el("presBtn").onclick = () => setPresent(true);
@@ -3326,6 +4066,11 @@ function init() {
     stepsRebuild(false);
   };
   initSplitter();
+  measInit();
+  for (const w of ["dClock", "gClock"]) {
+    const seg = el(w), more = seg.querySelector(".xmore");
+    more.onclick = () => { const open = seg.classList.toggle("open"); more.textContent = open ? "fewer" : "other…"; };
+  }
 
   readHash();
   const presentAtStart = ST.present;

@@ -444,15 +444,18 @@ body { font-family: var(--wi-font-body); }
     reaching a subtree arrive there in the same relative order in both processes, so the first $k$ elements of
     a sublist are exactly the first $k$ elements that land in the corresponding leaf. (With an in-place,
     non-stable partitioning method the correspondence only holds in distribution for random inputs.)</p>
-    <p><b>Counting.</b> We count every comparison with the pivot, <i>including the pivot with itself</i>:
-    partitioning a sublist of $n$ elements costs exactly $n$ comparisons, and in the tree, an element is
-    compared with every inner node on its path, including the node it ends up in. Finding the median of
-    the sample is not counted (in either process). With this convention, for $k=1$ and a random permutation of
-    distinct keys, both processes satisfy
-    \[ C_n \wrel= n + \frac1n \sum_{r=1}^{n} \bigl(C_{r-1} + C_{n-r}\bigr)
-           \wrel= n + \frac2n\sum_{j=0}^{n-1} C_j, \qquad C_0 \wrel= 0 . \]
-    For $k=1$, the comparisons of either process are also exactly those needed to <i>search</i> each input
-    element in the final tree.</p>
+    <p><b>Counting.</b> The pivot is never compared with itself: partitioning a sublist of $n$ elements costs
+    $n-1$ comparisons, and in the tree, an element is compared with the inner nodes on its path; the element
+    that becomes a new node is not compared with it (for $k=1$, the first insertion of a key creates its node
+    without any comparison). Duplicates of a pivot <i>are</i> compared with it ($=$), in both processes.
+    So no comparison lies on the diagonal of the matrices. Finding the median of the sample is not counted
+    (in either process). With this convention, for $k=1$ and a random permutation of distinct keys, both
+    processes satisfy
+    \[ C_n \wrel= n - 1 + \frac1n \sum_{r=1}^{n} \bigl(C_{r-1} + C_{n-r}\bigr)
+           \wrel= n - 1 + \frac2n\sum_{j=0}^{n-1} C_j, \qquad C_0 \wrel= 0 . \]
+    Counting <i>element visits</i> instead (each element of a sublist, the pivot included), adds exactly one per
+    inner node to both processes. Likewise, <i>searching</i> each input element in the final tree costs one
+    more comparison per inner node than building it (the diagonal).</p>
     <p>Further reading: the correspondence for equal keys and pivot sampling, and its use for the analysis of
     Quicksort, is worked out in <a href="https://www.wild-inter.net/publications/wild-2018">Quicksort Is
     Optimal for Many Equal Keys</a> (Section 2 and Lemma 6.1).</p>
@@ -471,10 +474,11 @@ body { font-family: var(--wi-font-body); }
    Quicksort_k(L): if |L| <= k-1: leave to Insertionsort (not counted)
                    P := median of L[1..k]          (not counted)
                    for U in L (in order): cmp(U, P) -> append to L1 / L2 / L3
+                       (P itself goes to L2 without a comparison)
                    recurse on L1, then L3          (L2 is done: fat pivot)
    Insert_k(T, x): at an inner node P: cmp(x, P); '=' stops, '<' left, '>' right
                    at a leaf: append x; if the leaf now holds k elements:
-                       P := median of them; for U in leaf: cmp(U, P); the leaf
+                       P := median of them; for U != P in leaf: cmp(U, P); the leaf
                        becomes Inner(P, Leaf(smaller), Leaf(larger)), equal dropped
 
    Elements are *instances* 0..n-1 (input positions); a comparison is the pair
@@ -588,6 +592,11 @@ function simulate() {
     qsEv.push({ t: "pivot", c: c, unit: c.id, stop: !single });
     c.L1 = []; c.L2 = []; c.L3 = []; c.res = {};
     for (const x of elems) {
+      if (x === c.P) {   /* the pivot itself: no comparison, it just moves to the middle */
+        c.L2.push(x); c.res[x] = 0;
+        qsEv.push({ t: "place", c: c, x: x, res: 0, unit: c.id, stop: false });
+        continue;
+      }
       const r = cmpInst(x, c.P);
       (r < 0 ? c.L1 : r > 0 ? c.L3 : c.L2).push(x);
       c.res[x] = r;
@@ -632,6 +641,7 @@ function simulate() {
         const slot = {}; [...L, ...E, ...R].forEach((u, i) => slot[u] = i);
         evs.push({ t: "full", x: x, path: p, P: P, buf: buf, L: L, E: E, R: R, slot: slot });
         for (const u of buf) {
+          if (u === P) { evs.push({ t: "splace", x: u, path: p, P: P, res: 0 }); continue; }
           const r = cmpInst(u, P);
           trCmps.push({ x: u, P: P, res: r });
           evs.push({ t: "scmp", x: u, path: p, P: P, res: r, cmpIdx: trCmps.length - 1 });
@@ -649,7 +659,7 @@ function simulate() {
       e.unit = unit;
       if (e.t === "start") e.stop = false;
       else if (e.t === "append") e.stop = !(nx && nx.t === "full");
-      else if (e.t === "full" || e.t === "scmp" || e.t === "pop") e.stop = false;
+      else if (e.t === "full" || e.t === "scmp" || e.t === "splace" || e.t === "pop") e.stop = false;
       else e.stop = true;
     }
     const last = evs[evs.length - 1];
@@ -685,8 +695,8 @@ function trSummary(x, evs, path) {
   const app = evs.find(e => e.t === "append");
   if (last.t === "append")
     return s + "It squeezes into a leaf buffer (" + app.len + " of " + (K - 1) + ").";
-  if (K === 1) return s + "It reaches an empty leaf and becomes a new node (compared with itself).";
-  return s + "It squeezes into a leaf, which overflows: the buffer partitions itself around its median (" + K +
+  if (K === 1) return s + "It reaches an empty leaf and becomes a new node.";
+  return s + "It squeezes into a leaf, which overflows: the buffer partitions itself around its median (" + (K - 1) +
          " comparisons), " + key(last.P) + " pops out as a new node over leaves " + lst(last.L) + " and " + lst(last.R) + ".";
 }
 
@@ -752,7 +762,7 @@ function qsReplay(m) {
   for (let i = 0; i < m; i++) {
     const e = qsEv[i];
     if (e.t === "pivot") status[e.c.id] = 0;
-    else if (e.t === "cmp") status[e.c.id]++;
+    else if (e.t === "cmp" || e.t === "place") status[e.c.id]++;
     else if (e.t === "done") status[e.c.id] = "done";
     else if (e.t === "leaf") status[e.c.id] = "leaf";
   }
@@ -767,7 +777,7 @@ function trReplay(m) {
     else if (e.t === "cmp") { ins.path = e.path; ins.res = e.res; ins.P = e.P; ins.at = e.res === 0 ? "found" : "node"; }
     else if (e.t === "append") { T[e.path].elems.push(e.x); ins.path = e.path; ins.at = "leaf"; }
     else if (e.t === "full") { split = Object.assign({ j: 0, popped: false }, e); ins.at = "split"; }
-    else if (e.t === "scmp") split.j++;
+    else if (e.t === "scmp" || e.t === "splace") split.j++;
     else if (e.t === "pop") split.popped = true;
     else if (e.t === "newnode") {
       T[e.path] = { kind: "node", P: e.P };
@@ -1308,14 +1318,15 @@ function despawnTo(a, next) {
 }
 /* event timings, as multiples of the base duration */
 function weight(e, proc) {
-  if (proc === "q") return { pivot: 0.8, cmp: 0.9, done: 0.6, leaf: 1 }[e.t] || 1;
-  if (K === 1) return { start: 0.7, cmp: 0.9, append: 0.7, full: 0.05, scmp: 0.25, pop: 0.55, newnode: 0.45 }[e.t] || 1;
-  return { start: 0.7, cmp: 0.9, append: 0.75, full: 0.55, scmp: 0.7, pop: 0.6, newnode: 0.9 }[e.t] || 1;
+  if (proc === "q") return { pivot: 0.8, cmp: 0.9, place: 0.9, done: 0.6, leaf: 1 }[e.t] || 1;
+  if (K === 1) return { start: 0.7, cmp: 0.9, append: 0.7, full: 0.05, splace: 0.05, pop: 0.55, newnode: 0.45 }[e.t] || 1;
+  return { start: 0.7, cmp: 0.9, append: 0.75, full: 0.55, scmp: 0.7, splace: 0.7, pop: 0.6, newnode: 0.9 }[e.t] || 1;
 }
 function overlap(e, nx, proc) {
   if (!nx) return 1;
-  if (proc === "q" && e.t === "cmp" && nx.t === "cmp") return detail === "coarse" ? 0.28 : 1;
-  if (proc === "t" && e.t === "scmp" && nx.t === "scmp") return 0.14;
+  const scan = t => t === "cmp" || t === "place", split = t => t === "scmp" || t === "splace";
+  if (proc === "q" && scan(e.t) && scan(nx.t)) return detail === "coarse" || e.t === "place" ? 0.28 : 1;
+  if (proc === "t" && split(e.t) && split(nx.t)) return 0.14;
   return 1;
 }
 const SEQKEY = k => k.startsWith("tf") || k === "tq" || k === "qa";
@@ -1553,15 +1564,14 @@ function qsMsg(e) {
     return pre + lst(c.elems) + " (<i>n</i> = " + n + " ≥ <i>k</i>): the sample is its first " + K + " elements " +
            lst(c.sample) + ", whose median <i>P</i> = " + key(c.P) + " becomes the pivot (finding the median is not counted).";
   }
+  if (e.t === "place") return "The pivot " + key(c.P) + " itself needs no comparison: it moves to the middle segment.";
   if (e.t === "cmp") {
-    if (e.x === c.P) return "The pivot itself: " + key(e.x) + " = " + key(c.P) + ". We count this one too, so partitioning " +
-                            "<i>n</i> elements costs exactly <i>n</i> comparisons.";
     if (e.res === 0) return "Compare " + key(e.x) + " with <i>P</i> = " + key(c.P) + ": equal, so it joins the pivot in the middle segment and is finished for good.";
     return "Compare " + key(e.x) + " with <i>P</i> = " + key(c.P) + ": " + key(e.x) + " " + rel(e.res) + " " + key(c.P) +
            ", so it goes to the " + (e.res < 0 ? "left" : "right") + " segment.";
   }
   if (e.t === "done") {
-    let s = "Partitioning " + lst(c.elems) + " around " + key(c.P) + " is done (" + n + " comparison" + (n > 1 ? "s" : "") + "): " +
+    let s = "Partitioning " + lst(c.elems) + " around " + key(c.P) + " is done (" + (n - 1) + " comparison" + (n === 2 ? "" : "s") + "): " +
             lst(c.L1) + " | " + (c.L2.length > 1 ? c.L2.length + " × " : "") + key(c.P) + " | " + lst(c.L3) +
             ", each part in its original relative order. ";
     const kids = [c.L1.length ? "left" : null, c.L3.length ? "right" : null].filter(Boolean);
@@ -1579,15 +1589,13 @@ function trMsg(e) {
     return "Compare with node " + key(e.P) + ": " + key(x) + " " + rel(e.res) + " " + key(e.P) + ", go " + (e.res < 0 ? "left." : "right.");
   }
   if (K === 1) {
-    if (e.t === "append") return "It reaches an empty leaf, which (with <i>k</i> = 1) is full right away and splits: " +
-                                 key(x) + " is compared with itself (" + key(x) + " = " + key(x) + "), just like a pivot in Quicksort,";
-    if (e.t === "newnode") return "and pops out as a new node.";
+    if (e.t === "newnode") return "It reaches an empty leaf and pops out there as a new node, without any comparison (just like a pivot in Quicksort).";
     return "";
   }
   if (e.t === "append") return "It squeezes into a leaf buffer (now " + e.len + " element" + (e.len > 1 ? "s" : "") +
                                (e.len < K ? ", room for " + (K - 1) : "") + ").";
   if (e.t === "full") return "The buffer overflows with <i>k</i> = " + K + " elements " + lst(e.buf) + ": it partitions itself around its median " +
-                             key(e.P) + " (" + K + " comparisons, the same pivot Quicksort picks from its sample): " +
+                             key(e.P) + " (" + (K - 1) + " comparisons, the same pivot Quicksort picks from its sample): " +
                              lst(e.L) + " | " + (e.E.length > 1 ? e.E.length + " × " : "") + key(e.P) + " | " + lst(e.R) + ".";
   if (e.t === "newnode") return "The median pops out as a new inner node; the two halves become its leaves" +
                                 (e.E.length > 1 ? ", its duplicates are dropped." : ".");
@@ -1808,13 +1816,12 @@ function randomInput() {
 
 /* ---------- presentation mode ------------------------------------------- */
 
-function setPresent(on, fullscreen) {
+/* presentation mode only hides the chrome; it never changes the window (no fullscreen),
+   so a screen-capture region set up in advance stays valid */
+function setPresent(on) {
   present = on;
   document.body.classList.toggle("present", on);
   document.body.classList.toggle("ptext", on && el("ptextChk").checked);
-  if (on && fullscreen && document.documentElement.requestFullscreen && !document.fullscreenElement)
-    document.documentElement.requestFullscreen().catch(() => {});
-  if (!on && document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
   window.scrollTo(0, 0);
   relayout();
 }
@@ -1854,7 +1861,7 @@ function applyURL() {
     loaded = loadText(el("inputText").value, k);
   }
   if (!loaded) loadPreset(0);
-  if (p.get("present") === "1") setPresent(true, false);
+  if (p.get("present") === "1") setPresent(true);
 }
 
 /* ---------- splitters --------------------------------------------------- */
@@ -1969,7 +1976,7 @@ function init() {
   el("playBtn").addEventListener("click", () => playing ? stopPlay() : startPlay());
   el("scrubber").addEventListener("input", e => { stopPlay(); const s = valToStep(Number(e.target.value)); if (s !== cur) go(s, { animate: false }); else renderTransport(); });
   el("scrubber").addEventListener("change", () => renderTransport());
-  el("presentBtn").addEventListener("click", () => setPresent(true, true));
+  el("presentBtn").addEventListener("click", () => setPresent(true));
   el("exitBtn").addEventListener("click", () => setPresent(false));
   el("ptextChk").addEventListener("change", () => document.body.classList.toggle("ptext", present && el("ptextChk").checked));
   el("linkBtn").addEventListener("click", () => {
@@ -1978,17 +1985,17 @@ function init() {
     if (navigator.clipboard) navigator.clipboard.writeText(u).catch(() => {});
   });
   document.addEventListener("keydown", e => {
-    if (e.target.closest("textarea, input[type=text], input[type=number], select")) return;
+    const tg = e.target && e.target.closest ? e.target : document.body;
+    if (tg.closest("textarea, input[type=text], input[type=number], select")) return;
     const k = e.key;
     if (k === "ArrowRight" || k === "PageDown") { e.preventDefault(); stopPlay(); go(cur + 1); }
     else if (k === "ArrowLeft" || k === "PageUp") { e.preventDefault(); stopPlay(); go(cur - 1); }
     else if (k === "Home") { e.preventDefault(); stopPlay(); go(0, { animate: false }); }
     else if (k === "End") { e.preventDefault(); stopPlay(); go(steps.length - 1, { animate: false }); }
-    else if (k === " " && !e.target.closest("button")) { e.preventDefault(); playing ? stopPlay() : startPlay(); }
+    else if (k === " " && !tg.closest("button")) { e.preventDefault(); playing ? stopPlay() : startPlay(); }
     else if (k === "Escape" && present) { setPresent(false); }
-    else if ((k === "p" || k === "P") && !e.ctrlKey && !e.metaKey) { setPresent(!present, !present); }
+    else if ((k === "p" || k === "P") && !e.ctrlKey && !e.metaKey) { setPresent(!present); }
   });
-  document.addEventListener("fullscreenchange", () => { if (present) setTimeout(relayout, 80); });
   initSplitters();
   initHover();
   let rt = null;

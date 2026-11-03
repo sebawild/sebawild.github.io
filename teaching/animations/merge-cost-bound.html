@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The merge-cost bound of Powersort and Peeksort, animated</title>
+<script>
+  /* MathJax: TeX in \( \), Euler letters, SVG output (also used for the labels inside the drawings) */
+  window.MathJax = {
+    tex: { inlineMath: [["\\(", "\\)"]] },
+    loader: { load: ["[mathjax-euler-extension]/svg"],
+              paths: { "mathjax-euler-extension": "https://cdn.jsdelivr.net/npm/@mathjax/mathjax-euler-font-extension@4" } },
+    svg: { fontCache: "none", mtextInheritFont: true },
+    output: { linebreaks: { inline: false } },
+    options: { enableMenu: false },
+    startup: { typeset: false }
+  };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js"></script>
+<style>
+  /* Same token values as /css/animations.css, repeated so the page also works when opened directly. */
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#9c866d;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1; --wi-ramp-lo:#e5c0b4; --wi-ramp-hi:#902015;
+    --wi-font-body:texgyrepagella, "TeX Gyre Pagella", Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-font-mono:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    /* page tints, mixed from the palette (as on the slides: runs red!80!black!20, leaves !5, merge results black!80!red!20) */
+    --t-run:#ead0c4; --t-run-line:#5b3a33; --t-leaf:#f5e6dd; --t-leaf-line:#8e5d52;
+    --t-merged:#d9c3be; --t-merged-line:#4c2a24;
+    --t-range:#f0d4a0;   /* the subarray of the current call (sand) */
+    --t-found:#b9d8e4;   /* the run around the middle (blue)        */
+    --t-known:#f2c0ac;   /* a run known from a Δ (salmon)           */
+    --t-green:#62a84e;   /* the perfectly balanced tree of the global grid (as on the slides) */
+    --t-power:#2438c4;
+    --t-sieve:#e07b10;   /* the sieves: orange, as on the slides */   /* powers and run-midpoint intervals (blue, as on the slides)       */
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .wi-topbar { display:flex; align-items:baseline; justify-content:space-between; gap:1em; flex-wrap:wrap;
+               margin:0 0 1.1em; padding-bottom:.5em; border-bottom:1px solid var(--wi-border);
+               font-family:var(--wi-font-head); letter-spacing:.03em; }
+  .wi-topbar .wi-home { color:var(--wi-ink-strong); font-size:1.05em; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:14px 22px; flex-wrap:wrap; margin:0 0 6px; }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 14px; max-width:100ch; line-height:1.5; }
+
+  /* --- chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:11px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .lbl, .ctl > label:not(.chk) { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer; line-height:1.35;
+           transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text; font-size:1.02rem; line-height:1.1;
+                padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  input.tokens { font-family:var(--wi-font-mono); font-size:.8rem; width:22em; max-width:100%; }
+  input.num { width:4.2em; }
+  .seg { display:inline-flex; flex-wrap:wrap; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  .seg button.on:hover:not(:disabled) { background:var(--wi-accent-dark); color:var(--wi-panel-2); }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+  .hidden { display:none !important; }
+
+  /* --- transport: buttons, step slider with phase bar --- */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:16px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; }
+  /* the step slider: a 16 px thumb, whose centre travels from 8 px to width − 8 px — exactly the span of the phase bar */
+  input.scrub { -webkit-appearance:none; appearance:none; display:block; width:100%; height:16px; margin:2px 0 0;
+                background:transparent; cursor:pointer; }
+  input.scrub::-webkit-slider-runnable-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; box-sizing:border-box; width:16px; height:16px;
+                margin-top:-6px; border-radius:50%; background:var(--wi-accent); border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  input.scrub::-moz-range-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-moz-range-thumb { box-sizing:border-box; width:16px; height:16px; border-radius:50%; background:var(--wi-accent);
+                border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint); white-space:nowrap; text-align:right; padding-top:2px; }
+  .phasebar { display:flex; margin:6px 8px 0; height:1.55rem; }
+  .phasebtn { flex:none; position:relative; overflow:hidden; padding:0; min-width:0; height:100%;
+              font-size:.68rem; line-height:1.55rem; font-family:var(--wi-font-head); letter-spacing:.02em; text-align:center;
+              background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-left-width:0;
+              border-radius:0; color:var(--wi-ink-faint); cursor:pointer; white-space:nowrap; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3; border-right:1px solid var(--wi-accent-soft); }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+  .phasebtn.k-merge:not(.on) { background:#f1e8e2; }
+
+  /* --- stage --- */
+  .stage { display:grid; grid-template-columns:minmax(0, var(--lf, 58fr)) 18px minmax(320px, var(--rf, 42fr)); gap:0; align-items:start; }
+  @media (max-width:980px) { .stage { grid-template-columns:1fr; gap:16px; } .splitter { display:none !important; } }
+  .splitter { align-self:stretch; min-height:200px; cursor:col-resize; touch-action:none; display:flex; justify-content:center; }
+  .splitter::before { content:""; width:4px; margin:30px 0; border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .splitter:hover::before, .splitter.drag::before, .splitter:focus-visible::before { background:var(--wi-accent-soft); }
+  .splitter:focus-visible { outline:none; }
+  .col-main, .col-side { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  @media (min-width:981px) { .col-side { position:sticky; top:10px; } }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); padding:11px 13px; min-width:0; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--wi-ink-faint);
+               margin:0 0 8px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--wi-font-body); font-size:1.15em; color:var(--wi-ink-soft); }
+  svg.stagesvg { display:block; background:var(--wi-bg); border-radius:var(--wi-radius); }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:8px; font-size:.74rem; color:var(--wi-ink-soft); align-items:center; }
+  .legend .item { display:inline-flex; align-items:center; gap:6px; }
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius);
+            padding:9px 13px; font-size:.9rem; color:var(--wi-ink-strong); min-height:6.6em; }
+  .status .yes { color:var(--wi-relax); font-weight:bold; }
+  .status .no  { color:var(--wi-active); font-weight:bold; }
+  .vars { display:flex; flex-wrap:wrap; gap:6px 12px; font-size:.86rem; align-items:baseline; min-height:3.2em; }
+  .vars .v { background:var(--wi-panel-2); padding:0 6px; border-radius:3px; white-space:nowrap; }
+  .vars .v.chg { background:#f6e6df; box-shadow:inset 0 0 0 1px var(--wi-accent-soft); }
+  .vars .k { color:var(--wi-ink-faint); font-family:var(--wi-font-head); font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; }
+  .vars .grp { display:inline-flex; gap:6px 10px; flex-wrap:wrap; align-items:baseline; }
+  .vars .cnt { margin-left:auto; display:flex; gap:12px; }
+  .vars .cnt code { font-family:var(--wi-font-mono); font-size:.84em; background:var(--wi-panel-2); padding:1px 5px; border-radius:3px; }
+  .stack { font-size:.8rem; line-height:1.9; margin-top:6px; color:var(--wi-ink-soft); }
+  .stack code { font-family:var(--wi-font-mono); font-size:.84em; background:var(--wi-panel-2); padding:1px 4px; border-radius:3px; white-space:nowrap; }
+  .stack code.top { background:#f6e6df; color:var(--wi-accent); box-shadow:inset 0 0 0 1px var(--wi-accent-soft); }
+  .stack .sep { color:var(--wi-ink-faint); margin:0 3px; }
+
+  /* code panel: the pseudocode of the slides */
+  .codebox { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  .codebox > .sim-title { padding:10px 15px 0; }
+  .codescroll { position:relative; max-height:calc(100vh - 330px); min-height:200px; overflow:auto; padding:0 6px 10px; }
+  .sublabel { font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.09em; text-transform:uppercase;
+              color:var(--wi-ink-faint); padding:10px 12px 3px; border-top:1px solid var(--wi-border-soft); margin-top:6px;
+              display:flex; justify-content:space-between; gap:10px; }
+  .sublabel:first-child { border-top:0; margin-top:0; padding-top:4px; }
+  .sublabel .src { text-transform:none; letter-spacing:0; font-family:var(--wi-font-body); font-size:1.1em; }
+  .cline { display:flex; gap:10px; padding:1px 9px; font-size:.84rem; line-height:1.7; color:var(--wi-ink-strong);
+           border-left:3px solid transparent; align-items:center; }
+  .cline .ln { color:var(--wi-ink-faint); min-width:1.3em; text-align:right; user-select:none; flex:none; font-size:.8em; align-self:flex-start; padding-top:.2em; }
+  .cline .tx { white-space:nowrap; }
+  .cline .cm { color:var(--wi-ink-faint); font-style:italic; }
+  .cline.caller { background:#f3ebdd; border-left-color:var(--wi-accent-soft); }
+  .cline.on { background:#f6e6df; border-left-color:var(--wi-active); }
+  .codenote { font-size:.74rem; color:var(--wi-ink-faint); padding:2px 15px 12px; line-height:1.45; }
+  .about { font-size:.82rem; line-height:1.55; color:var(--wi-ink-soft); }
+  .about p { margin:0 0 6px; }
+  .about b { color:var(--wi-ink-strong); font-family:var(--wi-font-head); font-weight:normal; letter-spacing:.04em; font-size:.92em; }
+  mjx-container[jax="SVG"] { color:inherit; }
+
+  /* input editor */
+  details.editor { margin-top:16px; background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:11px 16px; font-family:var(--wi-font-head); font-size:.78rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,340px) 1fr; gap:16px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  textarea { width:100%; height:150px; font-family:var(--wi-font-mono); font-size:.78rem; background:var(--wi-panel-2);
+             color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.78rem; color:var(--wi-ink-soft); line-height:1.55; }
+  .hint code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; font-family:var(--wi-font-mono); }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+
+  /* SVG text */
+  .sv-idx  { font-family:var(--wi-font-mono); font-size:11px; fill:var(--wi-ink-faint); text-anchor:middle; }
+  .sv-val  { font-family:var(--wi-font-mono); font-size:14px; fill:var(--wi-ink-strong); text-anchor:middle; }
+  .sv-val.dim { fill:var(--wi-ink-faint); }
+  .sv-len  { font-family:var(--wi-font-mono); font-size:10.5px; fill:var(--wi-ink-soft); text-anchor:middle; }
+  .sv-row  { font-family:var(--wi-font-body); font-size:13.5px; fill:var(--wi-ink-soft); }
+  .sv-note { font-family:var(--wi-font-body); font-size:13.5px; fill:var(--wi-ink-soft); }
+  .sv-note.bad { fill:var(--wi-ink-faint); font-style:italic; }
+  .sv-badge{ font-family:var(--wi-font-body); font-size:15px; font-weight:bold; text-anchor:middle; dominant-baseline:central; fill:var(--wi-panel-2); }
+  .sv-pow  { font-family:var(--wi-font-body); font-size:15px; font-style:italic; font-weight:bold; fill:var(--t-power); }
+  .sv-pow.big { font-size:17px; }
+  .sv-pile { font-family:var(--wi-font-mono); font-size:12px; font-weight:bold; fill:var(--wi-ink-strong); text-anchor:middle; }
+  #pfSvg { cursor:default; }
+  #pfText { height:7.8em; min-height:0; overflow-y:auto; }
+  .readout { font-size:.86rem; color:var(--wi-ink-strong); background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+             border-radius:var(--wi-radius); padding:7px 13px; margin-top:10px; height:4.9em; overflow-y:auto; line-height:1.6; }
+  .readout .dim { color:var(--wi-ink-faint); }
+  .gridctl { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin:0 0 10px; font-size:.84rem; }
+  .gridctl .glab { color:var(--wi-ink-faint); transition:color .2s; }
+  .gridctl .glab.on { color:var(--wi-accent); font-weight:bold; }
+  .gridctl input#gT { width:200px; accent-color:var(--wi-accent); }
+  .mj-buf  { position:absolute; left:-10000px; top:0; visibility:hidden; }
+  @keyframes pop { from { opacity:.2; } to { opacity:1; } }
+  .sv-pop { animation:pop .35s ease-out both; }
+  /* merge: an element flies from (--dx, --dy) to its new place */
+  @keyframes fly { 0% { transform:translate(var(--dx), var(--dy)); opacity:0; } 12% { opacity:1; } 100% { transform:none; opacity:1; } }
+  .fly { animation:fly .55s cubic-bezier(.45,.05,.3,1) both; }
+
+  /* presentation view */
+  .only-p { display:none !important; }
+  body.present .only-p { display:inline-flex !important; }
+  body.present .hide-p { display:none !important; }
+  body.present h1 { font-size:1.9rem; }
+  .exitp { position:fixed; top:10px; right:12px; z-index:20; font-size:.75rem; opacity:.5; }
+  .exitp:hover, .exitp:focus-visible { opacity:1; }
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls { gap:8px 12px; padding:10px 12px; }
+    .seg button { padding:5px 9px; font-size:.74rem; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { animation-duration:.001ms !important; transition-duration:.001ms !important; } }
+  /* the proofs, spelled out */
+  .proofs { padding:0 22px 18px; font-size:.92rem; line-height:1.6; max-width:110ch; }
+  .proofs h3 { font-size:1rem; margin:18px 0 6px; }
+  .proofs p { margin:0 0 10px; }
+  .proofs b { font-family:var(--wi-font-head); font-weight:normal; letter-spacing:.04em; color:var(--wi-ink-strong); }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption { font-family: var(--wi-font-head); letter-spacing: .05em; }
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar hide-p">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1 id="pageTitle">The merge-cost bound</h1>
+  <span class="ctl hide-p"><button id="presBtn" title="A clutter-free view for the lecture (Esc to leave)">Presentation view</button></span>
+</div>
+<button id="exitPres" class="only-p exitp" title="Leave the presentation view (Esc)">✕ leave presentation</button>
+<p class="subtitle hide-p">Why Powersort and Peeksort merge with a cost of at most about \(n(\mathscr H + 2)\) — the proofs, animated.
+  The merge cost as piles of runs. For Powersort, the intervals between run midpoints fall through sieves of ever finer grids, which bounds every pile.
+  For Peeksort, each merge pays for itself, from an entropy budget and from credits of the runs.</p>
+
+<div class="controls hide-p">
+  <div class="ctl">
+    <label for="presetSel">Input</label>
+    <select id="presetSel"></select>
+  </div>
+  <div class="ctl">
+    <input type="text" id="tokIn" class="tokens" spellcheck="false" aria-label="Input elements, separated by spaces">
+    <button id="tokSet" class="pri">Set</button>
+  </div>
+  <div class="ctl">
+    <label for="genN">n</label>
+    <input type="number" id="genN" class="num" min="2" max="256" value="40">
+  </div>
+</div>
+
+<div class="sim-box" id="view-proof">
+  <div class="sim-title"><span>The proof, animated</span><span class="rhs" id="pfMeta"></span></div>
+  <div class="gridctl">
+    <span class="seg" id="pfMethod"><button data-m="power" class="on">Powersort</button><button data-m="peek">Peeksort</button></span>
+    <span class="ctl" style="gap:6px">
+      <button id="pfReset" class="icon" title="Back to the start" aria-label="Back to the start">&#x21BA;</button>
+      <button id="pfBack" class="icon" title="Previous scene or step (←)" aria-label="Previous scene or step">&#x23EE;&#xFE0E;</button>
+      <button id="pfPlay" class="icon pri" title="Play / pause (space)" aria-label="Play">&#x25B6;&#xFE0E;</button>
+      <button id="pfFwd" class="icon" title="Next scene or step (→)" aria-label="Next scene or step">&#x23ED;&#xFE0E;</button>
+    </span>
+    <span class="progress">
+      <input type="range" class="scrub" id="pfScrub" min="0" max="100000" value="0" step="1" aria-label="Time">
+      <div class="phasebar" id="pfBar"></div>
+    </span>
+    <span class="stepno" id="pfTime" style="min-width:13ch"></span>
+    <select id="pfSpeed" aria-label="Speed"><option value="0.5">½ ×</option><option value="1" selected>1 ×</option><option value="2">2 ×</option></select>
+  </div>
+  <div class="status" id="pfText" style="margin-bottom:10px"></div>
+  <div id="pfWrap"><svg id="pfSvg" class="stagesvg"></svg></div>
+  <div class="readout" id="pfRead"></div>
+</div>
+
+
+<details class="editor hide-p" id="proofsBox">
+  <summary>The proofs, spelled out</summary>
+  <div class="proofs" id="proofsBody">
+    <h3>Setting</h3>
+    <p>The input consists of runs \(R_1, \ldots, R_r\) of lengths \(\ell_1, \ldots, \ell_r\), and \(n = \ell_1 + \cdots + \ell_r\).
+      Both methods merge along a binary <em>merge tree</em> whose leaves are the runs; a merge costs the length of its result.
+      With \(\operatorname{depth}(R_i)\), the number of merges that \(R_i\) takes part in,
+      \[ M \;=\; \sum_{\text{merges } P} |P| \;=\; \sum_{i=1}^{r} \ell_i \cdot \operatorname{depth}(R_i). \]
+      The entropy of the run lengths is \(\mathscr H = \sum_i \frac{\ell_i}{n} \lg\frac{n}{\ell_i}\), so \(n\mathscr H = \sum_i \ell_i \lg\frac{n}{\ell_i}\).</p>
+
+    <h3>Theorem 1 (Powersort): \(M \le n(\mathscr H + 2)\)</h3>
+    <p><b>Powers.</b> Let \(\mu_i\) be the middle of the run \(R_i\), as a position in \([0, n]\). The boundary between \(R_{i-1}\) and \(R_i\)
+      (\(2 \le i \le r\)) has the <em>midpoint interval</em> \(I_i = (\mu_{i-1}, \mu_i]\) and the <em>power</em>
+      \[ P_i \;=\; \min\bigl\{\, p \ge 1 \;:\; I_i \text{ contains a multiple of } n\,2^{-p} \,\bigr\}, \qquad P_1 = P_{r+1} = 0. \]</p>
+    <p><b>The tree.</b> Powersort’s merge tree is the Cartesian tree of the powers: the root is the boundary of smallest power, and the two
+      subtrees are built in the same way from the boundaries to its left and to its right. Within a part, the smallest power is attained
+      only once. Two multiples of \(n\,2^{-p}\) in the intervals of two of its boundaries would enclose a multiple of \(n\,2^{-(p-1)}\), which
+      lies in the interval of a boundary in between, with a smaller power. Hence powers strictly increase along every path down the tree. The
+      ancestors of \(R_i\) are boundaries with distinct powers, from \(1\) up to the power of its parent, which is the larger of its two
+      neighbouring boundaries:
+      \[ \operatorname{depth}(R_i) \;\le\; \max\{P_i, P_{i+1}\}. \]</p>
+    <p><b>Long intervals have small powers.</b> An interval \((a, b]\) of length at least \(n\,2^{-p}\) contains a multiple of \(n\,2^{-p}\),
+      wherever it lies — this is what the moving sieve shows.</p>
+    <p><b>The intervals are long.</b> \(I_i\) contains the left half of \(R_i\), and \(I_{i+1}\) its right half; both are of length \(\ell_i/2\).
+      Let \(d_i\) be the level with \(2^{-d_i} \le \frac{\ell_i/2}{n} \lt 2^{-d_i+1}\), i.e. \(d_i = \lceil \lg(n/\ell_i) + 1 \rceil\).
+      Then \(n\,2^{-d_i} \le \ell_i/2\), so \(P_i \le d_i\) and \(P_{i+1} \le d_i\), and
+      \[ \operatorname{depth}(R_i) \;\le\; d_i \;\lt\; \lg\frac{n}{\ell_i} + 2. \]</p>
+    <p><b>The sum.</b> \(\displaystyle M = \sum_i \ell_i \operatorname{depth}(R_i) \;\le\; \sum_i \ell_i \Bigl(\lg\frac{n}{\ell_i} + 2\Bigr) = n\mathscr H + 2n.\) ∎</p>
+
+    <h3>Theorem 2 (Peeksort): \(M \le n\mathscr H + 2n - \ell_1 - \ell_r\)</h3>
+    <p>Here a single run can be deeper than \(\lg(n/\ell_i) + 2\) — see the preset “a run deeper than its share” — so the bound has to be
+      proved for the sum. For a part \(P\) of the merge tree (a range of consecutive runs, \(|P|\) elements) let
+      \[ E(P) \;=\; \sum_{R \subseteq P} \ell_R \lg\frac{|P|}{\ell_R}, \]
+      let \(M(P)\) be the cost of the merges inside \(P\), and \(\ell_{\mathrm{first}}(P)\), \(\ell_{\mathrm{last}}(P)\) the lengths of its first
+      and its last run. \(h(x) = -x\lg x - (1-x)\lg(1-x)\) is the binary entropy.</p>
+    <p><b>Claim.</b> For every part \(P\): \(\;M(P) \;\le\; E(P) + 2|P| - \ell_{\mathrm{first}}(P) - \ell_{\mathrm{last}}(P)\).
+      For the whole input, \(E = n\mathscr H\), and this is the theorem.</p>
+    <p><b>Proof</b> by induction over the tree. A single run has \(M = E = 0\) and \(2\ell - \ell - \ell = 0\). Now let \(P = A[\ell..r)\) be cut
+      at \(g\) into \(P' = A[\ell..g)\) and \(P'' = A[g..r)\), and \(x = |P'|/|P|\). The merge costs \(|P|\), and by the chain rule of entropy
+      \[ E(P) \;=\; E(P') + E(P'') + |P|\,h(x). \]
+      The outer runs of \(P'\) and \(P''\) are those of \(P\), plus the two runs at the cut. So the induction hypothesis for both parts gives
+      \[ M(P) \;=\; |P| + M(P') + M(P'') \;\le\; E(P) + 2|P| - \ell_{\mathrm{first}}(P) - \ell_{\mathrm{last}}(P)
+         \;+\; \Bigl[\, |P|\bigl(1 - h(x)\bigr) - \ell_{\mathrm{last}}(P') - \ell_{\mathrm{first}}(P'') \,\Bigr], \]
+      and it remains to show that the bracket is at most 0: the <em>gap</em> \(|P|(1 - h(x))\) is paid by the two runs at the cut.</p>
+    <p><b>Convexity.</b> \(\varphi(\delta) = 1 - h(\tfrac12 + \delta)\) is convex on \([0, \tfrac12]\), because \(h\) is concave, with
+      \(\varphi(0) = 0\) and \(\varphi(\tfrac12) = 1\). So it lies below its chord, \(1 - h(\tfrac12 + \delta) \le 2\delta\). With
+      \(\delta = |x - \tfrac12|\), since \(h\) is symmetric,
+      \[ |P|\bigl(1 - h(x)\bigr) \;\le\; 2\delta\,|P| \;=\; |2g - \ell - r|. \]</p>
+    <p><b>The cut is close to the middle.</b> Peeksort takes \(m = \ell + \lfloor (r - \ell)/2 \rfloor\), the run \(R_k = A[i..j)\) with
+      \(i \le m \lt j\), and cuts at \(g = i\) if \(m - i \lt j - m\), else at \(g = j\). Note \(\ell + r - 2m \in \{0, 1\}\).
+      If \(g = i\): as \(m - i \lt j - m\) are integers, \(2(m - i) \le \ell_k - 1\), so \(|2g - \ell - r| = 2(m - i) + (\ell + r - 2m) \le \ell_k\).
+      If \(g = j\): \(2(j - m) \le \ell_k\), so \(|2g - \ell - r| = 2(j - m) - (\ell + r - 2m) \le \ell_k\). Either way
+      \[ |P|\bigl(1 - h(x)\bigr) \;\le\; \ell_k \;\le\; \ell_{\mathrm{last}}(P') + \ell_{\mathrm{first}}(P''), \]
+      because the cut is at an end of \(R_k\): it is the last run of \(P'\) or the first run of \(P''\). ∎</p>
+    <p><b>As in the animation.</b> Unrolling the induction,
+      \[ M \;=\; \sum_P |P| \;=\; \sum_P |P|\,h(x_P) \;+\; \sum_P |P|\bigl(1 - h(x_P)\bigr) \;=\; n\mathscr H + \sum_P \mathrm{gap}_P : \]
+      the budgets (green) add up to \(n\mathscr H\) exactly. Each gap is at most the length of the run \(R_k\) at its cut — that run’s credit
+      for this boundary (gold). Each boundary is cut exactly once, and each run has two boundaries, except the two outer runs, which have one
+      each. So \(\sum_P \mathrm{gap}_P \le 2n - \ell_1 - \ell_r\).</p>
+    <p><b>Why not the same proof for both?</b> The local inequality fails for Powersort. Its cuts lie next to a point of the global grid,
+      which can be far from the middle of the current part. Powersort’s proof uses the global grid instead, and then works run by run.</p>
+  </div>
+</details>
+
+<details class="editor hide-p">
+  <summary>Input as text</summary>
+  <div class="editor-body">
+    <div>
+      <textarea id="inputText" spellcheck="false"></textarea>
+      <div style="margin-top:8px"><button class="pri" id="loadBtn">Load</button></div>
+      <div class="err" id="parseErr"></div>
+    </div>
+    <div class="hint">
+      The elements, separated by spaces, commas or line breaks — the format of the
+      <a href="https://algs4.cs.princeton.edu/code/">algs4</a> sorting clients. Only the runs matter here: the maximal increasing stretches.
+      If every element is a number they are compared numerically, otherwise as strings. Lines starting with <code>#</code> are comments.
+      <br><br>
+      Instead of the elements, a line <code>@runs 5 3 3 14 1 2</code> asks for an input with exactly these run lengths, and
+      <code>@seed 3</code> picks another such input.
+      <br><br>
+      At most 256 elements. The same works in the page address, e.g. <code>#runs=26,23,3,19,1&amp;peek</code>
+      (<code>&amp;peek</code> for Peeksort, Powersort otherwise; <code>&amp;present</code> for the presentation view).
+    </div>
+  </div>
+</details>
+
+<script>
+"use strict";
+/* ==========================================================================
+   The merge-cost bound of Powersort and Peeksort, animated.
+
+   gPeek below is a line-by-line transcription of the pseudocode on the slides
+   (printed in the code panel); extendRunRight is the slide's helper, and
+   extendRunLeft is its mirror image ("similar" on the slide), spelled out.
+   The generator yields once per executed line (and per loop test of the run
+   scans); every step is recorded with a snapshot, so one can scrub back and
+   forth.  The merge is a single step: the sorting page shows merging in detail.
+
+   Array positions hold element ids (their position in the input); values live
+   in inp.vals[id], so equal keys can be told apart.
+   ========================================================================== */
+const el  = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const M = s => "\\(" + s + "\\)";                 /* inline TeX */
+const mn = x => x < 0 ? "-" + (-x) : String(x);   /* a number for TeX (− via TeX's minus) */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* ---------- inputs ---------------------------------------------------------- */
+function cmpVals(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
+function makeInput(vals, labels) {
+  const n = vals.length, numeric = vals.every(v => typeof v === "number");
+  let mag;
+  if (numeric) {
+    let mx = -Infinity, mi = Infinity;
+    for (const v of vals) { if (v > mx) mx = v; if (v < mi) mi = v; }
+    mag = mi > 0 ? vals.map(v => v / mx) : vals.map(v => mx === mi ? 1 : 0.06 + 0.94 * (v - mi) / (mx - mi));
+  } else {
+    const dist = [...new Set(vals)].sort(cmpVals), rk = new Map(dist.map((v, i) => [v, i]));
+    mag = vals.map(v => (rk.get(v) + 1) / dist.length);
+  }
+  labels = labels || vals.map(v => String(v));
+  const tot = new Map(), seen = new Map(), occ = [];
+  vals.forEach(v => tot.set(v, (tot.get(v) || 0) + 1));
+  vals.forEach(v => { const c = (seen.get(v) || 0) + 1; seen.set(v, c); occ.push(tot.get(v) > 1 ? c : 0); });
+  return { n, vals, numeric, mag, labels, occ, hasDup: occ.some(x => x > 0) };
+}
+/* the maximal (weakly increasing) runs of a sequence of values: [start, end) pairs */
+function runsOf(vals, ids, lo, hi) {
+  const out = []; let s = lo;
+  for (let k = lo + 1; k <= hi; k++) if (k === hi || cmpVals(vals[ids[k - 1]], vals[ids[k]]) > 0) { out.push([s, k]); s = k; }
+  return out;
+}
+/* the numbers 1..n with exactly the given run lengths: random runs, every boundary a descent */
+function valsFromRuns(L, seed) {
+  const n = L.reduce((a, b) => a + b, 0), rng = mulberry32(seed * 7919 + n);
+  for (let t = 0; t < 2000; t++) {
+    const p = []; for (let i = 1; i <= n; i++) p.push(i);
+    for (let i = n - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const x = p[i]; p[i] = p[j]; p[j] = x; }
+    const A = []; let s = 0;
+    for (const len of L) { A.push(...p.slice(s, s + len).sort((a, b) => a - b)); s += len; }
+    let ok = true; s = 0;
+    for (let q = 0; q + 1 < L.length; q++) { s += L[q]; if (!(A[s - 1] > A[s])) { ok = false; break; } }
+    if (ok) return A;
+  }
+  const A = []; let top = n;                       /* fallback: each run below the previous one */
+  for (const len of L) { top -= len; for (let k = 1; k <= len; k++) A.push(top + k); }
+  return A;
+}
+function genVals(kind, n, rng) {
+  const v = []; for (let i = 1; i <= n; i++) v.push(i);
+  if (kind === "reversed") return v.reverse();
+  if (kind === "random") { for (let i = n - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = v[i]; v[i] = v[j]; v[j] = t; } return v; }
+  return v;                                        /* sorted */
+}
+function randomRuns(n, rng) {
+  const L = []; let s = 0;
+  while (s < n) { const len = Math.min(n - s, 1 + Math.floor(rng() * Math.max(2, Math.round(n / 4)))); L.push(len); s += len; }
+  return L;
+}
+
+/* ---------- MathJax: typeset HTML off-screen and swap it in; labels inside the SVG drawings ---------- */
+const mjReady = () => !!(window.MathJax && MathJax.typesetPromise && MathJax.startup && MathJax.startup.document);
+function setMath(node, html) {
+  if (node._want === html) return;
+  node._want = html;
+  if (!mjReady()) { node.innerHTML = html; return; }
+  if (node._busy) return;                          /* the newest request is picked up when this one is done */
+  node._busy = true;
+  const want = html, tmp = document.createElement("div"), cs = getComputedStyle(node);
+  tmp.className = "mj-buf"; tmp.style.fontSize = cs.fontSize; tmp.style.fontFamily = cs.fontFamily; tmp.innerHTML = want;
+  document.body.appendChild(tmp);
+  MathJax.typesetPromise([tmp]).then(() => {
+    if (MathJax.typesetClear) MathJax.typesetClear([node]);
+    node.replaceChildren(...tmp.childNodes);
+  }).catch(() => { node.innerHTML = want; }).finally(() => {
+    tmp.remove(); node._busy = false;
+    if (node._want !== want) { const w = node._want; node._want = null; setMath(node, w); }
+  });
+}
+const MJL = new Map(); let mjAgain = 0;
+function mjSvg(tex) {
+  const c = MJL.get(tex);
+  if (c) return c === 1 ? null : c;
+  if (!mjReady()) return null;
+  MJL.set(tex, 1);
+  MathJax.tex2svgPromise(tex, { display: false }).then(node => {
+    const sv = node.querySelector("svg");
+    MJL.set(tex, { vb: sv.getAttribute("viewBox").split(/[\s,]+/).map(Number), inner: sv.innerHTML });
+    if (!mjAgain) mjAgain = requestAnimationFrame(() => { mjAgain = 0; proofRender(); });
+  }).catch(() => MJL.delete(tex));
+  return null;
+}
+let MEASURE = null;
+const BODYFONT = () => getComputedStyle(document.body).fontFamily;
+function textW(s, font) {
+  if (!MEASURE) MEASURE = document.createElement("canvas").getContext("2d");
+  MEASURE.font = font; return MEASURE.measureText(s).width;
+}
+/* TeX at (x, baseline y); returns { w, svg }.  Until MathJax has it, a plain stand-in. */
+function mathAt(tex, x, y, fs, anchor, color, plain) {
+  const c = mjSvg(tex);
+  if (!c) {
+    const w = textW(plain, "italic " + fs + "px " + BODYFONT());
+    return { w, svg: '<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" style="font:italic ' + fs + 'px var(--wi-font-body);fill:' + color + ';text-anchor:' + (anchor || "start") + '">' + esc(plain) + "</text>" };
+  }
+  const [, vy, vw, vh] = c.vb, w = vw / 1000 * fs, h = vh / 1000 * fs;
+  const left = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w : x;
+  return { w, svg: '<svg x="' + left.toFixed(1) + '" y="' + (y + vy / 1000 * fs).toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + h.toFixed(1) +
+                   '" viewBox="' + c.vb.join(" ") + '" overflow="visible" style="color:' + color + '">' + c.inner + "</svg>" };
+}
+/* stand-ins for TeX, while MathJax loads */
+const PLAIN = { "\\ell": "ℓ", "\\Delta_\\ell": "Δℓ", "\\Delta_r": "Δr", "\\Delta_g": "Δg", "\\Delta_0": "Δ0", "\\Delta_n": "Δn", "\\tfrac12": "½" };
+const plainOf = t => PLAIN[t] || t.replace(/\\Delta_\\ell/g, "Δℓ").replace(/\\Delta_([a-z0-9])/g, "Δ$1").replace(/\\ell/g, "ℓ").replace(/[{}\\]/g, "");
+
+
+/* ==========================================================================
+   Shared with the Peeksort page: inputs, small helpers, the two merge trees
+   ========================================================================== */
+const MAX_N = 256, PH_MIN = 30, SCALE = 100000;
+const D = { mode: "proof", inp: null, text: "", runs: null, seed: 1, preset: "slide" };
+const SVG_DEFS = '<defs>' +
+  '<marker id="hd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--wi-accent-dark)"/></marker>' +
+  '<marker id="hq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--wi-queue)"/></marker>' +
+  '<marker id="ho" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9" fill="none" stroke="var(--wi-ink-faint)" stroke-width="1.4"/></marker>' +
+  '<marker id="hs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--wi-accent)"/></marker></defs>';
+function setSvg(svg, out, W) {
+  svg.setAttribute("width", W); svg.setAttribute("height", out.h); svg.setAttribute("viewBox", "0 0 " + W + " " + out.h);
+  svg.innerHTML = SVG_DEFS + out.body;
+}
+/* a slanted fraction, as on the slides (¹⁄₂) */
+const sfrac = (a, b) => "{}^{" + a + "}\\!\\!/\\!{}_{" + b + "}";
+
+/* the two merge trees, from the runs: Powersort's (top-down: Mehlhorn's Method 2′, the global grid) and Peeksort's */
+function treeGlobal(R) {
+  const mu = R.map(([a, b]) => (a + b) / 2), n = R[R.length - 1][1], nodes = [];
+  const rec = (i, j, lo, hi, d, from, parent) => {
+    if (i === j) { nodes.push({ key: R[i][0] + ":" + R[i][1], l: R[i][0], r: R[i][1], leaf: true, parent }); return nodes.length - 1; }
+    const p = (lo + hi) / 2;                                        /* the middle: a point of the global grid at level d */
+    if (p <= mu[i]) return rec(i, j, p, hi, d + 1, from, parent);   /* the cut would be at the left end: next level, right half */
+    if (p > mu[j]) return rec(i, j, lo, p, d + 1, from, parent);    /* … at the right end: next level, left half */
+    let k = i + 1; while (!(mu[k - 1] < p && p <= mu[k])) k++;       /* the run containing p, its closer end (= the boundary of power d) */
+    const id = nodes.length;
+    nodes.push({ key: R[i][0] + ":" + R[j][1], l: R[i][0], r: R[j][1], g: R[k][0], row: d, from, ref: p, a: mu[k - 1], b: mu[k], parent });
+    nodes[id].kids = [rec(i, k - 1, lo, p, d + 1, d + 1, id), rec(k, j, p, hi, d + 1, d + 1, id)];
+    return id;
+  };
+  rec(0, R.length - 1, 0, n, 1, 1, -1);
+  return nodes;
+}
+function treeLocal(R) {
+  const nodes = [];
+  const rec = (i, j, d, parent) => {
+    if (i === j) { nodes.push({ key: R[i][0] + ":" + R[i][1], l: R[i][0], r: R[i][1], leaf: true, parent }); return nodes.length - 1; }
+    const l = R[i][0], r = R[j][1], m = l + Math.floor((r - l) / 2);   /* peeksort, line 4 */
+    let q = i; while (R[q][1] <= m) q++;                              /* the run A[i..j) containing A[m] (lines 5, 6) */
+    const [i0, j0] = R[q], g = m - i0 < j0 - m ? i0 : j0;            /* line 7 */
+    let k = i; while (R[k][0] !== g) k++;
+    const id = nodes.length;
+    nodes.push({ key: l + ":" + r, l, r, g, row: d, from: d, ref: (l + r) / 2, m, parent });
+    nodes[id].kids = [rec(i, k - 1, d + 1, id), rec(k, j, d + 1, id)];
+    return id;
+  };
+  rec(0, R.length - 1, 1, -1);
+  return nodes;
+}
+/* the power of each run boundary, by definition (for the tests): the least p such that a multiple of n/2^p lies in (μ_{k−1}, μ_k] */
+function boundaryPowers(R) {
+  const n = R[R.length - 1][1], P = [];
+  for (let k = 1; k < R.length; k++) {
+    const A = R[k - 1][0] + R[k - 1][1], B = R[k][0] + R[k][1];
+    let p = 1; while (Math.floor(A * 2 ** p / (2 * n)) === Math.floor(B * 2 ** p / (2 * n))) p++;
+    P.push(p);
+  }
+  return P;
+}
+const treeCost = T => T.filter(v => !v.leaf).reduce((s, v) => s + v.r - v.l, 0);
+
+/* ==========================================================================
+   Tab "Merge cost ≤ n(𝓗 + 2)": the proof of the slides, animated.
+
+   Scenes: the merge tree → each merge result split into vertical slabs, one per run
+   below it → the slabs fall into piles (width ℓ_i, height depth(R_i)) → (Powersort)
+   the intervals between run midpoints → split at the run boundaries into halves of
+   length ℓ_i/2 → sieves of spacing n·2^−d, d = 1, 2, …, moved back and forth, let
+   every half through that is shorter than the spacing → a half comes to rest at the
+   first d with n·2^−d ≤ ℓ_i/2, i.e. d = ⌈lg(n/ℓ_i) + 1⌉ → bound the piles.
+   Everything is a pure function of the time T, so the timeline can be scrubbed.
+   ========================================================================== */
+const PV = { hover: -1, hoverM: -1, method: "power", T: 0, play: false, speed: 1, raf: 0, last: 0, key: "", S: null };
+const RUNPAL = ["#c4563f", "#d99a3e", "#5d8f5f", "#4a78a8", "#8b6a93", "#c27596", "#4f9c97", "#a8843f", "#6f86c4", "#9a5b4c"];
+const runCol = i => RUNPAL[i % RUNPAL.length];
+const smooth = x => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+const seg01 = (t, a, b) => clamp((t - a) / (b - a), 0, 1);
+
+/* everything that depends only on the input and the method */
+function proofSetup() {
+  const key = D.text + "|" + PV.method;
+  if (PV.key === key && PV.S) return PV.S;
+  PV.key = key;
+  const R = runsOf(D.inp.vals, Array.from({ length: D.n }, (_, i) => i), 0, D.n), n = D.n;
+  const T = PV.method === "power" ? treeGlobal(R) : treeLocal(R);
+  /* ancestors of each run, nearest first: the merges it takes part in */
+  const leafOf = new Map(); T.forEach((v, id) => { if (v.leaf) leafOf.set(v.l, id); });
+  const anc = R.map(([a]) => { const out = []; let v = T[leafOf.get(a)]; while (v.parent >= 0) { out.push(v.parent); v = T[v.parent]; } return out; });
+  const depth = anc.map(a => a.length);
+  const cost = R.reduce((s, [a, b], i) => s + (b - a) * depth[i], 0);
+  const dRest = R.map(([a, b]) => Math.ceil(Math.log2(n / (b - a)) + 1 - 1e-12));       /* ⌈lg(n/ℓ) + 1⌉ */
+  const rows = Math.max(1, ...T.filter(v => !v.leaf).map(v => v.row));
+  const S = { R, n, T, anc, depth, cost, dRest, rows, Dmax: Math.max(...dRest), scenes: [] };
+  /* the scenes */
+  const add = (key, names, dur) => S.scenes.push({ key, names, dur });
+  add("tree", ["merge tree", "tree", "T"], 1.4);
+  add("color", ["cost per run", "cost", "c"], 2.6);
+  add("piles", ["piles", "piles", "p"], 3.2);
+  if (PV.method === "power") {
+    add("intervals", ["midpoint intervals", "intervals", "i"], 2.8);
+    add("split", ["halves", "halves", "h"], 2.2);
+    proofSieve(S);
+    const ph = S.sieve.phases, first = ph.length ? ph[0].start : S.sieve.end;
+    add("sieve", ["into the sieves", "drop", "↓"], first);
+    ph.forEach((p, j) => add("sieve", ["sieve d = " + p.d, "d = " + p.d, String(p.d)], (j + 1 < ph.length ? ph[j + 1].start : S.sieve.end) - p.start));
+    add("bound", ["the bound", "bound", "b"], 3.2);
+  } else {
+    amortSetup(S);
+    add("credits", ["credits", "credits", "c"], 2.6);
+    for (const mg of S.merges) { const sc = { key: "merge", names: ["merge " + mg.l + ".." + mg.r, mg.l + ".." + mg.r, "·"], dur: MSUB_DUR, mg }; S.scenes.push(sc); mg.scene = sc; }
+    add("sum", ["the sum", "sum", "Σ"], 3.4);
+  }
+  let t = 0; for (const sc of S.scenes) { sc.start = t; t += sc.dur; } S.total = t;
+  const sv = S.scenes.find(x => x.key === "sieve"); S.sieveStart = sv ? sv.start : Infinity;
+  S.stops = [];
+  for (const sc of S.scenes) { S.stops.push(sc.start); if (sc.key === "merge") for (const x of MSUB_T.slice(1)) S.stops.push(sc.start + x.start); }
+  S.stops.push(S.total);
+  PV.S = S;
+  return S;
+}
+
+/* ---- Peeksort: the amortized proof, one merge at a time ----------------------------------
+   For a merge P → L | R with x = |L|/|P|:  cost |P| (a box of height 1)
+     = budget |P|·h(x)  (blocks of heights lg(|P|/|L|), lg(|P|/|R|), melted to the level h(x))
+     + gap |P|(1 − h(x)),   and   gap ≤ 2δ|P| ≤ ℓ_k   (δ = |x − ½|; 1 − h(½+δ) ≤ 2δ by convexity;
+   the cut is at the closer end of the run R_k containing m, at most ℓ_k/2 from the middle).
+   The budgets of all merges add up to n𝓗 exactly (chain rule); each gap is paid by the credit of
+   R_k at the boundary that is cut; every boundary is cut once, so all gaps ≤ 2n − ℓ_1 − ℓ_r.       */
+const H2 = x => x <= 0 || x >= 1 ? 0 : -(x * Math.log2(x) + (1 - x) * Math.log2(1 - x));
+function amortSetup(S) {
+  const { R, T } = S;
+  S.merges = [];
+  T.forEach((v, id) => {
+    if (v.leaf) return;
+    const P = v.r - v.l, x = (v.g - v.l) / P, hx = H2(x);
+    const q = R.findIndex(([a, b]) => v.m >= a && v.m < b), b = R.findIndex(([a]) => a === v.g);   /* R_k; the boundary is between runs b−1 and b */
+    S.merges.push({ id, l: v.l, r: v.r, g: v.g, m: v.m, P, x, hx, gap: P * (1 - hx), two: Math.abs(2 * v.g - v.l - v.r), k: q, kLeft: q === b - 1, bnd: b,
+                    bL: Math.log2(P / (v.g - v.l)), bR: Math.log2(P / (v.r - v.g)) });
+  });
+  S.Hn = R.reduce((s, [a, b]) => s + (b - a) * Math.log2(S.n / (b - a)), 0);
+  S.gapSum = S.merges.reduce((s, m) => s + m.gap, 0);
+}
+
+/* the sieve, simulated: halves fall as soon as no tick of their level lies in them */
+const SV = { release: 0.7, fall: 0.26, osc: 2.6, pause: 0.3 };
+function proofSieve(S) {
+  const { R, n, Dmax } = S, halves = [];
+  R.forEach(([a, b], i) => {
+    const mid = (a + b) / 2;
+    if (i > 0) halves.push({ run: i, a, b: mid, side: "L" });              /* in the interval of the boundary on its left */
+    if (i < R.length - 1) halves.push({ run: i, a: mid, b, side: "R" });   /* … and on its right */
+  });
+  const sp = d => n / 2 ** d;
+  const blocked = (h, d, o) => { const s = sp(d); const k = Math.ceil((h.a - o) / s - 1e-9); return k * s + o <= h.b + 1e-9; };
+  for (const h of halves) { h.moves = []; h.row = 0; }
+  const chain = (h, t) => {                          /* fall from h.row through static (unshifted) sieves */
+    for (;;) { h.moves.push({ t, from: h.row, to: h.row + 1 }); t += SV.fall; h.row++; if (h.row >= Dmax || blocked(h, h.row, 0)) return t; }
+  };
+  let t = SV.release, last = t;
+  for (const h of halves) last = Math.max(last, chain(h, t));
+  const phases = [];
+  t = last + SV.pause;
+  for (let d = 1; d <= Dmax; d++) {
+    const here = halves.filter(h => h.row === d);
+    if (!here.length) continue;
+    const ph = { d, start: t, end: t + SV.osc };
+    phases.push(ph);
+    let lastLand = ph.end;
+    for (const h of here) {
+      const N = 1200;
+      for (let k = 0; k <= N; k++) {
+        const tt = t + k / N * SV.osc;
+        if (!blocked(h, d, proofOffset(ph, tt, n))) { lastLand = Math.max(lastLand, chain(h, tt)); break; }
+      }
+    }
+    for (const h of here) if (h.row === d) h.restPhase = ph;     /* blocked all the way: at rest for good */
+    t = lastLand + SV.pause;
+  }
+  for (const h of halves) h.final = h.row;
+  S.halves = halves; S.sieve = { phases, end: t + 0.6 }; S.sp = sp;
+}
+/* the offset of the moving sieve: 0 → +s/2 → −s/2 → 0, i.e. once through all shifts */
+function proofOffset(ph, t, n) {
+  if (!ph || t <= ph.start || t >= ph.end) return 0;
+  const s = n / 2 ** ph.d, u = (t - ph.start) / (ph.end - ph.start);
+  return u < 0.25 ? s / 2 * (u / 0.25) : u < 0.75 ? s / 2 - s * ((u - 0.25) / 0.5) : -s / 2 + s / 2 * ((u - 0.75) / 0.25);
+}
+function halfRow(h, t) {                             /* fractional row of a half at time t (relative to the sieve scene) */
+  let r = 0;
+  for (const m of h.moves) { if (t < m.t) break; const u = (t - m.t) / SV.fall; if (u < 1) return m.from + u * u; r = m.to; }
+  return r;
+}
+
+function svgProof(W, T) {
+  const S = proofSetup(), { R, n, depth, anc, dRest } = S, tree = S.T;
+  const sc = S.scenes, idx = sc.findIndex(s => T < s.start + s.dur), cur = idx < 0 ? sc.length - 1 : idx;
+  const at = k => { const s = sc.find(x => x.key === k); return s ? clamp((T - s.start) / s.dur, 0, 1) : 0; };   /* progress of a scene */
+  const reached = k => { const s = sc.find(x => x.key === k); return s ? T >= s.start : false; };
+  const pColor = at("color"), pPiles = at("piles"), pInt = at("intervals"), pSplit = at("split"), pBound = at("bound");
+  const sieveS = sc.find(x => x.key === "sieve"), tS = sieveS ? T - sieveS.start : -1;
+  const padL = 86, padR = PV.method === "power" ? 150 : 210, u = (W - padL - padR) / n, X = k => padL + k * u, f = x => x.toFixed(1);
+  const BH = 18, rowH = 62, top = 16;
+  const bMax = PV.method === "power" ? S.Dmax : Math.max(...S.depth, ...R.map(([a, b]) => Math.log2(n / (b - a)) + 2));
+  const pileH = (bMax + 1.6) * BH + 16, treeH = Math.max(S.rows * rowH, pileH);
+  const rowY = d => top + (d - 1) * rowH, leafY = top + treeH;
+  const ivY = leafY + BH + 26, sieveTop = ivY + 40, sieveH = 32, sieveY = d => sieveTop + (d - 1) * sieveH;
+  /* once the tree has become piles, the picture moves up by the height the tree needed beyond the piles */
+  const lift = treeH - pileH, liftNow = lift * smooth(seg01(pPiles, 0.82, 1));
+  const hU = 40, CAP = 2.4, tokY = leafY + BH + 5, wbY = tokY + 16 + (CAP + 0.4) * hU + 14;   /* peeksort: credits, then the workbench */
+  const H = PV.method === "power" ? Math.max(leafY + BH + 30, sieveTop + (S.Dmax - 1) * sieveH + 26 - lift) : Math.max(leafY + BH + 30, wbY + 64 - lift);
+  PV.geo = { padL, u, n, leafY, BH, lift: liftNow };
+  let back = "", body = "", over = "";
+  const hits = []; PV.hits = hits;
+  /* the tree: merge results as boxes, edges to the merge node on the cut */
+  const edgesOp = 1 - smooth(pPiles * 3);
+  if (edgesOp > 0.003) for (const v of tree) if (v.parent >= 0) {
+    const p = tree[v.parent], px = X(p.g), py = rowY(p.row) + BH / 2;
+    const cx = v.leaf ? X((v.l + v.r) / 2) : X(v.g), cy = v.leaf ? leafY : rowY(v.row) + BH / 2;
+    back += '<line x1="' + f(cx) + '" y1="' + f(cy) + '" x2="' + f(px) + '" y2="' + f(py) + '" stroke="#a69e93" stroke-width="3" stroke-linecap="round" opacity="' + (0.65 * edgesOp).toFixed(3) + '"/>';
+  }
+  /* slabs: node v × run i; in the tree, then falling into the pile of run i */
+  R.forEach(([a, b], i) => {
+    anc[i].forEach((id, k) => {                       /* k = 0: the merge right above the run */
+      const v = tree[id], yT = rowY(v.row), yP = leafY - (k + 1) * BH;
+      const st = 0.08 + 0.55 * k / Math.max(1, S.rows), mv = smooth(seg01(pPiles, st, st + 0.42));
+      const y = yT + (yP - yT) * mv, cAmt = smooth(seg01(pColor, 0.1 + 0.5 * (v.row - 1) / Math.max(1, S.rows), 0.5 + 0.5 * (v.row - 1) / Math.max(1, S.rows)));
+      const fill = cAmt > 0 ? runCol(i) : "var(--t-merged)";
+      body += '<rect x="' + f(X(a) + 0.6) + '" y="' + f(y) + '" width="' + f((b - a) * u - 1.2) + '" height="' + BH + '" fill="var(--t-merged)" stroke="var(--t-merged-line)" stroke-width=".9"/>';
+      hits.push({ x0: X(a), x1: X(b), y0: y, y1: y + BH, id });
+      if (cAmt > 0) body += '<rect x="' + f(X(a) + 0.6) + '" y="' + f(y) + '" width="' + f((b - a) * u - 1.2) + '" height="' + BH + '" fill="' + fill + '" opacity="' + (0.72 * cAmt).toFixed(3) + '" stroke="' + runCol(i) + '" stroke-width=".9"/>';
+    });
+  });
+  /* outlines of the merge results, and the merge nodes, while it is still a tree */
+  if (edgesOp > 0.003) for (const v of tree) if (!v.leaf) {
+    const y = rowY(v.row);
+    over += '<g opacity="' + edgesOp.toFixed(3) + '"><rect x="' + f(X(v.l)) + '" y="' + y + '" width="' + f((v.r - v.l) * u) + '" height="' + BH + '" rx="3" fill="none" stroke="var(--t-merged-line)" stroke-width="1.3"/>' +
+            '<circle cx="' + f(X(v.g)) + '" cy="' + (y + BH / 2) + '" r="6.5" fill="#cfc7bf" stroke="var(--wi-ink-strong)" stroke-width="1.5"/></g>';
+  }
+  /* the runs (leaves) */
+  R.forEach(([a, b], i) => {
+    body += '<rect x="' + f(X(a) + 0.6) + '" y="' + leafY + '" width="' + f((b - a) * u - 1.2) + '" height="' + BH + '" rx="2" fill="' + runCol(i) + '" stroke="var(--wi-ink-strong)" stroke-width="1"/>' +
+            ((b - a) * u >= 16 ? '<text class="sv-len" x="' + f(X((a + b) / 2)) + '" y="' + (leafY + 13) + '" style="fill:#fff;font-weight:bold">' + (b - a) + "</text>" : "");
+  });
+  /* pile annotations: height = depth, width = ℓ */
+  const pCred = at("credits"), annOp = smooth(seg01(pPiles, 0.8, 1)), braceOp = annOp * (1 - smooth(seg01(pInt, 0, 0.15))) * (1 - smooth(seg01(pCred, 0, 0.3))), numOp = annOp * (1 - smooth(seg01(pBound, 0, 0.3)));
+  if (annOp > 0.003) {
+    let s = "";
+    R.forEach(([a, b], i) => {
+      const yTop = leafY - depth[i] * BH;
+      s += '<text class="sv-pile" x="' + f(X((a + b) / 2)) + '" y="' + f(yTop - 5) + '" opacity="' + (numOp / Math.max(annOp, 1e-6)).toFixed(3) + '">' + depth[i] + "</text>";
+    });
+    /* the general labels on the widest pile */
+    let w = 0; R.forEach(([a, b], i) => { if ((b - a) > R[w][1] - R[w][0]) w = i; });
+    const [a, b] = R[w], y0 = leafY - depth[0] * BH;
+    s += '<g opacity="' + (braceOp / Math.max(annOp, 1e-6)).toFixed(3) + '"><path d="M' + f(X(a)) + "," + (leafY + BH + 6) + " v4 H" + f(X(b)) + " v-4" + '" fill="none" stroke="var(--wi-ink-soft)" stroke-width="1"/>' +
+         mathAt("\\ell_i", X((a + b) / 2), leafY + BH + 22, 15, "middle", "var(--wi-ink-soft)", "ℓi").svg + "</g>" +
+         '<path d="M' + f(X(0) - 5) + "," + f(y0) + " h-4 V" + leafY + " h4" + '" fill="none" stroke="var(--wi-ink-soft)" stroke-width="1"/>' +
+         mathAt("\\operatorname{depth}(R_i)", X(0) - 13, (y0 + leafY) / 2 + 5, 14, "end", "var(--wi-ink-soft)", "depth(Ri)").svg;
+    over += '<g opacity="' + annOp.toFixed(3) + '">' + s + "</g>";
+  }
+  if (PV.method === "power" && reached("intervals")) {
+    /* the midpoint intervals: drawn from midpoint to midpoint, then broken at the run boundary */
+    const mid = i => (R[i][0] + R[i][1]) / 2, BLUE = "var(--t-power)";
+    const gap = 3 * smooth(seg01(pSplit, 0.15, 0.5)), recol = smooth(seg01(pSplit, 0.4, 0.8));
+    const dropY = tS >= 0 ? null : ivY;
+    if (tS < 0) {
+      for (let k = 1; k < R.length; k++) {
+        const x0 = X(mid(k - 1)), x1 = X(mid(k)), xb = X(R[k][0]);
+        const g0 = smooth(seg01(pInt, 0.05 + 0.6 * (k - 1) / R.length, 0.35 + 0.6 * (k - 1) / R.length)), xe = x0 + (x1 - x0) * g0;
+        if (g0 <= 0) continue;
+        const y = ivY;
+        let s = '<line x1="' + f(x0) + '" x2="' + f(x0) + '" y1="' + (leafY + BH / 2) + '" y2="' + (y + 6) + '" stroke="' + BLUE + '" stroke-width="1.1" stroke-dasharray="3 3" opacity=".7"/>';
+        if (g0 >= 1) s += '<line x1="' + f(x1) + '" x2="' + f(x1) + '" y1="' + (leafY + BH / 2) + '" y2="' + (y + 6) + '" stroke="' + BLUE + '" stroke-width="1.1" stroke-dasharray="3 3" opacity=".7"/>';
+        if (pSplit <= 0) {                        /* one interval, (·····] */
+          s += '<path d="M' + f(x0 + 5) + "," + (y - 6) + " Q" + f(x0) + "," + y + " " + f(x0 + 5) + "," + (y + 6) + " M" + f(x0 + 1.5) + "," + y + " L" + f(xe) + "," + y +
+               (g0 >= 1 ? " M" + f(x1 - 4) + "," + (y - 6) + " L" + f(x1) + "," + (y - 6) + " L" + f(x1) + "," + (y + 6) + " L" + f(x1 - 4) + "," + (y + 6) : "") + '" fill="none" stroke="' + BLUE + '" stroke-width="2.4"/>';
+          if (g0 >= 1) { const P = boundaryPowers(R)[k - 1]; s += '<text class="sv-pow" x="' + f((x0 + x1) / 2) + '" y="' + (y - 9) + '" text-anchor="middle" opacity="' + smooth(seg01(pInt, 0.7, 1)).toFixed(3) + '">' + P + "</text>"; }
+        } else {                                  /* broken at the boundary: the half in R_{k−1}, the half in R_k */
+          const cL = recol > 0 ? runCol(k - 1) : BLUE, cR = recol > 0 ? runCol(k) : BLUE;
+          s += '<path d="M' + f(x0 + 5) + "," + (y - 6) + " Q" + f(x0) + "," + y + " " + f(x0 + 5) + "," + (y + 6) + " M" + f(x0 + 1.5) + "," + y + " L" + f(xb - gap) + "," + y + '" fill="none" stroke="' + cL + '" stroke-width="2.4"/>' +
+               '<path d="M' + f(xb + gap) + "," + y + " L" + f(x1) + "," + y + " M" + f(x1 - 4) + "," + (y - 6) + " L" + f(x1) + "," + (y - 6) + " L" + f(x1) + "," + (y + 6) + " L" + f(x1 - 4) + "," + (y + 6) + '" fill="none" stroke="' + cR + '" stroke-width="2.4"/>';
+        }
+        body += s;
+      }
+      if (pSplit > 0.6) {                           /* ℓ/2 */
+        const op = smooth(seg01(pSplit, 0.6, 0.95));
+        R.forEach(([a, b], i) => {
+          if ((b - a) * u / 2 < 22) return;
+          const lab = x => '<text class="sv-len" x="' + f(X(x)) + '" y="' + (ivY + 17) + '" opacity="' + op.toFixed(3) + '">' + ((b - a) / 2) + "</text>";
+          if (i > 0) body += lab((3 * a + b) / 4);
+          if (i < R.length - 1) body += lab((a + 3 * b) / 4);
+        });
+      }
+    }
+    /* the sieves and the falling halves */
+    if (tS >= 0) {
+      const ORANGE = "var(--t-sieve)", rowsOp = smooth(seg01(tS, 0, SV.release));
+      const ph = S.sieve.phases.find(p => tS >= p.start && tS < p.end);
+      for (let d = 1; d <= S.Dmax; d++) {
+        const y = sieveY(d), s = S.sp(d), o = ph && ph.d === d ? proofOffset(ph, tS, n) : 0, act = ph && ph.d === d;
+        let g = '<line x1="' + f(X(0) - 10) + '" x2="' + f(X(n) + 10) + '" y1="' + y + '" y2="' + y + '" stroke="' + ORANGE + '" stroke-width="' + (act ? 2.4 : 1.8) + '"/>';
+        for (let k = Math.floor((-10 / u - o) / s); k * s + o <= n + 10 / u; k++) {
+          const x = X(k * s + o);
+          if (x < X(0) - 10 || x > X(n) + 10) continue;
+          g += '<line x1="' + f(x) + '" x2="' + f(x) + '" y1="' + (y - 7) + '" y2="' + (y + 5) + '" stroke="' + ORANGE + '" stroke-width="' + (act ? 2.4 : 1.8) + '"/>';
+        }
+        const num = x => +(x.toFixed(3)), lo = num(n * 2 ** (1 - d)), hi = num(n * 2 ** (2 - d));
+        const hv = PV.hover >= 0 && S.dRest[PV.hover] === d;
+        g += mathAt("d = " + d, 8, y + 5, 15, "start", act ? "var(--wi-accent)" : "var(--wi-ink-soft)", "d = " + d).svg +
+             mathAt("n/2^{" + d + "} = " + num(s), X(n) + 16, y + 5, 12, "start", "var(--wi-ink-faint)", "n/2^" + d).svg +
+             /* the runs whose halves rest on this sieve: n·2^(1−d) ≤ ℓ < n·2^(2−d) */
+             mathAt(d === 1 ? "\\ell = n = " + n : lo + " \\le \\ell < " + hi, W - 6, y - 11, 13.5, "end", hv ? "var(--wi-active)" : "var(--t-power)",
+                    d === 1 ? "l = n" : lo + " ≤ l < " + hi).svg;
+        back += '<g opacity="' + rowsOp.toFixed(3) + '">' + g + "</g>";
+      }
+      for (const h of S.halves) {
+        const r = halfRow(h, tS), y = r <= 0 ? ivY : r < 1 ? ivY + (sieveY(1) - 9 - ivY) * r : sieveY(Math.floor(r)) - 9 + (r % 1) * sieveH;
+        const x0 = X(h.a) + (h.side === "R" ? 0 : 1.5), x1 = X(h.b) - (h.side === "L" ? 0 : 1.5), c = runCol(h.run);
+        body += h.side === "L"
+          ? '<path d="M' + f(x0) + "," + f(y) + " L" + f(x1) + "," + f(y) + " M" + f(x1 - 4) + "," + f(y - 5) + " L" + f(x1) + "," + f(y - 5) + " L" + f(x1) + "," + f(y + 5) + " L" + f(x1 - 4) + "," + f(y + 5) + '" fill="none" stroke="' + c + '" stroke-width="2.6"/>'
+          : '<path d="M' + f(x0 + 5) + "," + f(y - 5) + " Q" + f(x0) + "," + f(y) + " " + f(x0 + 5) + "," + f(y + 5) + " M" + f(x0 + 1.5) + "," + f(y) + " L" + f(x1) + "," + f(y) + '" fill="none" stroke="' + c + '" stroke-width="2.6"/>';
+      }
+      /* a run's d, once both its halves have stayed on their level through its sieve */
+      R.forEach(([a, b], i) => {
+        const hs = S.halves.filter(h => h.run === i);
+        if (!hs.length || !hs.every(h => h.restPhase && tS >= h.restPhase.end)) return;
+        const d = hs[0].final;
+        over += '<text class="sv-pow" x="' + f(X((a + b) / 2)) + '" y="' + (sieveY(d) + 18) + '" text-anchor="middle">' + d + "</text>";
+      });
+    }
+    /* the bound: d for every run, drawn over its pile */
+    if (pBound > 0) {
+      const op = smooth(seg01(pBound, 0, 0.4));
+      let s = "";
+      R.forEach(([a, b], i) => {
+        const hD = dRest[i] * BH, g = smooth(seg01(pBound, 0.05 + 0.4 * i / R.length, 0.3 + 0.4 * i / R.length));
+        s += '<rect x="' + f(X(a) + 1.5) + '" y="' + f(leafY - hD * g) + '" width="' + f((b - a) * u - 3) + '" height="' + f(hD * g) + '" fill="none" stroke="' + runCol(i) + '" stroke-width="1.8" stroke-dasharray="5 3"/>';
+        if (g >= 1) s += '<text class="sv-pow" x="' + f(X((a + b) / 2)) + '" y="' + f(leafY - hD - 5) + '" text-anchor="middle">' +
+                         ((b - a) * u >= 40 ? '<tspan style="fill:var(--wi-ink-strong);font-style:normal">' + depth[i] + " ≤ </tspan>" : "") + dRest[i] + "</text>";
+      });
+      over += '<g opacity="' + op.toFixed(3) + '">' + s + "</g>";
+    }
+  }
+  if (PV.method === "peek" && reached("credits")) {
+    const r = proofPeek(S, T, { X, u, f, leafY, BH, tokY, wbY, hU, CAP, W });
+    body += r.body; over += r.over;
+  }
+  if (PV.method === "power" && PV.hover >= 0 && PV.hover < R.length) {
+    const [a, b] = R[PV.hover], yTop = leafY - Math.max(depth[PV.hover], pBound > 0 ? dRest[PV.hover] : 0) * BH - 22;
+    const yBot = tS >= 0 ? sieveY(S.halves.length ? Math.max(1, ...S.halves.filter(h => h.run === PV.hover).map(h => Math.ceil(halfRow(h, tS)))) : 1) + 22 : leafY + BH + 6;
+    over += '<rect x="' + f(X(a) - 2) + '" y="' + f(yTop) + '" width="' + f((b - a) * u + 4) + '" height="' + f(Math.max(BH + 10, yBot - yTop)) + '" rx="4" fill="none" stroke="var(--wi-active)" stroke-width="1.6" stroke-dasharray="4 3"/>';
+  }
+  return { h: H, body: '<g transform="translate(0,' + (-liftNow).toFixed(1) + ')">' + back + body + over + "</g>", scene: cur };
+}
+
+const GOLD = "#c9962a", GOLD_PALE = "#eadfbf", BUDGET = "#6fa58b";
+/* the steps of one merge: [key, seconds]; the animation of a step runs in its first 70 %, then it holds */
+const MSUB = [["cost", 1.6], ["budget", 2.0], ["melt", 2.4], ["gap", 1.8], ["convex", 5.0], ["squeeze", 3.0], ["credit", 2.4]];
+const MSUB_T = (() => { let t = 0; return MSUB.map(([k, d]) => { const o = { key: k, start: t, dur: d }; t += d; return o; }); })();
+const MSUB_DUR = MSUB_T.reduce((s, x) => s + x.dur, 0);
+const msubAt = t => MSUB_T.find(x => t + 1e-6 < x.start + x.dur) || MSUB_T[MSUB_T.length - 1];   /* +ε: a jump lands exactly on a step's start */
+function proofPeek(S, T, G) {
+  const { R, n, merges, anc } = S, { X, u, f, leafY, BH, tokY, wbY, hU, CAP, W } = G;
+  let body = "", over = "";
+  const cS = S.scenes.find(s => s.key === "credits"), pC = clamp((T - cS.start) / cS.dur, 0, 1);
+  const curSc = S.scenes.find(s => T >= s.start && T < s.start + s.dur) || S.scenes[S.scenes.length - 1];
+  const cur = curSc.key === "merge" ? curSc.mg : null, tl = cur ? T - curSc.start : 0;
+  const sub = k => { const x = MSUB_T.find(y => y.key === k); return smooth(seg01(tl, x.start, x.start + 0.7 * x.dur)); };
+  const subIn = (k, a, b) => { const x = MSUB_T.find(y => y.key === k); return smooth(seg01(tl, x.start + a * x.dur, x.start + b * x.dur)); };
+  const sumS = S.scenes.find(s => s.key === "sum"), pSum = clamp((T - sumS.start) / sumS.dur, 0, 1);
+  const text = (x, y, s, cls, anchor, extra) => '<text class="' + (cls || "sv-note") + '" x="' + f(x) + '" y="' + f(y) + '"' + (anchor ? ' text-anchor="' + anchor + '"' : "") + (extra || "") + ">" + s + "</text>";
+  /* credits: run i has one for its left boundary (row 0) and one for its right boundary (row 1) */
+  const creditStart = MSUB_T.find(y => y.key === "credit").start;
+  const done = mg => T >= mg.scene.start + mg.scene.dur || (cur === mg && tl >= creditStart + 0.75 * MSUB[6][1]);
+  const tokOp = smooth(seg01(pC, 0.15, 0.6));
+  R.forEach(([a, b], i) => {
+    for (const [row, bnd] of [[0, i], [1, i + 1]]) {
+      if (bnd <= 0 || bnd >= R.length) continue;                      /* the outer ends have no boundary */
+      const mg = merges.find(m => m.bnd === bnd), pays = mg && mg.k === i, spent = mg && done(mg);
+      if (cur === mg && pays && tl >= creditStart) continue;          /* it is rising right now (see below) */
+      body += '<rect x="' + f(X(a) + 1) + '" y="' + (tokY + row * 7) + '" width="' + f(Math.max(0.6, (b - a) * u - 2)) + '" height="5" rx="1.5" fill="' +
+              (spent ? (pays ? "var(--wi-ink-faint)" : GOLD_PALE) : GOLD) + '" opacity="' + tokOp.toFixed(3) + '"/>';
+    }
+  });
+  if (pC > 0 && !cur && pSum <= 0) over += text(X(0) - 8, tokY + 10, "credits", "sv-note", "end", ' opacity="' + tokOp.toFixed(3) + '"');
+  /* a merge's layer in the piles: the current one solid, the hovered one dashed */
+  const layer = (mg, dash) => { let s = ""; R.forEach(([a, b], i) => { if (a >= mg.l && b <= mg.r) { const k = anc[i].indexOf(mg.id);
+    s += '<rect x="' + f(X(a) + 0.6) + '" y="' + (leafY - (k + 1) * BH) + '" width="' + f((b - a) * u - 1.2) + '" height="' + BH + '" fill="none" stroke="' + (dash ? "var(--wi-ink-strong)" : "var(--wi-active)") +
+         '" stroke-width="2"' + (dash ? ' stroke-dasharray="4 3"' : "") + "/>"; } }); return s; };
+  if (cur) over += layer(cur, false);
+  const hm = merges.find(m => m.id === PV.hoverM);
+  if (hm && hm !== cur && reached("piles")) over += layer(hm, true);
+  function reached(k) { const s = S.scenes.find(x => x.key === k); return s && T >= s.start + s.dur; }
+  if (cur) {
+    const P = cur.P, xl = X(cur.l), xr = X(cur.r), xg = X(cur.g), [ka, kb] = R[cur.k], xm = X((cur.l + cur.r) / 2);
+    const pb = sub("budget"), pc = sub("melt"), pd = sub("gap"), pe = sub("squeeze"), pf = sub("credit");
+    const cv1 = subIn("convex", 0, 0.3), cv2 = subIn("convex", 0.3, 0.45), cv3 = subIn("convex", 0.45, 0.62), cv4 = subIn("convex", 0.65, 0.82);
+    const dl = Math.abs(cur.x - 0.5);
+    let g = "";
+    /* the cost: a box of height 1 */
+    g += '<rect x="' + f(xl) + '" y="' + (wbY - hU) + '" width="' + f(xr - xl) + '" height="' + hU + '" fill="var(--wi-panel)" stroke="var(--t-merged-line)" stroke-width="1.4"/>';
+    g += text(xl, wbY + 16, "cost |P| = " + P, "sv-note", "start");
+    /* the budget: lg(|P|/|L|) over L, lg(|P|/|R|) over R — melted to the level h(x) */
+    const blk = (x0, x1, bv) => {
+      const shown = Math.min(bv, CAP), hgt = (shown + (cur.hx - shown) * pc) * pb, y = wbY - hgt * hU;
+      let s = '<rect x="' + f(x0 + 0.5) + '" y="' + f(y) + '" width="' + f(x1 - x0 - 1) + '" height="' + f(hgt * hU) + '" fill="' + BUDGET + '" opacity=".75"/>';
+      if (bv > CAP && pc < 0.5) s += '<path d="M' + f(x0 + 0.5) + "," + f(y + 4) + " l" + f((x1 - x0) / 4) + ",-4 l" + f((x1 - x0) / 4) + ",4 l" + f((x1 - x0) / 4) + ",-4 l" + f((x1 - x0) / 4 - 1) + ',4" fill="none" stroke="var(--wi-panel)" stroke-width="1.5"/>';
+      if (pb > 0.9 && pc < 0.2 && x1 - x0 >= 34) s += text((x0 + x1) / 2, y - 5, (+bv.toFixed(2)).toString(), "sv-note", "middle", ' style="font-weight:bold"');
+      return s;
+    };
+    g += blk(xl, xg, cur.bL) + blk(xg, xr, cur.bR);
+    if (pc > 0 && pc < 1) {                                      /* the surplus pours across the cut */
+      const small = cur.x < 0.5, y = wbY - 0.8 * hU, xa = small ? xg - Math.min(30, (xg - xl) / 2) : xg + Math.min(30, (xr - xg) / 2), xb = small ? xg + 26 : xg - 26;
+      g += '<line x1="' + f(xa) + '" y1="' + f(y - 14) + '" x2="' + f(xb) + '" y2="' + f(y) + '" stroke="var(--wi-accent-dark)" stroke-width="2" marker-end="url(#hd)" opacity="' + (Math.sin(Math.PI * pc)).toFixed(3) + '"/>';
+    }
+    if (pc >= 1 && pd <= 0) g += text(xr + 6, wbY - cur.hx * hU + 4, "level h(x) = " + cur.hx.toFixed(3), "sv-note", "start");
+    /* the cut, and the middle */
+    g += '<line x1="' + f(xg) + '" x2="' + f(xg) + '" y1="' + f(wbY - (CAP + 0.25) * hU) + '" y2="' + (wbY + 4) + '" stroke="var(--wi-active)" stroke-width="2" stroke-dasharray="6 4"/>';
+    g += '<path d="M' + f(xm - 5) + "," + (wbY + 10) + " L" + f(xm) + "," + (wbY + 3) + " L" + f(xm + 5) + "," + (wbY + 10) + 'z" fill="var(--wi-accent)"/>' + mathAt(sfrac(1, 2), xm, wbY + 25, 13, "middle", "var(--wi-accent)", "½").svg;
+    if (pd > 0) {
+      const wg = cur.gap * u, w2 = cur.two * u, left = cur.kLeft;
+      const sy0 = wbY - hU, sy1 = wbY - cur.hx * hU;                                       /* the gap: the strip above the level */
+      const ry0 = wbY - 2 * hU - 8, ry1 = wbY - hU - 8;                                    /* squeezed: height 1, next to the cut */
+      const L = (a, b) => a + (b - a) * pe;
+      /* R_k's credit at this boundary rises (behind) */
+      if (pf > 0) {
+        const y0 = tokY + (left ? 7 : 0), yy = y0 + (ry0 - y0) * pf, hh = 5 + (hU - 5) * pf;
+        g += '<rect x="' + f(X(ka) + 1) + '" y="' + f(yy) + '" width="' + f((kb - ka) * u - 2) + '" height="' + f(hh) + '" rx="2" fill="' + GOLD + '" opacity=".55"/>';
+        if (pf > 0.8) g += text((X(ka) + X(kb)) / 2, ry0 - 6, "credit ℓₖ = " + (kb - ka), "sv-note", "middle", ' style="fill:' + GOLD + ';font-weight:bold"');
+      }
+      /* the strip of height 2δ that contains the gap (convexity), squeezed along with it */
+      if (cv4 > 0) {
+        const t0 = wbY - hU, t1 = wbY - (1 - 2 * dl) * hU;
+        g += '<rect x="' + f(L(xl, left ? xg - w2 : xg)) + '" y="' + f(L(t0, ry0)) + '" width="' + f(L(xr - xl, w2)) + '" height="' + f(L(t1 - t0, hU)) + '" fill="none" stroke="var(--wi-ink-strong)" stroke-width="1.4" stroke-dasharray="4 3" opacity="' + cv4.toFixed(3) + '"/>';
+        if (pe <= 0) g += text(xr + 6, t1 - 2, "2δ = " + (2 * dl).toFixed(3), "sv-note", "start", ' opacity="' + cv4.toFixed(3) + '"');
+        if (pe > 0.8) g += text(left ? xg - w2 / 2 : xg + w2 / 2, ry1 + 14, "2δ|P| = " + cur.two, "sv-note", "middle");
+      }
+      g += '<rect x="' + f(L(xl, left ? xg - wg : xg)) + '" y="' + f(L(sy0, ry0)) + '" width="' + f(Math.max(0.5, L(xr - xl, wg))) + '" height="' + f(Math.max(0.5, L(sy1 - sy0, hU))) + '" fill="var(--wi-active)" opacity="' + (0.5 * pd).toFixed(3) + '"/>';
+      if (pe <= 0 && cv4 <= 0) g += text(xr + 6, (sy0 + sy1) / 2 + 4, "gap " + cur.gap.toFixed(2), "sv-note", "start", ' style="fill:var(--wi-active)" opacity="' + pd.toFixed(3) + '"');
+      /* squeeze: the distance from the middle to the cut, and the run R_k that contains the middle */
+      if (pe > 0) {
+        const yb = wbY + 38, op = pe.toFixed(3);
+        g += '<g opacity="' + op + '"><line x1="' + f(Math.min(xm, xg)) + '" x2="' + f(Math.max(xm, xg)) + '" y1="' + yb + '" y2="' + yb + '" stroke="var(--wi-active)" stroke-width="2.2"/>' +
+             [xm, xg].map(x => '<line x1="' + f(x) + '" x2="' + f(x) + '" y1="' + (yb - 5) + '" y2="' + (yb + 5) + '" stroke="var(--wi-active)" stroke-width="2"/>').join("") +
+             text((xm + xg) / 2, yb - 7, "δ|P| = " + (cur.two / 2), "sv-note", "middle", ' style="fill:var(--wi-active)"') +
+             '<rect x="' + f(X(ka) + 1) + '" y="' + (yb + 9) + '" width="' + f((kb - ka) * u - 2) + '" height="6" rx="2" fill="' + GOLD + '"/>' +
+             '<line x1="' + f(X((ka + kb) / 2)) + '" x2="' + f(X((ka + kb) / 2)) + '" y1="' + (yb + 6) + '" y2="' + (yb + 18) + '" stroke="' + GOLD + '" stroke-width="1.5"/>' +
+             text(X(kb) + 6, yb + 16, "Rₖ, length " + (kb - ka), "sv-note", "start") + "</g>";
+      }
+    }
+    body += g;
+    /* the inset: 1 − h(½ + δ) lies below its chord 2δ — drawn in stages */
+    const cvOp = subIn("convex", 0, 0.12);
+    if (cvOp > 0) {
+      const bx = W - 200, by = wbY - 182, bw = 188, bh = 140, Xi = d => bx + 26 + d / 0.5 * (bw - 38), Yi = v => by + bh - 20 - v * (bh - 36);
+      let s = '<rect x="' + bx + '" y="' + by + '" width="' + bw + '" height="' + bh + '" rx="4" fill="var(--wi-panel-2)" stroke="var(--wi-border-soft)"/>' +
+              '<path d="M' + f(Xi(0)) + "," + f(Yi(1.06)) + " V" + f(Yi(0)) + " H" + f(Xi(0.53)) + '" fill="none" stroke="var(--wi-ink-faint)"/>' +
+              text(Xi(0) - 4, Yi(1) + 4, "1", "pl-tick", "end") + text(Xi(0.5), Yi(0) + 13, "½", "pl-tick", "middle") + mathAt("\\delta", Xi(0.535), Yi(0) - 4, 13, "start", "var(--wi-ink-faint)", "δ").svg;
+      let c = ""; const N = Math.max(1, Math.round(40 * cv1));
+      for (let k = 0; k <= N; k++) { const d = k / 80; c += (k ? "L" : "M") + f(Xi(d)) + "," + f(Yi(1 - H2(0.5 + d))); }
+      s += '<path d="' + c + '" fill="none" stroke="var(--wi-active)" stroke-width="2"/>';
+      if (cv1 > 0.95) s += mathAt("1 - h(\\tfrac12 + \\delta)", Xi(0.5), Yi(0.2), 12.5, "end", "var(--wi-active)", "1 − h(½+δ)").svg;
+      if (cv2 > 0) s += '<line x1="' + f(Xi(0)) + '" y1="' + f(Yi(0)) + '" x2="' + f(Xi(0.5 * cv2)) + '" y2="' + f(Yi(cv2)) + '" stroke="var(--wi-ink-strong)" stroke-width="1.4" stroke-dasharray="4 3"/>' +
+                       (cv2 > 0.95 ? mathAt("2\\delta", Xi(0.3), Yi(0.75), 13, "end", "var(--wi-ink-strong)", "2δ").svg : "");
+      if (cv3 > 0) s += '<g opacity="' + cv3.toFixed(3) + '"><line x1="' + f(Xi(dl)) + '" x2="' + f(Xi(dl)) + '" y1="' + f(Yi(0)) + '" y2="' + f(Yi(2 * dl)) + '" stroke="var(--wi-ink-faint)" stroke-dasharray="2 2"/>' +
+                        '<circle cx="' + f(Xi(dl)) + '" cy="' + f(Yi(1 - cur.hx)) + '" r="4" fill="var(--wi-active)"/><circle cx="' + f(Xi(dl)) + '" cy="' + f(Yi(2 * dl)) + '" r="3.5" fill="var(--wi-ink-strong)"/>' +
+                        mathAt("\\delta = |x - \\tfrac12| = " + dl.toFixed(3), bx + bw - 8, by + 16, 12, "end", "var(--wi-ink-soft)", "δ = " + dl.toFixed(3)).svg + "</g>";
+      over += '<g opacity="' + cvOp.toFixed(3) + '">' + s + "</g>";
+    }
+  }
+  /* the sum: per run, its budget lg(n/ℓ) plus its two credits — fine in total, not for every run */
+  if (pSum > 0) {
+    let s = "";
+    R.forEach(([a, b], i) => {
+      const cap = Math.log2(n / (b - a)) + 2, bad = S.depth[i] > cap + 1e-9, hD = cap * BH * smooth(seg01(pSum, 0.05, 0.4));
+      s += '<rect x="' + f(X(a) + 1.5) + '" y="' + f(leafY - hD) + '" width="' + f((b - a) * u - 3) + '" height="' + f(hD) + '" fill="none" stroke="' + (bad ? "var(--wi-active)" : BUDGET) + '" stroke-width="' + (bad ? 2.4 : 1.6) + '" stroke-dasharray="5 3"/>';
+    });
+    over += s;
+    /* three bars: M; n𝓗 + the gaps (= M exactly); n𝓗 + 2n − ℓ1 − ℓr */
+    const cr = 2 * n - (R[0][1] - R[0][0]) - (R[R.length - 1][1] - R[R.length - 1][0]), bnd = S.Hn + cr, sc = 0.62 * (X(n) - X(0)) / bnd, x0 = X(0), op = smooth(seg01(pSum, 0.35, 0.7));
+    const y1 = wbY - 3 * 26, bar = (y, parts, tex, plain) => { let x = x0, o = ""; for (const [w, col, hatch] of parts) { o += '<rect x="' + f(x) + '" y="' + y + '" width="' + f(w * sc) + '" height="16" fill="' + col + '" opacity="' + (hatch ? 0.5 : 0.8) + '"/>'; x += w * sc; }
+                                                           return o + mathAt(tex, x0 + bnd * sc + 10, y + 13, 14, "start", "var(--wi-ink-strong)", plain).svg; };
+    const h1 = S.Hn.toFixed(1), g1 = S.gapSum.toFixed(1);
+    over += '<g opacity="' + op.toFixed(3) + '">' +
+            bar(y1, [[S.cost, "var(--t-merged-line)"]], "M = " + S.cost, "M = " + S.cost) +
+            bar(y1 + 26, [[S.Hn, BUDGET], [S.gapSum, "var(--wi-active)", 1]], "= n\\mathscr H + \\text{gaps} = " + h1 + " + " + g1, "= nH + gaps") +
+            bar(y1 + 52, [[S.Hn, BUDGET], [cr, GOLD]], "\\le n\\mathscr H + 2n - \\ell_1 - \\ell_r = " + h1 + " + " + cr, "≤ nH + 2n − ℓ1 − ℓr") + "</g>";
+  }
+  return { body, over };
+}
+function proofPeekText(S, sc, T) {
+  const { R, n } = S, L1 = R[0][1] - R[0][0], Lr = R[R.length - 1][1] - R[R.length - 1][0];
+  if (sc.key === "credits") return "Every run gets a credit of its own length for each of its two boundaries (gold) — in total " + M("2n - \\ell_1 - \\ell_r = " + (2 * n - L1 - Lr)) +
+        ", as the two outer ends have no boundary. Now the merges, one at a time; click a layer of the piles to jump to its merge, or point at one for its numbers.";
+  if (sc.key === "merge") {
+    const mg = sc.mg, [ka, kb] = R[mg.k], f3 = x => +x.toFixed(3), st = msubAt(T - sc.start).key, dl = Math.abs(mg.x - 0.5);
+    const head = "Merge " + M("P = A[" + mg.l + ".." + mg.r + ")") + " into " + M("A[" + mg.l + ".." + mg.g + ")") + " and " + M("A[" + mg.g + ".." + mg.r + ")") + ". ";
+    switch (st) {
+      case "cost": return head + "It costs " + M("|P| = " + mg.P) + ": one layer of the piles (outlined), drawn below as a box of height 1.";
+      case "budget": return head + "The entropy budget: each element on the left gets " + M("\\lg\\frac{|P|}{|L|} = \\lg\\frac{" + mg.P + "}{" + (mg.g - mg.l) + "} = " + f3(mg.bL)) +
+                            ", each element on the right " + M("\\lg\\frac{|P|}{|R|} = \\lg\\frac{" + mg.P + "}{" + (mg.r - mg.g) + "} = " + f3(mg.bR)) + ". The smaller part shrank by more than half and has more than it needs; the larger part has less.";
+      case "melt": return head + "Pour the surplus across the cut. In total the budget is " + M("|P|\\,h(x) = " + mg.P + " \\cdot h(\\tfrac{" + (mg.g - mg.l) + "}{" + mg.P + "}) = " + (mg.P * mg.hx).toFixed(2)) +
+                          ", so it fills the box up to the level " + M("h(x) = " + f3(mg.hx)) + ".";
+      case "gap": return head + "What remains uncovered on top: the gap " + M("|P|\\,(1 - h(x)) = " + mg.gap.toFixed(2)) + ". Who pays for it?";
+      case "convex": return head + "How big can the gap be? With " + M("\\delta = |x - \\tfrac12| = " + f3(dl)) + ": the function " + M("1 - h(\\tfrac12 + \\delta)") + " is convex, 0 at " + M("\\delta = 0") +
+                            " and 1 at " + M("\\delta = \\tfrac12") + ", so it lies below the chord " + M("2\\delta") + " (inset). Hence the gap lies within a strip of height " + M("2\\delta") +
+                            ": " + M("|P|\\,(1 - h(x)) \\;\\le\\; 2\\delta\\,|P| = " + mg.two) + ".";
+      case "squeeze": return head + M("2\\delta|P| = |2g - \\ell - r| = " + mg.two) + " is twice the distance between the middle and the cut. Peeksort cuts at the closer end of the run " +
+                             M("R_k = A[" + ka + ".." + kb + ")") + " that contains the middle " + M("m = " + mg.m) + ", so the cut is at most half of " + M("R_k") + " away: " + M("2\\delta|P| \\;\\le\\; \\ell_k = " + (kb - ka)) + ".";
+      case "credit": return head + "So the credit of " + M("R_k") + " at this boundary — its length " + M("\\ell_k = " + (kb - ka)) + " — covers the gap: " +
+                            M(mg.gap.toFixed(2) + " \\;\\le\\; " + mg.two + " \\;\\le\\; " + (kb - ka)) + ". This boundary is never cut again, so the credit is used only once.";
+    }
+  }
+  if (sc.key === "sum") {
+    const bnd = S.Hn + 2 * n - L1 - Lr;
+    return M("M = \\sum_P |P| = \\sum_P |P|\\,h(x_P) + \\sum_P \\text{gap}_P = n\\mathscr H + " + S.gapSum.toFixed(1) + " = " + S.cost) + ": the budgets add up to " + M("n\\mathscr H") +
+           " exactly (per element they telescope to " + M("\\lg(n/\\ell_i)") + "). Each gap was paid by one credit, and each boundary is cut only once, so " +
+           M("M \\;\\le\\; n\\mathscr H + 2n - \\ell_1 - \\ell_r \\approx " + bnd.toFixed(1)) + ". For a single run it can fail (red dashed boxes): budget flows across the cuts, from the smaller part to the larger one.";
+  }
+  return "";
+}
+/* the numbers of one merge, for pointing at it */
+function proofMergeReadout(S, mg) {
+  const [ka, kb] = S.R[mg.k], f3 = x => +x.toFixed(3);
+  return "Merge " + M("A[" + mg.l + ".." + mg.r + ") \\to A[" + mg.l + ".." + mg.g + ") \\mid A[" + mg.g + ".." + mg.r + ")") + ": cost " + M("|P| = " + mg.P) +
+         " = budget " + M("|P|\\,h(\\tfrac{" + (mg.g - mg.l) + "}{" + mg.P + "}) = " + (mg.P * mg.hx).toFixed(2)) + " + gap " + M(mg.gap.toFixed(2)) + ".<br>" +
+         "Gap " + M("\\le 2\\delta|P| = " + mg.two + " \\le \\ell_k = " + (kb - ka)) + ", paid by " + M("R_k = A[" + ka + ".." + kb + ")") +
+         " (it contains the middle " + M("m = " + mg.m) + "). Budget per element: " + M(f3(mg.bL)) + " left, " + M(f3(mg.bR)) + " right. Click to step through it.";
+}
+
+/* ---- text of the current scene ---- */
+function proofText(S, cur, T) {
+  const { R, n, depth, dRest } = S, k = S.scenes[cur].key, Ls = R.map(([a, b]) => b - a);
+  if (PV.method === "peek" && ["credits", "merge", "sum"].includes(k)) return proofPeekText(S, S.scenes[cur], T);
+  const tree = PV.method === "power" ? "Powersort" : "Peeksort";
+  const Hn = Ls.reduce((h, l) => h + l * Math.log2(n / l), 0);
+  switch (k) {
+    case "tree": return "The merge tree of " + tree + " for runs of lengths " + Ls.join(", ") + " (" + M("n = " + n) + "). Each merge result is a box over the part it covers; the runs are the leaves.";
+    case "color": return "A merge costs the length of its result. Split that cost among the runs it contains: a run " + M("R_i") + " pays " + M("\\ell_i") + " for every merge above it — the slab of its colour above it.";
+    case "piles": return "Let every run’s slabs fall down onto it: a pile of width " + M("\\ell_i") + " and height " + M("\\operatorname{depth}(R_i)") + ", the number of merges " + M("R_i") + " takes part in. So the merge cost is the total area, " +
+                         M("M \\;=\\; \\sum_i \\ell_i \\cdot \\operatorname{depth}(R_i) \\;=\\; " + S.cost) + "." + (PV.method === "power" ? " It remains to bound the depths." :
+                         " Unlike for Powersort, the piles cannot be bounded one run at a time; instead, each merge pays for itself, from an entropy budget and from credits of the runs.");
+    case "intervals": return "For the boundary between " + M("R_{i-1}") + " and " + M("R_i") + ": the interval from the middle of " + M("R_{i-1}") + " to the middle of " + M("R_i") + ". Its power " + M("P_i") +
+                             " is the first level " + M("d") + " with a multiple of " + M("n\\,2^{-d}") + " in it, and since powers increase along every path, " + M("\\operatorname{depth}(R_i) \\;\\le\\; \\max\\{P_i, P_{i+1}\\}") + ".";
+    case "split": return "Each interval contains one half of each of its two runs. So " + M("R_i") + " gets two halves of length " + M("\\ell_i/2") + ": one in the interval of " + M("P_i") + ", one in that of " + M("P_{i+1}") +
+                         ". All we use about an interval is that it contains such a half: wherever a half is caught by a level, the whole interval is caught, too.";
+    case "sieve": {
+      const tS = T - S.sieveStart, ph = S.sieve.phases.find(p => tS >= p.start - SV.pause && tS < p.end + SV.pause);
+      return "Sieves of increasing density: level " + M("d") + " has a tick at every multiple of " + M("n\\,2^{-d}") + ". A half falls through as soon as no tick is below it. " +
+             (ph ? "Now level " + M("d = " + ph.d) + " moves back and forth by up to half its spacing " + M("n/2^{" + ph.d + "} = " + +(S.sp(ph.d).toFixed(3))) +
+                   ": every half shorter than that finds a gap and falls, wherever it lies; a half of length " + M("\\ge n/2^{" + ph.d + "}") + " always has a tick below it."
+                 : "Moving a sieve through all its shifts lets every half through that is shorter than the spacing — not only those that happen to miss the ticks.");
+    }
+    case "bound": {
+      const sum = Ls.reduce((s, l, i) => s + l * dRest[i], 0);
+      return "A half of " + M("R_i") + " stops at the level " + M("d_i") + " with " + M("2^{-d_i} \\;\\le\\; \\frac{\\ell_i/2}{n} \\;<\\; 2^{-d_i+1}") + ", i.e. " + M("d_i = \\lceil \\lg(n/\\ell_i) + 1\\rceil \\;\\le\\; \\lg(n/\\ell_i) + 2") +
+             ". Both intervals around " + M("R_i") + " contain a half of it, so " + M("P_i, P_{i+1} \\;\\le\\; d_i") + " and " + M("\\operatorname{depth}(R_i) \\;\\le\\; d_i") + " (the dashed boxes). Hence<br>" +
+             M("M = " + S.cost + " \\;\\le\\; \\sum_i \\ell_i d_i = " + sum + " \\;\\le\\; \\sum_i \\ell_i \\bigl(\\lg\\tfrac{n}{\\ell_i} + 2\\bigr) \\;=\\; n(\\mathscr H + 2) \\approx " + (Hn + 2 * n).toFixed(1)) + ".";
+    }
+  }
+  return "";
+}
+
+/* ---- transport: a scene bar like the phase bar of the step-by-step tab ---- */
+function proofBar() {
+  const S = proofSetup(), bar = el("pfBar"), W = bar.getBoundingClientRect().width;
+  if (bar._key !== PV.key || bar.children.length !== S.scenes.length) {
+    bar._key = PV.key;
+    bar.innerHTML = S.scenes.map((s, i) => '<button class="phasebtn" data-s="' + i + '" title="' + esc(s.names[0]) + '"><span class="fill empty"></span><span class="lab"></span></button>').join("");
+    bar.querySelectorAll(".phasebtn").forEach(b => b.onclick = () => { proofPause(); PV.T = S.scenes[+b.dataset.s].start; proofRender(); });
+  }
+  if (!W) return;
+  const k = S.scenes.map(s => s.dur);
+  let w;
+  if (k.length * PH_MIN >= W) w = k.map(() => W / k.length);
+  else {
+    const fixed = new Set();
+    for (;;) {
+      const rest = k.reduce((s, x, i) => fixed.has(i) ? s : s + x, 0), c = (W - fixed.size * PH_MIN) / rest;
+      let more = false; k.forEach((x, i) => { if (!fixed.has(i) && c * x < PH_MIN) { fixed.add(i); more = true; } });
+      if (!more) { w = k.map((x, i) => fixed.has(i) ? PH_MIN : c * x); break; }
+    }
+  }
+  let x = 0; S.pw = w; S.px = w.map(v => { const a = x; x += v; return a; }); S.pW = W;
+  bar.querySelectorAll(".phasebtn").forEach((b, i) => {
+    b.style.width = w[i] + "px";
+    const font = getComputedStyle(b).font;
+    b.querySelector(".lab").textContent = S.scenes[i].names.find(s => textW(s, font) <= w[i] - 5) || "";
+  });
+}
+const proofTimeToVal = (S, T) => { let i = S.scenes.findIndex(s => T < s.start + s.dur); if (i < 0) i = S.scenes.length - 1; const s = S.scenes[i];
+  return Math.round((S.px[i] + clamp((T - s.start) / s.dur, 0, 1) * S.pw[i]) / S.pW * SCALE); };
+const proofValToTime = (S, v) => { const x = v / SCALE * S.pW; let i = 0; while (i + 1 < S.scenes.length && S.px[i + 1] <= x) i++;
+  const s = S.scenes[i]; return s.start + clamp((x - S.px[i]) / S.pw[i], 0, 1) * s.dur; };
+
+function proofReadout(S) {
+  if (PV.method === "peek") {
+    const mg = S.merges && S.merges.find(m => m.id === PV.hoverM);
+    return mg ? proofMergeReadout(S, mg) : '<span class="dim">Point at a merge — a box of the tree, or a layer of the piles — for its numbers: cost, budget and gap, and who pays.</span>';
+  }
+  const i = PV.hover;
+  if (!(i >= 0 && i < S.R.length)) return '<span class="dim">Point at a run to see what it contributes to the merge cost, and its bound.</span>';
+  const [a, b] = S.R[i], l = b - a, n = S.n, dp = S.depth[i], lgv = Math.log2(n / l), share = l * (lgv + 2);
+  let h = M("R_{" + (i + 1) + "} = A[" + a + ".." + b + ")") + ": " + M("\\ell_{" + (i + 1) + "} = " + l) + ", " + M("\\operatorname{depth}(R_{" + (i + 1) + "}) = " + dp) +
+          ", so it contributes " + M("\\ell \\cdot \\operatorname{depth} = " + l + " \\cdot " + dp + " = " + l * dp) + " of " + M("M = " + S.cost) + ".";
+  if (PV.method === "power") {
+    const P = boundaryPowers(S.R), Pi = i > 0 ? P[i - 1] : 0, Pj = i < S.R.length - 1 ? P[i] : 0, d = S.dRest[i];
+    h += "<br>Powers of its boundaries " + M("P_{" + (i + 1) + "} = " + Pi) + ", " + M("P_{" + (i + 2) + "} = " + Pj) + "; bound " +
+         M("d = \\lceil \\lg(" + n + "/" + l + ") + 1 \\rceil = \\lceil " + (lgv + 1).toFixed(3) + " \\rceil = " + d) + ", so " +
+         M(l * dp + " \\;\\le\\; \\ell \\cdot d = " + l * d + " \\;\\le\\; \\ell\\bigl(\\lg\\tfrac{n}{\\ell} + 2\\bigr) = " + l + " \\cdot " + (lgv + 2).toFixed(3) + " = " + share.toFixed(2)) + ".";
+  } else {
+    const ok = l * dp <= share + 1e-9;
+    h += "<br>Its share of " + M("n(\\mathscr H + 2)") + " is " + M("\\ell\\bigl(\\lg\\tfrac{n}{\\ell} + 2\\bigr) = " + l + " \\cdot " + (lgv + 2).toFixed(3) + " = " + share.toFixed(2)) +
+         (ok ? " — its contribution " + M(l * dp) + " fits." : ' — <b>its contribution ' + M(l * dp) + " is larger</b>: for Peeksort the bound holds for the sum, not for every run.");
+  }
+  return h;
+}
+function proofRender() {
+  if (D.mode !== "proof" || !D.inp) return;
+  const S = proofSetup();
+  if (!S.px || el("pfBar")._key !== PV.key) proofBar();
+  PV.T = clamp(PV.T, 0, S.total);
+  const W = Math.max(380, el("pfWrap").clientWidth), out = svgProof(W, PV.T);
+  setSvg(el("pfSvg"), out, W);
+  setMath(el("pfText"), proofText(S, out.scene, PV.T));
+  setMath(el("pfRead"), proofReadout(S));
+  el("pfScrub").value = proofTimeToVal(S, PV.T);
+  el("pfBar").querySelectorAll(".phasebtn").forEach((b, i) => {
+    const s = S.scenes[i], fr = clamp((PV.T - s.start) / s.dur, 0, 1);
+    b.classList.toggle("on", i === out.scene); b.classList.toggle("past", i < out.scene);
+    const fl = b.querySelector(".fill"); fl.style.width = (fr * 100) + "%"; fl.classList.toggle("empty", fr === 0 || fr === 1);
+  });
+  el("pfTime").textContent = PV.T.toFixed(1).padStart(5, " ") + " / " + S.total.toFixed(1) + " s";
+  el("pfMeta").textContent = (PV.method === "power" ? "Powersort" : "Peeksort") + " · merge cost " + S.cost;
+  el("pfPlay").innerHTML = PV.play ? "&#x23F8;&#xFE0E;" : "&#x25B6;&#xFE0E;";
+}
+function proofPlay() {
+  const S = proofSetup();
+  if (PV.play) { proofPause(); return; }
+  if (PV.T >= S.total - 1e-6) PV.T = 0;
+  PV.play = true; PV.last = performance.now();
+  const tick = now => {
+    if (!PV.play) return;
+    PV.T += (now - PV.last) / 1000 * PV.speed; PV.last = now;
+    if (PV.T >= S.total) { PV.T = S.total; PV.play = false; }
+    proofRender();
+    if (PV.play) PV.raf = requestAnimationFrame(tick);
+  };
+  PV.raf = requestAnimationFrame(tick);
+  proofRender();
+}
+function proofPause() { PV.play = false; cancelAnimationFrame(PV.raf); proofRender(); }
+function proofJump(dir) {                          /* to the next / previous stop: a scene, or a step of a merge */
+  const S = proofSetup(); proofPause();
+  if (dir > 0) PV.T = S.stops.find(t => t > PV.T + 1e-3) ?? S.total;
+  else { const prev = S.stops.filter(t => t < PV.T - 0.05); PV.T = prev.length ? prev[prev.length - 1] : 0; }
+  proofRender();
+}
+function proofMethod(m) {
+  PV.method = m === "peek" ? "peek" : "power"; PV.T = 0; proofPause();
+  el("pfMethod").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.m === PV.method));
+  proofBar(); proofRender(); writeHash();
+}
+function proofInit() {
+  el("pfMethod").querySelectorAll("button").forEach(b => b.onclick = () => proofMethod(b.dataset.m));
+  el("pfPlay").onclick = () => proofPlay();
+  el("pfBack").onclick = () => proofJump(-1);
+  el("pfFwd").onclick = () => proofJump(1);
+  el("pfReset").onclick = () => { proofPause(); PV.T = 0; proofRender(); };
+  el("pfScrub").oninput = () => { proofPause(); PV.T = proofValToTime(proofSetup(), +el("pfScrub").value); proofRender(); };
+  el("pfSpeed").onchange = () => { PV.speed = +el("pfSpeed").value; };
+  const sv = el("pfSvg");
+  const hitAt = e => { const G = PV.geo, r = sv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top + (G ? G.lift : 0);
+                       const h = (PV.hits || []).find(q => x >= q.x0 && x < q.x1 && y >= q.y0 && y < q.y1); return h ? h.id : -1; };
+  sv.addEventListener("pointermove", e => {
+    const G = PV.geo, S = PV.S; if (!G || !S) return;
+    if (PV.method === "peek") { const id = hitAt(e); if (id !== PV.hoverM) { PV.hoverM = id; if (!PV.play) proofRender(); } sv.style.cursor = id >= 0 ? "pointer" : "default"; return; }
+    const k = (e.clientX - sv.getBoundingClientRect().left - G.padL) / G.u;
+    const i = k < 0 || k >= G.n ? -1 : S.R.findIndex(([a, b]) => k >= a && k < b);
+    if (i !== PV.hover) { PV.hover = i; if (!PV.play) proofRender(); }
+  });
+  sv.addEventListener("pointerleave", () => { PV.hover = -1; PV.hoverM = -1; if (!PV.play) proofRender(); });
+  sv.addEventListener("click", e => {
+    const G = PV.geo, S = PV.S; if (!G || !S || PV.method !== "peek" || !S.merges) return;
+    const id = hitAt(e), mg = S.merges.find(m => m.id === id); if (!mg) return;
+    proofPause(); PV.T = mg.scene.start; proofRender();
+  });
+}
+
+
+/* ==========================================================================
+   Inputs, presets, address, wiring
+   ========================================================================== */
+const PRESETS = [
+  { key: "slide",   name: "Slides: runs of lengths 5 3 3 14 1 2",                 runs: [5, 3, 3, 14, 1, 2] },
+  { key: "deep",    name: "A run deeper than its share (Peeksort): 26 23 3 19 1",  runs: [26, 23, 3, 19, 1] },
+  { key: "geo",     name: "Doubling lengths: 1 2 4 8 16 32",                       runs: [1, 2, 4, 8, 16, 32] },
+  { key: "tiny",    name: "algs4 tiny.txt: S O R T E X A M P L E",                 text: "S O R T E X A M P L E" },
+  { key: "g-runs",  name: "Random runs, n elements",                               gen: "runs" },
+  { key: "g-random", name: "Random permutation of 1..n",                           gen: "random" },
+  { key: "custom",  name: "(your own input)" }
+];
+function parseInputText(txt) {
+  const dir = {}, toks = [];
+  for (let line of String(txt).split(/\r?\n/)) {
+    line = line.trim();
+    if (!line || line.startsWith("#")) continue;
+    const m = line.match(/^@(\w+)\s*[:=]?\s*(.*)$/);
+    if (m) { dir[m[1].toLowerCase()] = m[2].trim(); continue; }
+    for (const t of line.split(/[\s,;]+/)) if (t) toks.push(t);
+  }
+  if (dir.seed !== undefined && !/^\d+$/.test(dir.seed)) throw new Error("@seed must be a non-negative integer.");
+  const seed = dir.seed !== undefined ? +dir.seed : 1;
+  if (dir.runs !== undefined) {
+    const L = dir.runs.split(/[\s,;]+/).filter(Boolean).map(Number);
+    if (!L.length || L.some(x => !Number.isInteger(x) || x < 1)) throw new Error("@runs needs positive integers, the run lengths.");
+    const n = L.reduce((a, b) => a + b, 0);
+    if (n < 2 || n > MAX_N) throw new Error("The run lengths must add up to 2 … " + MAX_N + " (they add up to " + n + ").");
+    const vals = valsFromRuns(L, seed);
+    return { inp: makeInput(vals), text: vals.join(" "), runs: L, seed };
+  }
+  if (toks.length < 2) throw new Error("At least two elements, please.");
+  if (toks.length > MAX_N) throw new Error("At most " + MAX_N + " elements, please (found " + toks.length + ").");
+  const NUM = /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/, numeric = toks.every(t => NUM.test(t));
+  return { inp: makeInput(numeric ? toks.map(Number) : toks, toks), text: toks.join(" "), runs: null, seed };
+}
+function useInput(r) { D.inp = r.inp; D.n = r.inp.n; D.text = r.text; D.runs = r.runs; D.seed = r.seed; el("tokIn").value = r.text; }
+function applyPreset(key) {
+  const p = PRESETS.find(q => q.key === key);
+  if (!p || p.key === "custom") return;
+  D.preset = key;
+  const n = clamp(parseInt(el("genN").value, 10) || 20, 2, MAX_N); el("genN").value = n;
+  if (p.runs) useInput(parseInputText("@runs " + p.runs.join(" ")));
+  else if (p.text) useInput(parseInputText(p.text));
+  else if (p.gen === "runs") useInput(parseInputText("@runs " + randomRuns(n, mulberry32(D.seed * 31 + n)).join(" ")));
+  else useInput(parseInputText(genVals(p.gen, n, mulberry32(D.seed * 977 + n)).join(" ")));
+}
+function writeHash() {
+  let h = "#";
+  if (D.preset !== "slide") h += D.runs ? "runs=" + D.runs.join(",") + (D.seed !== 1 ? "&seed=" + D.seed : "") : "in=" + D.text.split(" ").map(encodeURIComponent).join(",");
+  if (PV.method === "peek") h += (h.length > 1 ? "&" : "") + "peek";
+  if (document.body.classList.contains("present")) h += (h.length > 1 ? "&" : "") + "present";
+  if (h === "#") h = location.pathname + location.search;
+  try { history.replaceState(null, "", h); } catch (e) { /* sandboxed preview */ }
+}
+function readHash() {
+  const q = new URLSearchParams(location.hash.replace(/^#/, ""));
+  try {
+    if (q.get("runs")) { useInput(parseInputText("@runs " + q.get("runs") + (q.get("seed") ? "\n@seed " + q.get("seed") : ""))); D.preset = "custom"; }
+    else if (q.get("in")) { useInput(parseInputText(q.get("in").split(",").map(decodeURIComponent).join(" "))); D.preset = "custom"; }
+  } catch (e) { /* a broken link: keep the default */ }
+  for (const p of PRESETS) if (p.runs && D.runs && p.runs.join() === D.runs.join() && D.seed === 1) D.preset = p.key;
+  PV.method = q.has("peek") ? "peek" : "power";
+  return q.has("present");
+}
+function rebuild() {
+  proofPause(); PV.T = 0; PV.hover = -1; PV.hoverM = -1;
+  el("presetSel").value = D.preset;
+  proofBar(); proofRender(); writeHash();
+}
+function setPresent(on) {                          /* only hides panels — never fullscreen */
+  document.body.classList.toggle("present", on);
+  requestAnimationFrame(() => { proofBar(); proofRender(); });
+  writeHash();
+}
+function init() {
+  el("presetSel").innerHTML = PRESETS.map(p => '<option value="' + p.key + '">' + esc(p.name) + "</option>").join("");
+  el("presetSel").onchange = () => { const v = el("presetSel").value; if (v === "custom") return; applyPreset(v); el("parseErr").textContent = ""; rebuild(); };
+  const setFrom = txt => {
+    try { useInput(parseInputText(txt)); D.preset = "custom"; el("parseErr").textContent = ""; rebuild(); return true; }
+    catch (e) { el("parseErr").textContent = e.message; return false; }
+  };
+  el("tokSet").onclick = () => setFrom(el("tokIn").value);
+  el("tokIn").onkeydown = e => { if (e.key === "Enter") setFrom(el("tokIn").value); };
+  el("loadBtn").onclick = () => setFrom(el("inputText").value);
+  el("inputText").value = "# the example of the slides: runs of these lengths\n@runs 5 3 3 14 1 2\n\n# a run that is deeper than its share in Peeksort's tree:\n# @runs 26 23 3 19 1\n";
+  el("genN").onchange = () => { const p = PRESETS.find(q => q.key === D.preset); if (p && p.gen) { applyPreset(D.preset); rebuild(); } };
+  el("presBtn").onclick = () => setPresent(true);
+  el("exitPres").onclick = () => setPresent(false);
+  document.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("input[type=text], input[type=number], textarea, select")) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "Escape" && document.body.classList.contains("present")) { e.preventDefault(); setPresent(false); }
+    else if (e.key === " " || e.key === "Spacebar") { e.preventDefault(); proofPlay(); }
+    else if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); proofJump(e.key === "ArrowRight" ? 1 : -1); }
+    else if (e.key === "Home") { e.preventDefault(); proofPause(); PV.T = 0; proofRender(); }
+    else if (e.key === "End") { e.preventDefault(); proofPause(); PV.T = proofSetup().total; proofRender(); }
+  });
+  let rz = null;
+  window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { proofBar(); proofRender(); }, 80); });
+  proofInit();
+  applyPreset("slide");
+  const present = readHash();
+  el("presetSel").value = D.preset;
+  el("pfMethod").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.m === PV.method));
+  if (present) document.body.classList.add("present");
+  proofBar(); proofRender();
+  /* MathJax arrives later (deferred): then typeset the static text, and everything set so far */
+  const hook = () => {
+    if (!(window.MathJax && MathJax.startup && MathJax.startup.promise)) return;
+    MathJax.startup.promise.then(() => {
+      MathJax.typesetPromise([document.querySelector(".subtitle"), el("proofsBody")]).catch(() => {});
+      for (const id of ["pfText", "pfRead"]) { const nd = el(id); const w = nd._want; nd._want = null; nd._busy = false; if (w) setMath(nd, w); }
+      proofRender();
+    }).catch(() => {});
+  };
+  if (document.readyState === "complete") hook(); else window.addEventListener("load", hook);
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+</script>
+</body>
+</html>

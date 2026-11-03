@@ -40,6 +40,9 @@
     --t-range:#f0d4a0;   /* the subarray of the current call (sand) */
     --t-found:#b9d8e4;   /* the run around the middle (blue)        */
     --t-known:#f2c0ac;   /* a run known from a Δ (salmon)           */
+    --t-green:#62a84e;   /* the perfectly balanced tree of the global grid (as on the slides) */
+    --t-power:#2438c4;
+    --t-sieve:#e07b10;   /* the sieves: orange, as on the slides */   /* powers and run-midpoint intervals (blue, as on the slides)       */
   }
   * { box-sizing:border-box; }
   body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
@@ -191,6 +194,16 @@
   .sv-note { font-family:var(--wi-font-body); font-size:13.5px; fill:var(--wi-ink-soft); }
   .sv-note.bad { fill:var(--wi-ink-faint); font-style:italic; }
   .sv-badge{ font-family:var(--wi-font-body); font-size:15px; font-weight:bold; text-anchor:middle; dominant-baseline:central; fill:var(--wi-panel-2); }
+  .sv-pow  { font-family:var(--wi-font-body); font-size:15px; font-style:italic; font-weight:bold; fill:var(--t-power); }
+  .sv-pow.big { font-size:17px; }
+  .sv-pile { font-family:var(--wi-font-mono); font-size:12px; font-weight:bold; fill:var(--wi-ink-strong); text-anchor:middle; }
+  .readout { font-size:.86rem; color:var(--wi-ink-strong); background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+             border-radius:var(--wi-radius); padding:7px 13px; margin-top:10px; height:4.9em; overflow-y:auto; line-height:1.6; }
+  .readout .dim { color:var(--wi-ink-faint); }
+  .gridctl { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin:0 0 10px; font-size:.84rem; }
+  .gridctl .glab { color:var(--wi-ink-faint); transition:color .2s; }
+  .gridctl .glab.on { color:var(--wi-accent); font-weight:bold; }
+  .gridctl input#gT { width:200px; accent-color:var(--wi-accent); }
   .mj-buf  { position:absolute; left:-10000px; top:0; visibility:hidden; }
   @keyframes pop { from { opacity:.2; } to { opacity:1; } }
   .sv-pop { animation:pop .35s ease-out both; }
@@ -228,10 +241,18 @@ body { font-family: var(--wi-font-body); }
 
 <div class="titlebar">
   <h1 id="pageTitle">Peeksort</h1>
+  <span class="ctl" style="gap:14px">
+    <span class="seg" id="modeSeg" role="tablist">
+      <button data-mode="steps" class="on" role="tab">Peeksort, step by step</button>
+      <button data-mode="grid" role="tab" title="Powersort’s merge tree as a top-down method: peeksort with a global grid">Global vs. local grid</button>
+    </span>
+  </span>
   <span class="ctl hide-p"><button id="presBtn" title="A clutter-free view for the lecture (Esc to leave)">Presentation view</button></span>
 </div>
 <button id="exitPres" class="only-p exitp" title="Leave the presentation view (Esc)">✕ leave presentation</button>
-<p class="subtitle hide-p">Top-down mergesort that peeks at the middle and cuts at the nearest run boundary instead.
+<p class="subtitle hide-p hidden" id="subGrid">Powersort’s merge tree, built top-down: exactly peeksort’s recursion, except that “the middle” comes from a fixed, global grid
+  — ½, then ¼ and ¾, … of the whole array — instead of from the current part. Morph between the two to see how little changes.</p>
+<p class="subtitle hide-p" id="subSteps">Top-down mergesort that peeks at the middle and cuts at the nearest run boundary instead.
   Step by step through the recursion: how <i>i</i>, <i>j</i> and the Δ’s are found in each call, and how the sign of a Δ says whether a run is known.
   The code is the one from the slides; the highlighted line is the one being executed. Merging is a single step here.</p>
 
@@ -246,19 +267,19 @@ body { font-family: var(--wi-font-body); }
   </div>
   <div class="ctl">
     <label for="genN">n</label>
-    <input type="number" id="genN" class="num" min="2" max="64" value="20">
+    <input type="number" id="genN" class="num" min="2" max="256" value="20">
   </div>
-  <div class="ctl">
+  <div class="ctl" id="granCtl">
     <span class="lbl">Show</span>
     <span class="seg" id="granSeg">
       <button data-gran="fine" class="on" title="Every line, including each step of the run scans">every line</button>
       <button data-gran="coarse" title="Skip the steps inside extendRunLeft / extendRunRight">skip the scans</button>
     </span>
   </div>
-  <div class="ctl"><label class="chk"><input type="checkbox" id="tagChk" checked> number equal keys</label></div>
+  <div class="ctl" id="tagCtl"><label class="chk"><input type="checkbox" id="tagChk" checked> number equal keys</label></div>
 </div>
 
-<div class="transport">
+<div class="transport" id="transportBox">
   <div class="transport-row">
     <span class="ctl" style="gap:6px">
       <button id="sReset" class="icon hide-p" title="Back to the first step (Home)" aria-label="Back to the first step">&#x21BA;</button>
@@ -279,7 +300,7 @@ body { font-family: var(--wi-font-body); }
   </div>
 </div>
 
-<div class="stage">
+<div class="stage" id="stageBox">
   <div class="col-main">
     <div class="sim-box">
       <div class="sim-title"><span>Recursive calls</span><span class="rhs" id="treeMeta"></span></div>
@@ -314,6 +335,34 @@ body { font-family: var(--wi-font-body); }
   </div>
 </div>
 
+<div class="sim-box hidden" id="view-grid">
+  <div class="sim-title"><span>Merge trees</span><span class="rhs" id="gridMeta"></span></div>
+  <div class="gridctl">
+    <span class="glab on" id="glabL">global grid · Powersort (Method 2′)</span>
+    <input type="range" id="gT" min="0" max="1000" value="0" aria-label="From the global grid (left) to the local grid (right)">
+    <span class="glab" id="glabR">local grid · Peeksort</span>
+    <button id="gMorph" class="pri" title="Morph to the other grid (space)">morph ⇄</button>
+    <label class="chk"><input type="checkbox" id="gGreen" checked> balanced tree</label>
+    <label class="chk"><input type="checkbox" id="gPow" checked> powers</label>
+  </div>
+  <div class="gridctl">
+    <span class="lbl">Recursion</span>
+    <span class="ctl" style="gap:6px">
+      <button id="gStart" class="icon" title="Before the first call" aria-label="Before the first call">&#x21BA;</button>
+      <button id="gBack" class="icon" title="One step back (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+      <button id="gPlay" class="icon pri" title="Play / pause" aria-label="Play">&#x25B6;&#xFE0E;</button>
+      <button id="gFwd" class="icon" title="One step forward (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+      <button id="gEnd" class="icon" title="The finished trees (End)" aria-label="The finished trees">&#x21E5;</button>
+    </span>
+    <input type="range" id="gStep" min="0" max="1" value="1" style="flex:1 1 200px; accent-color:var(--wi-accent)" aria-label="Step of the recursion">
+    <span class="stepno" id="gStepNo" style="min-width:9ch"></span>
+  </div>
+  <div class="status" id="gridStatus" style="height:5.6em; min-height:0; overflow-y:auto; margin-bottom:10px"></div>
+  <div id="gridWrap"><svg id="gridSvg" class="stagesvg"></svg></div>
+  <div class="legend hide-p" id="gridLegend"></div>
+  <div class="about hide-p" id="gridNote" style="margin-top:12px; max-width:110ch"></div>
+</div>
+
 <details class="editor hide-p">
   <summary>Input as text</summary>
   <div class="editor-body">
@@ -331,9 +380,10 @@ body { font-family: var(--wi-font-body); }
       Instead of the elements, a line <code>@runs 5 3 3 14 1 2</code> asks for an input with exactly these run lengths
       (the numbers 1 … <i>n</i>, every run increasing and every run boundary a descent), and <code>@seed 3</code> picks another such input.
       <br><br>
-      At most 64 elements. The same works in the page address, e.g.
+      At most 256 elements. The same works in the page address, e.g.
       <code>#runs=5,3,3,14,1,2</code> or <code>#in=S,O,R,T,E,X,A,M,P,L,E</code>; add <code>&amp;skip</code> to skip the scans
-      and <code>&amp;present</code> for the presentation view.
+      and <code>&amp;present</code> for the presentation view. <code>&amp;grid</code> opens the tab with the global and the local grid
+      (plus <code>&amp;local</code> to start from the local grid, <code>&amp;nogreen</code>, <code>&amp;nopowers</code>).
     </div>
   </div>
 </details>
@@ -447,7 +497,7 @@ function mjSvg(tex) {
   MathJax.tex2svgPromise(tex, { display: false }).then(node => {
     const sv = node.querySelector("svg");
     MJL.set(tex, { vb: sv.getAttribute("viewBox").split(/[\s,]+/).map(Number), inner: sv.innerHTML });
-    if (!mjAgain) mjAgain = requestAnimationFrame(() => { mjAgain = 0; stepsRender(); });
+    if (!mjAgain) mjAgain = requestAnimationFrame(() => { mjAgain = 0; renderActive(); });
   }).catch(() => MJL.delete(tex));
   return null;
 }
@@ -735,9 +785,9 @@ function summary(R) {
 /* ==========================================================================
    Recording
    ========================================================================== */
-const D = { inp: null, text: "", runs: null, seed: 1, preset: "slide", fine: [], vis: [], cur: 0, gran: "fine",
+const D = { mode: "steps", inp: null, text: "", runs: null, seed: 1, preset: "slide", fine: [], vis: [], cur: 0, gran: "fine",
             phases: [], timer: null, R: null, nodes: [], last: -2 };
-const MAX_N = 64;
+const MAX_N = 256;
 
 function recordSteps() {
   const R = new Run(D.inp), fine = [];
@@ -932,7 +982,8 @@ const DROWS = { ptr: 3 };
 function svgDetail(W, f) {
   const n = D.n, s = f.s, mag = D.inp.mag, F = f.F, H = f.H;
   const padL = 64, padR = 18;
-  const p = clamp((W - padL - padR) / n, 12, 48);
+  const p = clamp((W - padL - padR) / n, 1, 48);
+  const idxStep = [1, 2, 5, 10, 20, 50, 100].find(q => q * p >= 18) || 100;          /* index labels at most every 18 px */
   const x0 = padL + Math.max(0, (W - padL - padR - n * p) / 2);
   const ex = k => x0 + k * p, cx = k => x0 + (k + 0.5) * p;
   const bw = p * 0.72, showVal = p >= 15;
@@ -944,7 +995,7 @@ function svgDetail(W, f) {
   const l = F ? F.l : 0, r = F ? F.r : n;
   const fin = !!s.done;
   const dl = fin ? undefined : F ? F.dl : f.init.d0, dr = fin ? undefined : F ? F.dr : f.init.dn;
-  const rect = (a, b, y, h, fill, extra) => b > a ? '<rect x="' + (ex(a) + 1).toFixed(1) + '" y="' + y + '" width="' + ((b - a) * p - 2).toFixed(1) + '" height="' + h + '" rx="3" style="fill:' + fill + '"' + (extra || "") + "/>" : "";
+  const rect = (a, b, y, h, fill, extra) => b > a ? '<rect x="' + (ex(a) + Math.min(1, p / 4)).toFixed(1) + '" y="' + y + '" width="' + Math.max(0.6, (b - a) * p - Math.min(2, p / 2)).toFixed(1) + '" height="' + h + '" rx="3" style="fill:' + fill + '"' + (extra || "") + "/>" : "";
 
   /* the merge, animated: wrap an element's marks in a group that flies in from (dx, dy) */
   const B0 = f.buf, flying = B0 && D.animEl !== null && (s.ln === "pk.11" || s.ln === "pk.12");
@@ -971,7 +1022,7 @@ function svgDetail(W, f) {
     if (flying && s.ln === "pk.12" && k >= B0.lo && k < B0.hi)
       body += '<g clip-path="url(#barclip)">' + fly(bar, 0, hh + 2, k - B0.lo) + "</g>" + fly(lab, 0, bufY + 17 - valY, k - B0.lo);
     else body += bar + lab;
-    if (p >= 16 || k % 5 === 0) body += '<text class="sv-idx" x="' + cx(k).toFixed(1) + '" y="' + idxY + '">' + k + "</text>";
+    if (k % idxStep === 0) body += '<text class="sv-idx" x="' + cx(k).toFixed(1) + '" y="' + idxY + '">' + k + "</text>";
   }
   body += '<text class="sv-row" x="6" y="' + (base - 4) + '">A</text>';
   /* a comparison A[x−1] ≤ A[x] */
@@ -1014,7 +1065,7 @@ function svgDetail(W, f) {
   body += '<text class="sv-row" x="6" y="' + (ky + 14) + '">known</text>';
   if (!fin && (F || f.init.d0 !== undefined)) {
     body += '<rect x="' + ex(l).toFixed(1) + '" y="' + ky + '" width="' + ((r - l) * p).toFixed(1) + '" height="' + kh + '" rx="2" fill="var(--t-merged)" stroke="var(--t-merged-line)" stroke-width="1.1" opacity=".9"/>';
-    const inner = (a, b) => b > a ? '<rect x="' + (ex(a) + 2).toFixed(1) + '" y="' + (ky + 3) + '" width="' + ((b - a) * p - 4).toFixed(1) + '" height="' + (kh - 6) + '" rx="1.5" fill="var(--t-run)" stroke="var(--t-run-line)" stroke-width="1"/>' : "";
+    const inner = (a, b) => b > a ? '<rect x="' + (ex(a) + Math.min(2, p / 3)).toFixed(1) + '" y="' + (ky + 3) + '" width="' + Math.max(0.6, (b - a) * p - Math.min(4, 2 * p / 3)).toFixed(1) + '" height="' + (kh - 6) + '" rx="1.5" fill="var(--t-run)" stroke="var(--t-run-line)" stroke-width="1"/>' : "";
     if (dl !== undefined && dl > 0) body += inner(l, l + dl);
     if (dr !== undefined && dr < 0) body += inner(r + dr, r);
     if (!(dl > 0)) body += '<text class="sv-note bad" x="' + (ex(l) + 6).toFixed(1) + '" y="' + (ky + 14.5) + '">?</text>';
@@ -1067,7 +1118,7 @@ function svgDetail(W, f) {
     const B = f.buf;
     for (let k = B.lo; k < B.hi; k++) {
       const id = B.ids[k - B.lo];
-      let mk = '<rect x="' + (ex(k) + 1).toFixed(1) + '" y="' + bufY + '" width="' + (p - 2).toFixed(1) + '" height="24" rx="2" fill="' + ramp(mag[id]) + '" opacity="' + (B.done ? 0.3 : 0.85) + '"/>';
+      let mk = '<rect x="' + (ex(k) + Math.min(1, p / 4)).toFixed(1) + '" y="' + bufY + '" width="' + Math.max(0.6, p - Math.min(2, p / 2)).toFixed(1) + '" height="24" rx="' + (p > 6 ? 2 : 0) + '" fill="' + ramp(mag[id]) + '" opacity="' + (B.done ? 0.3 : 0.85) + '"/>';
       if (showVal) mk += '<text class="sv-val" x="' + cx(k).toFixed(1) + '" y="' + (bufY + 17) + '"' + (p < 26 ? ' font-size="' + Math.max(9, p * 0.52).toFixed(1) + '"' : "") + (B.done ? ' opacity=".45"' : "") + ">" + labSvg(id) + "</text>";
       /* merge: each element moves from its place in A to its place in buf, in the order the merge outputs them */
       const src = f.A.indexOf(id);
@@ -1214,6 +1265,7 @@ function writeHash() {
   let h = "#";
   if (D.preset !== "slide") h += D.runs ? "runs=" + D.runs.join(",") + (D.seed !== 1 ? "&seed=" + D.seed : "") : "in=" + D.text.split(" ").map(encodeURIComponent).join(",");
   if (D.gran === "coarse") h += (h.length > 1 ? "&" : "") + "skip";
+  if (D.mode === "grid") h += (h.length > 1 ? "&" : "") + "grid" + (GV.t >= 0.5 ? "&local" : "") + (GV.green ? "" : "&nogreen") + (GV.pow ? "" : "&nopowers");
   if (document.body.classList.contains("present")) h += (h.length > 1 ? "&" : "") + "present";
   if (h === "#") h = location.pathname + location.search;
   try { history.replaceState(null, "", h); } catch (e) { /* sandboxed preview */ }
@@ -1225,6 +1277,7 @@ function readHash() {
     else if (q.get("in")) { useInput(parseInputText(q.get("in").split(",").map(decodeURIComponent).join(" "))); D.preset = "custom"; }
   } catch (e) { /* a broken link: keep the default */ }
   if (q.has("skip")) D.gran = "coarse";
+  if (q.has("grid")) { D.mode = "grid"; GV.t = q.has("local") ? 1 : 0; GV.green = !q.has("nogreen"); GV.pow = !q.has("nopowers"); }
   return q.has("present");
 }
 function rebuild() {
@@ -1234,15 +1287,309 @@ function rebuild() {
   el("presetSel").value = D.preset;
   el("granSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.gran === D.gran));
   stepsRender();
+  gridRender();
   writeHash();
 }
+
+
+/* ==========================================================================
+   Tab "Global vs. local grid": one top-down method, two notions of "the middle".
+
+   Both trees below are built by the same recursion as peeksort: find the run that
+   contains the middle of the current part and cut at its closer end.
+   - local grid (peeksort): the middle is m = ℓ + ⌊(r−ℓ)/2⌋, the middle of the part;
+   - global grid (Mehlhorn's Method 2′): the middle is the midpoint of a fixed dyadic
+     interval of [0, n] — ½n for the root, then ¼n and ¾n, … — always halving the parent's
+     interval, wherever its cut actually ended up.  If the cut would fall at an end of the
+     part (the point lies left of the middle of its first run, or right of the middle of its
+     last run), no cut is made at this level: the part moves on to the half of its interval
+     that it lies in (Method 2′'s "out-of-range" cases).  A cut made at level p is at a run
+     boundary of power p, so this is Powersort's merge tree (the tests check it against the
+     Cartesian tree of the powers).  Ties: a grid point exactly at the middle of a run belongs
+     to the run's left end (the interval between two run midpoints is closed on the right).
+   ========================================================================== */
+/* a slanted fraction, as on the slides (¹⁄₂) */
+const sfrac = (a, b) => "{}^{" + a + "}\\!\\!/\\!{}_{" + b + "}";
+const GV = { t: 0, green: true, pow: true, anim: 0, key: "", R: null, G: null, L: null };
+
+function treeGlobal(R) {
+  const mu = R.map(([a, b]) => (a + b) / 2), n = R[R.length - 1][1], nodes = [];
+  const rec = (i, j, lo, hi, d, from, parent) => {
+    if (i === j) { nodes.push({ key: R[i][0] + ":" + R[i][1], l: R[i][0], r: R[i][1], leaf: true, parent }); return nodes.length - 1; }
+    const p = (lo + hi) / 2;                                        /* the middle: a point of the global grid at level d */
+    if (p <= mu[i]) return rec(i, j, p, hi, d + 1, from, parent);   /* the cut would be at the left end: next level, right half */
+    if (p > mu[j]) return rec(i, j, lo, p, d + 1, from, parent);    /* … at the right end: next level, left half */
+    let k = i + 1; while (!(mu[k - 1] < p && p <= mu[k])) k++;       /* the run containing p, its closer end (= the boundary of power d) */
+    const id = nodes.length;
+    nodes.push({ key: R[i][0] + ":" + R[j][1], l: R[i][0], r: R[j][1], g: R[k][0], row: d, from, ref: p, a: mu[k - 1], b: mu[k], parent });
+    nodes[id].kids = [rec(i, k - 1, lo, p, d + 1, d + 1, id), rec(k, j, p, hi, d + 1, d + 1, id)];
+    return id;
+  };
+  rec(0, R.length - 1, 0, n, 1, 1, -1);
+  return nodes;
+}
+function treeLocal(R) {
+  const nodes = [];
+  const rec = (i, j, d, parent) => {
+    if (i === j) { nodes.push({ key: R[i][0] + ":" + R[i][1], l: R[i][0], r: R[i][1], leaf: true, parent }); return nodes.length - 1; }
+    const l = R[i][0], r = R[j][1], m = l + Math.floor((r - l) / 2);   /* peeksort, line 4 */
+    let q = i; while (R[q][1] <= m) q++;                              /* the run A[i..j) containing A[m] (lines 5, 6) */
+    const [i0, j0] = R[q], g = m - i0 < j0 - m ? i0 : j0;            /* line 7 */
+    let k = i; while (R[k][0] !== g) k++;
+    const id = nodes.length;
+    nodes.push({ key: l + ":" + r, l, r, g, row: d, from: d, ref: (l + r) / 2, m, parent });
+    nodes[id].kids = [rec(i, k - 1, d + 1, id), rec(k, j, d + 1, id)];
+    return id;
+  };
+  rec(0, R.length - 1, 1, -1);
+  return nodes;
+}
+/* the power of each run boundary, by definition (for the tests): the least p such that a multiple of n/2^p lies in (μ_{k−1}, μ_k] */
+function boundaryPowers(R) {
+  const n = R[R.length - 1][1], P = [];
+  for (let k = 1; k < R.length; k++) {
+    const A = R[k - 1][0] + R[k - 1][1], B = R[k][0] + R[k][1];
+    let p = 1; while (Math.floor(A * 2 ** p / (2 * n)) === Math.floor(B * 2 ** p / (2 * n))) p++;
+    P.push(p);
+  }
+  return P;
+}
+const treeCost = T => T.filter(v => !v.leaf).reduce((s, v) => s + v.r - v.l, 0);
+function gridTrees() {
+  if (GV.key === D.text && GV.R) return;
+  GV.key = D.text;
+  GV.R = runsOf(D.inp.vals, Array.from({ length: D.n }, (_, i) => i), 0, D.n);
+  GV.G = treeGlobal(GV.R); GV.L = treeLocal(GV.R);
+  /* Both recursions, step by step.  Each visits its parts in preorder, i.e. sorted by left end, longer first;
+     in that order a part the two trees share comes at the same point in both, so one sorted list of all parts
+     synchronizes them.  An inner part takes two steps (consider it and its middle, then cut), a run one. */
+  const info = new Map();
+  for (const [T, w] of [[GV.G, "G"], [GV.L, "L"]]) for (const v of T) { const o = info.get(v.key) || { l: v.l, r: v.r }; o[w] = v; info.set(v.key, o); }
+  const steps = [];
+  for (const o of [...info.values()].sort((a, b) => a.l - b.l || b.r - a.r)) {
+    const leaf = (o.G || o.L).leaf;
+    o.sA = steps.length; steps.push({ o, sub: leaf ? "leaf" : "A" });
+    if (!leaf) { o.sB = steps.length; steps.push({ o, sub: "B" }); } else o.sB = o.sA;
+  }
+  GV.info = info; GV.steps = steps; GV.step = steps.length;
+}
+
+function svgGrid(W) {
+  gridTrees();
+  const R = GV.R, n = D.n, G = GV.G, L = GV.L, t = GV.t, e = t * t * (3 - 2 * t), og = 1 - t, ol = t;
+  const pad = 30, u = (W - 2 * pad) / n, X = k => pad + k * u;
+  const rowsOf = T => Math.max(1, ...T.filter(v => !v.leaf).map(v => v.row));
+  const DG = rowsOf(G), DM = Math.max(DG, rowsOf(L));
+  const rowH = 86, top = 22, BH = 18;
+  const gridY = d => top + (d - 1) * rowH, runY = d => gridY(d) + 20;
+  const leafY = top + DM * rowH + 2, H = leafY + BH + 14;
+  const lerp = (a, b) => a + (b - a) * e;
+  const gm = new Map(G.map(v => [v.key, v])), lm = new Map(L.map(v => [v.key, v]));
+  const keys = [...new Set([...G.map(v => v.key), ...L.map(v => v.key)])];
+  const called = k => GV.info.get(k).sA < GV.step, cutDone = k => GV.info.get(k).sB < GV.step;
+  const curStep = GV.step > 0 ? GV.steps[GV.step - 1] : null, curKey = curStep ? curStep.o.l + ":" + curStep.o.r : null;
+  const BLUE = "var(--t-power)", RED = "var(--wi-accent)";
+  const f = x => x.toFixed(1);
+  let green = "", grid = "", edges = "", boxes = "", nodes = "", pw = "";
+
+  /* the perfectly balanced tree of the global grid: a bar at each grid point, from its level down */
+  if (GV.green && og > 0.003) for (let d = 1; d <= DG; d++) for (let c = 1; c < 2 ** d; c += 2) {
+    const x = X(c * n / 2 ** d);
+    green += '<rect x="' + f(x - 4.5) + '" y="' + (gridY(d) + 1) + '" width="9" height="' + (leafY + BH - gridY(d) - 1) + '" fill="var(--t-green)" opacity="' + (0.8 * og).toFixed(3) + '"/>';
+    const cutHere = G.some(v => !v.leaf && v.row === d && Math.abs(X(v.g) - x) < 26);     /* the cut's own power label is there already */
+    if (GV.pow && !cutHere) green += '<text class="sv-pow" x="' + f(x + 7) + '" y="' + (gridY(d) + 15) + '" opacity="' + og.toFixed(3) + '">' + d + "</text>";
+  }
+  /* the global grid: level d has the points c·n/2^d */
+  if (og > 0.003) for (let d = 1; d <= DG; d++) {
+    const y = gridY(d), sp = 2 * u * n / 2 ** d;
+    let s = '<line x1="' + f(X(0)) + '" x2="' + f(X(n)) + '" y1="' + y + '" y2="' + y + '" stroke="' + RED + '" stroke-width="1.5"/>';
+    for (let c = 0; c <= 2 ** d; c++) {
+      const x = X(c * n / 2 ** d), odd = c % 2 === 1, end = c === 0 || c === 2 ** d;
+      s += '<line x1="' + f(x) + '" x2="' + f(x) + '" y1="' + (y - (odd || end ? 5 : 3)) + '" y2="' + (y + (odd || end ? 5 : 3)) + '" stroke="' + RED + '" stroke-width="1.4"/>';
+      if (odd && sp >= 34) s += mathAt(sfrac(c, 2 ** d), x, y - 6, 16, "middle", RED, c + "/" + 2 ** d).svg;
+    }
+    grid += '<g opacity="' + og.toFixed(3) + '">' + s + "</g>";
+  }
+  /* the local grid: each part's own interval and its midpoint ½ */
+  if (ol > 0.003) for (const v of L) if (!v.leaf && called(v.key)) {
+    const y = gridY(v.row), xm = X(v.ref);
+    grid += '<g opacity="' + ol.toFixed(3) + '"><line x1="' + f(X(v.l)) + '" x2="' + f(X(v.r)) + '" y1="' + y + '" y2="' + y + '" stroke="' + RED + '" stroke-width="1.5"/>' +
+            [X(v.l), X(v.r), xm].map(x => '<line x1="' + f(x) + '" x2="' + f(x) + '" y1="' + (y - 5) + '" y2="' + (y + 5) + '" stroke="' + RED + '" stroke-width="1.4"/>').join("") +
+            mathAt(sfrac(1, 2), xm, y - 6, 16, "middle", RED, "½").svg + "</g>";
+  }
+
+  /* positions of a node in its tree */
+  const mergePos = v => ({ x: X(v.g), y: runY(v.row) + BH / 2, rx: X(v.ref), ry: gridY(v.row) });
+  const anchor = v => v.leaf ? { x: X((v.l + v.r) / 2), y: leafY } : mergePos(v);
+  const mix = (a, b) => { const o = {}; for (const k in a) o[k] = lerp(a[k], b[k]); return o; };
+  const runsIn = (l, r) => R.filter(([a]) => a >= l && a < r);
+  const runBoxes = (l, r, y, op, outline) => {
+    let s = "";
+    for (const [a, b] of runsIn(l, r))
+      s += '<rect x="' + f(X(a) + 1.5) + '" y="' + f(y) + '" width="' + f(Math.max(1, (b - a) * u - 3)) + '" height="' + BH + '" rx="3" fill="var(--t-run)" stroke="var(--t-run-line)" stroke-width="1.2"/>' +
+           ((b - a) * u >= 16 ? '<text class="sv-len" x="' + f(X((a + b) / 2)) + '" y="' + f(y + 13) + '">' + (b - a) + "</text>" : "");
+    if (outline) s += '<rect x="' + f(X(l) - 3) + '" y="' + f(y - 4) + '" width="' + f((r - l) * u + 6) + '" height="' + (BH + 8) + '" rx="5" fill="none" stroke="var(--wi-active)" stroke-width="1.4" stroke-dasharray="4 3"/>';
+    return '<g opacity="' + op.toFixed(3) + '">' + s + "</g>";
+  };
+  const edge = (a, b, op) => '<line x1="' + f(a.x) + '" y1="' + f(a.y) + '" x2="' + f(b.x) + '" y2="' + f(b.y) + '" stroke="#a69e93" stroke-width="3.2" stroke-linecap="round" opacity="' + (0.65 * op).toFixed(3) + '"/>';
+  const merge = (p, op) =>
+    '<g opacity="' + op.toFixed(3) + '"><path d="M' + f(p.rx) + "," + f(p.ry + 1) + " C" + f(p.rx) + "," + f(p.y - 12) + " " + f(p.x) + "," + f(p.ry + 4) + " " + f(p.x) + "," + f(p.y - BH / 2 - 2) +
+    " L" + f(p.x) + "," + f(p.y + BH / 2 + 2) + '" fill="none" stroke="' + RED + '" stroke-width="1.4" stroke-dasharray="1.6 2.4"/>' +
+    '<circle cx="' + f(p.x) + '" cy="' + f(p.y) + '" r="7.5" fill="#cfc7bf" stroke="var(--wi-ink-strong)" stroke-width="1.6" opacity=".9"/></g>';
+
+  for (const key of keys) {
+    const g = gm.get(key), l = lm.get(key);
+    if ((g && g.leaf) || (l && l.leaf)) continue;
+    if (!called(key)) continue;
+    const isCur = key === curKey, done = cutDone(key);
+    const middle = (p, op) => '<circle cx="' + f(p.rx) + '" cy="' + f(p.ry) + '" r="5" fill="var(--wi-active)" opacity="' + op.toFixed(3) + '"/>';
+    const curBox = (v, y, op) => '<rect x="' + f(X(v.l) - 5) + '" y="' + f(y - 7) + '" width="' + f((v.r - v.l) * u + 10) + '" height="' + (BH + 14) + '" rx="6" fill="none" stroke="var(--wi-active)" stroke-width="2" opacity="' + op.toFixed(3) + '"/>';
+    if (g && l) {                                    /* in both trees: it moves */
+      const y = lerp(runY(g.row), runY(l.row));
+      boxes += runBoxes(g.l, g.r, y, 1, false);
+      for (let d = g.from; d < g.row; d++) boxes += runBoxes(g.l, g.r, runY(d), og, false);   /* levels without a cut */
+      if (done) nodes += merge(mix(mergePos(g), mergePos(l)), 1);
+      else nodes += middle(mix(mergePos(g), mergePos(l)), 1);
+      if (isCur) nodes += curBox(g, y, 1);
+    } else if (g) {
+      for (let d = g.from; d <= g.row; d++) boxes += runBoxes(g.l, g.r, runY(d), og, d === g.row);
+      nodes += done ? merge(mergePos(g), og) : middle(mergePos(g), og);
+      if (isCur) nodes += curBox(g, runY(g.row), og);
+    } else {
+      boxes += runBoxes(l.l, l.r, runY(l.row), ol, true);
+      nodes += done ? merge(mergePos(l), ol) : middle(mergePos(l), ol);
+      if (isCur) nodes += curBox(l, runY(l.row), ol);
+    }
+  }
+  /* edges, child → parent's merge node */
+  for (const key of keys) {
+    const g = gm.get(key), l = lm.get(key);
+    if (!called(key)) continue;
+    const pg = g && g.parent >= 0 ? G[g.parent] : null, pl = l && l.parent >= 0 ? L[l.parent] : null;
+    if (pg && pl) edges += edge(mix(anchor(g), anchor(l)), mix(mergePos(pg), mergePos(pl)), 1);
+    else {
+      if (pg) edges += edge(anchor(g), mergePos(pg), og);
+      if (pl) edges += edge(anchor(l), mergePos(pl), ol);
+    }
+  }
+  /* the leaves: all runs, at the bottom */
+  for (const [a, b] of R) {
+    const k = a + ":" + b;
+    boxes += '<rect x="' + f(X(a) + 1.5) + '" y="' + leafY + '" width="' + f(Math.max(1, (b - a) * u - 3)) + '" height="' + BH + '" rx="3" fill="var(--t-leaf)" stroke="' + (called(k) ? "var(--t-leaf-line)" : "var(--wi-border-soft)") +
+             '" stroke-width="1.1" opacity="' + (called(k) ? 1 : 0.55) + '"/>' +
+             ((b - a) * u >= 16 ? '<text class="sv-len" x="' + f(X((a + b) / 2)) + '" y="' + (leafY + 13) + '">' + (b - a) + "</text>" : "");
+    if (k === curKey) boxes += '<rect x="' + f(X(a) - 2) + '" y="' + (leafY - 4) + '" width="' + f((b - a) * u + 4) + '" height="' + (BH + 8) + '" rx="5" fill="none" stroke="var(--wi-active)" stroke-width="2"/>';
+  }
+  /* powers: each cut of the global tree, with the interval between the middles of its two runs */
+  if (GV.pow && og > 0.003) for (const v of G) if (!v.leaf && cutDone(v.key)) {
+    const y = runY(v.row), yb = y + BH + 13, xa = X(v.a), xb = X(v.b);
+    pw += '<g opacity="' + og.toFixed(3) + '">' +
+          [xa, xb].map(x => '<line x1="' + f(x) + '" x2="' + f(x) + '" y1="' + (y + 2) + '" y2="' + (yb + 4) + '" stroke="' + BLUE + '" stroke-width="1.2" stroke-dasharray="4 3" opacity=".75"/>').join("") +
+          '<path d="M' + f(xa + 5) + "," + (yb - 6) + " Q" + f(xa) + "," + yb + " " + f(xa + 5) + "," + (yb + 6) + " M" + f(xa + 1.5) + "," + yb + " L" + f(xb) + "," + yb +
+          " M" + f(xb - 4) + "," + (yb - 6) + " L" + f(xb) + "," + (yb - 6) + " L" + f(xb) + "," + (yb + 6) + " L" + f(xb - 4) + "," + (yb + 6) + '" fill="none" stroke="' + BLUE + '" stroke-width="2.2"/>' +
+          '<text class="sv-pow big" x="' + f(X(v.g) + 9) + '" y="' + (y - 3) + '">' + v.row + "</text></g>";
+  }
+  return { h: H, body: green + grid + edges + boxes + pw + nodes };
+}
+
+function gridStatus() {
+  const k = GV.step, st = k > 0 ? GV.steps[k - 1] : null;
+  if (!st) return "Both recursions start with the whole array " + M("A[0.." + D.n + ")") + ". Step through them: the two trees are built side by side, synchronized whenever they consider the same part.";
+  const o = st.o, part = M("A[" + o.l + ".." + o.r + ")"), n = D.n;
+  const who = o.G && o.L ? "Both recursions consider " : o.G ? "Only the global grid considers " : "Only the local grid considers ";
+  if (st.sub === "leaf") return who + part + ": a single run — a leaf, nothing to do.";
+  const runOf = p => GV.R.find(([a, b]) => p >= a && p < b) || GV.R[GV.R.length - 1];
+  const fr = (v) => { const c = v.ref * 2 ** v.row / n; return M(sfrac(c, 2 ** v.row) + "\\,n = " + +(v.ref.toFixed(3))); };
+  const gTxt = v => st.sub === "A"
+      ? "global grid: its middle is the grid point " + fr(v) + " of level " + v.row + (v.from < v.row ? " (at level" + (v.row - v.from > 1 ? "s " + v.from + "–" + (v.row - 1) : " " + v.from) + " the grid point lay outside the part: no cut there)" : "")
+      : (() => { const [a, b] = runOf(v.ref); return "global grid: " + M(+(v.ref.toFixed(3))) + " lies in the run " + M("A[" + a + ".." + b + ")") + ", cut at its closer end " + M(v.g) + " (a boundary of power " + v.row + ")"; })();
+  const lTxt = v => st.sub === "A"
+      ? "local grid: its middle is " + M("m = " + v.l + " + \\lfloor " + (v.r - v.l) + "/2 \\rfloor = " + v.m)
+      : (() => { const [a, b] = runOf(v.m); return "local grid: " + M("m = " + v.m) + " lies in the run " + M("A[" + a + ".." + b + ")") + ", cut at its closer end " + M(v.g); })();
+  const parts = [];
+  if (o.G) parts.push(gTxt(o.G));
+  if (o.L) parts.push(lTxt(o.L));
+  return who + part + (st.sub === "A" ? "." : ": cut.") + "<br>" + parts.join("; ") + "." + (o.G && o.L && st.sub === "B" && o.G.g !== o.L.g ? " <b>Here the two trees part ways.</b>" : "");
+}
+function gridStepTo(k) { GV.step = clamp(k, 0, GV.steps.length); gridRender(); }
+function gridPlay() {
+  if (GV.timer) { clearInterval(GV.timer); GV.timer = null; gridRender(); return; }
+  if (GV.step >= GV.steps.length) GV.step = 0;
+  GV.timer = setInterval(() => { if (GV.step >= GV.steps.length) { clearInterval(GV.timer); GV.timer = null; } else GV.step++; gridRender(); }, 900);
+  gridRender();
+}
+function gridRender() {
+  if (D.mode !== "grid" || !D.inp) return;
+  gridTrees();
+  const W = Math.max(360, el("gridWrap").clientWidth);
+  setSvg(el("gridSvg"), svgGrid(W), W);
+  el("gT").value = Math.round(GV.t * 1000);
+  el("gStep").max = GV.steps.length; el("gStep").value = GV.step;
+  el("gStepNo").textContent = GV.step + " / " + GV.steps.length;
+  el("gPlay").innerHTML = GV.timer ? "&#x23F8;&#xFE0E;" : "&#x25B6;&#xFE0E;";
+  setMath(el("gridStatus"), gridStatus());
+  el("glabL").classList.toggle("on", GV.t < 0.5); el("glabR").classList.toggle("on", GV.t >= 0.5);
+  const cg = treeCost(GV.G), cl = treeCost(GV.L);
+  const inner = T => new Set(T.filter(v => !v.leaf).map(v => v.key)), sg = inner(GV.G), sl = inner(GV.L);
+  const og = [...sg].filter(k => !sl.has(k)).length, ol = [...sl].filter(k => !sg.has(k)).length;
+  el("gridMeta").textContent = "merge cost: global grid " + cg + " · local grid " + cl +
+    (og + ol ? " · parts only in one tree: " + og + " global, " + ol + " local" : " · the same tree");
+}
+function gridMorph() {
+  cancelAnimationFrame(GV.anim);
+  const from = GV.t, to = GV.t < 0.5 ? 1 : 0, t0 = performance.now(), dur = 1600 * Math.abs(to - from) || 1;
+  const step = now => {
+    const a = Math.min(1, (now - t0) / dur);
+    GV.t = from + (to - from) * a; gridRender();
+    if (a < 1) GV.anim = requestAnimationFrame(step); else writeHash();
+  };
+  GV.anim = requestAnimationFrame(step);
+}
+const GRID_NOTE =
+  "<p><b>One method, two grids</b> Both trees come from the same top-down recursion as peeksort: take the middle of the current part, find the run that contains it, and cut at that run’s closer end. " +
+  "They differ only in what “the middle” is.</p>" +
+  "<p><b>Local grid</b> (peeksort, Mehlhorn’s Method 1): the middle of the part itself, " + M("m = \\ell + \\lfloor (r-\\ell)/2\\rfloor") + " — drawn as " + M("\\tfrac12") + " of each part’s own interval.</p>" +
+  "<p><b>Global grid</b> (Mehlhorn’s Method 2′): the midpoint of a fixed interval of a perfectly balanced subdivision of " + M("[0, n]") + ": " +
+  M("\\tfrac12 n") + " for the whole array, then " + M("\\tfrac14 n") + " and " + M("\\tfrac34 n") + " for its two parts, and so on — always halving the interval of the parent, wherever the parent’s cut actually ended up. " +
+  "If the cut would fall at an end of the part — the point lies left of the middle of its first run, or right of the middle of its last run — there is no cut at this level; " +
+  "the part moves on to the half of its interval that it lies in (drawn as the same runs one row lower).</p>" +
+  "<p><b>Powers</b> A cut made at level " + M("p") + " of the global grid is at a run boundary of power " + M("p") + ": the smallest " + M("p") + " such that a multiple of " + M("n/2^p") +
+  " lies between the middles of the two runs (the blue intervals). So the global-grid tree is Powersort’s merge tree — the one Powersort builds left to right with its stack, without ever looking at the middle. " +
+  "The green bars are the perfectly balanced tree of the grid; every cut sits next to one of its nodes, at that node’s level.</p>" +
+  "<p><b>The difference</b> is small: the cuts are always at the run boundary next to “a middle”, just of different intervals. " +
+  "Ties are broken differently, too: a grid point exactly in the middle of a run belongs to the run’s left end, while peeksort’s " + M("m - i < j - m") + " takes the right end.</p>";
+function gridLegend() {
+  const box = (fill, stroke, w, rx) => '<svg width="22" height="12"><rect x="1" y="1" width="20" height="10" rx="' + (rx || 2) + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + (w || 1) + '"/></svg>';
+  setMath(el("gridLegend"),
+    '<span class="item">' + box("var(--t-run)", "var(--t-run-line)") + "the runs of a part (lengths inside)</span>" +
+    '<span class="item">' + box("var(--t-leaf)", "var(--t-leaf-line)") + "the runs, as leaves</span>" +
+    '<span class="item"><svg width="14" height="14"><circle cx="7" cy="7" r="5.5" fill="#cfc7bf" stroke="var(--wi-ink-strong)" stroke-width="1.5"/></svg>merge node, on the cut</span>' +
+    '<span class="item"><svg width="30" height="12"><rect x="1" y="1" width="28" height="10" rx="3" fill="none" stroke="var(--wi-active)" stroke-width="1.4" stroke-dasharray="4 3"/></svg>a part in only one of the two trees</span>' +
+    '<span class="item"><svg width="12" height="14"><rect x="3" y="0" width="6" height="14" fill="var(--t-green)" opacity=".8"/></svg>the perfectly balanced tree of the global grid</span>' +
+    '<span class="item"><svg width="36" height="14"><path d="M7,1 Q2,7 7,13 M3.5,7 L33,7 M29,1 L33,1 L33,13 L29,13" fill="none" stroke="var(--t-power)" stroke-width="2"/></svg>between the middles of two runs; ' +
+    'its first grid level is the power</span>');
+}
+function setMode(m) {
+  D.mode = m === "grid" ? "grid" : "steps";
+  const st = D.mode === "steps";
+  el("modeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.mode === D.mode));
+  el("view-grid").classList.toggle("hidden", D.mode !== "grid");
+  for (const id of ["transportBox", "stageBox", "granCtl", "tagCtl"]) el(id).classList.toggle("hidden", !st);
+  el("subSteps").classList.toggle("hidden", !st); el("subGrid").classList.toggle("hidden", D.mode !== "grid");
+  if (!st) stepsStop();
+  if (D.mode !== "grid" && GV.timer) { clearInterval(GV.timer); GV.timer = null; }
+  if (D.mode === "grid") gridRender(); else { fitPhaseBar(); stepsRender(); }
+  writeHash();
+}
+const renderActive = () => { if (D.mode === "grid") gridRender(); else stepsRender(); };
+
 
 /* ==========================================================================
    Presentation view, splitter, wiring
    ========================================================================== */
 function setPresent(on) {
   document.body.classList.toggle("present", on);
-  requestAnimationFrame(() => { fitPhaseBar(); stepsRender(); });
+  requestAnimationFrame(() => { fitPhaseBar(); renderActive(); });
   writeHash();
 }
 const SPLIT = { f: 0.58, def: 0.58 };
@@ -1285,7 +1632,8 @@ const ABOUT =
   M("\\Delta_\\ell > 0") + " means that " + M("A[\\ell..\\ell+\\Delta_\\ell)") + " is a run; " + M("\\Delta_r < 0") + " that " + M("A[r+\\Delta_r..r)") + " is one. " +
   "A " + M("\\Delta") + " with the other sign (or 0) carries no information — and with the wrong sign the tests in lines 3, 5 and 6 automatically fail, so no special case is needed. " +
   "That is why the same " + M("\\Delta_g") + " can be passed to both parts: it points into one part (a known run) and out of the other.</p>" +
-  "<p><b>Cost</b> One can prove: merge cost at most " + M("\\mathscr H(\\ell_1,\\ldots,\\ell_r) + 2n") + ", where " + M("\\ell_1,\\ldots,\\ell_r") + " are the run lengths.</p>";
+  "<p><b>Cost</b> One can prove: merge cost at most " + M("\\mathscr H(\\ell_1,\\ldots,\\ell_r) + 2n") + ", where " + M("\\ell_1,\\ldots,\\ell_r") + " are the run lengths — " +
+  'the proof, animated, is on the page <a href="merge-cost-bound.html">The merge-cost bound</a>.</p>';
 
 function init() {
   readColors();
@@ -1322,6 +1670,12 @@ function init() {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === "Escape" && document.body.classList.contains("present")) { e.preventDefault(); setPresent(false); }
     else if (e.target === el("splitter") && (e.key === "ArrowLeft" || e.key === "ArrowRight")) { e.preventDefault(); setSplit(SPLIT.f + (e.key === "ArrowLeft" ? -0.03 : 0.03)); }
+    else if (D.mode === "grid") {
+      if (e.key === " " || e.key === "Spacebar") { e.preventDefault(); gridMorph(); }
+      else if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); gridStepTo(GV.step + (e.key === "ArrowRight" ? 1 : -1)); }
+      else if (e.key === "Home") { e.preventDefault(); gridStepTo(0); }
+      else if (e.key === "End") { e.preventDefault(); gridStepTo(GV.steps.length); }
+    }
     else if (e.key === " " || e.key === "Spacebar") { e.preventDefault(); stepsPlay(); }
     else if (e.key === "ArrowRight") { e.preventDefault(); stepsGo(1); }
     else if (e.key === "ArrowLeft") { e.preventDefault(); stepsGo(-1); }
@@ -1329,8 +1683,22 @@ function init() {
     else if (e.key === "End") { e.preventDefault(); stepsStop(); D.cur = D.vis.length - 1; stepsRender(); }
   });
   let rz = null;
-  window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { fitPhaseBar(); stepsRender(); }, 80); });
+  window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { if (D.mode === "steps") fitPhaseBar(); renderActive(); }, 80); });
   initSplitter();
+  el("modeSeg").querySelectorAll("button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+  el("gT").oninput = () => { cancelAnimationFrame(GV.anim); GV.t = +el("gT").value / 1000; gridRender(); };
+  el("gT").onchange = () => writeHash();
+  el("gMorph").onclick = () => gridMorph();
+  el("gStart").onclick = () => gridStepTo(0);
+  el("gBack").onclick = () => gridStepTo(GV.step - 1);
+  el("gFwd").onclick = () => gridStepTo(GV.step + 1);
+  el("gEnd").onclick = () => gridStepTo(GV.steps.length);
+  el("gPlay").onclick = () => gridPlay();
+  el("gStep").oninput = () => gridStepTo(+el("gStep").value);
+  el("gGreen").onchange = () => { GV.green = el("gGreen").checked; gridRender(); writeHash(); };
+  el("gPow").onchange = () => { GV.pow = el("gPow").checked; gridRender(); writeHash(); };
+  gridLegend();
+  setMath(el("gridNote"), GRID_NOTE);
   setMath(el("codeNote"), "The slide only says “similar” for extendRunLeft; above is its mirror image of extendRunRight: it returns the start " + M("i") + " of the run that contains " + M("A[j]") +
           ". The lines of the initial call are those on the slide, too.");
   legends();
@@ -1342,14 +1710,15 @@ function init() {
   el("presetSel").value = D.preset;
   el("granSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.gran === D.gran));
   if (present) document.body.classList.add("present");
-  stepsRender();
+  el("gGreen").checked = GV.green; el("gPow").checked = GV.pow;
+  setMode(D.mode);
   /* MathJax arrives later (deferred): then typeset the code and everything set so far */
   const hook = () => {
     if (!(window.MathJax && MathJax.startup && MathJax.startup.promise)) return;
     MathJax.startup.promise.then(() => {
       MathJax.typesetPromise([el("codeScroll")]).catch(() => {});
-      for (const id of ["statusBox", "varsBox", "aboutBox", "treeLegend", "detLegend", "codeNote"]) { const nd = el(id); const w = nd._want; nd._want = null; nd._busy = false; if (w) setMath(nd, w); }
-      stepsRender();
+      for (const id of ["statusBox", "varsBox", "aboutBox", "treeLegend", "detLegend", "codeNote", "gridLegend", "gridNote", "gridStatus"]) { const nd = el(id); const w = nd._want; nd._want = null; nd._busy = false; if (w) setMath(nd, w); }
+      renderActive();
     }).catch(() => {});
   };
   if (document.readyState === "complete") hook(); else window.addEventListener("load", hook);

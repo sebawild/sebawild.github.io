@@ -238,7 +238,6 @@ MathJax.Hub.Config({
   .tn .mv.hot { fill:var(--wi-active); }
   .tn .mv.nbr { fill:var(--wi-examine); }
   .tn .mv.ruled { fill:var(--wi-accent); }
-  .cline .fix { border-bottom:1.5px dotted var(--wi-accent-soft); padding-bottom:1px; }
   .tn .sep { stroke:var(--wi-border-soft); stroke-width:1; }
   .tn .np { font-family:var(--wi-font-body); font-weight:bold; fill:var(--wi-active); }
   .te { stroke:var(--wi-border); stroke-width:1.6; fill:none; vector-effect:non-scaling-stroke; }
@@ -884,18 +883,6 @@ function run(G, K, alg, stopFirst = false) {
       msg: parent < 0 ? String.raw`Initial call with ${tag}: the whole graph, ${nd.m} edges.`
                       : String.raw`Recursive call with ${tag}: ${nd.nAlive} vertices and ${nd.m} edges remain.` });
     vset(nd, "k", "k", String.raw`$${k}$`, nd.enter);
-    if (nd.m === 0) {
-      nd.ret = []; nd.leaf = "empty"; nd.kr = k;
-      nd.retStep = S({ node: id, lines: ["i2"], kind: "ret", coarse: true,
-        msg: String.raw`$E = \emptyset$: every edge is covered already. Return $\emptyset$.` });
-      found(nd); return nd.ret;
-    }
-    if (k === 0) {
-      nd.ret = NP; nd.leaf = "trunc"; nd.kr = k;
-      nd.retStep = S({ node: id, lines: ["i3"], kind: "ret", coarse: true,
-        msg: String.raw`$k = 0$, but ${nd.m} edge${nd.m > 1 ? "s are" : " is"} left: truncate the search and return <span class="tt">NOT_POSSIBLE</span>.` });
-      return nd.ret;
-    }
     const C = [];
     let st = S({ node: id, lines: ["i4"], kind: "cinit",
       msg: String.raw`$C \gets \emptyset$. Before branching, apply the $\deg > k$ rule as long as possible.` });
@@ -904,7 +891,8 @@ function run(G, K, alg, stopFirst = false) {
     for (;;) {
       if (k <= 0) {
         S({ node: id, lines: ["i5"], kind: "loopend",
-          msg: String.raw`$k = 0$: the loop stops (the rule is only applied while $k > 0$).` });
+          msg: nd.forced.length ? String.raw`$k = 0$: the loop stops (the rule is only applied while $k > 0$).`
+                                : String.raw`$k = 0$: the loop condition fails at once.` });
         break;
       }
       const deg = degrees(G, al);
@@ -927,13 +915,14 @@ function run(G, K, alg, stopFirst = false) {
     if (m2 === 0) {
       nd.ret = sorted(C); nd.leaf = "empty";
       nd.retStep = S({ node: id, lines: ["i9"], kind: "ret", coarse: true,
-        msg: String.raw`The rule removed all edges: $E = \emptyset$, return $C = ${setTex(C)}$.` });
+        msg: C.length ? String.raw`The rule removed all edges: $E = \emptyset$, return $C = ${setTex(C)}$.`
+                      : String.raw`$E = \emptyset$: every edge is covered already. Return $C = \emptyset$.` });
       found(nd); return nd.ret;
     }
     if (k === 0) {
       nd.ret = NP; nd.leaf = "trunc";
       nd.retStep = S({ node: id, lines: ["i10"], kind: "ret", coarse: true,
-        msg: String.raw`After the rule, $k = 0$ but ${m2} edge${m2 > 1 ? "s are" : " is"} left: return <span class="tt">NOT_POSSIBLE</span>.` });
+        msg: String.raw`${C.length ? "After the rule, " : ""}$k = 0$ but ${m2} edge${m2 > 1 ? "s are" : " is"} left: truncate the search and return <span class="tt">NOT_POSSIBLE</span>.` });
       return nd.ret;
     }
     const [v, w] = liveEdges(G, al)[0];
@@ -987,18 +976,6 @@ function run(G, K, alg, stopFirst = false) {
       msg: parent < 0 ? String.raw`Initial call with ${tag}: the whole graph, ${nd.m} edges.`
                       : String.raw`Recursive call with ${tag}: ${nd.nAlive} vertices and ${nd.m} edges remain.` });
     vset(nd, "k", "k", String.raw`$${k}$`, nd.enter);
-    if (nd.m === 0) {
-      nd.ret = []; nd.leaf = "empty"; nd.kr = k;
-      nd.retStep = S({ node: id, lines: ["c2"], kind: "ret", coarse: true,
-        msg: String.raw`$E = \emptyset$: every edge is covered already. Return $\emptyset$.` });
-      found(nd); return nd.ret;
-    }
-    if (k <= 0) {
-      nd.ret = NP; nd.leaf = "trunc"; nd.kr = k;
-      nd.retStep = S({ node: id, lines: ["c3"], kind: "ret", coarse: true,
-        msg: String.raw`$k = ${k} \le 0$, but ${nd.m} edge${nd.m > 1 ? "s are" : " is"} left: truncate the search and return <span class="tt">NOT_POSSIBLE</span>.` });
-      return nd.ret;
-    }
     const C = [];
     let st = S({ node: id, lines: ["c4"], kind: "cinit",
       msg: String.raw`$C := \emptyset$. Now apply the rules of Buss's kernel as long as one of them applies.` });
@@ -1049,13 +1026,14 @@ function run(G, K, alg, stopFirst = false) {
     if (m2 === 0) {
       nd.ret = Cs; nd.leaf = "empty";
       nd.retStep = S({ node: id, lines: ["c9"], kind: "ret", coarse: true,
-        msg: String.raw`The rules removed all edges: $E = \emptyset$, return $C = ${setTex(Cs)}$.` });
+        msg: Cs.length ? String.raw`The rules removed all edges: $E = \emptyset$, return $C = ${setTex(Cs)}$.`
+                       : String.raw`$E = \emptyset$: every edge is covered already. Return $C = \emptyset$.` });
       found(nd); return nd.ret;
     }
     if (k <= 0) {
       nd.ret = NP; nd.leaf = "trunc";
       nd.retStep = S({ node: id, lines: ["c10"], kind: "ret", coarse: true,
-        msg: String.raw`After the rules, $k = 0$ but ${m2} edge${m2 > 1 ? "s are" : " is"} left: return <span class="tt">NOT_POSSIBLE</span>.` });
+        msg: String.raw`${Cs.length ? "After the rules, " : ""}$k = 0$ but ${m2} edge${m2 > 1 ? "s are" : " is"} left: truncate the search and return <span class="tt">NOT_POSSIBLE</span>.` });
       return nd.ret;
     }
     const deg = degrees(G, al);
@@ -1166,8 +1144,6 @@ const CODE = {
   ],
   inter: [
     ["i1", 0, KW("procedure") + " simpleInterleavedVC($G=(V,E)$, $k$):"],
-    ["i2", 1, KW("if") + String.raw` $E \mathrel{==} \emptyset$ ` + KW("then return") + String.raw` $\emptyset$`],
-    ["i3", 1, KW("if") + String.raw` $k \mathrel{==} 0$ ` + KW("then return") + " " + NPS],
     ["i4", 1, String.raw`$C \gets \emptyset$`],
     ["i5", 1, KW("while") + String.raw` <span class="fix">$k > 0$ and</span> $\exists v\in V : \deg(v) > k$`],
     ["i6", 2, String.raw`$G \gets G[V\setminus \{v\}]$` + CM("Remove $v$")],
@@ -1188,8 +1164,6 @@ const CODE = {
   ],
   binter: [
     ["c1", 0, KW("procedure") + " betterInterleavedVC($G=(V,E)$, $k$):"],
-    ["c2", 1, KW("if") + String.raw` $E = \emptyset$ ` + KW("then return") + String.raw` $\emptyset$`],
-    ["c3", 1, KW("if") + String.raw` $k \le 0$ ` + KW("then return") + " " + NPS + CM("truncate search")],
     ["c4", 1, String.raw`$C := \emptyset$`],
     ["c5", 1, KW("while") + " some rule applies " + KW("do") + CM(String.raw`Buss's kernel; the last two rules only while $k > 0$`)],
     ["c6", 2, "<i>Degree-0 rule:</i> delete isolated vertices"],
@@ -1231,8 +1205,8 @@ const CODE = {
   ]
 };
 const CODENOTE = {
-  binter: String.raw`This is betterFptVertexCover with the rules of Buss's kernel applied in every call before the degree test (lines 4–10, and $C$ in lines 17 and 22). As in simpleInterleavedVC, the two rules that decrease $k$ apply only while $k > 0$, and $E = \emptyset$ and $k \le 0$ are checked again afterwards. Each iteration applies the first rule that fires, in the listed order, at the lowest-numbered vertex; the degree-0 rule deletes all isolated vertices at once. Other choices as in betterFptVertexCover.`,
-  inter: String.raw`The dotted parts are the fix to the slide: the loop runs only while $k > 0$, and $E = \emptyset$ and $k = 0$ are checked again before branching (otherwise the loop removes every vertex with an edge once $k = 0$, and line 11 may find $E$ empty). The loop takes the lowest-numbered vertex of degree $> k$; the edge choice is as in simpleFptVertexCover. <span class="tt">NOT_POSSIBLE</span> absorbs every $\cup$.`,
+  binter: String.raw`This is betterFptVertexCover with the rules of Buss's kernel applied in every call before the degree test (lines 2–8, and $C$ in lines 15 and 20). As in simpleInterleavedVC, the two rules that decrease $k$ apply only while $k > 0$, and $E = \emptyset$ and $k \le 0$ are checked only after the rules. Each iteration applies the first rule that fires, in the listed order, at the lowest-numbered vertex; the degree-0 rule deletes all isolated vertices at once. Other choices as in betterFptVertexCover.`,
+  inter: String.raw`The loop runs only while $k > 0$, and $E = \emptyset$ and $k = 0$ are checked after it (lines 7 and 8); otherwise the loop would remove every vertex with an edge once $k = 0$, and line 9 might find $E$ empty. No checks are needed before the loop: it does nothing when $E = \emptyset$ or $k = 0$, and $k$ never becomes negative. The loop takes the lowest-numbered vertex of degree $> k$; the edge choice is as in simpleFptVertexCover. <span class="tt">NOT_POSSIBLE</span> absorbs every $\cup$.`,
   simple: String.raw`The arbitrary choice in line 4 is made by number: the edge $\{v,w\}$ with the smallest $v$, then the smallest $w$; the branch for $v$ runs first. When both branches fail, line 8 returns <span class="tt">NOT_POSSIBLE</span> (it absorbs the $\cup\,\{w\}$).`,
   better: String.raw`Ties for the maximal degree go to the lowest number; the branch $D = \{v\}$ runs first, and a tie for the smallest $C_D$ keeps the first one. In the base case a path starts at its lowest-numbered degree-one vertex, a cycle at its lowest-numbered vertex (towards the smaller neighbour); a component without edges contributes nothing.`
 };

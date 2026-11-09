@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MJRTY · the majority vote as a gang war</title>
+<script>
+  /* MathJax: TeX in \( \), Euler letters, SVG output (also used for the labels inside the drawings) */
+  window.MathJax = {
+    tex: { inlineMath: [["\\(", "\\)"]] },
+    loader: { load: ["[mathjax-euler-extension]/svg"],
+              paths: { "mathjax-euler-extension": "https://cdn.jsdelivr.net/npm/@mathjax/mathjax-euler-font-extension@4" } },
+    svg: { fontCache: "none", mtextInheritFont: true },
+    output: { linebreaks: { inline: false } },
+    options: { enableMenu: false },
+    startup: { typeset: false }
+  };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js"></script>
+<style>
+  /* Same token values as /css/animations.css, repeated so the page also works when opened directly. */
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#9c866d;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1; --wi-ramp-lo:#e5c0b4; --wi-ramp-hi:#902015;
+    --wi-font-body:texgyrepagella, "TeX Gyre Pagella", Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-font-mono:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --wi-radius:4px; --wi-radius-lg:5px;
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .wi-topbar { display:flex; align-items:baseline; justify-content:space-between; gap:1em; flex-wrap:wrap;
+               margin:0 0 1.1em; padding-bottom:.5em; border-bottom:1px solid var(--wi-border);
+               font-family:var(--wi-font-head); letter-spacing:.03em; }
+  .wi-topbar .wi-home { color:var(--wi-ink-strong); font-size:1.05em; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:14px 22px; flex-wrap:wrap; margin:0 0 6px; }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 14px; max-width:100ch; line-height:1.5; }
+
+  /* --- chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:11px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .lbl, .ctl > label:not(.chk) { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer; line-height:1.35;
+           transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text; font-size:1.02rem; line-height:1.1;
+                padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  input.tokens { font-family:var(--wi-font-mono); font-size:.8rem; width:22em; max-width:100%; }
+  input.num { width:4.2em; }
+  .seg { display:inline-flex; flex-wrap:wrap; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  .seg button.on:hover:not(:disabled) { background:var(--wi-accent-dark); color:var(--wi-panel-2); }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+  .hidden { display:none !important; }
+
+  /* --- transport: buttons, step slider with phase bar --- */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:16px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; }
+  /* the step slider: a 16 px thumb, whose centre travels from 8 px to width − 8 px — exactly the span of the phase bar */
+  input.scrub { -webkit-appearance:none; appearance:none; display:block; width:100%; height:16px; margin:2px 0 0;
+                background:transparent; cursor:pointer; }
+  input.scrub::-webkit-slider-runnable-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; box-sizing:border-box; width:16px; height:16px;
+                margin-top:-6px; border-radius:50%; background:var(--wi-accent); border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  input.scrub::-moz-range-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-moz-range-thumb { box-sizing:border-box; width:16px; height:16px; border-radius:50%; background:var(--wi-accent);
+                border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint); white-space:nowrap; text-align:right; padding-top:2px; }
+  .phasebar { display:flex; margin:6px 8px 0; height:1.55rem; }
+  .phasebtn { flex:none; position:relative; overflow:hidden; padding:0; min-width:0; height:100%;
+              font-size:.68rem; line-height:1.55rem; font-family:var(--wi-font-head); letter-spacing:.02em; text-align:center;
+              background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-left-width:0;
+              border-radius:0; color:var(--wi-ink-faint); cursor:pointer; white-space:nowrap; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3; border-right:1px solid var(--wi-accent-soft); }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+
+  /* --- stage --- */
+  .stage { display:grid; grid-template-columns:minmax(0, var(--lf, 58fr)) 18px minmax(320px, var(--rf, 42fr)); gap:0; align-items:start; }
+  @media (max-width:980px) { .stage { grid-template-columns:1fr; gap:16px; } .splitter { display:none !important; } }
+  .splitter { align-self:stretch; min-height:200px; cursor:col-resize; touch-action:none; display:flex; justify-content:center; }
+  .splitter::before { content:""; width:4px; margin:30px 0; border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .splitter:hover::before, .splitter.drag::before, .splitter:focus-visible::before { background:var(--wi-accent-soft); }
+  .splitter:focus-visible { outline:none; }
+  .col-main, .col-side { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  @media (min-width:981px) { .col-side { position:sticky; top:10px; } }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); padding:11px 13px; min-width:0; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--wi-ink-faint);
+               margin:0 0 8px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--wi-font-body); font-size:1.15em; color:var(--wi-ink-soft); }
+  svg.stagesvg { display:block; background:var(--wi-bg); border-radius:var(--wi-radius); }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:8px; font-size:.74rem; color:var(--wi-ink-soft); align-items:center; }
+  .legend .item { display:inline-flex; align-items:center; gap:6px; }
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius);
+            padding:9px 13px; font-size:.9rem; color:var(--wi-ink-strong); min-height:6.6em; }
+  .status .yes { color:var(--wi-relax); font-weight:bold; }
+  .status .no  { color:var(--wi-active); font-weight:bold; }
+  .vars { display:flex; flex-wrap:wrap; gap:6px 12px; font-size:.86rem; align-items:baseline; min-height:3.2em; }
+  .vars .v { background:var(--wi-panel-2); padding:0 6px; border-radius:3px; white-space:nowrap; }
+  .vars .v.chg { background:#f6e6df; box-shadow:inset 0 0 0 1px var(--wi-accent-soft); }
+  .vars .k { color:var(--wi-ink-faint); font-family:var(--wi-font-head); font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; }
+  .vars .grp { display:inline-flex; gap:6px 10px; flex-wrap:wrap; align-items:baseline; }
+  .vars .cnt { margin-left:auto; display:flex; gap:12px; }
+  .vars .cnt code { font-family:var(--wi-font-mono); font-size:.84em; background:var(--wi-panel-2); padding:1px 5px; border-radius:3px; }
+  .stack { font-size:.8rem; line-height:1.9; margin-top:6px; color:var(--wi-ink-soft); }
+  .stack code { font-family:var(--wi-font-mono); font-size:.84em; background:var(--wi-panel-2); padding:1px 4px; border-radius:3px; white-space:nowrap; }
+  .stack code.top { background:#f6e6df; color:var(--wi-accent); box-shadow:inset 0 0 0 1px var(--wi-accent-soft); }
+  .stack .sep { color:var(--wi-ink-faint); margin:0 3px; }
+
+  /* code panel: the pseudocode of the slides */
+  .codebox { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  .codebox > .sim-title { padding:10px 15px 0; }
+  .codescroll { position:relative; max-height:calc(100vh - 330px); min-height:200px; overflow:auto; padding:0 6px 10px; }
+  .sublabel { font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.09em; text-transform:uppercase;
+              color:var(--wi-ink-faint); padding:10px 12px 3px; border-top:1px solid var(--wi-border-soft); margin-top:6px;
+              display:flex; justify-content:space-between; gap:10px; }
+  .sublabel:first-child { border-top:0; margin-top:0; padding-top:4px; }
+  .sublabel .src { text-transform:none; letter-spacing:0; font-family:var(--wi-font-body); font-size:1.1em; }
+  .cline { display:flex; gap:10px; padding:1px 9px; font-size:.84rem; line-height:1.7; color:var(--wi-ink-strong);
+           border-left:3px solid transparent; align-items:center; }
+  .cline .ln { color:var(--wi-ink-faint); min-width:1.3em; text-align:right; user-select:none; flex:none; font-size:.8em; align-self:flex-start; padding-top:.2em; }
+  .cline .tx { white-space:nowrap; }
+  .cline .cm { color:var(--wi-ink-faint); font-style:italic; }
+  .cline.caller { background:#f3ebdd; border-left-color:var(--wi-accent-soft); }
+  .cline.on { background:#f6e6df; border-left-color:var(--wi-active); }
+  .codenote { font-size:.74rem; color:var(--wi-ink-faint); padding:2px 15px 12px; line-height:1.45; }
+  .about { font-size:.82rem; line-height:1.55; color:var(--wi-ink-soft); }
+  .about p { margin:0 0 6px; }
+  .about b { color:var(--wi-ink-strong); font-family:var(--wi-font-head); font-weight:normal; letter-spacing:.04em; font-size:.92em; }
+  mjx-container[jax="SVG"] { color:inherit; }
+
+  /* input editor */
+  details.editor { margin-top:16px; background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:11px 16px; font-family:var(--wi-font-head); font-size:.78rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,340px) 1fr; gap:16px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  textarea { width:100%; height:150px; font-family:var(--wi-font-mono); font-size:.78rem; background:var(--wi-panel-2);
+             color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.78rem; color:var(--wi-ink-soft); line-height:1.55; }
+  .hint code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; font-family:var(--wi-font-mono); }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+
+  .readout { font-size:.86rem; color:var(--wi-ink-strong); background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+             border-radius:var(--wi-radius); padding:7px 13px; margin-top:10px; height:4.9em; overflow-y:auto; line-height:1.6; }
+  .readout .dim { color:var(--wi-ink-faint); }
+  .mj-buf  { position:absolute; left:-10000px; top:0; visibility:hidden; }
+
+  /* presentation view */
+  .only-p { display:none !important; }
+  body.present .only-p { display:inline-flex !important; }
+  body.present .hide-p { display:none !important; }
+  body.present h1 { font-size:1.9rem; }
+  .exitp { position:fixed; top:10px; right:12px; z-index:20; font-size:.75rem; opacity:.5; }
+  .exitp:hover, .exitp:focus-visible { opacity:1; }
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls { gap:8px 12px; padding:10px 12px; }
+    .seg button { padding:5px 9px; font-size:.74rem; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { animation-duration:.001ms !important; transition-duration:.001ms !important; } }
+  /* --- MJRTY page --- */
+  .gc { display:inline-block; min-width:1.45em; padding:0 .5em; white-space:nowrap; border-radius:.75em; color:#fff; font-family:var(--wi-font-head);
+        font-size:.78em; font-weight:bold; text-align:center; line-height:1.45; vertical-align:.08em; letter-spacing:.01em; }
+  .gc.none { background:var(--wi-inert); }
+  .status { height:10.2em; min-height:0; overflow-y:auto; }
+  .status .callout { display:block; margin-top:7px; padding:3px 10px; border-left:3px solid var(--wi-accent);
+                     background:var(--wi-panel-2); font-style:italic; color:var(--wi-accent-dark); font-size:.95em; }
+  .status .callout b { font-style:normal; }
+  .inv { font-size:.86rem; line-height:1.7; color:var(--wi-ink-strong); height:11.2em; overflow-y:auto; }
+  .inv p { margin:0 0 3px; }
+  .inv .dim { color:var(--wi-ink-faint); }
+  .inv .ok { color:var(--wi-relax); font-weight:bold; }
+  .inv .no { color:var(--wi-active); font-weight:bold; }
+  .cnt-rhs code { font-family:var(--wi-font-mono); font-size:.84em; background:var(--wi-panel-2); padding:1px 5px; border-radius:3px; }
+
+  /* head count */
+  .census { display:grid; grid-template-columns:auto minmax(80px, 1fr) auto; gap:5px 10px; align-items:center; font-size:.8rem; }
+  .crow { display:contents; cursor:pointer; }
+  .crow > * { padding:1px 0; }
+  .crow.watch .cbar { box-shadow:0 0 0 2px var(--wi-accent-soft); }
+  .crow.watch .cnum { color:var(--wi-ink-strong); }
+  .crow:hover .cbar { box-shadow:0 0 0 2px var(--wi-border); }
+  .cbar { position:relative; height:15px; background:var(--wi-panel-2); border:1px solid var(--wi-border-soft); border-radius:3px; display:flex; overflow:visible; }
+  .cbar .seg-s { height:100%; }
+  .cbar .seg-g { height:100%; outline:1.5px dashed var(--wi-ink-strong); outline-offset:-2px; }
+  .cbar .seg-d { height:100%; opacity:.55; background-image:repeating-linear-gradient(135deg, rgba(255,255,255,.55) 0 3px, transparent 3px 6px); }
+  .cbar .seg-w { height:100%; opacity:.22; }
+  .cbar .seg-x { height:100%; background:repeating-linear-gradient(135deg, var(--wi-inert) 0 2px, transparent 2px 5px); }
+  .cbar .half { position:absolute; top:-4px; bottom:-4px; width:0; border-left:1.5px dashed var(--wi-accent); }
+  .cnum { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-soft); white-space:nowrap; }
+  .census-note { font-size:.74rem; color:var(--wi-ink-faint); margin-top:7px; }
+
+  /* code */
+  .cline.bug .tx { text-decoration:underline wavy var(--wi-active); text-decoration-thickness:1px; text-underline-offset:4px; }
+  .cline .br { border-radius:3px; padding:0 2px; }
+  .cline.on .br.taken { background:#f0d4a0; box-shadow:0 0 0 1px #d9b46a; }
+
+  /* SVG */
+  svg.stagesvg text { font-family:var(--wi-font-body); }
+  .sv-band { font-family:var(--wi-font-head) !important; font-size:11px; letter-spacing:.1em; text-transform:uppercase; fill:var(--wi-ink-faint); }
+  .sv-idx  { font-family:var(--wi-font-mono) !important; font-size:11px; fill:var(--wi-ink-faint); text-anchor:middle; }
+  .sv-gl   { font-family:var(--wi-font-mono) !important; font-size:11px; font-weight:bold; fill:#fff; text-anchor:middle; }
+  .sv-tl   { font-family:var(--wi-font-mono) !important; font-size:11px; font-weight:bold; text-anchor:middle; }
+  .sv-note { font-size:13px; fill:var(--wi-ink-faint); font-style:italic; }
+  .sv-rhs  { font-size:13px; fill:var(--wi-ink-soft); }
+  .sv-crowd{ font-family:var(--wi-font-mono) !important; font-size:11px; fill:var(--wi-ink-strong); text-anchor:middle; }
+  .slot .hlring, .pair .hlring { opacity:0; }
+  .slot.hl .hlring, .pair.hl .hlring { opacity:1; }
+  .slot, .pair, .sqfig { cursor:default; }
+  .readout { height:3.6em; }
+
+  /* animations: a figure walks from (--dx, --dy) to its place; a duel goes via the gate (--x1, --y1) */
+  @keyframes walk  { 0% { transform:translate(var(--dx), var(--dy)); } 100% { transform:none; } }
+  @keyframes walk2 { 0% { transform:translate(var(--x0), var(--y0)); } 38%, 56% { transform:translate(var(--x1), var(--y1)); } 100% { transform:none; } }
+  @keyframes bang  { 0%, 34% { opacity:0; transform:scale(.3); } 44% { opacity:1; transform:scale(1.15); } 60% { opacity:.85; transform:scale(1.25); } 72%, 100% { opacity:0; transform:scale(1.4); } }
+  @keyframes appear { 0%, 60% { opacity:0; } 100% { opacity:1; } }
+  .walk  { animation:walk var(--dur, .6s) cubic-bezier(.45,.05,.3,1) both; }
+  .walk2 { animation:walk2 var(--dur2, 1s) ease-in-out both; }
+  .bang  { transform-box:fill-box; transform-origin:center; animation:bang var(--dur2, 1s) linear both; }
+  .appear { animation:appear var(--dur2, 1s) linear both; }
+  @keyframes vanish { 0%, 84% { opacity:1; } 100% { opacity:0; } }
+  @keyframes appear-late { 0%, 84% { opacity:0; } 100% { opacity:1; } }
+  .vanish { animation:vanish var(--dur2, 1s) linear both; }
+  @keyframes bang2 { 0%, 56% { opacity:0; transform:scale(.3); } 66% { opacity:1; transform:scale(1.15); } 80% { opacity:.85; transform:scale(1.3); } 92%, 100% { opacity:0; transform:scale(1.4); } }
+  .bang2 { transform-box:fill-box; transform-origin:center; animation:bang2 var(--dur2, 1s) linear both; }
+  .appear.late { animation-name:appear-late; }
+  .status .dim { color:var(--wi-ink-faint); font-size:.92em; }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption { font-family: var(--wi-font-head); letter-spacing: .05em; }
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar hide-p">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1 id="pageTitle">MJRTY · the majority vote as a gang war</h1>
+  <span class="seg" id="modeSeg" role="tablist">
+    <button data-mode="mj" class="on" role="tab" title="Boyer & Moore: one square, duels">MJRTY</button>
+    <button data-mode="mg" role="tab" title="Misra & Gries: k − 1 corners, k-way standoffs">Misra–Gries</button>
+  </span>
+  <span class="ctl hide-p"><button id="presBtn" title="A clutter-free view for the lecture (Esc to leave)">Presentation view</button></span>
+</div>
+<button id="exitPres" class="only-p exitp" title="Leave the presentation view (Esc)">✕ leave presentation</button>
+<p class="subtitle hide-p" id="subMG">Misra and Gries’s generalisation: <i>k</i> − 1 street corners around a plaza, each held by at most one gang,
+  with a counter <i>C</i>[<i>y</i>] for its members there. When all corners are held and a member of yet another gang walks in, there is a standoff:
+  the newcomer and one member from every corner — <i>k</i> members of <i>k</i> different gangs — all die. Every gang with more than <i>n</i>/<i>k</i> members
+  survives at a corner. The highlighted line of the code is the one being executed.</p>
+<p class="subtitle hide-p" id="subMJ">Boyer and Moore’s linear-time majority vote, told as a turf war: the elements of <i>A</i> arrive one by one as members of
+  colour-coded gangs; the gang holding the square is the candidate <i>x</i>, and <i>c</i> counts its members there.
+  Two members of different gangs who meet fight a duel that both lose; the graveyard of these mixed pairs is the whole correctness proof.
+  The code is the one from the slides; the highlighted line is the one being executed.</p>
+
+<div class="controls hide-p">
+  <div class="ctl">
+    <label for="presetSel">Input</label>
+    <select id="presetSel"></select>
+  </div>
+  <div class="ctl">
+    <input type="text" id="tokIn" class="tokens" spellcheck="false" aria-label="Input: letters a–z, one per element">
+    <button id="tokSet" class="pri">Set</button>
+  </div>
+  <div class="ctl hidden" id="kCtl">
+    <label for="kIn">k</label>
+    <input type="number" id="kIn" class="num" min="2" max="6" value="3" title="k − 1 corners; reports the gangs with more than n/k members">
+  </div>
+  <div class="ctl">
+    <span class="lbl">Show</span>
+    <span class="seg" id="granSeg">
+      <button data-gran="fine" class="on" title="One step per executed line">every line</button>
+      <button data-gran="coarse" title="One step per arriving element (and per element of the second pass)">one step per element</button>
+    </span>
+  </div>
+  <div class="ctl"><label class="chk"><input type="checkbox" id="censusChk" checked> head count</label></div>
+  <div class="ctl" id="randCtl">
+    <span class="lbl">Random</span>
+    <label for="genN" class="lbl" style="letter-spacing:0">n</label>
+    <input type="number" id="genN" class="num" min="1" max="200" value="20">
+    <label for="genK" class="lbl" style="letter-spacing:0">gangs</label>
+    <input type="number" id="genK" class="num" min="2" max="6" value="3">
+    <label class="chk"><input type="checkbox" id="genPlant" checked> plant a majority</label>
+    <button id="genNew" title="A new random input with these settings">↻ new</button>
+  </div>
+  <div class="ctl">
+    <button id="copyBtn" title="Copy a link to this input and this step">Copy link</button>
+    <span class="stepno" id="copyMsg" style="min-width:5em; text-align:left"></span>
+  </div>
+  <div class="err" id="parseErr" style="flex-basis:100%; margin:0; min-height:0"></div>
+</div>
+
+<div class="transport" id="transportBox">
+  <div class="transport-row">
+    <span class="ctl" style="gap:6px">
+      <button id="sReset" class="icon hide-p" title="Back to the first step (Home)" aria-label="Back to the first step">&#x21BA;</button>
+      <button id="sBack" class="icon" title="One step back (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+      <button id="sStep" class="icon pri" title="One step forward (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+      <button id="sPlay" class="icon" title="Play / pause (space)" aria-label="Play">&#x25B6;&#xFE0E;</button>
+      <button id="sEnd" class="icon hide-p" title="To the last step (End)" aria-label="To the last step">&#x21E5;</button>
+    </span>
+    <span class="progress">
+      <input type="range" class="scrub" id="scrubber" min="0" max="100000" value="0" step="1" aria-label="Step">
+      <div class="phasebar" id="phaseBar"></div>
+    </span>
+    <span class="stepno" id="stepNo">— / —</span>
+    <span class="ctl hide-p" style="gap:6px">
+      <span class="lbl">Speed</span>
+      <input type="range" id="sSpeed" min="80" max="1600" value="700" style="width:88px;accent-color:var(--wi-accent)" aria-label="Delay between steps">
+      <span class="stepno" id="sSpeedVal" style="min-width:4.5em">700ms</span>
+    </span>
+  </div>
+</div>
+
+<div class="stage" id="stageBox">
+  <div class="col-main">
+    <div class="sim-box">
+      <div class="sim-title"><span>Town square</span><span class="rhs cnt-rhs" id="costMeta"></span></div>
+      <div id="canvasWrap"><svg id="mainSvg" class="stagesvg"></svg></div>
+      <div class="readout hide-p" id="readout"></div>
+    </div>
+    <div class="sim-box">
+      <div class="sim-title"><span>The invariant</span><span class="rhs" id="invMeta"></span></div>
+      <div class="inv" id="invBox"></div>
+    </div>
+    <div class="sim-box" id="censusBox">
+      <div class="sim-title"><span>Head count</span><span class="rhs" id="censusMeta"></span></div>
+      <div class="census" id="census"></div>
+      <div class="census-note hide-p" id="censusNote"></div>
+    </div>
+  </div>
+  <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" tabindex="0"
+       title="Drag to share the width between the drawing and the code (double-click: back to the default)"></div>
+  <div class="col-side">
+    <div class="sim-box">
+      <div class="sim-title"><span>What happens</span><span class="rhs" id="phaseName"></span></div>
+      <div class="status" id="statusBox"></div>
+    </div>
+    <div class="sim-box">
+      <div class="vars" id="varsBox"></div>
+    </div>
+    <div class="codebox">
+      <div class="sim-title"><span>Code</span><span class="rhs"></span></div>
+      <div class="codescroll" id="codeScroll"></div>
+      <div class="codenote" id="codeNote"></div>
+    </div>
+  </div>
+</div>
+
+<details class="editor hide-p" id="aboutBox">
+  <summary>About this page — the story, the invariant, Misra–Gries, input format</summary>
+  <div class="about" id="aboutText" style="padding:0 16px 14px; max-width:110ch"></div>
+</details>
+<script>
+"use strict";
+/* ==========================================================================
+   MJRTY (Boyer & Moore's majority vote), told as a gang war.
+
+   record() below is a line-by-line transcription of the pseudocode on the
+   slides (printed in the code panel), followed by the second pass ("use a
+   second pass to check" on the slide), spelled out as verify().  Every
+   executed line is recorded with a snapshot of the state, so one can scrub
+   back and forth.  The story only adds bookkeeping that the algorithm does
+   not need: WHICH members stand in the square (a stack; the most recent
+   arrival fights a duel) and the graveyard of pairs.
+   ========================================================================== */
+const el  = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const M = s => "\\(" + s + "\\)";
+const EQ = "\\mathrel{=\\!=}";                       /* \isequal of the slides */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const half = n => n % 2 ? (n / 2).toFixed(1) : String(n / 2);
+
+/* ---------- gangs: one colour per letter, deterministic ---------------------- */
+const GANG_COL = ["#b8392b", "#2a6a63", "#b07d18", "#3d5a99", "#4a7c3f", "#9b2c6f",
+                  "#7a5a3a", "#5b7f9e", "#86862a", "#c05a80", "#4b3f8f", "#2f8f8a"];
+const gcol = g => GANG_COL[(g.charCodeAt(0) - 97) % GANG_COL.length];
+/* fictional gangs for the letters a–z: a name, and the initial drawn on the figures
+   (unique among the first twelve; never x, c, i, m, n, which the code uses) */
+const GANG_NAME = [["Poppy Syndicate", "P"], ["Jade Cartel", "J"], ["Saffron Boys", "S"], ["Blue Lotus", "L"], ["Grasshoppers", "G"], ["Purple Haze", "H"],
+  ["Bean Counters", "B"], ["Fog Runners", "F"], ["Kush Collective", "K"], ["Rosebud Crew", "R"], ["Velvet Mob", "V"], ["Dragon Chasers", "D"],
+  ["Ember Gang", "E"], ["Tidewater Crew", "T"], ["Wheat Wolves", "W"], ["Ultramarines", "U"], ["Zest Crew", "Z"], ["Quiet Ones", "Q"],
+  ["Yard Dogs", "Y"], ["Smoke Signals", "S"], ["Oleander Crew", "O"], ["Lollipop Lords", "L"], ["Gravel Gang", "G"], ["Hash Hounds", "H"],
+  ["Juniper Jacks", "J"], ["Blizzard Boys", "B"]];
+const gname = g => GANG_NAME[g.charCodeAt(0) - 97][0];
+const gmark = g => GANG_NAME[g.charCodeAt(0) - 97][1];
+const BG = [0xf5, 0xeb, 0xd9];
+function tint(hex, t) {             /* t = share of the background */
+  const c = [1, 3, 5].map(k => parseInt(hex.slice(k, k + 2), 16));
+  return "rgb(" + c.map((v, k) => Math.round(v * (1 - t) + BG[k] * t)).join(",") + ")";
+}
+const chip = g => g === null || g === undefined ? '<span class="gc none">—</span>' : '<span class="gc" style="background:' + gcol(g) + '" title="value ' + g + '">' + esc(gname(g)) + "</span>";
+
+/* ---------- MathJax: typeset HTML off-screen and swap it in; labels inside the SVG ---------- */
+const mjReady = () => !!(window.MathJax && MathJax.typesetPromise && MathJax.startup && MathJax.startup.document);
+function setMath(node, html) {
+  if (node._want === html) return;
+  node._want = html;
+  if (!mjReady()) { node.innerHTML = html; return; }
+  if (node._busy) return;
+  node._busy = true;
+  const want = html, tmp = document.createElement("div"), cs = getComputedStyle(node);
+  tmp.className = "mj-buf"; tmp.style.fontSize = cs.fontSize; tmp.style.fontFamily = cs.fontFamily; tmp.style.width = node.clientWidth + "px"; tmp.innerHTML = want;
+  document.body.appendChild(tmp);
+  MathJax.typesetPromise([tmp]).then(() => {
+    if (MathJax.typesetClear) MathJax.typesetClear([node]);
+    node.replaceChildren(...tmp.childNodes);
+  }).catch(() => { node.innerHTML = want; }).finally(() => {
+    tmp.remove(); node._busy = false;
+    if (node._want !== want) { const w = node._want; node._want = null; setMath(node, w); }
+  });
+}
+const MJL = new Map(); let mjAgain = 0;
+function mjSvg(tex) {
+  const c = MJL.get(tex);
+  if (c) return c === 1 ? null : c;
+  if (!mjReady()) return null;
+  MJL.set(tex, 1);
+  MathJax.tex2svgPromise(tex, { display: false }).then(node => {
+    const sv = node.querySelector("svg");
+    MJL.set(tex, { vb: sv.getAttribute("viewBox").split(/[\s,]+/).map(Number), inner: sv.innerHTML });
+    if (!mjAgain) mjAgain = requestAnimationFrame(() => { mjAgain = 0; render(true); });
+  }).catch(() => MJL.delete(tex));
+  return null;
+}
+let MEASURE = null;
+const BODYFONT = () => getComputedStyle(document.body).fontFamily;
+function textW(s, font) {
+  if (!MEASURE) MEASURE = document.createElement("canvas").getContext("2d");
+  MEASURE.font = font; return MEASURE.measureText(s).width;
+}
+/* TeX at (x, baseline y); returns { w, svg }.  Until MathJax has it, a plain stand-in. */
+function mathAt(tex, x, y, fs, anchor, color) {
+  const c = mjSvg(tex);
+  if (!c) {
+    const plain = tex.replace(/\\#/g, "#").replace(/\\text\{([^}]*)\}/g, "$1").replace(/\\[a-z]+/g, "").replace(/[{}]/g, "");
+    const w = textW(plain, "italic " + fs + "px " + BODYFONT());
+    return { w, svg: '<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" style="font:italic ' + fs + 'px var(--wi-font-body);fill:' + color + ';text-anchor:' + (anchor || "start") + '">' + esc(plain) + "</text>" };
+  }
+  const [, vy, vw, vh] = c.vb, w = vw / 1000 * fs, h = vh / 1000 * fs;
+  const left = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w : x;
+  return { w, svg: '<svg x="' + left.toFixed(1) + '" y="' + (y + vy / 1000 * fs).toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + h.toFixed(1) +
+                   '" viewBox="' + c.vb.join(" ") + '" overflow="visible" style="color:' + color + '">' + c.inner + "</svg>" };
+}
+
+/* ---------- the code, as on the slides ---------------------------------------- */
+function codeBlocks() {
+  if (D.mode === "mg") return codeBlocksMG();
+  return [
+    { key: "m", title: "MJRTY", src: "as on the slides", lines: [
+      [0, "<b>procedure</b> MJRTY(" + M("A[0..n)") + ")"],
+      [1, M("c \\gets 0")],
+      [1, "<b>for</b> " + M("i \\gets 0,\\ldots,n-1")],
+      [2, "<b>if</b> " + M("c " + EQ + " 0")],
+      [3, M("x \\gets A[i]") + ";" + M("\\;") + " " + M("c \\gets 1")],
+      [2, "<b>else</b>"],
+      [3, "<b>if</b> " + M("A[i] " + EQ + " x") + ' <b>then</b> <span class="br" data-br="eq">' + M("c \\gets c + 1") + '</span> <b>else</b> <span class="br" data-br="ne">' + M("c \\gets c - 1") + "</span>"],
+      [1, "<b>return</b> " + M("x")] ] },
+    { key: "v", title: "verify", src: "the second pass, spelled out", lines: [
+      [0, "<b>procedure</b> verify(" + M("A[0..n)") + ", " + M("x") + ")"],
+      [1, M("m \\gets 0")],
+      [1, "<b>for</b> " + M("i \\gets 0,\\ldots,n-1")],
+      [2, "<b>if</b> " + M("A[i] " + EQ + " x") + ' <b>then</b> <span class="br" data-br="then">' + M("m \\gets m + 1") + "</span>"],
+      [1, "<b>return</b> " + M("m > n/2")] ] }
+  ];
+}
+function buildCode() {
+  const box = el("codeScroll");
+  let h = "";
+  for (const blk of codeBlocks()) {
+    h += '<div class="sublabel"><span>' + esc(blk.title) + '</span><span class="src">' + esc(blk.src) + "</span></div>";
+    blk.lines.forEach(([ind, html, cls], i) => {
+      h += '<div class="cline' + (cls ? " " + cls : "") + '" data-k="' + blk.key + "." + (i + 1) + '"><span class="ln">' + (i + 1) + '</span><span class="tx" style="padding-left:' + (1.6 * ind) + 'em">' + html + "</span></div>";
+    });
+  }
+  box.innerHTML = h;
+  box._lines = new Map([...box.querySelectorAll(".cline")].map(d => [d.dataset.k, d]));
+  box._on = [];
+  if (mjReady()) MathJax.typesetPromise([box]).catch(() => {});
+}
+function highlightCode(ln, br) {
+  const box = el("codeScroll");
+  for (const d of box._on) d.classList.remove("on");
+  box.querySelectorAll(".br.taken").forEach(b => b.classList.remove("taken"));
+  box._on = [];
+  const d = box._lines.get(ln);
+  if (!d) return;
+  d.classList.add("on"); box._on.push(d);
+  if (br) { const b = d.querySelector('.br[data-br="' + br + '"]'); if (b) b.classList.add("taken"); }
+  const top = d.offsetTop, bot = top + d.offsetHeight;
+  if (top < box.scrollTop + 20 || bot > box.scrollTop + box.clientHeight - 20) box.scrollTop = Math.max(0, top - box.clientHeight * 0.35);
+}
+
+/* ==========================================================================
+   The algorithm, recorded step by step
+   ========================================================================== */
+/* fate of an element: 0 still to come, 1 in the square, 2 dead */
+function record(A) {
+  const n = A.length, out = [], reigns = [];
+  const S = { i: null, x: null, c: 0, sq: [], pairs: [], gate: null, fate: new Array(n).fill(0), vi: null, m: null,
+              vm: new Array(n).fill(0), verdict: null, pass: 1, arrived: 0, v1: 0, v2: 0 };
+  const snap = () => ({ i: S.i, x: S.x, c: S.c, sq: S.sq.slice(), pairs: S.pairs.slice(), gate: S.gate, fate: S.fate.slice(), vi: S.vi,
+                        m: S.m, vm: S.vm.slice(), verdict: S.verdict, pass: S.pass, arrived: S.arrived, v1: S.v1, v2: S.v2 });
+  const push = (ln, o) => out.push(Object.assign({ ln, st: snap() }, o));
+  const Ai = i => M("A[" + i + "]") + " = " + chip(A[i]);
+  let reign = -1, firstRetake = true, firstPair = true;
+
+  push("m.1", { coarse: false, tag: "start",
+    msg: "MJRTY is called on " + M("A[0.." + n + ")") + ", " + M("n = " + n) + ". The gang members will arrive one at a time, in the order of the array." });
+  S.c = 0;
+  push("m.2", { coarse: true, tag: "start", msg: M("c \\gets 0") + ": the square is empty; nobody holds it yet." });
+
+  for (let i = 0; i < n; i++) {
+    S.i = i; S.gate = i; S.arrived++; S.v1++;
+    const tagA = S.c === 0 ? "next" : "r:" + reign;
+    push("m.3", { coarse: false, tag: tagA, anim: { k: "arrive", i },
+      msg: M("i = " + i) + ": " + Ai(i) + " walks up to the square." });
+    push("m.4", { coarse: false, tag: tagA,
+      msg: S.c === 0 ? M("c = 0") + ": the square is empty." : M("c = " + S.c + " \\ne 0") + ": gang " + chip(S.x) + " holds the square with " + S.c + (S.c === 1 ? " member." : " members.") });
+    if (S.c === 0) {
+      S.x = A[i]; S.c = 1; S.sq.push(i); S.fate[i] = 1; S.gate = null; reign++;
+      reigns.push({ g: A[i], i });
+      let call = "";
+      if (reign >= 1 && firstRetake) { firstRetake = false; call = "The square only ever holds <b>one</b> gang. So whoever is left at the end is in the square."; }
+      push("m.5", { coarse: true, tag: "r:" + reign, anim: { k: "enter", i }, callout: call,
+        msg: "Empty square — a new gang takes it: " + M("x \\gets A[" + i + "]") + " = " + chip(A[i]) + ", " + M("c \\gets 1") + "." });
+    } else if (A[i] === S.x) {
+      S.c++; S.sq.push(i); S.fate[i] = 1; S.gate = null;
+      push("m.7", { coarse: true, tag: "r:" + reign, br: "eq", anim: { k: "enter", i },
+        msg: M("A[" + i + "] = x") + ": reinforcement. " + chip(A[i]) + " joins its gang in the square, " + M("c \\gets c + 1 = " + S.c) + "." });
+    } else {
+      const j = S.sq.pop(); S.c--; S.pairs.push([j, i]); S.fate[i] = 2; S.fate[j] = 2; S.gate = null;
+      let call = "";
+      if (firstPair) { firstPair = false; call = "Each pair in the graveyard has <b>two colours</b>. A gang with more than half the people can’t all end up in pairs."; }
+      push("m.7", { coarse: true, tag: "r:" + reign, br: "ne", anim: { k: "duel", i, j }, callout: call,
+        msg: M("A[" + i + "] \\ne x") + ": a duel — " + chip(A[i]) + " against " + chip(S.x) + " (" + M("A[" + j + "]") + "), one from each gang, both dead. " +
+             M("c \\gets c - 1 = " + S.c) + "; the pair goes to the graveyard." + (S.c === 0 ? " The square is empty now." : "") });
+    }
+  }
+  S.i = null; S.gate = null;
+  let rmsg;
+  if (S.c === 0) rmsg = "Everyone has arrived — and the square is <b>empty</b> (" + M("c = 0") + "). MJRTY still returns the last value of " + M("x") + ", " + chip(S.x) +
+    ". (An empty square already shows that there is no majority: a majority gang would have survivors.)";
+  else rmsg = "Everyone has arrived. Gang " + chip(S.x) + " holds the square with " + M("c = " + S.c) + (S.c === 1 ? " member" : " members") +
+    ": MJRTY returns the <b>candidate</b> " + M("x =") + " " + chip(S.x) + ".";
+  push("m.8", { coarse: true, tag: "check", msg: rmsg });
+  S.pass = 2;
+  const check = "The survivor need not be a majority — check it.";
+  push("v.1", { coarse: false, tag: "check", callout: check,
+    msg: "The second pass: verify(" + M("A") + ", " + chip(S.x) + ") counts the members of gang " + chip(S.x) + " in all of " + M("A") + "." });
+  S.m = 0;
+  push("v.2", { coarse: true, tag: "check", callout: check, msg: M("m \\gets 0") + "." });
+  for (let i = 0; i < n; i++) {
+    S.vi = i; S.v2++;
+    push("v.3", { coarse: false, tag: "check", msg: M("i = " + i) + "." });
+    const hit = S.x !== null && A[i] === S.x;
+    if (hit) { S.m++; S.vm[i] = 1; } else S.vm[i] = 2;
+    push("v.4", { coarse: true, tag: "check", br: hit ? "then" : null,
+      msg: hit ? Ai(i) + " " + M("= x") + ": " + M("m \\gets m + 1 = " + S.m) + "." : Ai(i) + " " + M("\\ne x") + "." });
+  }
+  S.vi = null; S.verdict = S.m > n / 2;
+  const cost = " <span class=\"dim\">Cost: two passes over " + M("A") + ", " + M("2n = " + (2 * n)) + " element visits; besides " + M("A") + " only " + M("x") + ", " + M("c") + " and " + M("m") + ".</span>";
+  push("v.5", { coarse: true, tag: "check", final: true,
+    msg: S.verdict ? M("m = " + S.m + " > n/2 = " + half(n)) + ': <span class="yes">✓ ' + chip(S.x) + " is the majority element.</span>" + cost
+                   : M("m = " + S.m + " \\le n/2 = " + half(n)) + ': <span class="no">✗ no majority element.</span>' + cost });
+  for (let k = out.length - 2; k >= 0; k--) if (out[k].tag === "next") out[k].tag = out[k + 1].tag;
+  return { steps: out, reigns };
+}
+
+/* ==========================================================================
+   State, visible steps, phases
+   ========================================================================== */
+const D = { mode: "mj", k: 3, A: [], preset: "clean", gran: "fine", census: true, watch: null, seed: 1,
+            steps: [], reigns: [], vis: [], cur: 0, phases: [], timer: null, maxC: 1, maxP: 0, prevVi: null, anim: null };
+const MAX_N = 200;
+
+function analyse() {
+  const cnt = {};
+  D.A.forEach((g, i) => { cnt[g] = (cnt[g] || 0) + 1; });
+  D.cnt = cnt;
+  D.gangs = Object.keys(cnt).sort();
+  D.maj = D.gangs.find(g => cnt[g] > D.A.length / 2) || null;
+  D.heavy = D.gangs.filter(g => cnt[g] > D.A.length / (D.mode === "mg" ? D.k : 2));
+}
+function recordAll() {
+  const MG = D.mode === "mg", r = MG ? recordMG(D.A, D.k) : record(D.A);
+  D.steps = r.steps; D.reigns = r.reigns; D.standoffs = r.standoffs || 0;
+  if (MG) {
+    D.maxC = Math.max(1, ...D.steps.map(f => Math.max(0, ...f.st.corners.map(c => c ? c.mem.length : 0))));
+    D.maxP = Math.max(0, ...D.steps.map(f => f.st.groups.length));
+  } else {
+    D.maxC = Math.max(1, ...D.steps.map(f => f.st.c));
+    D.maxP = Math.max(0, ...D.steps.map(f => f.st.pairs.length));
+  }
+  analyse();
+  if (!D.watch || !D.cnt[D.watch]) {
+    D.watch = (MG ? D.heavy[0] : D.maj) || D.gangs.slice().sort((a, b) => D.cnt[b] - D.cnt[a] || (a < b ? -1 : 1))[0];
+  }
+  D.prevVi = null; D.anim = null;
+  buildVisible();
+}
+function buildVisible() {
+  D.vis = [];
+  D.steps.forEach((f, i) => { if (D.gran === "fine" || f.coarse) D.vis.push(i); });
+  D.phases = [];
+  D.vis.forEach((fi, vi) => {
+    const tag = D.steps[fi].tag, P = D.phases[D.phases.length - 1];
+    if (P && P.tag === tag) P.to = vi; else D.phases.push({ tag, from: vi, to: vi });
+  });
+  for (const P of D.phases) {
+    if (P.tag === "start") { P.names = ["start", "·"]; P.title = D.mode === "mg" ? "misraGries is called; C ← empty map" : "MJRTY is called; c ← 0"; P.col = null; continue; }
+    if (P.tag === "tail") { P.names = [D.standoffs ? "after the last standoff" : "no standoffs", D.standoffs ? "after" : "none", "·"]; P.title = "The arrivals after the last standoff"; P.col = null; continue; }
+    if (P.tag.startsWith("s:")) { const q = P.tag.slice(2); P.names = ["standoff " + q, "#" + q, "✶"]; P.title = "The arrivals up to and including standoff " + q; P.col = null; continue; }
+    if (P.tag === "check") { P.names = ["second pass: verify", "verify", "✓"]; P.title = D.mode === "mg" ? "return the keys of C, then the second pass: count the members of each" : "return x, then the second pass: count the members of gang x"; P.col = null; continue; }
+    const k = +P.tag.split(":")[1], R = D.reigns[k];
+    P.names = [gname(R.g), gname(R.g).split(" ")[0], gmark(R.g)];
+    P.title = "Reign " + (k + 1) + ": the " + gname(R.g) + " take the empty square at i = " + R.i + " and hold it until c = 0 again (or until the end)";
+    P.col = gcol(R.g);
+  }
+  buildPhaseBar();
+}
+
+/* ---------- phase bar: widths ∝ number of steps, at least PH_MIN px (water filling);
+              the slider maps piecewise-linearly onto exactly these widths ---------- */
+const PH_MIN = 30, SCALE = 100000;
+function buildPhaseBar() {
+  const bar = el("phaseBar");
+  bar.innerHTML = D.phases.map((P, i) => '<button class="phasebtn" data-p="' + i + '" title="' + esc(P.title) + '"' +
+    (P.col ? ' style="background:' + tint(P.col, 0.82) + '"' : "") + '><span class="fill empty"></span><span class="lab"></span></button>').join("");
+  bar.querySelectorAll(".phasebtn").forEach(b => b.onclick = () => { stop(); D.cur = D.phases[+b.dataset.p].from; render(); b.blur(); });
+  const digits = String(D.vis.length).length;
+  el("stepNo").style.minWidth = (2 * digits + 3) + "ch";
+  fitPhaseBar();
+}
+function fitPhaseBar() {
+  const bar = el("phaseBar"), W = bar.getBoundingClientRect().width, P = D.phases;
+  if (!W || !P.length) return;
+  const k = P.map(p => p.to - p.from + 1);
+  let w;
+  if (P.length * PH_MIN >= W) w = P.map(() => W / P.length);
+  else {
+    const fixed = new Set();
+    for (;;) {
+      const rest = k.reduce((s, x, i) => fixed.has(i) ? s : s + x, 0), room = W - fixed.size * PH_MIN, c = room / rest;
+      let more = false;
+      k.forEach((x, i) => { if (!fixed.has(i) && c * x < PH_MIN) { fixed.add(i); more = true; } });
+      if (!more) { w = k.map((x, i) => fixed.has(i) ? PH_MIN : c * x); break; }
+    }
+  }
+  let x = 0;
+  D.pw = w; D.px = w.map(v => { const a = x; x += v; return a; }); D.pW = W;
+  bar.querySelectorAll(".phasebtn").forEach((b, i) => {
+    b.style.width = w[i] + "px";
+    const font = getComputedStyle(b).font, lab = b.querySelector(".lab");
+    lab.textContent = P[i].names.find(s => textW(s, font) <= w[i] - 5) || "";
+  });
+  /* map onto the widths as laid out (sub-pixel snapping adds up over many phases) */
+  const x0 = bar.getBoundingClientRect().left;
+  bar.querySelectorAll(".phasebtn").forEach((b, i) => { const r = b.getBoundingClientRect(); D.px[i] = r.left - x0; D.pw[i] = r.width; });
+}
+const phaseOf = vi => { let lo = 0, hi = D.phases.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (D.phases[m].from <= vi) lo = m; else hi = m - 1; } return lo; };
+function stepToVal(vi) {
+  const p = phaseOf(vi), P = D.phases[p], k = P.to - P.from + 1;
+  return Math.round((D.px[p] + (vi - P.from + 0.5) / k * D.pw[p]) / D.pW * SCALE);
+}
+function valToStep(v) {
+  const x = v / SCALE * D.pW;
+  let p = 0; while (p + 1 < D.phases.length && D.px[p + 1] <= x) p++;
+  const P = D.phases[p], k = P.to - P.from + 1;
+  return P.from + clamp(Math.floor((x - D.px[p]) / D.pw[p] * k), 0, k - 1);
+}
+
+/* ==========================================================================
+   Drawing
+   ========================================================================== */
+/* a gang member, standing at (0, 0) = the middle of its feet */
+function pawn(col, g, ghost) {
+  if (ghost) return '<circle cx="0" cy="-22" r="5.6" fill="none" stroke="' + col + '" stroke-width="1.2" stroke-dasharray="2.5 2"/>' +
+    '<path d="M-10,0 L-7.5,-11 Q0,-17.5 7.5,-11 L10,0 Z" fill="none" stroke="' + col + '" stroke-width="1.2" stroke-dasharray="2.5 2"/>';
+  return '<circle cx="0" cy="-22" r="5.6" fill="' + col + '"/>' +
+    '<path d="M-10,0 L-7.5,-11 Q0,-17.5 7.5,-11 L10,0 Z" fill="' + col + '"/>' +
+    '<text class="sv-gl" x="0" y="-3.2">' + (g ? gmark(g) : "") + "</text>";
+}
+function tomb(col, g) {
+  return '<path d="M-9,0 V-14 A9,9 0 0 1 9,-14 V0 Z" fill="' + tint(col, 0.62) + '" stroke="' + col + '" stroke-width="1.4"/>' +
+    '<text class="sv-tl" x="0" y="-5" style="fill:' + col + '">' + gmark(g) + "</text>";
+}
+const star = (r1, r2, k) => { let p = ""; for (let t = 0; t < 2 * k; t++) { const r = t % 2 ? r2 : r1, a = Math.PI * t / k - Math.PI / 2; p += (t ? " L" : "M") + (r * Math.cos(a)).toFixed(1) + "," + (r * Math.sin(a)).toFixed(1); } return p + " Z"; };
+
+/* geometry: fixed for the input and the width, never for the step (no jumping) */
+const FS = 1.4, TS = 1.3;          /* scale of the figures and of the tombstones (drawn for scale 1 above) */
+function layout(W) {
+  const n = D.A.length, pad = 14, L = { W, pad };
+  let y = 6;
+  y = stripLayout(L, W, y);
+  /* band 2: the square */
+  L.lab2 = y + 12; y += 20;
+  L.GW = 64; L.sqX0 = pad + L.GW; L.sqX1 = W - pad;
+  L.SW = 40; L.perSq = Math.max(2, Math.floor((L.sqX1 - L.sqX0 - 24) / L.SW));
+  L.cap = Math.min(D.maxC, 2 * L.perSq);
+  L.sqRows = Math.max(1, Math.ceil(L.cap / L.perSq));
+  L.sqY0 = y; L.sqY1 = y + 16 + L.sqRows * 56;
+  L.slot = k => ({ x: L.sqX0 + 30 + (k % L.perSq) * L.SW, y: L.sqY0 + 54 + Math.floor(k / L.perSq) * 56 });
+  L.gate = { x: pad + L.GW / 2 - 4, y: L.sqY0 + 54 };
+  y = L.sqY1 + 10;
+  /* band 3: the graveyard */
+  L.lab3 = y + 12; y += 18;
+  L.PP = 74; L.perG = Math.max(1, Math.floor((W - 2 * pad) / L.PP));
+  L.gRows = Math.max(1, Math.ceil(D.maxP / L.perG));
+  const base3 = y + 40;
+  L.pair = k => ({ x: pad + L.PP / 2 + (k % L.perG) * L.PP, y: base3 + Math.floor(k / L.perG) * 58 });
+  y += L.gRows * 58 + 6;
+  L.H = y;
+  return L;
+}
+function stripLayout(L, W, y) {
+  const n = D.A.length, pad = L.pad;
+  /* band 1: arrivals */
+  L.lab1 = y + 12; y += 18;
+  L.CW = 44; L.perRow = Math.max(1, Math.floor((W - 2 * pad) / L.CW));
+  L.rows = Math.ceil(n / L.perRow);
+  const RH = 68, base1 = y + 54;
+  L.strip = D.A.map((_, i) => ({ x: pad + L.CW / 2 + (i % L.perRow) * L.CW, y: base1 + Math.floor(i / L.perRow) * RH }));
+  y += L.rows * RH + 10;
+  return y;
+}
+/* which slot of the square shows the member at stack position p (0 = bottom) when c are there; -1: in the crowd */
+function slotOf(L, p, c) {
+  if (c <= L.cap) return p;
+  const k = p - (c - (L.cap - 1)) + 1;     /* the top cap−1 members in slots 1..cap−1; slot 0 is the crowd */
+  return k >= 1 ? k : -1;
+}
+
+function stripFigures(L, st) {
+  const A = D.A; let o = "";
+  const cur = st.pass === 2 ? st.vi : st.i;
+  A.forEach((g, i) => {
+    const p = L.strip[i], col = gcol(g), fate = st.fate[i];
+    let inner = '<rect class="hlring" x="-15" y="-32" width="30" height="36" rx="4" fill="none" stroke="var(--wi-accent)" stroke-width="1.3" stroke-dasharray="3 2"/>';
+    let op = 1;
+    if (st.pass === 1) {
+      if (i === st.gate) inner += '<g opacity=".7">' + pawn(col, g, true) + "</g>", op = -1;
+      else if (fate === 1 || fate === 2) op = 0.24;
+    } else {
+      if (st.vm[i] === 1) inner += '<rect x="-14" y="-31" width="28" height="34" rx="4" fill="#dfe4cc" stroke="var(--wi-relax)" stroke-width="1.3"/>';
+      else if (st.vm[i] === 2) op = 0.24;
+      else op = 0.85;
+    }
+    if (op >= 0) inner += '<g opacity="' + op + '">' + pawn(col, g) + "</g>";
+    if (fate === 2) inner += '<text x="10" y="-25" style="font-size:12px;fill:var(--wi-ink-soft)">†</text>';
+    if (i === cur) inner += '<path d="M-4.5,-38 L4.5,-38 L0,-32.5 Z" fill="var(--wi-active)"/>';
+    const idx = '<text class="sv-idx" x="0" y="15"' + (i === cur ? ' style="fill:var(--wi-active);font-weight:bold"' : "") + ">" + i + "</text>";
+    o += '<g class="slot" data-i="' + i + '" transform="translate(' + p.x.toFixed(1) + "," + p.y + ')"><g transform="scale(' + FS + ')">' + inner + "</g>" + idx + "</g>";
+  });
+
+  return o;
+}
+function svgMain(W, f, L, animEl, playing) {
+  const st = f.st, A = D.A, n = A.length;
+  const anim = animEl === null ? null : (D.gran === "coarse" ? Object.assign({ coarse: true }, f.anim) : f.anim);
+  let o = "";
+  const dly = animEl === null ? "" : "animation-delay:-" + Math.round(animEl) + "ms;";
+  const dur = playing ? clamp(+el("sSpeed").value * 0.85, 160, 650) : 650, dur2 = playing ? clamp(+el("sSpeed").value * 0.95, 220, 1100) : 1100;
+  const durs = "--dur:" + dur + "ms;--dur2:" + dur2 + "ms;";
+  const walk = (dx, dy) => ' class="walk" style="--dx:' + dx.toFixed(1) + "px;--dy:" + dy.toFixed(1) + "px;" + durs + dly + '"';
+  const walk2 = (x0, y0, x1, y1) => ' class="walk2" style="--x0:' + x0.toFixed(1) + "px;--y0:" + y0.toFixed(1) + "px;--x1:" + x1.toFixed(1) + "px;--y1:" + y1.toFixed(1) + "px;" + durs + dly + '"';
+
+  /* ---- band 1: arrivals ---- */
+  o += '<text class="sv-band" x="' + L.pad + '" y="' + L.lab1 + '">' + (st.pass === 2 ? "Second pass: counting gang x" : "Arrivals, in the order of A") + "</text>";
+  if (st.pass === 2 && st.m !== null) o += mathAt("m = " + st.m + (st.verdict !== null ? (st.verdict ? " > " : " \\le ") + "n/2 = " + half(n) : ""), W - L.pad, L.lab1 + 1, 14, "end", "var(--wi-ink-strong)").svg;
+  else if (st.i !== null) o += mathAt("i = " + st.i, W - L.pad, L.lab1 + 1, 14, "end", "var(--wi-ink-strong)").svg;
+  o += stripFigures(L, st);
+
+  /* ---- band 2: the square ---- */
+  o += '<text class="sv-band" x="' + L.pad + '" y="' + L.lab2 + '">The square</text>';
+  {
+    const wc = mathAt("c = " + st.c, W - L.pad, L.lab2 + 1, 14, "end", "var(--wi-ink-strong)");
+    o += wc.svg;
+    let cx = W - L.pad - wc.w - 22;
+    if (st.x !== null) {
+      const nx = W - L.pad - wc.w - 18;
+      o += '<text class="sv-rhs" x="' + nx.toFixed(1) + '" y="' + (L.lab2 + 1) + '" text-anchor="end">' + esc(gname(st.x)) + "</text>";
+      cx = nx - textW(gname(st.x), "13px " + BODYFONT()) - 13;
+    }
+    o += st.x === null ? '<text x="' + cx + '" y="' + (L.lab2 + 1) + '" text-anchor="middle" style="font-size:14px;fill:var(--wi-ink-faint)">—</text>'
+                       : '<circle cx="' + cx.toFixed(1) + '" cy="' + (L.lab2 - 3.5) + '" r="8" fill="' + gcol(st.x) + '"/><text class="sv-gl" x="' + cx.toFixed(1) + '" y="' + L.lab2 + '">' + gmark(st.x) + "</text>";
+    o += mathAt("x =", cx - 12, L.lab2 + 1, 14, "end", "var(--wi-ink-strong)").svg;
+  }
+  const held = st.c > 0;
+  o += '<rect x="' + L.sqX0 + '" y="' + L.sqY0 + '" width="' + (L.sqX1 - L.sqX0) + '" height="' + (L.sqY1 - L.sqY0) + '" rx="6" fill="' +
+       (held ? tint(gcol(st.x), 0.88) : "var(--wi-panel-2)") + '" stroke="var(--wi-border)" stroke-width="1.2"/>';
+  /* the gate: a gap in the left wall */
+  o += '<line x1="' + L.sqX0 + '" y1="' + (L.sqY0 + 10) + '" x2="' + L.sqX0 + '" y2="' + (L.sqY0 + 60) + '" stroke="' + (held ? tint(gcol(st.x), 0.88) : "var(--wi-panel-2)") + '" stroke-width="3"/>';
+  o += '<line x1="' + L.sqX0 + '" y1="' + (L.sqY0 + 10) + '" x2="' + L.sqX0 + '" y2="' + (L.sqY0 + 60) + '" stroke="var(--wi-border)" stroke-width="1.2" stroke-dasharray="3 3"/>';
+  o += '<text class="sv-idx" x="' + (L.gate.x) + '" y="' + (L.sqY1 - 2) + '">gate</text>';
+  if (!held) o += '<text class="sv-note" x="' + ((L.sqX0 + L.sqX1) / 2) + '" y="' + (L.sqY0 + 38) + '" text-anchor="middle">empty</text>';
+  /* the members, the top of the stack last */
+  st.sq.forEach((i, p) => {
+    const k = slotOf(L, p, st.c);
+    if (k < 0) return;
+    const q = L.slot(k);
+    let w = "";
+    if (anim && p === st.c - 1 && anim.i === i && anim.k === "enter") {
+      const from = anim.coarse ? L.strip[i] : L.gate;
+      w = anim.coarse ? walk2(from.x - q.x, from.y - q.y, L.gate.x - q.x, L.gate.y - q.y) : walk(from.x - q.x, from.y - q.y);
+    }
+    o += '<g class="sqfig" data-i="' + i + '" transform="translate(' + q.x.toFixed(1) + "," + q.y + ')"><g' + w + '><g transform="scale(' + FS + ')">' + pawn(gcol(A[i]), A[i]) + "</g></g></g>";
+  });
+  if (st.c > L.cap) {
+    const q = L.slot(0), more = st.c - (L.cap - 1);
+    o += '<g transform="translate(' + q.x.toFixed(1) + "," + q.y + ')" opacity=".55">' +
+         '<g transform="translate(-7,-4) scale(1.1)">' + pawn(gcol(st.x), "") + '</g><g transform="translate(7,-4) scale(1.1)">' + pawn(gcol(st.x), "") + "</g></g>" +
+         '<text class="sv-crowd" x="' + q.x.toFixed(1) + '" y="' + (q.y + 13) + '">+' + more + "</text>";
+  }
+  /* someone at the gate */
+  if (st.pass === 1 && st.gate !== null) {
+    const i = st.gate, from = L.strip[i];
+    const w = anim && anim.k === "arrive" && anim.i === i ? walk(from.x - L.gate.x, from.y - L.gate.y) : "";
+    o += '<g class="sqfig" data-i="' + i + '" transform="translate(' + L.gate.x.toFixed(1) + "," + L.gate.y + ')"><g' + w + '><g transform="scale(' + FS + ')">' + pawn(gcol(A[i]), A[i]) + "</g></g></g>";
+  }
+
+  /* ---- band 3: the graveyard ---- */
+  o += '<text class="sv-band" x="' + L.pad + '" y="' + L.lab3 + '">Graveyard</text>';
+  o += mathAt("\\#\\text{pairs} = " + st.pairs.length, W - L.pad, L.lab3 + 1, 14, "end", "var(--wi-ink-strong)").svg;
+  if (!st.pairs.length) o += '<text class="sv-note" x="' + (L.pad + 4) + '" y="' + (L.pair(0).y - 12) + '">nobody has died yet</text>';
+  let bang = "";
+  st.pairs.forEach(([j, i], k) => {
+    const q = L.pair(k);
+    let wj = "", wi = "", app = "", late = false;
+    /* walking to the grave as a gang member, arriving as a tombstone */
+    const body = t => late ? '<g class="vanish" style="' + durs + dly + '"><g transform="scale(' + FS + ')">' + pawn(gcol(A[t]), A[t]) + "</g></g>" +
+                             '<g class="appear late" style="' + durs + dly + '"><g transform="scale(' + TS + ')">' + tomb(gcol(A[t]), A[t]) + "</g></g>"
+                           : '<g transform="scale(' + TS + ')">' + tomb(gcol(A[t]), A[t]) + "</g>";
+    if (anim && anim.k === "duel" && k === st.pairs.length - 1) {
+      const gx = L.gate.x, gy = L.gate.y;
+      const pj = L.slot(Math.max(0, slotOf(L, st.c, st.c + 1)));     /* where the occupant stood: the top of the square */
+      const from = anim.coarse ? L.strip[i] : L.gate;
+      wi = walk2(from.x - (q.x + 14), from.y - q.y, gx - (q.x + 14), gy - q.y);
+      wj = walk2(pj.x - (q.x - 14), pj.y - q.y, gx + 20 - (q.x - 14), gy - q.y);
+      app = ' class="appear" style="' + durs + dly + '"';
+      late = true;
+      bang = '<g transform="translate(' + (gx + 10) + "," + (gy - 20) + ')"><path class="bang" style="' + durs + dly + '" d="' + star(24, 10, 8) +
+             '" fill="#f0d4a0" stroke="var(--wi-active)" stroke-width="1.5"/></g>';
+    }
+    o += '<g class="pair" data-pair="' + k + '" transform="translate(' + q.x.toFixed(1) + "," + q.y + ')">' +
+         '<rect class="hlring" x="-34" y="-38" width="68" height="55" rx="5" fill="none" stroke="var(--wi-accent)" stroke-width="1.6" stroke-dasharray="3 2"/>' +
+         "<g" + app + '><line x1="-31" y1="0.5" x2="31" y2="0.5" stroke="var(--wi-border)" stroke-width="1.2"/>' +
+         '<text class="sv-idx" x="-14" y="14">' + j + '</text><text class="sv-idx" x="14" y="14">' + i + "</text></g>" +
+         '<g transform="translate(-14,0)"><g' + wj + ">" + body(j) + '</g></g><g transform="translate(14,0)"><g' + wi + ">" + body(i) + "</g></g></g>";
+  });
+  o += bang;
+  return o;
+}
+
+/* ---------- the invariant panel ---------- */
+function invariantHtml(st) {
+  const n = D.A.length, P = st.pairs.length, atGate = st.pass === 1 && st.gate !== null, a = st.arrived - (atGate ? 1 : 0), c = st.c;
+  let h = "<p>Arrived so far: " + M(a + " = 2\\cdot\\#\\text{pairs} + c = 2\\cdot " + P + " + " + c) +
+          ' <span class="dim">(each arrival is in the square or in a pair' + (atGate ? "; not counting the one at the gate" : "") + ")</span>.</p>";
+  h += "<p>Every pair in the graveyard is <b>mixed</b>: two different gangs" + (P ? ' <span class="ok">✓</span>' : "") + ". So a gang loses at most one member per pair.</p>";
+  if (!D.census) return h + '<p class="dim">Turn on the head count to follow one gang through the argument.</p>';
+  const g = D.watch, m = D.cnt[g], killed = st.pairs.reduce((s, [j, i]) => s + (D.A[j] === g) + (D.A[i] === g), 0);
+  const arrivals = n;
+  h += "<p>The " + chip(g) + ": " + M("m = " + m) + " member" + (m === 1 ? "" : "s") + " in " + M("A") + "; killed so far " +
+       M(killed + " \\le \\#\\text{pairs} = " + P) + ".</p>";
+  const done = st.pass === 2;
+  if (m > arrivals / 2) {
+    const k = m;
+    h += "<p>" + M("\\text{killed} \\le \\#\\text{pairs} \\le " + arrivals + "/2 < " + k) + ", so at least " + M(k + " - " + Math.floor(arrivals / 2) + " = " + (k - Math.floor(arrivals / 2))) +
+         (k - Math.floor(arrivals / 2) === 1 ? " member survives" : " members survive") + " — and survivors are in the square" +
+         (done ? ': <span class="ok">' + (st.x === g ? "there they are." : "") + "</span>" : ".") + "</p>";
+  } else {
+    h += "<p>" + M(m + " \\le n/2 = " + half(n)) + ": no guarantee — this gang " + (done ? (st.x === g && c > 0 ? "survived, but that proves nothing." : "may well be wiped out.") : "can be wiped out.") + "</p>";
+  }
+  return h;
+}
+
+/* ---------- head count ---------- */
+function censusHtml(st) {
+  const n = D.A.length;
+  let h = "";
+  for (const g of D.gangs) {
+    let s = 0, d = 0, w = 0, gt = 0;
+    D.A.forEach((h2, i) => {
+      if (h2 !== g) return;
+      const f = st.fate[i];
+      if (st.pass === 1 && st.gate === i) gt++;
+      else if (f === 1) s++; else if (f === 2) d++; else w++;
+    });
+    const col = gcol(g), pc = v => (100 * v / n).toFixed(3) + "%";
+    h += '<div class="crow' + (g === D.watch ? " watch" : "") + '" data-g="' + g + '" title="Follow the ' + esc(gname(g)) + ' in “The invariant”"><span>' + chip(g) + ' <span class="cnum">= ' + g + "</span></span>" +
+         '<span class="cbar">' +
+         '<span class="seg-s" style="width:' + pc(s) + ";background:" + col + '"></span>' +
+         '<span class="seg-g" style="width:' + pc(gt) + ";background:" + col + '"></span>' +
+         '<span class="seg-d" style="width:' + pc(d) + ";background-color:" + col + '"></span>' +
+         '<span class="seg-w" style="width:' + pc(w) + ";background:" + col + '"></span>' +
+         '<span class="half" style="left:' + (100 / (D.mode === "mg" ? D.k : 2)).toFixed(3) + '%"></span></span>' +
+         '<span class="cnum">' + String(D.cnt[g]).padStart(3, "\u2007") + ": " + s + " in · " + d + " dead · " + w + " to come" + (gt ? " · 1 at gate" : "") + "</span></div>";
+  }
+  return h;
+}
+
+/* ==========================================================================
+   Render
+   ========================================================================== */
+function render(again) {
+  if (!D.steps.length) return;
+  const vi = D.cur, f = D.steps[D.vis[vi]], st = f.st;
+  /* the walk animations run when a step is reached by stepping forward; a re-render of the same step continues them */
+  const now = performance.now();
+  if (!again) { if (D.prevVi === vi - 1) D.anim = { vi, t0: now }; else if (D.prevVi !== vi) D.anim = null; }
+  D.prevVi = vi;
+  const animEl = D.anim && D.anim.vi === vi && f.anim ? now - D.anim.t0 : null;
+  const W = Math.max(340, Math.floor(el("canvasWrap").clientWidth));
+  const MG = D.mode === "mg", L = MG ? layoutMG(W) : layout(W);
+  const svg = el("mainSvg");
+  svg.setAttribute("width", W); svg.setAttribute("height", L.H); svg.setAttribute("viewBox", "0 0 " + W + " " + L.H);
+  svg.innerHTML = (MG ? svgMG : svgMain)(W, f, L, animEl !== null && animEl < 1500 ? animEl : null, !!D.timer);
+  D.st = st;
+  const co = D.gran === "coarse", msg = co && f.msgC ? f.msgC : f.msg, call = co && f.calloutC !== undefined ? f.calloutC : f.callout;
+  setMath(el("statusBox"), msg + (call ? '<span class="callout">' + call + "</span>" : ""));
+  highlightCode(f.ln, f.br);
+  /* variables */
+  const prev = vi > 0 ? D.steps[D.vis[vi - 1]].st : null;
+  const ch = (k, html, changed) => '<span class="v' + (changed ? " chg" : "") + '">' + html + "</span>";
+  let vh = '<span class="grp"><span class="k">MJRTY</span>' +
+    ch("i", M("i = " + (st.i === null ? "\\text{–}" : st.i)), prev && prev.i !== st.i && st.i !== null) +
+    ch("x", M("x =") + " " + chip(st.x), prev && prev.x !== st.x) +
+    ch("c", M("c = " + st.c), prev && prev.c !== st.c) + "</span>";
+  if (st.pass === 2) vh += '<span class="grp"><span class="k">verify</span>' +
+    ch("i", M("i = " + (st.vi === null ? "\\text{–}" : st.vi)), prev && prev.vi !== st.vi && st.vi !== null) +
+    ch("m", M("m = " + (st.m === null ? "\\text{–}" : st.m)), prev && prev.m !== st.m) + "</span>";
+  setMath(el("varsBox"), MG ? varsMG(st, prev) : vh);
+  const n = D.A.length;
+  if (MG) el("costMeta").innerHTML = costMG(st); else el("costMeta").innerHTML = "element visits <code>" + st.v1 + " + " + st.v2 + "</code> of <code>2n = " + 2 * n + "</code> · memory: <code>x</code>, <code>c</code>" + (st.pass === 2 ? ", <code>m</code>" : "");
+  setMath(el("invBox"), MG ? invariantMG(st) : invariantHtml(st));
+  el("invMeta").textContent = D.census ? "following the " + gname(D.watch) : "";
+  el("census").innerHTML = censusHtml(st);
+  if (MG) el("censusMeta").textContent = "n = " + n + " · more than n/k = " + fracK(n, D.k) + ": " + (D.heavy.length ? D.heavy.map(gname).join(", ") : "none");
+  else el("censusMeta").textContent = "n = " + n + (D.maj ? " · majority: " + gname(D.maj) + " (" + D.cnt[D.maj] + " > " + half(n) + ")" : " · no majority");
+  /* phase bar, slider */
+  const pi = phaseOf(vi);
+  el("phaseBar").querySelectorAll(".phasebtn").forEach((b, i) => {
+    const P = D.phases[i], frac = vi > P.to ? 1 : vi < P.from ? 0 : (vi - P.from + 1) / (P.to - P.from + 1);
+    b.classList.toggle("on", i === pi); b.classList.toggle("past", vi > P.to);
+    const fl = b.querySelector(".fill"); fl.style.width = (frac * 100) + "%"; fl.classList.toggle("empty", frac === 0 || frac === 1);
+  });
+  el("phaseName").textContent = D.phases[pi].names[0];
+  el("scrubber").value = stepToVal(vi);
+  el("stepNo").textContent = (vi + 1) + " / " + D.vis.length;
+  el("sBack").disabled = vi === 0; el("sReset").disabled = vi === 0; el("sStep").disabled = vi >= D.vis.length - 1; el("sEnd").disabled = vi >= D.vis.length - 1;
+  if (!again) { readout(null); scheduleHash(); }
+}
+
+/* hovering: a grave pair or a figure tells its story and lights up where it came from */
+function readout(target) {
+  if (D.mode === "mg") return readoutMG(target);
+  const box = el("readout"), svg = el("mainSvg"), st = D.st, A = D.A;
+  svg.querySelectorAll(".hl").forEach(g => g.classList.remove("hl"));
+  if (!target || !st) { box.innerHTML = '<span class="dim">Hover a grave or a gang member for its story.</span>'; return; }
+  const lite = is => is.forEach(i => { const s = svg.querySelector('.slot[data-i="' + i + '"]'); if (s) s.classList.add("hl"); });
+  const nm = i => "<i>A</i>[" + i + "] = " + chip(A[i]);
+  if (target.dataset.pair !== undefined) {
+    const k = +target.dataset.pair, [j, i] = st.pairs[k];
+    target.classList.add("hl"); lite([j, i]);
+    box.innerHTML = "Pair " + (k + 1) + ": " + nm(j) + ", holding the square, and " + nm(i) + ", arriving — two different gangs.";
+    return;
+  }
+  const i = +target.dataset.i, f = st.fate[i];
+  lite([i]);
+  let t;
+  if (st.pass === 1 && st.gate === i) t = nm(i) + " is at the gate.";
+  else if (f === 1) t = nm(i) + " stands in the square (position " + (st.sq.indexOf(i) + 1) + " of " + st.c + ").";
+  else if (f === 2) {
+    const k = st.pairs.findIndex(p => p[0] === i || p[1] === i), [a, b] = st.pairs[k], other = a === i ? b : a;
+    lite([other]);
+    t = nm(i) + " died in a duel with " + nm(other) + " (pair " + (k + 1) + ").";
+  } else t = nm(i) + " has not arrived yet.";
+  if (st.pass === 2 && st.vm[i]) t += st.vm[i] === 1 ? " Counted in the second pass." : "";
+  box.innerHTML = t;
+}
+
+/* ==========================================================================
+   Transport
+   ========================================================================== */
+function go(d) { stop(); D.cur = clamp(D.cur + d, 0, D.vis.length - 1); render(); }
+function stop() { if (D.timer) { clearTimeout(D.timer); D.timer = null; } playUI(); }
+function play() {
+  if (D.timer) { stop(); return; }
+  if (D.cur >= D.vis.length - 1) D.cur = 0;
+  const tick = () => {
+    if (D.cur >= D.vis.length - 1) { stop(); return; }
+    D.cur++; render();
+    D.timer = setTimeout(tick, +el("sSpeed").value);
+  };
+  D.timer = setTimeout(tick, 60);
+  playUI();
+}
+function playUI() {
+  const b = el("sPlay");
+  b.innerHTML = D.timer ? "&#x23F8;&#xFE0E;" : "&#x25B6;&#xFE0E;";
+  b.title = D.timer ? "Pause (space)" : "Play (space)";
+}
+
+/* ==========================================================================
+   Inputs, presets, address
+   ========================================================================== */
+const PRESETS = [
+  { key: "clean",   name: "Clean majority: a a b a b a a",                    text: "aababaa" },
+  { key: "late",    name: "The majority comes late: b b b a a a a",           text: "bbbaaaa" },
+  { key: "carnage", name: "51 a against 49 b: b a b a … b a a a",             text: "ba".repeat(49) + "aa" },
+  { key: "nomaj",   name: "No majority, but a survivor: a b c a b c a",       text: "abcabca" },
+  { key: "empty",   name: "No majority, empty square at the end: a b c c b a", text: "abccba" },
+  { key: "random",  name: "Random (n, gangs, planted majority: see Random)",  gen: true },
+  { key: "custom",  name: "(your own input)" }
+];
+const PRESETS_MG = [
+  { key: "g-two",   name: "Two heavy gangs, k = 3: a b c a b d a b e a b",         text: "abcabdabeab", k: 3 },
+  { key: "g-one",   name: "One heavy gang, k = 4: a b c d a e f a b c a g d",       text: "abcdaefabcagd", k: 4 },
+  { key: "g-none",  name: "No heavy gang, but survivors, k = 3: a b c a b c d e",   text: "abcabcde", k: 3 },
+  { key: "g-big",   name: "Three heavy gangs out of six, k = 4, n = 40",
+    text: (() => { const r = mulberry32(7), a = "aaaaaaaaaaabbbbbbbbbbbcccccccccccddddeeef".split(""); for (let t = a.length - 1; t > 0; t--) { const q = Math.floor(r() * (t + 1)); [a[t], a[q]] = [a[q], a[t]]; } return a.join(""); })(), k: 4 },
+  { key: "g-mj",    name: "MJRTY’s example with k = 2: a a b a b a a",              text: "aababaa", k: 2 },
+  { key: "random",  name: "Random (n, gangs, planted heavy gang: see Random)",      gen: true },
+  { key: "custom",  name: "(your own input)" }
+];
+const presetList = () => D.mode === "mg" ? PRESETS_MG : PRESETS;
+function parseInput(txt) {
+  const s = String(txt).replace(/[\s,;]+/g, "").toLowerCase();
+  if (!s.length) throw new Error("At least one element, please: a string over a–z, e.g. aababaa or a a b a b a a.");
+  if (!/^[a-z]+$/.test(s)) throw new Error("Only the letters a–z, please (one letter per element; spaces and commas are ignored).");
+  if (s.length > MAX_N) throw new Error("At most " + MAX_N + " elements, please (found " + s.length + ").");
+  return s.split("");
+}
+function genRandom() {
+  const n = clamp(parseInt(el("genN").value, 10) || 20, 1, MAX_N), k = clamp(parseInt(el("genK").value, 10) || 3, 2, 6);
+  el("genN").value = n; el("genK").value = k;
+  const rng = mulberry32(D.seed * 7919 + n * 31 + k), L = "abcdef".slice(0, k).split("");
+  const out = [];
+  if (el("genPlant").checked) {
+    const kk = D.mode === "mg" ? D.k : 2, maj = Math.min(n, Math.floor(n / kk) + 1 + Math.floor(rng() * Math.max(1, n / 8)));
+    for (let t = 0; t < maj; t++) out.push("a");
+    while (out.length < n) out.push(L[1 + Math.floor(rng() * (k - 1))]);
+    for (let t = n - 1; t > 0; t--) { const r = Math.floor(rng() * (t + 1)); [out[t], out[r]] = [out[r], out[t]]; }
+  } else for (let t = 0; t < n; t++) out.push(L[Math.floor(rng() * k)]);
+  return out;
+}
+function setInput(arr) { D.A = arr; el("tokIn").value = arr.length <= 60 ? arr.join(" ") : arr.join(""); }
+function applyPreset(key) {
+  const p = presetList().find(q => q.key === key);
+  if (!p || p.key === "custom") return;
+  D.preset = key;
+  if (p.k) D.k = p.k;
+  setInput(p.gen ? genRandom() : p.text.split(""));
+}
+let hashT = 0;
+function scheduleHash() { clearTimeout(hashT); hashT = setTimeout(writeHash, 120); }
+function writeHash() {
+  const q = [];
+  if (D.mode === "mg") q.push("tab=mg", "k=" + D.k);
+  q.push("in=" + D.A.join(""));
+  if (D.gran === "coarse") q.push("coarse");
+  if (!D.census) q.push("nocensus");
+  if (D.cur > 0) q.push("step=" + (D.cur + 1));
+  if (document.body.classList.contains("present")) q.push("present");
+  try { history.replaceState(null, "", "#" + q.join("&")); } catch (e) { /* sandboxed preview */ }
+}
+function readHash() {
+  const q = new URLSearchParams(location.hash.replace(/^#/, ""));
+  let step = 0;
+  if (q.get("tab") === "mg") D.mode = "mg";
+  if (q.get("k")) D.k = clamp(parseInt(q.get("k"), 10) || 3, 2, 6);
+  try {
+    if (q.get("in")) {
+      setInput(parseInput(q.get("in")));
+      const p = presetList().find(p2 => p2.text === D.A.join("") && (!p2.k || p2.k === D.k));
+      D.preset = p ? p.key : "custom";
+    }
+  } catch (e) { /* a broken link: keep the default */ }
+  if (q.has("coarse")) D.gran = "coarse";
+  if (q.has("nocensus")) D.census = false;
+  if (q.get("step")) step = Math.max(0, (parseInt(q.get("step"), 10) || 1) - 1);
+  return { present: q.has("present"), step };
+}
+function syncControls() {
+  const MG = D.mode === "mg";
+  el("presetSel").innerHTML = presetList().map(p => '<option value="' + p.key + '">' + esc(p.name) + "</option>").join("");
+  el("presetSel").value = D.preset;
+  el("modeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.mode === D.mode));
+  el("kCtl").classList.toggle("hidden", !MG); el("kIn").value = D.k;
+  el("pageTitle").textContent = MG ? "Misra–Gries · k − 1 corners, k-way standoffs" : "MJRTY · the majority vote as a gang war";
+  el("subMJ").classList.toggle("hidden", MG); el("subMG").classList.toggle("hidden", !MG);
+  el("censusNote").innerHTML = "Solid: " + (MG ? "standing" : "in the square") + " · dashed outline: at the gate · hatched: dead · pale: still to come. The dashed line marks " +
+    (MG ? "<i>n</i>/<i>k</i>" : "<i>n</i>/2") + ". Click a gang to follow it in “The invariant”.";
+  el("granSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.gran === D.gran));
+  el("censusChk").checked = D.census;
+  el("censusBox").classList.toggle("hidden", !D.census);
+}
+function rebuild(keepStep) {
+  stop();
+  const old = D.cur;
+  buildCode();
+  setMath(el("codeNote"), D.mode === "mg" ? el("codeNote")._mg : el("codeNote")._mj);
+  recordAll();
+  D.cur = keepStep ? clamp(old, 0, D.vis.length - 1) : 0;
+  syncControls();
+  render();
+}
+
+/* ==========================================================================
+   Presentation view, splitter, wiring
+   ========================================================================== */
+function setPresent(on) {
+  document.body.classList.toggle("present", on);
+  requestAnimationFrame(() => { fitPhaseBar(); render(true); });
+  scheduleHash();
+}
+const SPLIT = { f: 0.6, def: 0.6 };
+function setSplit(f) {
+  SPLIT.f = clamp(f, 0.35, 0.8);
+  const st = el("stageBox");
+  st.style.setProperty("--lf", (100 * SPLIT.f).toFixed(2) + "fr");
+  st.style.setProperty("--rf", (100 * (1 - SPLIT.f)).toFixed(2) + "fr");
+  try { localStorage.setItem("wi-split:" + location.pathname, String(SPLIT.f)); } catch (e) { /* no storage */ }
+  if (D.steps.length) { fitPhaseBar(); render(true); }
+}
+function initSplitter() {
+  const sp = el("splitter"), st = el("stageBox");
+  let drag = false, raf = 0;
+  const moveTo = x => { const r = st.getBoundingClientRect(); cancelAnimationFrame(raf); raf = requestAnimationFrame(() => setSplit((x - r.left) / (r.width || 1))); };
+  sp.addEventListener("pointerdown", e => { drag = true; sp.classList.add("drag"); sp.setPointerCapture(e.pointerId); e.preventDefault(); });
+  sp.addEventListener("pointermove", e => { if (drag) moveTo(e.clientX); });
+  sp.addEventListener("pointerup", () => { drag = false; sp.classList.remove("drag"); });
+  sp.addEventListener("dblclick", () => setSplit(SPLIT.def));
+  try { const v = parseFloat(localStorage.getItem("wi-split:" + location.pathname)); if (v) { SPLIT.f = clamp(v, 0.35, 0.8); st.style.setProperty("--lf", (100 * SPLIT.f).toFixed(2) + "fr"); st.style.setProperty("--rf", (100 * (1 - SPLIT.f)).toFixed(2) + "fr"); } } catch (e) { /* no storage */ }
+}
+const ABOUT =
+  "<p><b>The story</b> A town square. Gang members arrive one at a time, in the order of the array " + M("A[0..n)") + "; each gang is an array value. " +
+  "The input letters a, b, c, … stand for (entirely fictional) gangs — the Poppy Syndicate, the Jade Cartel, the Saffron Boys, … — each with its colour and an initial on its members. " +
+  "The square only ever holds members of one gang: the gang holding it is the candidate " + M("x") + ", and " + M("c") + " counts its members there. " +
+  "A member of the same gang joins (" + M("c \\gets c+1") + "); a member of a different gang fights a duel with one occupant, and <i>both</i> die (" + M("c \\gets c-1") + "). " +
+  "The two bodies go to the graveyard together, as a <i>pair</i>. If the square is empty (" + M("c = 0") + "), whoever arrives next takes it (" + M("x \\gets A[i]") + ", " + M("c \\gets 1") + ").</p>" +
+  "<p><b>The invariant</b> Every pair in the graveyard consists of two members of <i>different</i> gangs, and every arrival is either in the square or in a pair, " +
+  "so after all " + M("n") + " arrivals " + M("\\#\\text{pairs} = (n-c)/2 \\le n/2") + ". A gang with " + M("m > n/2") + " members loses at most one member per pair, so at most " +
+  M("\\#\\text{pairs} < m") + " of them die: some survive, and survivors stand in the square. Hence <i>if</i> there is a majority element, MJRTY returns it. " +
+  "The converse fails — a gang can hold the square at the end with a single member (try “No majority, but a survivor”) — which is why a second pass counts the candidate. " +
+  "If the square is empty at the end, there is no majority at all; the code returns the last " + M("x") + " anyway, and the second pass rejects it.</p>" +
+  "<p><b>Which occupant dies?</b> The algorithm only keeps the count " + M("c") + ", so it does not matter. The page lets the most recent arrival fight, " +
+  "which is why the square is drawn as a row with the newest member at the end. Hover a grave to see the two indices of a pair.</p>" +
+  "<p><b>Cost</b> Two passes, " + M("2n") + " element visits, and besides " + M("A") + " only the variables " + M("x") + ", " + M("c") + " (and " + M("m") + " for the check): " +
+  M("\\Theta(n)") + " time and " + M("O(1)") + " extra space, compared to " + M("\\Theta(n\\log n)") + " for the divide &amp; conquer majority. " +
+  "As there, all we ever do with elements is ask “" + M("x = y") + "?”.</p>" +
+  "<p><b>Input</b> A string over a–z, one letter per element (spaces and commas are ignored), at most " + MAX_N + " elements. The page address holds the input and the step, " +
+  "e.g. <code>#in=aababaa&amp;step=9</code>; add <code>&amp;coarse</code> for one step per element, <code>&amp;nocensus</code> to hide the head count, " +
+  "<code>&amp;present</code> for the presentation view. <b>Keys</b> ← → step, space play/pause, Home/End first/last step.</p>" +
+  "<p><b>Misra–Gries</b> (second tab) The same story with " + M("k-1") + " street corners around a plaza. A gang that holds a corner gets reinforcements; a gang without one takes a free corner; " +
+  "and if every corner is held by another gang, the newcomer and one member from every corner meet in the plaza for a standoff that nobody survives: " + M("k") + " bodies of " + M("k") +
+  " different gangs, buried as one group. With " + M("k = 2") + " this is MJRTY. After all " + M("n") + " arrivals " + M("\\#\\text{groups} = (n - \\sum_y C[y])/k \\le n/k") +
+  ", so a gang with more than " + M("n/k") + " members cannot be wiped out: it holds a corner at the end. The second pass counts the at most " + M("k-1") + " survivors and keeps those with more than " + M("n/k") + " members. " +
+  "The decrement loop runs over " + M("k-1") + " counters, but every decrement removes a member that an increment brought in, so the first pass takes " + M("O(n)") +
+  " time. It reads " + M("A") + " once, left to right, with " + M("k-1") + " counters — a classic streaming algorithm (J. Misra and D. Gries, <i>Finding repeated elements</i>, 1982). " +
+  "In the page address, <code>&amp;tab=mg&amp;k=3</code> opens this tab.</p>" +
+  "<p><b>Credits</b> R. S. Boyer and J S. Moore, <i>MJRTY — A Fast Majority Vote Algorithm</i>, technical report, University of Texas at Austin, 1981; " +
+  'published in <i>Automated Reasoning: Essays in Honor of Woody Bledsoe</i>, 1991 (<a href="https://doi.org/10.1007/978-94-011-3488-0_5">doi</a>).</p>';
+
+function init() {
+  el("presetSel").onchange = () => { const v = el("presetSel").value; if (v === "custom") return; applyPreset(v); el("parseErr").textContent = ""; rebuild(); };
+  const setFrom = txt => {
+    try { setInput(parseInput(txt)); D.preset = "custom"; el("parseErr").textContent = ""; rebuild(); }
+    catch (e) { el("parseErr").textContent = e.message; }
+  };
+  el("tokSet").onclick = () => setFrom(el("tokIn").value);
+  el("tokIn").onkeydown = e => { if (e.key === "Enter") setFrom(el("tokIn").value); };
+  const regen = () => { applyPreset("random"); el("parseErr").textContent = ""; rebuild(); };
+  el("genN").onchange = regen; el("genK").onchange = regen; el("genPlant").onchange = regen;
+  el("genNew").onclick = () => { D.seed++; regen(); };
+  el("modeSeg").querySelectorAll("button").forEach(b => b.onclick = () => {
+    if (b.dataset.mode === D.mode) return;
+    D.mode = b.dataset.mode; D.watch = null;
+    if (D.preset === "random") applyPreset("random");
+    else if (D.preset !== "custom") applyPreset(D.mode === "mg" ? "g-two" : "clean");
+    else { const p = presetList().find(p2 => p2.text === D.A.join("") && (!p2.k || p2.k === D.k)); D.preset = p ? p.key : "custom"; }
+    el("parseErr").textContent = ""; rebuild(); b.blur();
+  });
+  el("kIn").onchange = () => {
+    D.k = clamp(parseInt(el("kIn").value, 10) || 3, 2, 6); D.watch = null;
+    if (D.preset === "random") applyPreset("random");
+    else { const p = presetList().find(p2 => p2.text === D.A.join("") && p2.k === D.k); D.preset = p ? p.key : "custom"; }
+    rebuild();
+  };
+  el("granSeg").querySelectorAll("button").forEach(b => b.onclick = () => {
+    const fi = D.vis[D.cur]; D.gran = b.dataset.gran;
+    buildVisible();
+    let k = 0; while (k + 1 < D.vis.length && D.vis[k + 1] <= fi) k++;
+    D.cur = k; D.prevVi = null; syncControls(); render(); b.blur();
+  });
+  el("censusChk").onchange = () => { D.census = el("censusChk").checked; syncControls(); render(true); scheduleHash(); };
+  el("census").addEventListener("click", e => { const r = e.target.closest(".crow"); if (r) { D.watch = r.dataset.g; render(true); } });
+  el("sReset").onclick = () => { stop(); D.cur = 0; render(); };
+  el("sEnd").onclick = () => { stop(); D.cur = D.vis.length - 1; render(); };
+  el("sBack").onclick = () => go(-1);
+  el("sStep").onclick = () => go(1);
+  el("sPlay").onclick = () => play();
+  el("scrubber").oninput = () => { stop(); D.cur = valToStep(+el("scrubber").value); render(); };
+  el("sSpeed").oninput = () => { el("sSpeedVal").textContent = el("sSpeed").value + "ms"; };
+  el("copyBtn").onclick = () => {
+    writeHash();
+    const say = t => { el("copyMsg").textContent = t; setTimeout(() => { el("copyMsg").textContent = ""; }, 1800); };
+    if (navigator.clipboard) navigator.clipboard.writeText(location.href).then(() => say("copied"), () => say("see address bar"));
+    else say("see address bar");
+  };
+  el("presBtn").onclick = () => setPresent(true);
+  el("exitPres").onclick = () => setPresent(false);
+  const svg = el("mainSvg");
+  svg.addEventListener("mouseover", e => { const t = e.target.closest && e.target.closest("[data-pair], [data-i]"); readout(t || null); });
+  svg.addEventListener("mouseleave", () => readout(null));
+  document.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("input[type=text], input[type=number], textarea, select")) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "Escape" && document.body.classList.contains("present")) { e.preventDefault(); setPresent(false); }
+    else if (e.target === el("splitter") && (e.key === "ArrowLeft" || e.key === "ArrowRight")) { e.preventDefault(); setSplit(SPLIT.f + (e.key === "ArrowLeft" ? -0.03 : 0.03)); }
+    else if (e.key === " " || e.key === "Spacebar") { e.preventDefault(); play(); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); go(1); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); go(-1); }
+    else if (e.key === "Home") { e.preventDefault(); stop(); D.cur = 0; render(); }
+    else if (e.key === "End") { e.preventDefault(); stop(); D.cur = D.vis.length - 1; render(); }
+  });
+  let rz = null;
+  window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { fitPhaseBar(); render(true); }, 80); });
+  initSplitter();
+  if (window.ResizeObserver) new ResizeObserver(() => {
+    if (!D.phases.length || Math.abs(el("phaseBar").getBoundingClientRect().width - D.pW) < 0.5) return;
+    fitPhaseBar(); el("scrubber").value = stepToVal(D.cur);
+  }).observe(el("phaseBar"));
+  setMath(el("aboutText"), ABOUT);
+  el("codeNote")._mj = "The slide asks for a second pass to check the candidate; " + M("\\mathrm{verify}") + " above is that pass, spelled out. " +
+          "Equality tests " + M(EQ) + " are the only operation on elements.";
+  el("codeNote")._mg = "This code is not on the slides. A gang that takes a free corner gets the first free one clockwise from the top street, and " + M("y \\in C") +
+          " visits the corners in that order; neither choice affects the counters.";
+
+  applyPreset("clean");
+  const h = readHash();
+  if (D.mode === "mg" && D.preset === "clean") applyPreset("g-two");
+  buildCode();
+  setMath(el("codeNote"), D.mode === "mg" ? el("codeNote")._mg : el("codeNote")._mj);
+  recordAll();
+  D.cur = clamp(h.step, 0, D.vis.length - 1);
+  if (h.present) document.body.classList.add("present");
+  syncControls();
+  fitPhaseBar();
+  render();
+  /* MathJax arrives later (deferred): then typeset the code and everything set so far */
+  const hook = () => {
+    if (!(window.MathJax && MathJax.startup && MathJax.startup.promise)) return;
+    MathJax.startup.promise.then(() => {
+      MathJax.typesetPromise([el("codeScroll")]).catch(() => {});
+      for (const id of ["statusBox", "varsBox", "invBox", "aboutText", "codeNote"]) { const nd = el(id); const w = nd._want; nd._want = null; nd._busy = false; if (w) setMath(nd, w); }
+      render(true);
+    }).catch(() => {});
+  };
+  if (document.readyState === "complete") hook(); else window.addEventListener("load", hook);
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+
+/* ==========================================================================
+   Misra–Gries: k − 1 street corners around a plaza, k-way standoffs.
+
+   recordMG() is a line-by-line transcription of the code in the code panel
+   (agreed for this page; not from the slides).  As for MJRTY, the story only
+   adds bookkeeping: which members stand at which corner (the most recent one
+   steps into a standoff), and the graveyard of groups.  A gang taking a free
+   corner gets the first free one clockwise from the top street; "for y ∈ C"
+   visits the corners in that order.  Neither choice changes the counters.
+   ========================================================================== */
+const chipM = g => g === null || g === undefined ? '<span class="gc none">—</span>' : '<span class="gc" style="background:' + gcol(g) + '" title="' + esc(gname(g)) + '">' + gmark(g) + "</span>";
+const fracK = (n, k) => n % k ? String(+(n / k).toFixed(2)) : String(n / k);
+const slotIn = (cap, p, c) => { if (c <= cap) return p; const q = p - (c - (cap - 1)) + 1; return q >= 1 ? q : -1; };
+
+function codeBlocksMG() {
+  const kw = w => "<b>" + w + "</b>";
+  return [
+    { key: "g", title: "misraGries", src: "", lines: [
+      [0, kw("procedure") + " misraGries(" + M("A[0..n)") + ", " + M("k") + ")"],
+      [1, M("C \\gets") + " empty map" + ' <span class="cm">// at most ' + M("k-1") + " keys</span>"],
+      [1, kw("for") + " " + M("i \\gets 0,\\ldots,n-1")],
+      [2, kw("if") + " " + M("A[i] \\in C") + " " + kw("then") + ' <span class="br" data-br="then">' + M("C[A[i]] \\gets C[A[i]] + 1") + "</span>"],
+      [2, kw("else if") + " " + M("|C| < k-1") + " " + kw("then") + ' <span class="br" data-br="then">' + M("C[A[i]] \\gets 1") + "</span>"],
+      [2, kw("else")],
+      [3, kw("for") + " " + M("y \\in C")],
+      [4, M("C[y] \\gets C[y] - 1")],
+      [4, kw("if") + " " + M("C[y] " + EQ + " 0") + " " + kw("then") + ' <span class="br" data-br="then">remove ' + M("y") + " from " + M("C") + "</span>"],
+      [1, kw("return") + " keys of " + M("C")] ] },
+    { key: "w", title: "verify", src: "", lines: [
+      [0, kw("procedure") + " verify(" + M("A[0..n)") + ", " + M("k") + ", " + M("K") + ")" + ' <span class="cm">// ' + M("K") + " = the returned keys</span>"],
+      [1, kw("for") + " " + M("y \\in K") + ": " + M("m[y] \\gets \\#\\{\\, i : A[i] " + EQ + " y \\,\\}")],
+      [1, kw("return") + " " + M("\\{\\, y \\in K : m[y] > n/k \\,\\}")] ] }
+  ];
+}
+
+function recordMG(A, k) {
+  const n = A.length, K1 = k - 1, out = [];
+  const S = { i: null, gate: null, fate: new Array(n).fill(0), corners: new Array(K1).fill(null), ring: null, groups: [],
+              pass: 1, arrived: 0, v1: 0, v2: 0, inc: 0, dec: 0, K: null, m: {}, vy: null, vm: new Array(n).fill(0), res: null };
+  const snap = () => ({ i: S.i, vi: null, gate: S.gate, fate: S.fate.slice(),
+    corners: S.corners.map(c => c && { g: c.g, c: c.c, mem: c.mem.slice() }),
+    ring: S.ring && { i: S.ring.i, spots: S.ring.spots.map(x => Object.assign({}, x)), newDead: S.ring.newDead },
+    groups: S.groups.map(g => g.slice()), pass: S.pass, arrived: S.arrived, v1: S.v1, v2: S.v2, inc: S.inc, dec: S.dec,
+    K: S.K && S.K.slice(), m: Object.assign({}, S.m), vy: S.vy, vm: S.vm.slice(), res: S.res && S.res.slice() });
+  const push = (ln, o) => out.push(Object.assign({ ln, st: snap(), tag: "next" }, o));
+  const Ai = i => M("A[" + i + "]") + " = " + chip(A[i]);
+  const held = () => S.corners.filter(Boolean).length;
+  let q = 0, firstStand = true, lastBury = -1;
+
+  push("g.1", { coarse: false, tag: "start",
+    msg: "misraGries is called on " + M("A[0.." + n + ")") + ", " + M("n = " + n) + ", with " + M("k = " + k) + ": the town has " + M("k-1 = " + K1) +
+         (K1 === 1 ? " corner." : " corners.") + " Every gang with more than " + M("n/k = " + fracK(n, k)) + " members will hold one at the end." });
+  push("g.2", { coarse: true, tag: "start", msg: M("C \\gets") + " empty map: " + (K1 === 1 ? "the corner is free." : "all " + K1 + " corners are free.") });
+
+  for (let i = 0; i < n; i++) {
+    const g = A[i];
+    S.i = i; S.gate = i; S.arrived++; S.v1++;
+    push("g.3", { coarse: false, anim: { k: "arrive", i }, msg: M("i = " + i) + ": " + Ai(i) + " walks down the street." });
+    const s0 = S.corners.findIndex(c => c && c.g === g);
+    if (s0 >= 0) {
+      const C0 = S.corners[s0]; C0.c++; C0.mem.push(i); S.fate[i] = 1; S.gate = null; S.inc++;
+      push("g.4", { coarse: true, br: "then", anim: { k: "enter", i, s: s0 },
+        msg: M("A[" + i + "] \\in C") + ": the " + chip(g) + " hold a corner; the newcomer joins them, " + M("C[A[" + i + "]] \\gets " + C0.c) + "." });
+      continue;
+    }
+    push("g.4", { coarse: false, msg: M("A[" + i + "] \\notin C") + ": the " + chip(g) + " hold no corner." });
+    const h = held();
+    if (h < K1) {
+      const s = S.corners.findIndex(c => !c);
+      S.corners[s] = { g, c: 1, mem: [i] }; S.fate[i] = 1; S.gate = null; S.inc++;
+      push("g.5", { coarse: true, br: "then", anim: { k: "enter", i, s },
+        msg: M("|C| = " + h + " < k-1 = " + K1) + ": a free corner — the " + chip(g) + " take it, " + M("C[A[" + i + "]] \\gets 1") + "." });
+      continue;
+    }
+    push("g.5", { coarse: false, msg: M("|C| = " + h + " = k-1") + ": every corner is held by another gang." });
+    S.gate = null; S.fate[i] = 1;
+    S.ring = { i, spots: S.corners.map((c, s) => ({ s, j: c.mem.pop(), dead: true, done: false })), newDead: true };
+    /* everybody fires at once: all k fall in this step; the loop below only does the bookkeeping */
+    S.ring.spots.forEach(x => { S.fate[x.j] = 2; }); S.fate[i] = 2;
+    q++;
+    const foes = S.ring.spots.map(x => chip(A[x.j])).join(", ");
+    let call = "";
+    if (firstStand) { firstStand = false; call = "Each group in the graveyard has <b>" + k + " different colours</b>. A gang with more than " + M("n/k") + " members can’t all end up in groups."; }
+    push("g.7", { coarse: false, anim: { k: "face", i }, callout: call,
+      msg: "A standoff! " + chip(g) + " against one member from each corner: " + foes + ". All " + k + " fire at once, and nobody survives: " +
+           k + " bodies of " + k + " different gangs. The loop over " + M("y \\in C") + " now books the losses, corner by corner." });
+    const wiped = [];
+    S.corners.forEach((c, s) => {
+      const sp = S.ring.spots[s], last = s === K1 - 1;
+      c.c--; S.dec++; sp.done = true;
+      push("g.8", { coarse: false,
+        msg: M("y =") + " " + chip(c.g) + ": " + M("C[y] \\gets C[y] - 1 = " + c.c) + " — the counter books the death of " + M("A[" + sp.j + "]") + "." });
+      let msg9;
+      if (c.c === 0) { S.corners[s] = null; wiped.push(c.g); msg9 = M("C[y] = 0") + ": the " + chip(c.g) + " are wiped out; the corner is free again."; }
+      else msg9 = M("C[y] = " + c.c + " \\ne 0") + ": the " + chip(c.g) + " keep their corner.";
+      const o9 = { coarse: false, br: c.c === 0 ? "then" : null, msg: msg9 };
+      if (last) {
+        S.fate[i] = 2; S.groups.push(S.ring.spots.map(x => x.j).concat([i])); S.ring = null;
+        Object.assign(o9, { coarse: true, tag: "s:" + q, anim: { k: "bury", i }, animC: { k: "stand", i, coarse: true }, calloutC: call,
+          msg: msg9 + " All losses are booked; the " + k + " bodies are buried together as one group.",
+          msgC: "A standoff! " + chip(g) + " against one member from each corner (" + foes + "): all " + k + " die, " + M("C[y] \\gets C[y] - 1") + " for every " + M("y \\in C") +
+                (wiped.length ? "; wiped out: " + wiped.map(chip).join(", ") : "") + ". One group of " + k + " for the graveyard." });
+        lastBury = out.length;
+      }
+      push("g.9", o9);
+    });
+  }
+  S.i = null; S.gate = null;
+  for (let t = lastBury + 1; t < out.length; t++) if (out[t].tag === "next") out[t].tag = "tail";
+  S.K = S.corners.filter(Boolean).map(c => c.g);
+  const hold = S.corners.filter(Boolean);
+  push("g.10", { coarse: true, tag: "check",
+    msg: "Everyone has arrived. " + (hold.length
+      ? (hold.length === 1 ? "One corner is held: " : hold.length + " corners are held: ") + hold.map(c => chip(c.g) + " (" + M("C = " + c.c) + ")").join(", ") +
+        ". misraGries returns " + M("K = \\{") + S.K.map(chipM).join(M(",")) + M("\\}") + "."
+      : "All corners are empty: misraGries returns " + M("K = \\emptyset") + " — no gang has more than " + M("n/k") + " members.") });
+  S.pass = 2;
+  const check = "Holding a corner at the end does not mean having more than " + M("n/k") + " members — check them.";
+  push("w.1", { coarse: false, tag: "check", callout: check,
+    msg: "The second pass: verify(" + M("A") + ", " + M("k") + ", " + M("K") + ") counts the members of " + (S.K.length === 1 ? "the returned gang." : "each of the " + S.K.length + " returned gangs.") });
+  S.K.forEach((y, t) => {
+    S.vy = y; let m = 0; A.forEach((h2, j) => { if (h2 === y) { m++; S.vm[j] = 1; } }); S.m[y] = m; S.v2 += n;
+    push("w.2", { coarse: true, tag: "check", callout: t === 0 ? check : "",
+      msg: M("y =") + " " + chip(y) + ": " + M("m[y] = " + m) + (m > n / k ? " " + M("> n/k = " + fracK(n, k)) + ": a heavy gang." : " " + M("\\le n/k = " + fracK(n, k)) + ": not enough.") });
+  });
+  S.vy = null; S.res = S.K.filter(y => S.m[y] > n / k);
+  const cost = ' <span class="dim">Cost: the counters went up ' + S.inc + " times and down " + S.dec + " times. Every decrease removes a member that an increase brought in, " +
+    "so the first pass takes " + M("O(n)") + " time with only " + M("k-1") + " counters.</span>";
+  push("w.3", { coarse: true, tag: "check", final: true,
+    msg: "verify returns " + M("\\{") + S.res.map(chip).join(M(",")) + M("\\}") +
+         (S.res.length ? ': <span class="yes">✓ ' + (S.res.length === 1 ? "the gang" : "exactly the gangs") + " with more than " + M("n/k = " + fracK(n, k)) + " members.</span>"
+                       : ': <span class="no">✗ no gang has more than ' + M("n/k = " + fracK(n, k)) + " members.</span>") + cost });
+  for (let t = out.length - 2; t >= 0; t--) if (out[t].tag === "next") out[t].tag = out[t + 1].tag;
+  return { steps: out, reigns: [], standoffs: q };
+}
+
+/* ---------- geometry of the town (fixed for the input, k and the width) ---------- */
+function layoutMG(W) {
+  const k = D.k, K1 = k - 1, pad = 14, L = { W, pad };
+  let y = stripLayout(L, W, 6);
+  L.lab2 = y + 12; y += 18;
+  const cols = 4; L.cols = cols;
+  L.capC = Math.min(2 * cols, Math.max(1, D.maxC));
+  L.lotRows = Math.ceil(L.capC / cols);
+  L.lotW = cols * 32 + 14; L.lotH = 28 + L.lotRows * 54;
+  L.R0 = 52 + 4 * K1;
+  const psi = s => K1 === 1 ? Math.PI / 2 : -Math.PI / 2 + 2 * Math.PI * s / K1 + Math.PI / K1;
+  const phi = s => -Math.PI / 2 + 2 * Math.PI * s / K1;
+  /* each corner sits right at the plaza: its box ends ~22 px from the circle, between two streets */
+  const gap = 22 + (K1 >= 4 ? 10 * (K1 - 3) : 0);
+  let R1s = [...Array(K1).keys()].map(s => L.R0 + gap + Math.abs(Math.cos(psi(s))) * L.lotW / 2 + Math.abs(Math.sin(psi(s))) * L.lotH / 2);
+  let hw = L.R0 + 30;
+  for (let s = 0; s < K1; s++) hw = Math.max(hw, Math.abs(R1s[s] * Math.cos(psi(s))) + L.lotW / 2);
+  if (hw > W / 2 - pad) { const sh = hw - (W / 2 - pad); R1s = R1s.map(r => Math.max(L.R0 + 40, r - sh)); }
+  const R1 = Math.max(...R1s);
+  let top = -(L.R0 + 66), bot = L.R0 + 14;
+  for (let s = 0; s < K1; s++) { const yy = R1s[s] * Math.sin(psi(s)); top = Math.min(top, yy - L.lotH / 2 - 8); bot = Math.max(bot, yy + L.lotH / 2 + 8); }
+  L.townY0 = y; L.cx = W / 2; L.cy = y - top; L.townY1 = L.cy + bot;
+  L.R1 = R1; L.psi = psi; L.phi = phi;
+  L.lot = s => ({ x: L.cx + R1s[s] * Math.cos(psi(s)), y: L.cy + R1s[s] * Math.sin(psi(s)) });
+  L.cslot = (s, q) => { const p = L.lot(s); return { x: p.x - (cols - 1) * 16 + (q % cols) * 32, y: p.y - L.lotH / 2 + 70 + Math.floor(q / cols) * 54 }; };
+  L.gate = { x: L.cx, y: L.cy - L.R0 - 4 };
+  const rs = K1 === 1 ? 26 : 32 + 3 * K1;
+  L.ring = t => { const a = t === K1 ? -Math.PI / 2 : psi(t); return { x: L.cx + rs * Math.cos(a), y: L.cy + rs * Math.sin(a) + 18 }; };
+  y = L.townY1 + 8;
+  L.lab3 = y + 12; y += 18;
+  L.TP = 28; L.PP = k * L.TP + 24;
+  L.perG = Math.max(1, Math.floor((W - 2 * pad) / L.PP)); L.gRows = Math.max(1, Math.ceil(D.maxP / L.perG));
+  const base3 = y + 40;
+  L.group = q => ({ x: pad + L.PP / 2 + (q % L.perG) * L.PP, y: base3 + Math.floor(q / L.perG) * 58 });
+  L.gtomb = (q, t) => { const g = L.group(q); return { x: g.x - (k - 1) * L.TP / 2 + t * L.TP, y: g.y }; };
+  y += L.gRows * 58 + 6; L.H = y;
+  return L;
+}
+/* where the member at stack position p of corner s stood, when the corner had p + 1 members */
+function prevTop(L, s, p) { return L.cslot(s, Math.max(0, slotIn(L.capC, p, p + 1))); }
+
+function svgMG(W, f, L, animEl, playing) {
+  const st = f.st, A = D.A, n = A.length, k = D.k, K1 = k - 1;
+  const coarse = D.gran === "coarse";
+  const anim = animEl === null ? null : (coarse ? (f.animC || (f.anim ? Object.assign({ coarse: true }, f.anim) : null)) : f.anim);
+  const dly = animEl === null ? "" : "animation-delay:-" + Math.round(animEl) + "ms;";
+  const dur = playing ? clamp(+el("sSpeed").value * 0.85, 160, 650) : 650, dur2 = playing ? clamp(+el("sSpeed").value * 0.95, 220, 1100) : 1100;
+  const durs = "--dur:" + dur + "ms;--dur2:" + dur2 + "ms;";
+  const walk = (dx, dy) => ' class="walk" style="--dx:' + dx.toFixed(1) + "px;--dy:" + dy.toFixed(1) + "px;" + durs + dly + '"';
+  const walk2 = (x0, y0, x1, y1) => ' class="walk2" style="--x0:' + x0.toFixed(1) + "px;--y0:" + y0.toFixed(1) + "px;--x1:" + x1.toFixed(1) + "px;--y1:" + y1.toFixed(1) + "px;" + durs + dly + '"';
+  const fig = (g, w) => "<g" + (w || "") + '><g transform="scale(' + FS + ')">' + pawn(gcol(g), g) + "</g></g>";
+  const grave = (g, w) => "<g" + (w || "") + '><g transform="scale(' + TS + ')">' + tomb(gcol(g), g) + "</g></g>";
+  const at = (p, inner, cls, di) => '<g' + (cls ? ' class="' + cls + '"' : "") + (di !== undefined ? ' data-i="' + di + '"' : "") + ' transform="translate(' + p.x.toFixed(1) + "," + p.y.toFixed(1) + ')">' + inner + "</g>";
+  let o = "";
+
+  /* ---- band 1: arrivals ---- */
+  o += '<text class="sv-band" x="' + L.pad + '" y="' + L.lab1 + '">' + (st.pass === 2 ? "Second pass: counting the gangs in K" : "Arrivals, in the order of A") + "</text>";
+  if (st.pass === 2 && st.vy) o += mathAt("m[y] = " + st.m[st.vy], W - L.pad, L.lab1 + 1, 14, "end", "var(--wi-ink-strong)").svg;
+  else if (st.i !== null) o += mathAt("i = " + st.i, W - L.pad, L.lab1 + 1, 14, "end", "var(--wi-ink-strong)").svg;
+  o += stripFigures(L, st);
+
+  /* ---- band 2: the town ---- */
+  o += '<text class="sv-band" x="' + L.pad + '" y="' + L.lab2 + '">The town · ' + K1 + (K1 === 1 ? " corner" : " corners") + "</text>";
+  o += mathAt("|C| = " + st.corners.filter(Boolean).length, W - L.pad, L.lab2 + 1, 14, "end", "var(--wi-ink-strong)").svg;
+  const far = Math.max(W, L.townY1 - L.townY0) ;
+  let streets = "", lines = "";
+  for (let s = 0; s < K1; s++) {
+    const a = L.phi(s), x2 = L.cx + far * Math.cos(a), y2 = s === 0 ? L.townY0 - 6 : L.cy + far * Math.sin(a);
+    const xe = s === 0 ? L.cx : x2;
+    streets += '<line x1="' + L.cx + '" y1="' + L.cy + '" x2="' + xe.toFixed(1) + '" y2="' + y2.toFixed(1) + '" stroke="#e6d7bc" stroke-width="40"/>';
+    lines += '<line x1="' + (L.cx + (L.R0 + 4) * Math.cos(a)).toFixed(1) + '" y1="' + (L.cy + (L.R0 + 4) * Math.sin(a)).toFixed(1) + '" x2="' + xe.toFixed(1) + '" y2="' + y2.toFixed(1) +
+             '" stroke="var(--wi-panel-2)" stroke-width="2" stroke-dasharray="9 8"/>';
+  }
+  o += '<defs><clipPath id="townClip"><rect x="' + L.pad + '" y="' + (L.townY0 - 8) + '" width="' + (W - 2 * L.pad) + '" height="' + (L.townY1 - L.townY0 + 8) + '"/></clipPath></defs>';
+  o += '<g clip-path="url(#townClip)">' + streets + lines + "</g>";
+  o += '<circle cx="' + L.cx + '" cy="' + L.cy + '" r="' + L.R0 + '" fill="#ece1cb" stroke="var(--wi-border)" stroke-width="1.2"/>';
+  o += '<circle cx="' + L.cx + '" cy="' + L.cy + '" r="' + (L.R0 - 8) + '" fill="none" stroke="var(--wi-border-soft)" stroke-width="1" stroke-dasharray="2 4"/>';
+  /* the corners */
+  for (let s = 0; s < K1; s++) {
+    const c = st.corners[s], p = L.lot(s), x0 = p.x - L.lotW / 2, y0 = p.y - L.lotH / 2;
+    o += '<rect x="' + x0.toFixed(1) + '" y="' + y0.toFixed(1) + '" width="' + L.lotW + '" height="' + L.lotH + '" rx="7" fill="' + (c ? tint(gcol(c.g), 0.86) : "var(--wi-panel-2)") +
+         '" stroke="' + (c ? gcol(c.g) : "var(--wi-border)") + '" stroke-width="' + (c ? 1.4 : 1) + '"' + (c ? "" : ' stroke-dasharray="4 3"') + "/>";
+    if (!c) { o += '<text class="sv-note" x="' + p.x.toFixed(1) + '" y="' + (p.y + 5).toFixed(1) + '" text-anchor="middle">free corner</text>'; continue; }
+    o += '<text class="sv-rhs" x="' + (x0 + 8).toFixed(1) + '" y="' + (y0 + 17).toFixed(1) + '" style="fill:' + gcol(c.g) + ';font-weight:bold">' + esc(gname(c.g)) + "</text>";
+    o += '<text class="sv-crowd" x="' + (x0 + L.lotW - 10).toFixed(1) + '" y="' + (y0 + 17).toFixed(1) + '" style="text-anchor:end;font-weight:bold;font-size:12.5px">' + c.c + "</text>";
+    const cnt = c.mem.length;
+    c.mem.forEach((i, pos) => {
+      const q = slotIn(L.capC, pos, cnt);
+      if (q < 0) return;
+      const sp = L.cslot(s, q);
+      let w = "";
+      if (anim && anim.k === "enter" && anim.i === i && pos === cnt - 1) {
+        w = anim.coarse ? walk2(L.strip[i].x - sp.x, L.strip[i].y - sp.y, L.gate.x - sp.x, L.gate.y - sp.y) : walk(L.gate.x - sp.x, L.gate.y - sp.y);
+      }
+      o += at(sp, fig(A[i], w), "sqfig", i);
+    });
+    if (cnt > L.capC) {
+      const sp = L.cslot(s, 0), more = cnt - (L.capC - 1);
+      o += '<g transform="translate(' + sp.x.toFixed(1) + "," + sp.y.toFixed(1) + ')" opacity=".55"><g transform="translate(-7,-4) scale(1.1)">' + pawn(gcol(c.g), "") +
+           '</g><g transform="translate(7,-4) scale(1.1)">' + pawn(gcol(c.g), "") + "</g></g>" +
+           '<text class="sv-crowd" x="' + sp.x.toFixed(1) + '" y="' + (sp.y + 13).toFixed(1) + '">+' + more + "</text>";
+    }
+  }
+  /* the standoff in the plaza */
+  if (st.ring) {
+    const facing = anim && anim.k === "face";
+    /* while walking in: a gang member; when the shots are fired: a tombstone, for all k at the same moment */
+    const fall = (g, w) => facing ? "<g" + w + '><g class="vanish" style="' + durs + dly + '"><g transform="scale(' + FS + ')">' + pawn(gcol(g), g) + "</g></g>" +
+                                    '<g class="appear late" style="' + durs + dly + '"><g transform="scale(' + TS + ')">' + tomb(gcol(g), g) + "</g></g></g>" : grave(g);
+    st.ring.spots.forEach(sp => {
+      const p = L.ring(sp.s), from = prevTop(L, sp.s, st.corners[sp.s] ? st.corners[sp.s].mem.length + (sp.done ? 0 : 0) : 0);
+      o += at(p, fall(A[sp.j], facing ? walk(from.x - p.x, from.y - p.y) : ""), "sqfig", sp.j);
+    });
+    const p = L.ring(K1), i = st.ring.i;
+    o += at(p, fall(A[i], facing ? walk(L.gate.x - p.x, L.gate.y - p.y) : ""), "sqfig", i);
+    if (facing) o += '<g transform="translate(' + L.cx + "," + (L.cy - 4) + ')"><path class="bang2" style="' + durs + dly + '" d="' + star(30, 12, 10) + '" fill="#f0d4a0" stroke="var(--wi-active)" stroke-width="1.5"/></g>';
+  }
+  /* someone in the street */
+  if (st.pass === 1 && st.gate !== null) {
+    const i = st.gate, from = L.strip[i];
+    o += at(L.gate, fig(A[i], anim && anim.k === "arrive" && anim.i === i ? walk(from.x - L.gate.x, from.y - L.gate.y) : ""), "sqfig", i);
+  }
+
+  /* ---- band 3: the graveyard ---- */
+  o += '<text class="sv-band" x="' + L.pad + '" y="' + L.lab3 + '">Graveyard</text>';
+  o += mathAt("\\#\\text{groups} = " + st.groups.length, W - L.pad, L.lab3 + 1, 14, "end", "var(--wi-ink-strong)").svg;
+  if (!st.groups.length) o += '<text class="sv-note" x="' + (L.pad + 4) + '" y="' + (L.group(0).y - 12) + '">nobody has died yet</text>';
+  let bang = "";
+  st.groups.forEach((grp, q) => {
+    const c0 = L.group(q), xa = L.gtomb(q, 0).x - 17, xb = L.gtomb(q, k - 1).x + 17;
+    const live = anim && (anim.k === "bury" || anim.k === "stand") && q === st.groups.length - 1;
+    const app = live ? ' class="appear" style="' + durs + dly + '"' : "";
+    let inner = '<rect class="hlring" x="' + (xa - 4 - c0.x).toFixed(1) + '" y="-38" width="' + (xb - xa + 8).toFixed(1) + '" height="55" rx="5" fill="none" stroke="var(--wi-accent)" stroke-width="1.6" stroke-dasharray="3 2"/>';
+    inner += "<g" + app + '><line x1="' + (xa - c0.x).toFixed(1) + '" y1="0.5" x2="' + (xb - c0.x).toFixed(1) + '" y2="0.5" stroke="var(--wi-border)" stroke-width="1.2"/>';
+    grp.forEach((j, t) => { inner += '<text class="sv-idx" x="' + (L.gtomb(q, t).x - c0.x).toFixed(1) + '" y="14">' + j + "</text>"; });
+    inner += "</g>";
+    grp.forEach((j, t) => {
+      const p = L.gtomb(q, t), g = A[j];
+      let body = grave(g);
+      if (live) {
+        const r = L.ring(t);
+        if (anim.k === "bury") body = grave(g, walk(r.x - p.x, r.y - p.y));
+        else {
+          const from = t === K1 ? L.strip[j] : prevTop(L, t, st.corners[t] ? st.corners[t].mem.length : 0);
+          body = "<g" + walk2(from.x - p.x, from.y - p.y, r.x - p.x, r.y - p.y) + '><g class="vanish" style="' + durs + dly + '"><g transform="scale(' + FS + ')">' + pawn(gcol(g), g) + "</g></g>" +
+                 '<g class="appear late" style="' + durs + dly + '"><g transform="scale(' + TS + ')">' + tomb(gcol(g), g) + "</g></g></g>";
+        }
+      }
+      inner += '<g transform="translate(' + (p.x - c0.x).toFixed(1) + ',0)">' + body + "</g>";
+    });
+    o += '<g class="pair" data-pair="' + q + '" transform="translate(' + c0.x.toFixed(1) + "," + c0.y + ')">' + inner + "</g>";
+    if (live && anim.k === "stand")
+      bang = '<g transform="translate(' + L.cx + "," + (L.cy - 4) + ')"><path class="bang" style="' + durs + dly + '" d="' + star(30, 12, 10) + '" fill="#f0d4a0" stroke="var(--wi-active)" stroke-width="1.5"/></g>';
+  });
+  return o + bang;
+}
+
+/* ---------- side panels ---------- */
+function varsMG(st, prev) {
+  const ch = (html, changed) => '<span class="v' + (changed ? " chg" : "") + '">' + html + "</span>";
+  const held = st.corners.filter(Boolean);
+  const cs = held.length ? M("C = \\{") + held.map(c => chipM(c.g) + "\u2009" + M(String(c.c))).join(M(",\\,")) + M("\\}") : M("C = \\emptyset");
+  const sig = s => s.corners.map(c => c ? c.g + c.c : "-").join();
+  let vh = '<span class="grp"><span class="k">misraGries</span>' +
+    ch(M("i = " + (st.i === null ? "\\text{–}" : st.i)), prev && prev.i !== st.i && st.i !== null) + ch(cs, prev && sig(prev) !== sig(st)) + "</span>";
+  if (st.pass === 2) vh += '<span class="grp"><span class="k">verify</span>' + ch(M("y =") + " " + chipM(st.vy), prev && prev.vy !== st.vy) +
+    ch(M("m[y] = " + (st.vy ? st.m[st.vy] : "\\text{–}")), prev && prev.vy !== st.vy) + "</span>";
+  return vh;
+}
+function costMG(st) {
+  return "counters <code>+1</code>: <code>" + st.inc + "</code> · <code>−1</code>: <code>" + st.dec + "</code> · element visits <code>" + st.v1 + " + " + st.v2 + "</code>";
+}
+function invariantMG(st) {
+  const n = D.A.length, k = D.k, P = st.groups.length, sumC = st.corners.reduce((s, c) => s + (c ? c.c : 0), 0);
+  const atGate = st.pass === 1 && st.gate !== null;
+  let h;
+  if (st.ring) h = '<p>A standoff is in progress <span class="dim">— the books balance again once the group is buried.</span></p>';
+  else h = "<p>Arrived so far: " + M((st.arrived - (atGate ? 1 : 0)) + " = k\\cdot\\#\\text{groups} + \\textstyle\\sum_y C[y] = " + k + "\\cdot " + P + " + " + sumC) +
+           ' <span class="dim">(each arrival stands at a corner or lies in a group' + (atGate ? "; not counting the one in the street" : "") + ")</span>.</p>";
+  h += "<p>Every group in the graveyard has <b>" + k + " different gangs</b>" + (P ? ' <span class="ok">✓</span>' : "") + ". So a gang loses at most one member per group.</p>";
+  if (!D.census) return h + '<p class="dim">Turn on the head count to follow one gang through the argument.</p>';
+  const g = D.watch, m = D.cnt[g], killed = D.A.reduce((s, x, i) => s + (x === g && st.fate[i] === 2), 0), Pg = P + (st.ring ? 1 : 0);
+  h += "<p>The " + chip(g) + ": " + M("m = " + m) + " member" + (m === 1 ? "" : "s") + " in " + M("A") + "; killed so far " +
+       M(killed + " \\le \\#\\text{groups}" + (st.ring ? " + 1" : "") + " = " + Pg) + ".</p>";
+  const done = st.pass === 2, fl = Math.floor(n / k);
+  if (m > n / k) {
+    h += "<p>" + M("\\text{killed} \\le \\#\\text{groups} \\le n/k = " + fracK(n, k) + " < " + m) + ", so at least " + M(m + " - " + fl + " = " + (m - fl)) +
+         (m - fl === 1 ? " member survives" : " members survive") + " — and survivors hold a corner" + (done && st.K.includes(g) ? ': <span class="ok">there they are.</span>' : ".") + "</p>";
+  } else {
+    h += "<p>" + M(m + " \\le n/k = " + fracK(n, k)) + ": no guarantee — this gang " + (done ? (st.K.includes(g) ? "holds a corner, but that proves nothing." : "may well be wiped out.") : "can be wiped out.") + "</p>";
+  }
+  return h;
+}
+function readoutMG(target) {
+  const box = el("readout"), svg = el("mainSvg"), st = D.st, A = D.A, k = D.k;
+  svg.querySelectorAll(".hl").forEach(g => g.classList.remove("hl"));
+  if (!target || !st) { box.innerHTML = '<span class="dim">Hover a grave or a gang member for its story.</span>'; return; }
+  const lite = is => is.forEach(i => { const s = svg.querySelector('.slot[data-i="' + i + '"]'); if (s) s.classList.add("hl"); });
+  const nm = i => "<i>A</i>[" + i + "] = " + chip(A[i]);
+  if (target.dataset.pair !== undefined) {
+    const q = +target.dataset.pair, grp = st.groups[q];
+    target.classList.add("hl"); lite(grp);
+    box.innerHTML = "Group " + (q + 1) + ": " + grp.slice(0, -1).map(nm).join(", ") + " from the corners, and " + nm(grp[grp.length - 1]) + ", arriving — " + k + " different gangs.";
+    return;
+  }
+  const i = +target.dataset.i;
+  lite([i]);
+  let t;
+  const corner = st.corners.find(c => c && c.mem.includes(i));
+  const inRing = st.ring && st.fate[i] !== 2 && (st.ring.i === i || st.ring.spots.some(x => x.j === i));
+  if (st.pass === 1 && st.gate === i) t = nm(i) + " is walking down the street.";
+  else if (inRing) t = nm(i) + " faces the others in a standoff.";
+  else if (corner) t = nm(i) + " stands at the corner of the " + chip(corner.g) + " (" + corner.c + (corner.c === 1 ? " member" : " members") + ").";
+  else if (st.fate[i] === 2) {
+    const q = st.groups.findIndex(g => g.includes(i));
+    if (q >= 0) { lite(st.groups[q]); t = nm(i) + " died in standoff " + (q + 1) + "."; } else t = nm(i) + " has just died in the standoff.";
+  } else t = nm(i) + " has not arrived yet.";
+  if (st.pass === 2 && st.vm[i]) t += " Counted in the second pass.";
+  box.innerHTML = t;
+}
+</script>
+</body>
+</html>

@@ -7,6 +7,28 @@
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+  /* MathJax: TeX in \( \), Euler letters, SVG output (also used for the labels inside the drawings).
+     \ca \cb \cf \cd \cc colour the ingredients a, b, f, d and c via the page's CSS classes;
+     \rel, \wrel, \bin give relations and operators the extra space of the slides. */
+  window.MathJax = {
+    tex: { inlineMath: [["\\(", "\\)"]], packages: { "[+]": ["html"] },
+           macros: { ca: ["{\\class{ca}{#1}}", 1], cb: ["{\\class{cb}{#1}}", 1], cf: ["{\\class{cf}{#1}}", 1],
+                     cd: ["{\\class{cd}{#1}}", 1], cc: ["{\\class{cc}{#1}}", 1],
+                     rel: ["\\mathrel{\\,#1\\,}", 1], wrel: ["\\mathrel{\\;#1\\;}", 1], wwrel: ["\\mathrel{\\quad#1\\quad}", 1],
+                     bin: ["\\mathbin{\\,#1\\,}", 1] } },
+    loader: { load: ["[tex]/html", "[mathjax-euler-extension]/svg"],
+              paths: { "mathjax-euler-extension": "https://cdn.jsdelivr.net/npm/@mathjax/mathjax-euler-font-extension@4" } },
+    svg: { fontCache: "none", mtextInheritFont: true },
+    output: { linebreaks: { inline: false } },
+    /* no speech / semantic enrichment: it costs seconds per update on this page */
+    options: { enableMenu: false, enableEnrichment: false, enableSpeech: false, enableBraille: false,
+               enableExplorer: false, enableAssistiveMml: false,
+               menuOptions: { settings: { enrich: false, speech: false, braille: false, assistiveMml: false, collapsible: false } } },
+    startup: { typeset: false }
+  };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-svg.js"></script>
 <title>The Master Theorem &middot; recursion trees, growing n, and Roura's discrete master theorem</title>
 <style>
   :root {
@@ -18,7 +40,7 @@
     --wi-done:#902015; --wi-inert:#b6b1a1; --wi-inert-border:#8d897c;
     --wi-font-body:texgyrepagella, Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
     --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
-    --wi-font-mono:var(--wi-font-mono);
+    --wi-font-mono:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --wi-radius:4px; --wi-radius-lg:5px;
 
     /* --- the four ingredients of a D&C recurrence keep one colour each,
@@ -31,6 +53,8 @@
     --mt-c:#902015;            /* c = log_b(a), the exponent that decides everything */
     --mt-f-fill:#e6d3e6; --mt-f-fill2:#d8bcd8;
     --mt-d-fill:#f2ddc2;
+    /* light tints for the input boxes of the four ingredients */
+    --mt-a-tint:#e4efdf; --mt-b-tint:#e3e3f5; --mt-f-tint:#f1e4f1; --mt-d-tint:#f6e7d6;
   }
   * { box-sizing:border-box; }
   body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
@@ -47,7 +71,15 @@
   .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 16px; max-width:92ch; line-height:1.5; }
   .subtitle code, .hint code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; }
 
-  /* --- maths, set by hand: the page must stay one standalone file --- */
+  /* --- maths: MathJax, Euler letters; the ingredient classes colour HTML and TeX alike --- */
+  mjx-container[jax="SVG"] { color:inherit; }
+  mjx-container .ca, mjx-container .cb, mjx-container .cf, mjx-container .cd, mjx-container .cc { font-weight:normal; }
+  .mj-buf { position:absolute; left:-10000px; top:0; visibility:hidden; }
+  .mlab { font-size:1.08rem; }
+  .verdict.big { font-size:1.35rem; }
+  #thmBox.unrevealed .thmcase.on { background:transparent; border-color:transparent; }
+  #thmBox.unrevealed .thmcase.off { opacity:1; }
+  #thmBox.unrevealed .check { visibility:hidden; }
   .m { font-style:italic; }
   .mr { font-style:normal; }
   sup, sub { font-size:.7em; line-height:0; }
@@ -95,29 +127,67 @@
   .tbtn:disabled { opacity:.32; }
   .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
                border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:16px; }
-  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:center; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
   .progress { flex:1 1 320px; min-width:220px; }
-  .progress input[type=range] { display:block; width:100%; margin:0; }
+  /* the step slider: a 16 px thumb, whose centre travels from 8 px to width - 8 px,
+     exactly the span of the phase bar below it */
+  input.scrub { -webkit-appearance:none; appearance:none; display:block; width:100%; height:16px; margin:2px 0 0;
+                background:transparent; cursor:pointer; accent-color:auto; }
+  input.scrub::-webkit-slider-runnable-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; box-sizing:border-box; width:16px; height:16px;
+                margin-top:-6px; border-radius:50%; background:var(--wi-accent); border:2px solid var(--wi-panel-2);
+                box-shadow:0 0 0 1px var(--wi-accent); }
+  input.scrub::-moz-range-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-moz-range-thumb { box-sizing:border-box; width:16px; height:16px; border-radius:50%; background:var(--wi-accent);
+                border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
   .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint);
-            white-space:nowrap; text-align:right; }
-  .phasebar { display:flex; width:100%; margin-top:3px; }
-  .phasebtn { flex-grow:1; flex-basis:0; min-width:0; padding:3px 4px; font-size:.68rem; line-height:1.3;
-              font-family:var(--wi-font-head); letter-spacing:.03em;
-              background:var(--wi-panel); border:1px solid var(--wi-border-soft);
-              border-left-width:0; border-radius:0; color:var(--wi-ink-faint); cursor:pointer;
-              overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+            white-space:nowrap; text-align:right; min-width:12ch; padding-top:2px; }
+  .phasebar { display:flex; margin:6px 8px 0; height:1.55rem; }
+  .phasebtn { flex:none; overflow:hidden; padding:0; min-width:0; height:100%; font-size:.68rem; line-height:1.55rem;
+              font-family:var(--wi-font-head); letter-spacing:.02em; text-align:center; white-space:nowrap;
+              background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-left-width:0;
+              border-radius:0; color:var(--wi-ink-faint); cursor:pointer; }
   .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
   .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
   .phasebtn.on { background:var(--wi-panel-2); border-color:var(--wi-accent-soft); color:var(--wi-accent);
                  font-weight:bold; }
   .phasebtn.past { color:var(--wi-ink-soft); background:var(--wi-panel-2); }
-  .explain { margin-top:9px; font-size:.85rem; color:var(--wi-ink-strong); min-height:2.6em; line-height:1.45; }
+  .phasebtn.long:not(.on) { background:#efe3ec; }
+  .explain { margin-top:9px; font-size:.85rem; color:var(--wi-ink-strong); min-height:4.4em; line-height:1.45; }
 
   /* --- stage --- */
-  .stage { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(340px,.95fr); gap:18px; align-items:start; }
-  @media (max-width:1080px) { .stage { grid-template-columns:1fr; } }
-  .col-side { display:flex; flex-direction:column; gap:14px; }
-  .col-main { display:flex; flex-direction:column; gap:14px; }
+  /* main column | splitter | side column; the splitter sets --lf / --rf, and dragging it all
+     the way to the right hides the side column (.noside) */
+  .stage { display:grid; grid-template-columns:minmax(0, var(--lf, 57fr)) 18px minmax(300px, var(--rf, 43fr));
+           gap:0; align-items:start; }
+  .stage.noside { grid-template-columns:minmax(0, 1fr) 18px 0; }
+  .stage.noside .col-side { display:none; }
+  @media (max-width:1080px) { .stage, .stage.noside { grid-template-columns:1fr; gap:16px; }
+                              .splitter { display:none !important; } .stage.noside .col-side { display:flex; } }
+  .splitter { align-self:stretch; min-height:200px; cursor:col-resize; touch-action:none; display:flex;
+              justify-content:center; }
+  .splitter::before { content:""; width:4px; margin:30px 0; border-radius:2px; background:var(--wi-border-soft);
+                      transition:background .15s; }
+  .splitter:hover::before, .splitter.drag::before, .splitter:focus-visible::before { background:var(--wi-accent-soft); }
+  .splitter:focus-visible { outline:none; }
+  .col-side { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .col-main { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .col-sub { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .subsplit { display:none; }
+  /* wide main area: drawing | splitter | balance and the other panels */
+  .col-main.two { display:grid; grid-template-columns:minmax(0, var(--mf, 60fr)) 18px minmax(260px, var(--sf, 40fr));
+                  gap:0; align-items:start; }
+  .col-main.two > .subsplit { display:flex; }
+  /* the prediction chart runs under both columns */
+  .col-main.two > #ratioBox { grid-column:1 / -1; margin-top:14px; }
+  /* the height bar under the drawing */
+  .hsplit { height:14px; margin:2px 0 -4px; cursor:row-resize; touch-action:none; display:flex; align-items:center; }
+  .hsplit::before { content:""; height:4px; flex:1; margin:0 34%; border-radius:2px; background:var(--wi-border-soft);
+                    transition:background .15s; }
+  .hsplit:hover::before, .hsplit.drag::before, .hsplit:focus-visible::before { background:var(--wi-accent-soft); }
+  .hsplit:focus-visible { outline:none; }
+  .sim-box.collapsed > .hsplit { display:none; }
+  @media (min-width:1081px) { .col-side { position:sticky; top:10px; } }
   .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
              border-radius:var(--wi-radius-lg); padding:12px 15px; }
   .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em;
@@ -126,6 +196,44 @@
   .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-size:.95em; color:var(--wi-ink-soft); }
   svg.stagesvg { display:block; background:var(--wi-bg); border-radius:var(--wi-radius);
                  width:100%; touch-action:none; }
+  #mainSvg { max-height:86vh; }
+  /* every titled panel folds up when its title is clicked */
+  .sim-box.collapsible > .sim-title { cursor:pointer; user-select:none; }
+  .sim-box.collapsible > .sim-title > span:first-child::before { content:"\25BE"; display:inline-block; width:1.1em;
+                      opacity:.55; letter-spacing:0; }
+  .sim-box.collapsed > .sim-title > span:first-child::before { content:"\25B8"; }
+  .sim-box.collapsed > :not(.sim-title) { display:none !important; }
+  .sim-box.collapsed > .sim-title { margin:0; }
+  /* tree mode: the verdict and the balance wait for the Compare step (space is kept, nothing jumps) */
+  .veiled > :not(.sim-title), .veiled .rhs { visibility:hidden; }
+  .recnote { font-size:.72rem; color:var(--wi-ink-faint); margin-top:4px; text-align:center; }
+
+  /* spinner inputs: one colour per ingredient of the recurrence */
+  .spin { display:inline-flex; align-items:stretch; vertical-align:middle; border:1px solid var(--sp-c, var(--wi-border));
+          border-radius:var(--wi-radius); background:var(--sp-t, var(--wi-panel)); overflow:hidden; line-height:1; }
+  sup .spin { vertical-align:baseline; position:relative; top:-.15em; }
+  .spin input.tiny { border:0; border-radius:0; background:transparent; color:var(--sp-c, var(--wi-ink)); font-weight:bold;
+                     width:3.7em; padding:4px 3px; }
+  .spin input.tiny:focus-visible { outline:none; background:var(--wi-panel-2); }
+  .spin:focus-within { box-shadow:0 0 0 2px var(--wi-accent-soft); }
+  .spbtns { display:flex; flex-direction:column; border-left:1px solid var(--sp-c, var(--wi-border)); }
+  .spbtns button { flex:1 1 0; display:flex; align-items:center; justify-content:center; padding:0 5px; min-height:0;
+                   border:0; border-radius:0; background:transparent; color:var(--sp-c, var(--wi-ink)); line-height:0; }
+  .spbtns button + button { border-top:1px solid var(--sp-c, var(--wi-border)); }
+  .spbtns button:hover:not(:disabled) { background:var(--sp-c, var(--wi-ink-soft)); color:var(--wi-panel-2); border-color:var(--sp-c); }
+  .spbtns button svg { display:block; }
+  .spin.ca { --sp-c:var(--mt-a); --sp-t:var(--mt-a-tint); }
+  .spin.cb { --sp-c:var(--mt-b); --sp-t:var(--mt-b-tint); }
+  .spin.cf { --sp-c:var(--mt-f); --sp-t:var(--mt-f-tint); }
+  .spin.cd { --sp-c:var(--mt-d); --sp-t:var(--mt-d-tint); }
+
+  /* presentation view: only chrome is hidden, the window is left alone */
+  .only-p { display:none !important; }
+  body.present .only-p { display:inline-flex !important; }
+  body.present .hide-p { display:none !important; }
+  body.present { padding-top:12px; }
+  .exitp { font-size:.72rem; padding:4px 10px; opacity:.55; }
+  .exitp:hover, .exitp:focus-visible { opacity:1; }
 
   /* --- the theorem, centre piece --- */
   .recbox { border:1px solid var(--wi-border); background:var(--wi-panel-2); border-radius:var(--wi-radius);
@@ -281,6 +389,24 @@
   .serlab { text-anchor:start; font-size:10px; font-family:var(--wi-font-mono); }
 
   .rlab { text-anchor:start; font-size:11px; fill:var(--wi-ink-soft); }
+  .lframe { fill:none; stroke:var(--wi-border-soft); stroke-width:1; }
+  .lavg { fill:none; stroke:var(--wi-ink-faint); stroke-width:.8; stroke-dasharray:3 3; }
+  .lshape { fill:var(--mt-f-fill); stroke:var(--mt-f); stroke-width:.9; stroke-linejoin:round; }
+  .goutline { fill:var(--mt-f-fill); fill-opacity:.55; stroke:var(--mt-f); stroke-width:1.4; stroke-linejoin:round; }
+  .goleaf { fill:var(--mt-d-fill); stroke:var(--mt-d); stroke-width:1.2; }
+  .gclip { fill:var(--mt-f); }
+  .okbig { font-size:15px; fill:var(--wi-ink-strong); }
+  .oksub { font-size:12px; fill:var(--wi-ink-soft); }
+  .hotbg { fill:#f6e0d6; stroke:var(--wi-accent-soft); stroke-width:.8; opacity:0; transition:opacity .38s ease; }
+  .hotbg.hot { opacity:1; }
+
+  .lleaf { fill:var(--mt-d-fill); stroke:var(--mt-d); stroke-width:.9; }
+  .lclip { fill:var(--mt-f); }
+  .lbr { stroke:var(--wi-queue); stroke-width:1.2; fill:none; }
+  .lbrlab { font-size:9.5px; fill:var(--wi-queue); text-anchor:middle; font-family:var(--wi-font-mono); }
+  .lcap { text-anchor:middle; font-size:12px; }
+  .lcap2 { text-anchor:middle; font-size:10px; fill:var(--wi-ink-soft); font-family:var(--wi-font-mono); }
+  .lcap3 { text-anchor:middle; font-size:10.5px; fill:var(--wi-ink-soft); font-style:italic; }
   .rparent { fill:var(--mt-f-fill); stroke:var(--mt-f); stroke-width:1.1; }
   .rchild { fill:var(--mt-f-fill2); stroke:var(--mt-f); stroke-width:1; }
   .rchildlab { text-anchor:middle; font-size:10.5px; font-style:italic; }
@@ -307,7 +433,7 @@ body { font-family: var(--wi-font-body); }
 </head>
 <body>
 
-<div class="wi-topbar">
+<div class="wi-topbar hide-p">
   <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
   <span>Divide &amp; conquer recurrences</span>
 </div>
@@ -319,22 +445,24 @@ body { font-family: var(--wi-font-body); }
     <button data-mode="tree">Master theorem</button>
     <button data-mode="roura">Roura</button>
   </span>
+  <span class="ctl"><button id="presBtn" class="hide-p" title="A clutter-free view for the lecture: hides the page chrome, nothing else (Esc to leave)">Presentation view</button>
+    <button id="exitPres" class="only-p exitp" title="Leave the presentation view (Esc)">&#10005; leave presentation</button></span>
 </div>
 
-<p class="subtitle" id="sub"></p>
+<p class="subtitle hide-p" id="sub"></p>
 
-<div class="controls" id="ctlMain">
+<div class="controls mj-static" id="ctlMain">
   <div class="ctl"><label for="presetSel">Example</label>
     <select id="presetSel"></select></div>
   <div class="ctl" data-only="mt"><label>Recurrence</label>
-    <span><span class="m ca">a</span> <input class="tiny" id="inA" value="2"></span>
-    <span><span class="m cb">b</span> <input class="tiny" id="inB" value="2"></span>
-    <span><span class="m cd">d</span> <input class="tiny" id="inD" value="1"></span>
+    <span class="mlab">\(\ca{a}\)</span> <input class="tiny" id="inA" value="2" title="number of subproblems a">
+    <span class="mlab">\(\cb{b}\)</span> <input class="tiny" id="inB" value="2" title="shrink factor b (fractions such as 4/3 are fine)">
+    <span class="mlab">\(\cd{d}\)</span> <input class="tiny" id="inD" value="1" title="base-case cost d &ge; 0">
   </div>
-  <div class="ctl"><label class="mathlabel"><span class="m cf">f</span>(<span class="m">n</span>) =</label>
-    <input class="tiny" id="inFB" value="1" title="leading constant B">
-    <span class="m">n</span><sup><input class="tiny" id="inBeta" value="1" style="width:3.4em" title="exponent &beta;"></sup>
-    <span class="mr">&middot; lg</span><sup><input class="tiny" id="inGam" value="0" style="width:3.4em" title="exponent &gamma;"></sup><span class="m">n</span>
+  <div class="ctl"><span class="mlab">\(\cf{f}(n) \rel=\)</span>
+    <input class="tiny" id="inFB" value="1" title="leading constant B &gt; 0">
+    <span class="mlab">\(n\)</span><sup><input class="tiny" id="inBeta" value="1" title="exponent &alpha; of n"></sup>
+    <span class="mlab">\(\cdot\,\lg\)</span><sup><input class="tiny" id="inGam" value="0" title="exponent &gamma; of lg n"></sup><span class="mlab">\(n\)</span>
     <span class="echo" id="fEcho"></span>
   </div>
   <div class="ctl" data-only="roura"><label for="inTerms">Terms</label>
@@ -345,14 +473,14 @@ body { font-family: var(--wi-font-body); }
       <button data-sym="1" class="on">symbolic</button>
       <button data-sym="0">with numbers</button>
     </span></div>
-  <div class="ctl" data-only="grow"><label for="inK">max <span class="m">k</span></label>
-    <input class="tiny" id="inK" value="12"></div>
+  <div class="ctl" data-only="grow"><label for="inK">max \(k\)</label>
+    <input class="tiny" id="inK" value="12" title="number of steps that grow n by a factor b; the long run follows"></div>
   <div class="ctl" data-only="grow"><label>Bar width</label>
     <span class="seg" id="normSeg">
-      <button data-norm="share" class="on">share of T(n)</button>
-      <button data-norm="max">widest level</button>
+      <button data-norm="area" class="on" title="area of a bar = its share of T(n); the picture keeps the same area">equal area</button>
+      <button data-norm="max" title="the widest level fills the frame">widest level</button>
     </span></div>
-  <div class="ctl"><button id="btnReset">Reset</button></div>
+  <div class="ctl hide-p"><button id="btnReset">Reset</button></div>
 </div>
 
 <div class="transport">
@@ -368,7 +496,7 @@ body { font-family: var(--wi-font-body); }
               aria-label="Play">&#9654;&#65038;</button>
     </div>
     <div class="progress">
-      <input type="range" id="slider" min="0" max="1" value="0" step="1">
+      <input type="range" class="scrub" id="slider" min="0" max="100000" value="0" step="1" aria-label="Step">
       <div class="phasebar" id="phasebar"></div>
     </div>
     <span class="stepno" id="stepno"></span>
@@ -377,62 +505,65 @@ body { font-family: var(--wi-font-body); }
 </div>
 
 <div class="stage">
-  <div class="col-main">
-    <div class="sim-box">
+  <div class="col-main" id="colMain">
+    <div class="sim-box collapsible" id="mainBox">
       <div class="sim-title"><span id="svgTitle">Recursion tree</span><span class="rhs" id="svgRhs"></span></div>
       <svg id="mainSvg" class="stagesvg" viewBox="0 0 720 470" preserveAspectRatio="xMidYMid meet"></svg>
-      <div class="legend" id="legend"></div>
+      <div class="hsplit" id="hsplit" role="separator" aria-orientation="horizontal" tabindex="0"
+           title="Drag up or down to make the drawing less or more tall (double-click: back to the default)"></div>
+      <div class="legend hide-p" id="legend"></div>
     </div>
-    <div class="sim-box" id="scaleBox">
+    <div class="splitter subsplit" id="subsplit" role="separator" aria-orientation="vertical" tabindex="0"
+         title="Drag to share the width between the drawing and the panels next to it (double-click: back to the default)"></div>
+    <div class="col-sub">
+    <div class="sim-box collapsible collapsed" id="longBox" style="display:none">
+      <div class="sim-title"><span>In the long run</span><span class="rhs" id="longRhs"></span></div>
+      <svg id="longSvg" class="stagesvg" viewBox="0 0 720 270" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="vnote" id="longNote" style="text-align:left; min-height:3em"></div>
+    </div>
+    <div class="sim-box collapsible" id="scaleBox">
       <div class="sim-title"><span>The balance</span><span class="rhs" id="scaleRhs"></span></div>
       <svg id="scaleSvg" class="stagesvg" viewBox="0 0 720 218" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
-    <div class="sim-box" id="ratioBox" style="display:none">
+    </div>
+    <div class="sim-box collapsible" id="ratioBox" style="display:none">
       <div class="sim-title"><span>Is the prediction right?</span><span class="rhs" id="ratioRhs"></span></div>
       <svg id="ratioSvg" class="stagesvg" viewBox="0 0 720 200" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
   </div>
+  <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" tabindex="0"
+       title="Drag to share the width between the drawings and the theorem; all the way to the right hides the side panels (double-click: back to the default)"></div>
   <div class="col-side">
     <div class="sim-box" id="thmBox"></div>
-    <div class="sim-box" id="verdictBox"></div>
-    <div class="sim-box" id="ledgerBox"></div>
+    <div class="sim-box collapsible" id="verdictBox"></div>
+    <div class="sim-box collapsible" id="ledgerBox"></div>
   </div>
 </div>
 
-<details class="code" id="condBox" open>
+<details class="code hide-p mj-static" id="condBox" open>
   <summary>Side conditions &nbsp;&middot;&nbsp; regularity, rounding, and when you may skip both</summary>
   <div class="condbody">
     <div class="lem">
       <h4>The regularity condition</h4>
       <p>Case (c) needs it, and it is the only genuinely technical part of the theorem:</p>
-      <span class="quant">&exist;<span class="m">n</span><sub>0</sub>, &alpha; &lt; 1 &nbsp;&forall;<span class="m">n</span> &ge; <span class="m">n</span><sub>0</sub> :&nbsp;
-        <span class="m ca">a</span> &middot; <span class="m cf">f</span>(<span class="m">n</span>/<span class="m cb">b</span>) &le; &alpha; <span class="m cf">f</span>(<span class="m">n</span>)</span>
-      <p>It says the children's conquer work is a <em>constant factor smaller</em> than the parent's — so the sum
-         over the levels is a decaying geometric series and the root really does pay for everything.</p>
-      <p><b>Lemma (regularity condition).</b> For <span class="m cf">f</span>(<span class="m">n</span>) =
-         <span class="m">n</span><sup>&beta;</sup> lg<sup>&gamma;</sup>(<span class="m">n</span>) with constants
-         &beta; &gt; log<sub class="cb">b</sub>(<span class="ca">a</span>) and &gamma;, the regularity condition holds.</p>
+      <span class="quant">\(\exists n_1, \rho \lt 1\ \ \forall n \ge n_1 : \ \ \ca{a}\cdot\cf{f}(n/\cb{b}) \rel\le \rho\,\cf{f}(n)\)</span>
+      <p>It says the children&rsquo;s conquer work is a <em>constant factor smaller</em> than the parent&rsquo;s &mdash; so the sum over the levels is a
+         decaying geometric series and the root really does pay for everything.</p>
+      <p><b>Lemma (regularity condition).</b> If \(\cf{f}(n) \sim B\,n^{\alpha}\log^{\gamma}(n)\) for constants \(B > 0\), \(\gamma\) and
+         \(\alpha > \cc{c} = \log_{\cb{b}}(\ca{a})\), the regularity condition holds.
+         (Asymptotic equivalence \(\sim\), not just \(\Theta\): a \(\Theta\) allows \(\cf{f}\) to oscillate, and that can break it.)</p>
       <p id="regReport" class="hint"></p>
     </div>
     <div class="lem">
       <h4>What about rounding?</h4>
-      <p>For general <span class="m">n</span> the subproblems are &lfloor;<span class="m">n</span>/<span class="m cb">b</span>&rfloor;
-         and &lceil;<span class="m">n</span>/<span class="m cb">b</span>&rceil;. In general that matters — but:</p>
-      <p><b>Lemma (polynomial-growth master method).</b> If <span class="m cf">f</span> satisfies the
-         polynomial-growth condition, the &Theta;-class of the solution is the same with or without floors and ceilings.</p>
-      <span class="quant">&exist;<span class="m">n</span><sub>0</sub> &nbsp;&forall;<span class="m">C</span> &ge; 1
-        &nbsp;&exist;<span class="m">D</span> &gt; 1 &nbsp;&forall;<span class="m">n</span> &ge; <span class="m">n</span><sub>0</sub>
-        &nbsp;&forall;<span class="m">t</span> &isin; [1, <span class="m">C</span>] :&nbsp;
-        <sup>1</sup>&frasl;<sub><span class="m">D</span></sub> <span class="m cf">f</span>(<span class="m">n</span>) &le;
-        <span class="m cf">f</span>(<span class="m">t</span> <span class="m">n</span>) &le;
-        <span class="m">D</span> <span class="m cf">f</span>(<span class="m">n</span>)</span>
-      <p class="hint">Growing <span class="m">n</span> by up to a constant factor <span class="m">C</span> changes the
-        function value by at most a constant factor <span class="m">D</span> = <span class="m">D</span>(<span class="m">C</span>),
-        for large enough <span class="m">n</span>. In particular every
-        <span class="m cf">f</span>(<span class="m">n</span>) = &Theta;(<span class="m">n</span><sup>&beta;</sup>
-        log<sup>&gamma;</sup>(<span class="m">n</span>) log log<sup>&delta;</sup>(<span class="m">n</span>)) qualifies —
-        zero exponents allowed. <i>(The lemma's local variable is written</i> <span class="m">t</span>
-        <i>here, to keep it apart from</i> <span class="m cc">c</span> = log<sub class="cb">b</sub><span class="ca">a</span><i>.)</i></p>
+      <p>For general \(n\) the subproblems are \(\lfloor n/\cb{b}\rfloor\) and \(\lceil n/\cb{b}\rceil\). In general that matters &mdash; but:</p>
+      <p><b>Lemma (polynomial-growth master method).</b> If \(\cf{f}\) satisfies the
+         polynomial-growth condition, the \(\Theta\)-class of the solution is the same with or without floors and ceilings.</p>
+      <span class="quant">\(\exists n_0\ \forall C \ge 1\ \exists D > 1\ \ \forall n \ge n_0\ \forall t \in [1, C] : \ \
+        \tfrac1D\,\cf{f}(n) \rel\le \cf{f}(tn) \rel\le D\,\cf{f}(n)\)</span>
+      <p class="hint">Growing \(n\) by up to a constant factor \(C\) changes the function value by at most a constant factor \(D = D(C)\),
+        for large enough \(n\). In particular every \(\cf{f}(n) = \Theta\bigl(n^{\alpha}\log^{\gamma}(n)\log\log^{\delta}(n)\bigr)\) qualifies &mdash;
+        zero exponents allowed.</p>
       <p id="pgReport" class="hint"></p>
     </div>
     <div class="lem" style="grid-column:1/-1">
@@ -442,53 +573,34 @@ body { font-family: var(--wi-font-body); }
   </div>
 </details>
 
-<details class="code" id="rouraThmBox" open style="display:none">
+<details class="code hide-p mj-static" id="rouraThmBox" open style="display:none">
   <summary>Roura&rsquo;s discrete master theorem &nbsp;&middot;&nbsp; the statement in full</summary>
   <div class="condbody" style="grid-template-columns:1fr">
     <div class="lem">
       <h4>Theorem (Roura&rsquo;s discrete master theorem)</h4>
-      <p>Let <span class="m">T</span>(<span class="m">n</span>) be recursively defined as</p>
-      <div class="recbox" style="margin:10px 0">
-        <span class="m">T</span>(<span class="m">n</span>) =
-        <span class="dcases">
-          <span><span class="m">b</span><sub><span class="m">n</span></sub></span>
-          <span class="cond">0 &le; <span class="m">n</span> &lt; <span class="m">n</span><sub>0</sub>,</span>
-          <span><span class="m cf">f</span>(<span class="m">n</span>) + &sum;<sub><span class="m">d</span>=1</sub><sup><span class="m">D</span></sup>
-            <span class="m ca">a</span><sub><span class="m">d</span></sub> &middot;
-            <span class="m">T</span>(<span class="m">n</span>/<span class="m cb">b</span><sub><span class="m">d</span></sub> +
-            <span class="m">r</span><sub><span class="m">n</span>,<span class="m">d</span></sub>)</span>
-          <span class="cond"><span class="m">n</span> &ge; <span class="m">n</span><sub>0</sub>,</span>
-        </span>
-      </div>
-      <p>where <span class="m">D</span> &isin; &#8469;, <span class="m ca">a</span><sub><span class="m">d</span></sub> &gt; 0,
-        <span class="m cb">b</span><sub><span class="m">d</span></sub> &gt; 1, for <span class="m">d</span> = 1, &hellip;, <span class="m">D</span>
-        are constants, functions <span class="m">r</span><sub><span class="m">n</span>,<span class="m">d</span></sub> satisfy
-        |<span class="m">r</span><sub><span class="m">n</span>,<span class="m">d</span></sub>| = O(1) as <span class="m">n</span> &rarr; &infin;,
-        and function <span class="m cf">f</span>(<span class="m">n</span>) satisfies
-        <span class="m cf">f</span>(<span class="m">n</span>) ~ <span class="m">B</span> &middot; <span class="m">n</span><sup>&alpha;</sup>(ln <span class="m">n</span>)<sup>&gamma;</sup>
-        for constants <span class="m">B</span> &gt; 0, &alpha;, &gamma;.</p>
-      <p>Set H = 1 &minus; &sum;<sub><span class="m">d</span>=1</sub><sup><span class="m">D</span></sup>
-        <span class="m ca">a</span><sub><span class="m">d</span></sub>(1/<span class="m cb">b</span><sub><span class="m">d</span></sub>)<sup>&alpha;</sup>;
-        then we have:</p>
+      <p>Let \(T(n)\) be recursively defined as</p>
+      <div class="recbox" style="margin:10px 0">\(\displaystyle T(n) \wwrel= \begin{cases} c_n & 0 \le n \lt n_0,\\
+        \cf{f}(n) + \sum_{d=1}^{D} \ca{a_d}\cdot T\Bigl(\frac{n}{\cb{b_d}} + r_{n,d}\Bigr) & n \ge n_0, \end{cases}\)</div>
+      <p>where \(D \in \mathbb N\), \(\ca{a_d} > 0\), \(\cb{b_d} > 1\), for \(d = 1, \ldots, D\) are constants, functions \(r_{n,d}\) satisfy
+        \(|r_{n,d}| = O(1)\) as \(n \to \infty\), and function \(\cf{f}(n)\) satisfies \(\cf{f}(n) \sim B\cdot n^{\alpha}(\ln n)^{\gamma}\)
+        for constants \(B > 0\), \(\alpha\), \(\gamma\).</p>
+      <p>Set \(H = 1 - \sum_{d=1}^{D} \ca{a_d}\,(1/\cb{b_d})^{\alpha}\); then we have:</p>
       <div id="rouraFull"></div>
       <p class="hint" style="margin-top:10px">Two things the master theorem cannot do are built in here: the subproblem sizes
-        <span class="m cb">b</span><sub><span class="m">d</span></sub> may differ from each other, and the shift
-        <span class="m">r</span><sub><span class="m">n</span>,<span class="m">d</span></sub> absorbs floors and ceilings, so no separate
-        rounding lemma is needed. The base-case values <span class="m">b</span><sub><span class="m">n</span></sub> are arbitrary; they
-        do not affect the &Theta;-class, though they do affect constants below the leading term.</p>
+        \(\cb{b_d}\) may differ from each other, and the shift \(r_{n,d}\) absorbs floors and ceilings, so no separate
+        rounding lemma is needed. The base-case values \(c_n\) are arbitrary; they do not affect the \(\Theta\)-class, though they do affect
+        constants below the leading term.</p>
       <h4 style="margin-top:14px">Entering a recurrence</h4>
       <p>The <b>Terms</b> box holds one <code>a&nbsp;b</code> pair per subproblem size, separated by commas &mdash; the
-        <span class="m ca">a</span><sub><span class="m">d</span></sub> and <span class="m cb">b</span><sub><span class="m">d</span></sub>
-        above. Fractions are allowed. So <code>2 2</code> means 2&thinsp;<span class="m">T</span>(<span class="m">n</span>/2),
-        and <code>1 5, 1 10/7</code> means <span class="m">T</span>(<span class="m">n</span>/5) +
-        <span class="m">T</span>(7<span class="m">n</span>/10) &mdash; the median-of-medians recurrence. The
-        <span class="m cf">f</span>(<span class="m">n</span>) boxes then give &alpha; and &gamma;; they are written in lg here and
-        converted to ln internally, which only changes the constant <span class="m">B</span>.</p>
+        \(\ca{a_d}\) and \(\cb{b_d}\) above. Fractions are allowed. So <code>2 2</code> means \(2\,T(n/2)\),
+        and <code>1 5, 1 10/7</code> means \(T(n/5) + T(7n/10)\) &mdash; the median-of-medians recurrence. The
+        \(\cf{f}(n)\) boxes then give \(\alpha\) and \(\gamma\); they are written in \(\lg\) here and
+        converted to \(\ln\) internally, which only changes the constant \(B\).</p>
     </div>
   </div>
 </details>
 
-<details class="editor">
+<details class="editor hide-p mj-static">
   <summary>Load an example &nbsp;&middot;&nbsp; plain-text recurrence format</summary>
   <div class="editor-body">
     <div>
@@ -498,12 +610,12 @@ body { font-family: var(--wi-font-body); }
         <code>name</code> label shown in the dropdown<br>
         <code>a</code> number of subproblems<br>
         <code>b</code> shrink factor (fractions ok: <code>10/7</code>)<br>
-        <code>d</code> base-case cost<br>
-        <code>f</code> <code>B n^beta lg^gamma</code> as three numbers,<br>
-        &nbsp;&nbsp;&nbsp;e.g. <code>f 1 1 1</code> is <span class="m">n</span> lg <span class="m">n</span><br>
+        <code>d</code> base-case cost (&ge; 0)<br>
+        <code>f</code> <code>B alpha gamma</code> for \(B\,n^{\alpha}\lg^{\gamma} n\),<br>
+        &nbsp;&nbsp;&nbsp;e.g. <code>f 1 1 1</code> is \(n\lg n\)<br>
         <code>terms</code> Roura mode: <code>a b, a b, …</code><br>
-        <code>k</code> largest exponent in “growing <span class="m">n</span>”<br>
-        <code>note</code> a line of commentary
+        <code>k</code> number of growth steps before the long run<br>
+        <code>note</code> a line of commentary (TeX in <code>\(&hellip;\)</code>)
       </div>
     </div>
     <div>
@@ -524,11 +636,14 @@ body { font-family: var(--wi-font-body); }
 /* ============================================================================
    The Master Theorem — three views of one recurrence.
      mode "tree"  : the symbolic recursion tree (Cormen's picture, animated)
-     mode "grow"  : real numbers; every level is a bar whose width is its share
-                    of the total cost, and n grows by factors of b
+     mode "grow"  : real numbers; every level is a bar, normalized in both
+                    directions (equal total height, area = share of T(n)); n
+                    grows by factors of b, and then k runs off to 10 000 and on
      mode "roura" : Roura's discrete master theorem, which covers the gaps
    Everything is derived from one parameter block, so switching modes never
    changes the recurrence under discussion.
+   Notation as on the slides: f(n) = B n^alpha lg^gamma n, c = log_b a, the
+   regularity constant is rho. (Internally the exponent alpha is P.beta.)
    ========================================================================= */
 
 const el = id => document.getElementById(id);
@@ -567,15 +682,59 @@ function fmtNum(x) {                       /* for n, which is a whole number */
   if (x >= 1e6) return sci(x);
   return (Math.round(x * 1000) / 1000).toLocaleString("en-US");
 }
-/* a number the way you would write it in a formula: 2, 1.585, 4/3 */
+/* a number given as its log10, for the huge values of the long run */
+function fmtLog10(e) {
+  if (!isFinite(e)) return e > 0 ? "\u221e" : "0";
+  if (e < 5) return fmt(Math.pow(10, e));
+  const ie = Math.floor(e), m = Math.pow(10, e - ie);
+  return m.toFixed(2) + "\u00b710" + supStr(ie);
+}
+/* the same, as TeX */
+function texLog10(e) {
+  if (!isFinite(e)) return e > 0 ? "\\infty" : "0";
+  if (e < 5) return texFmt(Math.pow(10, e));
+  const ie = Math.floor(e), m = Math.pow(10, e - ie);
+  return m.toFixed(2) + "\\cdot 10^{" + ie + "}";
+}
+function texFmt(x) {
+  if (!isFinite(x)) return "\\infty";
+  const a = Math.abs(x);
+  if (a !== 0 && (a >= 1e5 || a < 1e-3)) {
+    const e = Math.floor(Math.log10(a)), m = x / Math.pow(10, e);
+    return m.toFixed(2) + "\\cdot 10^{" + e + "}";
+  }
+  return fmt(x).replace("-", "-");
+}
+/* a number the way you would write it in a formula: 2, 1.3, 4/3, 1.585 */
 function nice(x) {
   const r = Math.round(x);
   if (Math.abs(x - r) < 1e-9) return String(r);
-  for (let q = 2; q <= 12; q++) {
+  if (Math.abs(x * 100 - Math.round(x * 100)) < 1e-7) return String(Math.round(x * 100) / 100);
+  return niceFrac(x);
+}
+/* fractions first: for subproblem sizes such as 3n/4 or 7n/10 */
+function niceFrac(x, maxQ) {
+  const r = Math.round(x);
+  if (Math.abs(x - r) < 1e-9) return String(r);
+  for (let q = 2; q <= (maxQ || 12); q++) {
     const p = x * q;
     if (Math.abs(p - Math.round(p)) < 1e-9) return Math.round(p) + "/" + q;
   }
   return (Math.round(x * 1000) / 1000).toString();
+}
+/* the text put into an input box: decimals with up to three places, else a fraction */
+function niceIn(x) {
+  const r = Math.round(x);
+  if (Math.abs(x - r) < 1e-9) return String(r);
+  if (Math.abs(x * 1000 - Math.round(x * 1000)) < 1e-6) return String(Math.round(x * 1000) / 1000);
+  const fr = niceFrac(x);
+  return fr.indexOf("/") >= 0 ? fr : String(Math.round(x * 1e4) / 1e4);
+}
+/* x * n as a size: n/2, 3n/4, 9n/16 (TeX) */
+function sizeOf(x) {
+  const fr = niceFrac(x, 1000).split("/");
+  if (fr.length === 2) return (fr[0] === "1" ? "" : fr[0]) + "n/" + fr[1];
+  return fr[0] === "1" ? "n" : fr[0] + "n";
 }
 function frac(s) {
   s = String(s).trim();
@@ -584,55 +743,151 @@ function frac(s) {
   const v = parseFloat(s);
   return isNaN(v) ? NaN : v;
 }
-/* superscript / subscript inside an SVG <text> */
-const S_UP = s => '<tspan baseline-shift="super" font-size="70%">' + s + '</tspan>';
-const S_DN = s => '<tspan baseline-shift="sub" font-size="70%">' + s + '</tspan>';
 const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const cNum = () => { const c = cExp(); return Math.abs(c - Math.round(c)) < 1e-9 ? nice(c) : fmt(c); };
+const isInt = x => Math.abs(x - Math.round(x)) < 1e-9;
 
-/* --- f(n) written out ---------------------------------------------------- */
-function fName(html) {
-  const up = html ? (s => "<sup>" + s + "</sup>") : S_UP;
-  let s = "";
-  if (P.B !== 1 || (P.beta === 0 && P.gamma === 0)) s += nice(P.B);
-  if (P.beta !== 0) s += (s ? "\u2009" : "") + "n" + (P.beta === 1 ? "" : up(nice(P.beta)));
-  if (P.gamma !== 0) s += (s ? "\u2009" : "") + "lg" + (P.gamma === 1 ? "" : up(nice(P.gamma))) + "\u2009n";
+/* ==========================================================================
+   MathJax: TeX in \( \), Euler letters, SVG output — also for the labels
+   inside the drawings. Until MathJax has arrived, a plain stand-in is shown.
+   The colour of each ingredient comes from the page's CSS via \class.
+   ========================================================================= */
+const M = t => "\\(" + t + "\\)";
+const TM = (s, ...v) => M(String.raw(s, ...v));            /* TM`T(n) \rel= ${x}` */
+const tx = (s, ...v) => String.raw(s, ...v);
+const mjReady = () => !!(window.MathJax && MathJax.typesetPromise && MathJax.startup && MathJax.startup.document);
+/* setMath: all requests of one render are typeset together, off-screen, then swapped in */
+const MJQ = new Map(); let mjQueued = false, mjBusy = false;
+function setMath(node, html) {
+  if (node._want === html) return;
+  node._want = html;
+  node.dataset.mj = "1";
+  if (!mjReady() || html.indexOf("\\(") < 0) {
+    if (mjReady() && MathJax.typesetClear) MathJax.typesetClear([node]);
+    MJQ.delete(node); node.innerHTML = html; return;
+  }
+  MJQ.set(node, html);
+  if (!mjQueued) { mjQueued = true; Promise.resolve().then(mjFlush); }
+}
+function mjFlush() {
+  mjQueued = false;
+  if (mjBusy || !MJQ.size) return;
+  const jobs = Array.from(MJQ.entries());
+  MJQ.clear();
+  mjBusy = true;
+  const tmps = jobs.map(([node, html]) => {
+    const tmp = document.createElement("div"), cs = getComputedStyle(node);
+    tmp.className = "mj-buf"; tmp.style.fontSize = cs.fontSize; tmp.style.fontFamily = cs.fontFamily;
+    tmp.style.width = (node.clientWidth || 300) + "px"; tmp.innerHTML = html;
+    document.body.appendChild(tmp);
+    return tmp;
+  });
+  MathJax.typesetPromise(tmps).then(() => {
+    jobs.forEach(([node, html], i) => {
+      if (node._want !== html) return;                 /* a newer request is queued */
+      if (MathJax.typesetClear) MathJax.typesetClear([node]);
+      node.replaceChildren(...tmps[i].childNodes);
+    });
+  }).catch(() => { jobs.forEach(([node, html]) => { if (node._want === html) node.innerHTML = html; }); })
+    .finally(() => { tmps.forEach(t => t.remove()); mjBusy = false; if (MJQ.size) mjFlush(); });
+}
+const MJL = new Map(); let mjAgain = 0;
+function mjSvg(tex) {
+  const c = MJL.get(tex);
+  if (c) return c === 1 ? null : c;
+  if (!mjReady()) return null;
+  MJL.set(tex, 1);
+  MathJax.tex2svgPromise(tex, { display:false }).then(node => {
+    const sv = node.querySelector("svg");
+    MJL.set(tex, { vb:sv.getAttribute("viewBox").split(/[\s,]+/).map(Number), inner:sv.innerHTML });
+    if (!mjAgain) mjAgain = requestAnimationFrame(() => { mjAgain = 0; renderActive(); });
+  }).catch(() => MJL.delete(tex));
+  return null;
+}
+let MEASURE = null;
+function textW(s, font) {
+  if (!MEASURE) MEASURE = document.createElement("canvas").getContext("2d");
+  MEASURE.font = font; return MEASURE.measureText(s).width;
+}
+/* a readable stand-in for a TeX label, for the moment before MathJax is there */
+function plainOf(t) {
+  let s = t;
+  for (let i = 0; i < 4; i++) s = s.replace(/\\(?:ca|cb|cf|cd|cc|rel|wrel|bin|mathrm|text|mathit)\{([^{}]*)\}/g, "$1");
+  s = s.replace(/\\log_\{?([^{}\s]+)\}?/g, "log_$1").replace(/\\lg/g, "lg").replace(/\\ln/g, "ln")
+       .replace(/\\cdot/g, "\u00b7").replace(/\\infty/g, "\u221e").replace(/\\to/g, "\u2192").replace(/\\approx/g, "\u2248")
+       .replace(/\\sum/g, "\u2211").replace(/\\alpha/g, "\u03b1").replace(/\\gamma/g, "\u03b3").replace(/\\Theta/g, "\u0398")
+       .replace(/\\tilde\{?\\alpha\}?/g, "\u03b1\u0303").replace(/\\varepsilon/g, "\u03b5").replace(/\\dots|\\ldots/g, "\u2026")
+       .replace(/\\vdots/g, "\u22ee").replace(/\\,|\\;|\\!|\\quad/g, " ").replace(/\\le/g, "\u2264").replace(/\\ge/g, "\u2265")
+       .replace(/\\times/g, "\u00d7").replace(/\\div/g, "\u00f7").replace(/\\-/g, "-");
+  s = s.replace(/\^\{([^{}]*)\}/g, (m, e) => supStr(e)).replace(/\^([0-9a-z])/g, (m, e) => supStr(e))
+       .replace(/_\{([^{}]*)\}/g, "$1").replace(/[{}\\]/g, "");
+  return s;
+}
+/* TeX at (x, baseline y); returns { w, svg } */
+function mathAt(tex, x, y, fs, anchor, color, extra) {
+  const c = mjSvg(tex);
+  color = color || "var(--wi-ink-strong)";
+  if (!c) {
+    const plain = plainOf(tex);
+    const w = textW(plain, "italic " + fs + "px " + getComputedStyle(document.body).fontFamily);
+    return { w:w, svg:'<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" style="font-size:' + fs +
+      'px;font-style:italic;fill:' + color + ';text-anchor:' + (anchor || "start") + '"' + (extra || "") + '>' + esc(plain) + "</text>" };
+  }
+  const vy = c.vb[1], vw = c.vb[2], vh = c.vb[3], w = vw / 1000 * fs, h = vh / 1000 * fs;
+  const left = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w : x;
+  return { w:w, svg:'<svg x="' + left.toFixed(1) + '" y="' + (y + vy / 1000 * fs).toFixed(1) + '" width="' + w.toFixed(1) +
+    '" height="' + h.toFixed(1) + '" viewBox="' + c.vb.join(" ") + '" overflow="visible" style="color:' + color + '"' +
+    (extra || "") + '>' + c.inner + "</svg>" };
+}
+const MA = (tex, x, y, fs, anchor, color, extra) => mathAt(tex, x, y, fs, anchor, color, extra).svg;
+
+
+/* --- f(n) and n^c written out, as TeX ------------------------------------- */
+function fTex() {
+  const parts = [];
+  if (P.B !== 1 || (P.beta === 0 && P.gamma === 0)) parts.push(nice(P.B));
+  if (P.beta !== 0) parts.push("n" + (P.beta === 1 ? "" : "^{" + nice(P.beta) + "}"));
+  let s = parts.join("\\,");
+  if (P.gamma > 0) s += (s ? "\\," : "") + "\\lg" + (P.gamma === 1 ? "" : "^{" + nice(P.gamma) + "}") + " n";
+  else if (P.gamma < 0) s = (s || "1") + "/\\lg" + (P.gamma === -1 ? "" : "^{" + nice(-P.gamma) + "}") + " n";
   return s || "1";
+}
+function texNc(sym) {          /* n^c, either with the letter c or with its value */
+  if (sym) return "n^{\\cc{c}}";
+  const c = cExp();
+  if (Math.abs(c) < 1e-12) return "1";
+  if (Math.abs(c - 1) < 1e-12) return "n";
+  return "n^{\\cc{" + cNum() + "}}";
 }
 
 /* --- which case of the theorem applies? ---------------------------------- */
 function analyse() {
-  const c = cExp(), eps = P.beta - c, T = 1e-9;
-  if (P.beta < c - T)  return { c:c, kase:"a", eps:c - P.beta,
-    why:"&beta; = " + nice(P.beta) + " &lt; " + fmt(c) + " = <span class='cc'>c</span>, so <span class='cf'>f</span>(n) = O(n<sup><span class='cc'>c</span>&minus;&epsilon;</sup>) with &epsilon; = " + fmt(c - P.beta) };
+  const c = cExp(), eps = P.beta - c, T = 1e-9, al = nice(P.beta), cs = cNum();
+  if (P.beta < c - T) return { c:c, kase:"a", eps:c - P.beta,
+    why:TM`\alpha = ${al} < ${cs} = \cc{c}` + ", so " + TM`\cf{f}(n) \rel= O(n^{\cc{c}-\varepsilon})` + " with " + TM`\varepsilon = ${fmt(c - P.beta)}` };
   if (Math.abs(eps) < T && P.gamma === 0) return { c:c, kase:"b",
-    why:"&beta; = <span class='cc'>c</span> and &gamma; = 0, so <span class='cf'>f</span>(n) = &Theta;(n<sup><span class='cc'>c</span></sup>) exactly" };
-  if (P.beta > c + T)  return { c:c, kase:"c", eps:P.beta - c,
-    why:"&beta; = " + nice(P.beta) + " &gt; " + fmt(c) + " = <span class='cc'>c</span>, so <span class='cf'>f</span>(n) = &Omega;(n<sup><span class='cc'>c</span>+&epsilon;</sup>) with &epsilon; = " + fmt(P.beta - c) +
-        ", and regularity holds by the lemma" };
+    why:TM`\alpha = \cc{c}` + " and " + TM`\gamma = 0` + ", so " + TM`\cf{f}(n) \rel= \Theta(n^{\cc{c}})` + " exactly" };
+  if (P.beta > c + T) return { c:c, kase:"c", eps:P.beta - c,
+    why:TM`\alpha = ${al} > ${cs} = \cc{c}` + ", so " + TM`\cf{f}(n) \rel= \Omega(n^{\cc{c}+\varepsilon})` + " with " +
+        TM`\varepsilon = ${fmt(P.beta - c)}` + ", and regularity holds by the lemma" };
   return { c:c, kase:"-", gap:true,
-    why:"&beta; = <span class='cc'>c</span> but &gamma; = " + nice(P.gamma) + " &ne; 0: <span class='cf'>f</span> is n<sup><span class='cc'>c</span></sup> times a log factor, which is neither " +
-        "O(n<sup><span class='cc'>c</span>&minus;&epsilon;</sup>) nor &Omega;(n<sup><span class='cc'>c</span>+&epsilon;</sup>) nor &Theta;(n<sup><span class='cc'>c</span></sup>)" };
+    why:TM`\alpha = \cc{c}` + " but " + TM`\gamma = ${nice(P.gamma)} \ne 0` + ": " + TM`\cf{f}` + " is " + TM`n^{\cc{c}}` +
+        " times a log factor, which is neither " + TM`O(n^{\cc{c}-\varepsilon})` + " nor " + TM`\Omega(n^{\cc{c}+\varepsilon})` +
+        " nor " + TM`\Theta(n^{\cc{c}})` };
 }
-/* the closed form the theorem promises (or, in the gap, what is really true) */
-function cText() {   /* n^c written for the value of c we actually have */
-  const c = cExp();
-  if (Math.abs(c) < 1e-12) return "";
-  const cs = '<span class="cc">' + (Math.abs(c - Math.round(c)) < 1e-9 ? nice(c) : fmt(c)) + '</span>';
-  return Math.abs(c - 1) < 1e-12 ? "n" : ("n<sup>" + cs + "</sup>");
-}
+/* the closed form the theorem promises (or, in the gap, what is really true) — TeX */
 function closedForm() {
-  const A = analyse(), c = A.c, nc = cText();
-  if (A.kase === "a") return { form:"\u0398(" + (nc || "1") + ")", tag:"the leaves pay for everything" };
-  if (A.kase === "b") return { form:"\u0398(" + (nc ? nc + "\u2009" : "") + "log n)", tag:"every level costs the same" };
-  if (A.kase === "c") return { form:"\u0398(<span class='cf'>f</span>(n)) = \u0398(" + fName(true) + ")", tag:"the root pays for everything" };
-  /* the gap: beta = c, gamma != 0 — Roura still gives the answer */
-  const g = P.gamma, base = (nc ? nc + "\u2009" : "");
-  if (g > -1) return { form:"\u0398(" + base + "lg<sup>" + nice(g+1) + "</sup> n)", gap:true,
-                       tag:"not covered by the theorem \u2014 Roura's case (b)" };
-  if (Math.abs(g + 1) < 1e-9) return { form:"\u0398(" + base + "log log n)", gap:true,
-                       tag:"not covered by the theorem \u2014 Roura's case (c)" };
-  return { form:"\u0398(" + (nc || "1") + ")", gap:true,
-           tag:"not covered by the theorem \u2014 Roura's case (d)" };
+  const A = analyse(), nc = texNc();
+  if (A.kase === "a") return { form:"\\Theta(" + nc + ")", tag:"the leaves win" };
+  if (A.kase === "b") return { form:"\\Theta(" + (nc === "1" ? "" : nc + "\\,") + "\\log n)", tag:"every level the same" };
+  if (A.kase === "c") return { form:"\\Theta(\\cf{f}(n)) \\rel= \\Theta(" + fTex() + ")", tag:"the root wins" };
+  /* the gap: alpha = c, gamma != 0 — Roura still gives the answer */
+  const g = P.gamma, base = nc === "1" ? "" : nc + "\\,";
+  if (g > -1) return { form:"\\Theta(" + base + "\\lg^{" + nice(g + 1) + "} n)", gap:true,
+                       tag:"not covered by the theorem \u2014 Roura\u2019s case (b)" };
+  if (Math.abs(g + 1) < 1e-9) return { form:"\\Theta(" + base + "\\log\\log n)", gap:true,
+                       tag:"not covered by the theorem \u2014 Roura\u2019s case (c)" };
+  return { form:"\\Theta(" + nc + ")", gap:true, tag:"not covered by the theorem \u2014 Roura\u2019s case (d)" };
 }
 
 /* --- the levels of the recursion tree for n = b^k ------------------------- */
@@ -646,49 +901,75 @@ function levels(k) {
   rows.push({ j:k, size:1, cnt:cnt, each:P.d, cost:cnt * P.d, leaf:true });
   let tot = 0;
   for (const r of rows) tot += r.cost;
-  for (const r of rows) r.share = r.cost / tot;
+  for (const r of rows) r.share = tot > 0 ? r.cost / tot : 0;
   return { rows:rows, total:tot, n:Math.pow(P.b, k), k:k };
 }
 
-/* --- examples ------------------------------------------------------------- */
+/* --- examples (notes may contain TeX in \( \)) ---------------------------- */
 const PRESETS = [
  { id:"mergesort", name:"Mergesort \u00b7 2T(n/2) + n", a:2,b:2,B:1,beta:1,gamma:0,d:1,k:12,
-   note:"The textbook balanced case: every level of the tree costs n, and there are lg n of them. Majority by divide &amp; conquer has the same recurrence." },
+   note:"The textbook balanced case: every level of the tree costs \\(n\\), and there are \\(\\lg n\\) of them. Majority by divide &amp; conquer has the same recurrence." },
  { id:"binsearch", name:"Binary search \u00b7 T(n/2) + 1", a:1,b:2,B:1,beta:0,gamma:0,d:1,k:14,
-   note:"a = 1 makes c = 0, so n^c = 1 and the constant work per level is exactly \u0398(n^c). Case (b) with a degenerate n^c." },
+   note:"\\(a = 1\\) makes \\(c = 0\\), so \\(n^c = 1\\) and the constant work per level is exactly \\(\\Theta(n^c)\\). Case (b) with a degenerate \\(n^c\\)." },
  { id:"karatsuba", name:"Karatsuba \u00b7 3T(n/2) + n", a:3,b:2,B:1,beta:1,gamma:0,d:1,k:12,
-   note:"Three half-size multiplications instead of four. The tree is bottom-heavy, so the leaves decide: \u0398(n^{lg 3}) \u2248 n^{1.585}." },
+   note:"Three half-size multiplications instead of four. The tree is bottom-heavy, so the leaves decide: \\(\\Theta(n^{\\lg 3}) \\approx \\Theta(n^{1.585})\\)." },
  { id:"dcmult", name:"Schoolbook D&amp;C \u00b7 4T(n/2) + n", a:4,b:2,B:1,beta:1,gamma:0,d:1,k:10,
-   note:"The naive split into four products. Case (a) gives \u0398(n\u00b2) \u2014 no better than long multiplication, which is exactly the hint that the conquer step should do more work." },
+   note:"The naive split into four products. Case (a) gives \\(\\Theta(n^2)\\) \u2014 no better than long multiplication, which is exactly the hint that the conquer step should do more work." },
  { id:"matmul", name:"Block matrix mult. \u00b7 8T(n/2) + n\u00b2", a:8,b:2,B:1,beta:2,gamma:0,d:1,k:8,
-   note:"Eight recursive products of half-size matrices. \u0398(n\u00b3), same as the naive algorithm." },
+   note:"Eight recursive products of half-size matrices. \\(\\Theta(n^3)\\), same as the naive algorithm." },
  { id:"strassen", name:"Strassen \u00b7 7T(n/2) + n\u00b2", a:7,b:2,B:1,beta:2,gamma:0,d:1,k:8,
-   note:"Seven products instead of eight. Still case (a) \u2014 the leaves win \u2014 but the leaf count drops to n^{lg 7} \u2248 n^{2.808}." },
+   note:"Seven products instead of eight. Still case (a) \u2014 the leaves win \u2014 but the leaf count drops to \\(n^{\\lg 7} \\approx n^{2.807}\\)." },
  { id:"quickselect", name:"Quickselect (analysis) \u00b7 T(3n/4) + 2n", a:1,b:4/3,B:2,beta:1,gamma:0,d:1,k:16,
-   note:"One recursive call on three quarters of the input. Here c = 0 and f(n) = 2n dominates: case (c), the root pays, \u0398(n)." },
+   note:"One recursive call on three quarters of the input. Here \\(c = 0\\) and \\(f(n) = 2n\\) dominates: case (c), the root wins, \\(\\Theta(n)\\)." },
  { id:"closest0", name:"Closest pair, first version \u00b7 2T(n/2) + n lg n", a:2,b:2,B:1,beta:1,gamma:1,d:1,k:12,
-   note:"Sorting inside the conquer step. \u03b2 = c but there is an extra log factor \u2014 the master theorem does not apply. The recursion tree still answers it: every level costs about n lg n, and there are lg n levels." },
+   note:"Sorting inside the conquer step. \\(\\alpha = c\\) but there is an extra log factor \u2014 the master theorem does not apply. The recursion tree still answers it: every level costs about \\(n \\lg n\\), and there are \\(\\lg n\\) levels." },
  { id:"closest1", name:"Closest pair, sorted once \u00b7 2T(n/2) + n", a:2,b:2,B:1,beta:1,gamma:0,d:1,k:12,
-   note:"Sorting once up front and keeping the order through the recursion removes the log factor from f and lands back in case (b)." },
+   note:"Sorting once up front and keeping the order through the recursion removes the log factor from \\(f\\) and lands back in case (b)." },
  { id:"gap", name:"The gap \u00b7 2T(n/2) + n/lg n", a:2,b:2,B:1,beta:1,gamma:-1,d:1,k:14,
-   note:"f is smaller than n^c, but only by a log factor \u2014 not polynomially. No case applies. The level bars still tell the truth: they grow very slowly downwards, and the sum is \u0398(n log log n)." },
- { id:"flat", name:"Play: 2T(n/2) + n^\u03b2", a:2,b:2,B:1,beta:1.3,gamma:0,d:1,k:12,
-   note:"Drag \u03b2 through 1 = c and watch the tree flip from bottom-heavy to top-heavy. That crossing is the whole theorem." }
+   note:"\\(f\\) is smaller than \\(n^c\\), but only by a log factor \u2014 not polynomially. No case applies. The level bars still tell the truth: they grow very slowly downwards, and the sum is \\(\\Theta(n \\log\\log n)\\)." },
+ { id:"flat", name:"Play: 2T(n/2) + n^\u03b1", a:2,b:2,B:1,beta:1.3,gamma:0,d:1,k:12,
+   note:"Step \\(\\alpha\\) through \\(1 = c\\) and watch the tree flip from bottom-heavy to top-heavy. That crossing is the whole theorem." }
 ];
 const ROURA_PRESETS = [
  { id:"r-closest", name:"Closest pair \u00b7 2T(n/2) + n lg n", terms:[{a:2,b:2}], B:1,beta:1,gamma:1,d:1,
-   note:"The master theorem has nothing to say here; Roura gives T(n) ~ \u00bd n lg\u00b2 n." },
+   note:"The master theorem has nothing to say here; Roura gives \\(T(n) \\sim \\tfrac12 n \\lg^2 n\\)." },
  { id:"r-mom", name:"Median of medians \u00b7 T(n/5) + T(7n/10) + n", terms:[{a:1,b:5},{a:1,b:10/7}], B:1,beta:1,gamma:0,d:1,
-   note:"Two recursive calls of different sizes \u2014 outside the master theorem entirely. H = 1 \u2212 1/5 \u2212 7/10 = 1/10 > 0, so T(n) ~ f(n)/H = 10n." },
+   note:"Two recursive calls of different sizes \u2014 outside the master theorem entirely. \\(H = 1 - \\tfrac15 - \\tfrac7{10} = \\tfrac1{10} > 0\\), so \\(T(n) \\sim f(n)/H = 10n\\)." },
  { id:"r-quickselect", name:"Quickselect \u00b7 T(3n/4) + 2n", terms:[{a:1,b:4/3}], B:2,beta:1,gamma:0,d:1,
-   note:"H = 1 \u2212 3/4 = 1/4, so T(n) ~ 2n/(1/4) = 8n \u2014 a constant, not just a \u0398." },
+   note:"\\(H = 1 - \\tfrac34 = \\tfrac14\\), so \\(T(n) \\sim 2n/\\tfrac14 = 8n\\) \u2014 a constant, not just a \\(\\Theta\\)." },
  { id:"r-mergesort", name:"Mergesort \u00b7 2T(n/2) + n", terms:[{a:2,b:2}], B:1,beta:1,gamma:0,d:1,
-   note:"H = 0 and \u03b3 = 0 > \u22121: case (b) gives T(n) ~ n lg n, sharpening the \u0398 of the master theorem to the constant." },
+   note:"\\(H = 0\\) and \\(\\gamma = 0 > -1\\): case (b) gives \\(T(n) \\sim n \\lg n\\), sharpening the \\(\\Theta\\) of the master theorem to the constant." },
  { id:"r-gap", name:"The gap \u00b7 2T(n/2) + n/lg n", terms:[{a:2,b:2}], B:1,beta:1,gamma:-1,d:1,
-   note:"H = 0 and \u03b3 = \u22121 exactly: case (c), T(n) ~ n ln ln n. This is the recurrence the master theorem cannot touch." },
+   note:"\\(H = 0\\) and \\(\\gamma = -1\\) exactly: case (c), \\(T(n) \\sim n \\ln\\ln n\\). This is the recurrence the master theorem cannot touch." },
  { id:"r-strassen", name:"Strassen \u00b7 7T(n/2) + n\u00b2", terms:[{a:7,b:2}], B:1,beta:2,gamma:0,d:1,
-   note:"H = 1 \u2212 7/4 < 0: case (a), T(n) = O(n^\u03b1\u0303) where \u03b1\u0303 is where H would vanish \u2014 that is lg 7." }
+   note:"\\(H = 1 - \\tfrac74 < 0\\): case (a), \\(T(n) = \\Theta(n^{\\tilde\\alpha})\\) where \\(\\tilde\\alpha\\) is where \\(H\\) would vanish \u2014 that is \\(\\lg 7\\)." }
 ];
+
+
+/* mixed text with \( TeX \) pieces, laid out along a baseline inside an SVG */
+function mixAt(str, x, y, fs, anchor, color, opts) {
+  opts = opts || {};
+  color = color || "var(--wi-ink-soft)";
+  const segs = [], re = /\\\(([\s\S]*?)\\\)/g;
+  let last = 0, m;
+  while ((m = re.exec(str))) { if (m.index > last) segs.push({ t:str.slice(last, m.index) }); segs.push({ m:m[1] }); last = re.lastIndex; }
+  if (last < str.length) segs.push({ t:str.slice(last) });
+  const font = (opts.italic ? "italic " : "") + fs + "px " + getComputedStyle(document.body).fontFamily;
+  const parts = segs.map(s => s.m !== undefined ? Object.assign({ tex:s.m }, mathAt(s.m, 0, 0, fs, "start", color))
+                                                 : { text:s.t, w:textW(s.t, font) });
+  const W = parts.reduce((a, p) => a + p.w, 0);
+  let cx = anchor === "middle" ? x - W / 2 : anchor === "end" ? x - W : x;
+  let out = "";
+  parts.forEach(p => {
+    if (p.text !== undefined)
+      out += '<text x="' + cx.toFixed(1) + '" y="' + y.toFixed(1) + '" xml:space="preserve" style="font-size:' + fs + 'px;fill:' + color +
+        (opts.italic ? ';font-style:italic' : '') + ';text-anchor:start">' + esc(p.text) + '</text>';
+    else out += mathAt(p.tex, cx, y, fs, "start", color).svg;
+    cx += p.w;
+  });
+  return out;
+}
+
 /* ==========================================================================
    MODE "tree" — the recursion tree behind the theorem.
    SYM decides whether the labels carry the letters of the theorem or the
@@ -699,35 +980,40 @@ const ROURA_PRESETS = [
 let SYM = true;
 
 const TREE_STEPS = [
-  { ph:"Unfold",  t:"The root of the recursion does <span class='cf'>f</span>(n) work of its own \u2014 everything else is delegated to the recursive calls." },
-  { ph:"Unfold",  t:"The root makes <span class='ca'>a</span> calls on inputs of size n/<span class='cb'>b</span>. Together this level costs <span class='ca'>a</span>\u2009<span class='cf'>f</span>(n/<span class='cb'>b</span>)." },
-  { ph:"Unfold",  t:"Each of those does the same, so level 2 holds <span class='ca'>a</span>\u00b2 subproblems of size n/<span class='cb'>b</span>\u00b2. In general level j costs <span class='ca'>a</span><sup>j</sup>\u2009<span class='cf'>f</span>(n/<span class='cb'>b</span><sup>j</sup>)." },
-  { ph:"Depth",   t:"Sizes shrink by a factor <span class='cb'>b</span> per level, so after log<sub class='cb'>b</sub> n levels they reach 1. That is the height of the tree." },
-  { ph:"Leaves",  t:"The bottom level holds <span class='ca'>a</span><sup>log<sub class='cb'>b</sub> n</sup> = n<sup class='cc'>c</sup> base cases, each costing <span class='cd'>d</span>. This is where the exponent <span class='cc'>c</span> = log<sub class='cb'>b</sub>(<span class='ca'>a</span>) comes from: it counts leaves." },
+  { ph:"Unfold",  t:"The root of the recursion does " + TM`\cf{f}(n)` + " work of its own \u2014 everything else is delegated to the recursive calls." },
+  { ph:"Unfold",  t:"The root makes " + TM`\ca{a}` + " calls on inputs of size " + TM`n/\cb{b}` + ". Together this level costs " + TM`\ca{a}\,\cf{f}(n/\cb{b})` + "." },
+  { ph:"Unfold",  t:"Each of those does the same, so level 2 holds " + TM`\ca{a}^2` + " subproblems of size " + TM`n/\cb{b}^2` +
+                    ". In general level " + TM`j` + " costs " + TM`\ca{a}^j\,\cf{f}(n/\cb{b}^j)` + "." },
+  { ph:"Depth",   t:"Sizes shrink by a factor " + TM`\cb{b}` + " per level, so after " + TM`\log_{\cb{b}} n` + " levels they reach 1. That is the height of the tree." },
+  { ph:"Leaves",  t:"The bottom level holds " + TM`\ca{a}^{\log_{\cb{b}} n} \rel= n^{\cc{c}}` + " base cases, each costing " + TM`\cd{d}` +
+                    ". This is where the exponent " + TM`\cc{c} \rel= \log_{\cb{b}}(\ca{a})` + " comes from: it counts leaves." },
   { ph:"Total",   t:"The total is the leaves plus the sum over all internal levels. The master theorem is a statement about which end of that sum dominates." },
-  { ph:"Compare", t:"So put the two ends on a balance: the root's own work <span class='cf'>f</span>(n) against the total leaf cost <span class='cd'>d</span>\u2009n<sup class='cc'>c</sup>. The theorem compares only their <em>exponents</em>." },
+  { ph:"Compare", t:"So put the two ends on a balance: the root\u2019s own work " + TM`\cf{f}(n)` + " against the " + TM`n^{\cc{c}}` +
+                    " leaves. The theorem compares only their <em>exponents</em>. (The count, not the cost " + TM`\cd{d}\,n^{\cc{c}}` + ": " +
+                    TM`\cd{d}` + " may even be 0, but the level just above the leaves costs " + TM`\ca{a}^{k-1}\cf{f}(\cb{b}) \rel= \Theta(n^{\cc{c}})` +
+                    " anyway, as " + TM`\cf{f} > 0` + ".)" },
   { ph:"Verdict", t:"" }
 ];
 
-/* --- label atoms: letters in symbolic mode, values otherwise -------------- */
-const cNum = () => { const c = cExp(); return Math.abs(c - Math.round(c)) < 1e-9 ? nice(c) : fmt(c); };
-const T_a = () => '<tspan class="sa">' + (SYM ? "a" : nice(P.a)) + '</tspan>';
-const T_b = () => '<tspan class="sb">' + (SYM ? "b" : nice(P.b)) + '</tspan>';
-const T_d = () => '<tspan class="sd">' + (SYM ? "d" : nice(P.d)) + '</tspan>';
-const T_c = () => '<tspan class="sc">' + (SYM ? "c" : cNum()) + '</tspan>';
-const T_logb = () => "log" + S_DN('<tspan class="sb">' + (SYM ? "b" : nice(P.b)) + '</tspan>') + " n";
+/* --- label atoms (TeX): letters in symbolic mode, values otherwise --------- */
+const T_a = () => "\\ca{" + (SYM ? "a" : nice(P.a)) + "}";
+const T_b = () => "\\cb{" + (SYM ? "b" : nice(P.b)) + "}";
+const T_d = () => "\\cd{" + (SYM ? "d" : nice(P.d)) + "}";
+const T_logb = () => "\\log_{" + T_b() + "} n";
 function T_size(j) {
   if (j === 0) return "n";
-  if (SYM) return "n/" + T_b() + (j > 1 ? S_UP(j) : "");
-  return "n/" + '<tspan class="sb">' + nice(Math.pow(P.b, j)) + '</tspan>';
+  if (SYM) return "n/" + T_b() + (j > 1 ? "^{" + j + "}" : "");
+  const bj = Math.pow(P.b, j);
+  if (isInt(bj)) return "n/\\cb{" + Math.round(bj) + "}";
+  return "\\cb{" + sizeOf(1 / bj) + "}";
 }
 function T_cnt(j) {
   if (j === 0) return "";
-  if (SYM) return T_a() + (j > 1 ? S_UP(j) : "");
-  return '<tspan class="sa">' + nice(Math.pow(P.a, j)) + '</tspan>';
+  if (SYM) return T_a() + (j > 1 ? "^{" + j + "}" : "");
+  return "\\ca{" + nice(Math.pow(P.a, j)) + "}";
 }
-const T_f = j => "<tspan class='sf'>f</tspan>(" + T_size(j) + ")";
-const T_nc = () => "n" + S_UP(T_c());
+const T_f = j => "\\cf{f}(" + T_size(j) + ")";
+const T_nc = () => texNc(SYM);
 
 function buildTree() {
   const svg = el("mainSvg");
@@ -735,16 +1021,14 @@ function buildTree() {
   const a = P.a;
   /* symbolic mode draws a generic fan: a is a variable there, so the picture
      must not commit to a particular number of children */
-  const aInt = SYM ? 0 : (Math.abs(a - Math.round(a)) < 1e-9 ? Math.round(a) : 0);
+  const aInt = SYM ? 0 : (isInt(a) ? Math.round(a) : 0);
   const xL = 78, xR = 548, xc = (xL + xR) / 2;
   const y0 = 46, y1 = 120, y2 = 196, yE = 250, yLf = 316;
   const g = [];
 
-  /* ---- helper: one node box -------------------------------------------- */
   function node(cx, cy, w, h, label, cls, fs) {
     return '<g><rect x="' + (cx - w / 2) + '" y="' + (cy - h / 2) + '" width="' + w + '" height="' + h +
-      '" rx="3" class="nd ' + cls + '"/><text x="' + cx + '" y="' + (cy + 4) + '" class="ndt ' + cls +
-      '" font-size="' + fs + '">' + label + '</text></g>';
+      '" rx="3" class="nd ' + cls + '"/>' + (label ? MA(label, cx, cy + fs * 0.32, fs, "middle") : "") + '</g>';
   }
   function edge(x1, y1_, x2, y2_) {
     return '<line x1="' + x1 + '" y1="' + y1_ + '" x2="' + x2 + '" y2="' + y2_ + '" class="tedge"/>';
@@ -754,11 +1038,10 @@ function buildTree() {
     const t = 0.46, yy = cyp + (y - cyp) * t;
     const l = cxp + (xs[0] - cxp) * t, r = cxp + (xs[xs.length - 1] - cxp) * t, m = (l + r) / 2;
     if (Math.abs(r - l) < 6)                       /* a = 1: no fan to span */
-      return '<text x="' + (m + 9) + '" y="' + (yy + 4) + '" class="alab">' + (SYM ? "a" : nice(a)) + '</text>';
+      return MA(T_a(), m + 9, yy + 4, 12, "middle");
     return '<path d="M ' + l + ' ' + yy + ' Q ' + m + ' ' + (yy + 15) + ' ' + r + ' ' + yy + '" class="aarc"/>' +
-      '<text x="' + m + '" y="' + (yy + 20) + '" class="alab">' + (SYM ? "a" : nice(a)) + '</text>';
+      MA(T_a(), m, yy + 21, 12, "middle");
   }
-  /* evenly spaced centres inside [lo,hi] */
   function spread(lo, hi, k) {
     if (k === 1) return [(lo + hi) / 2];
     const out = [], step_ = (hi - lo) / (k - 1);
@@ -775,7 +1058,7 @@ function buildTree() {
   let s1 = '<g data-at="1">';
   xs1.forEach(x => { s1 += edge(xc, y0 + 13, x, y1 - 13); });
   s1 += arc(xc, y0 + 13, xs1, y1 - 13);
-  xs1.forEach(x => { s1 += node(x, y1, 78, 25, T_f(1), "fnode", 12.5); });
+  xs1.forEach(x => { s1 += node(x, y1, 80, 25, T_f(1), "fnode", 12.5); });
   if (aInt === 0 || aInt > 4)
     s1 += '<text x="' + ((xs1[1] + xs1[2]) / 2) + '" y="' + (y1 + 5) + '" class="dots">\u00b7\u00b7\u00b7</text>';
   s1 += '</g>';
@@ -785,22 +1068,18 @@ function buildTree() {
   const n2 = aInt === 0 ? 3 : Math.min(aInt, 3);
   let s2 = '<g data-at="2">';
   const slot = (xR - xL) / n1 * 0.80;
-  /* every parent gets the same child width, set by the most cramped one */
   let minHalf = Infinity;
   xs1.forEach(px => { minHalf = Math.min(minHalf, slot / 2, px - xL, xR - px); });
   const bw2 = Math.max(13, Math.min(52, 2 * minHalf / n2 - 7));
   xs1.forEach((px, i) => {
-    /* the outermost parents must not push their children past the tree area */
     const xs2 = spread(px - minHalf + bw2 / 2, px + minHalf - bw2 / 2, n2);
     xs2.forEach(x => { s2 += edge(px, y1 + 12, x, y2 - 11); });
     if (i === 0) s2 += arc(px, y1 + 12, xs2, y2 - 11);
-    xs2.forEach(x => { s2 += node(x, y2, bw2, 21, bw2 >= 34 ? T_f(2) : "", "fnode", 8.6); });
-    if (bw2 < 34 && i === 0)
-      s2 += '<text x="' + xL + '" y="' + (y2 + 32) + '" class="subnote">level 2: ' + T_cnt(2) +
-            ' nodes, each ' + T_f(2) + '</text>';
-    if ((aInt === 0 || aInt > 3) && bw2 >= 34)
+    xs2.forEach(x => { s2 += node(x, y2, bw2, 21, bw2 >= 40 ? T_f(2) : "", "fnode", 8.6); });
+    if (bw2 < 40 && i === 0)
+      s2 += mixAt("level 2: \\(" + T_cnt(2) + "\\) nodes, each \\(" + T_f(2) + "\\)", xL, y2 + 33, 10, "start", "var(--wi-ink-faint)");
+    if ((aInt === 0 || aInt > 3) && bw2 >= 40)
       s2 += '<text x="' + ((xs2[n2 - 2] + xs2[n2 - 1]) / 2) + '" y="' + (y2 + 4) + '" class="dots" font-size="10">\u00b7\u00b7\u00b7</text>';
-    /* the dangling edges towards the next level */
     xs2.forEach(x => {
       s2 += aInt === 1 ? edge(x, y2 + 10, x, y2 + 22)
                        : edge(x, y2 + 10, x - 7, y2 + 22) + edge(x, y2 + 10, x + 7, y2 + 22);
@@ -814,11 +1093,11 @@ function buildTree() {
   spread(xL + 24, xR - 24, n1 * n2).forEach(x => {
     s3 += '<text x="' + x + '" y="' + yE + '" class="dots">\u22ee</text>';
   });
+  const ym = (y0 + yLf) / 2;
   s3 += '<line x1="34" y1="' + (y0 - 16) + '" x2="34" y2="' + (yLf + 14) + '" class="depth"/>' +
     '<path d="M34 ' + (y0 - 20) + ' l-4 8 h8 z" class="depthhead"/>' +
     '<path d="M34 ' + (yLf + 18) + ' l-4 -8 h8 z" class="depthhead"/>' +
-    '<text x="24" y="' + ((y0 + yLf) / 2) + '" class="depthlab" transform="rotate(-90 24 ' + ((y0 + yLf) / 2) + ')">' +
-    T_logb() + ' + 1 levels</text>';
+    '<g transform="rotate(-90 24 ' + ym + ')">' + MA(T_logb() + " + 1 \\text{ levels}", 24, ym, 12, "middle", "var(--mt-d)") + '</g>';
   s3 += '</g>';
   g.push(s3);
 
@@ -827,36 +1106,35 @@ function buildTree() {
   const nlf = (aInt === 1 ? 1 : 11), xsl = spread(xL + 14, xR - 14, nlf);
   xsl.forEach((x, i) => {
     if (nlf > 1 && i === 5) { s4 += '<text x="' + x + '" y="' + (yLf + 4) + '" class="dots">\u00b7\u00b7\u00b7</text>'; return; }
-    s4 += node(x, yLf, 30, 20, T_d(), "dnode", 11.5);
+    s4 += node(x, yLf, 30, 20, T_d(), "dnode", 12);
   });
   const bL = nlf === 1 ? xc - 62 : xL + 2, bR = nlf === 1 ? xc + 62 : xR - 2;
   s4 += '<path d="M' + bL + ' ' + (yLf + 15) + ' q0 9 9 9 H' + (xc - 9) + ' q9 0 9 9 q0 -9 9 -9 H' +
     (bR - 9) + ' q9 0 9 -9" class="brace"/>' +
-    '<text x="' + xc + '" y="' + (yLf + 46) + '" class="leaflab">' + T_a() + S_UP(T_logb()) +
-    ' = ' + T_nc() + ' leaves, ' + T_d() + ' each</text>';
+    MA(T_a() + "^{" + T_logb() + "} \\rel= " + T_nc() + "\\text{ leaves, }" + T_d() + "\\text{ each}", xc, yLf + 48, 13, "middle");
   s4 += '</g>';
   g.push(s4);
 
   /* ---- the per-level totals down the right-hand side --------------------- */
   const rows = [
-    { y:y0,  at:0, lab:T_f(0) },
-    { y:y1,  at:1, lab:T_cnt(1) + "\u2009" + T_f(1) },
-    { y:y2,  at:2, lab:T_cnt(2) + "\u2009" + T_f(2) },
-    { y:yE,  at:3, lab:"\u22ee" },
-    { y:yLf, at:4, lab:T_d() + "\u2009" + T_nc() }
+    { y:y0,  at:0, lab:T_f(0), hot:"rootlab" },
+    { y:y1,  at:1, lab:T_cnt(1) + "\\," + T_f(1) },
+    { y:y2,  at:2, lab:T_cnt(2) + "\\," + T_f(2) },
+    { y:yE,  at:3, lab:"\\vdots" },
+    { y:yLf, at:4, lab:T_d() + "\\," + T_nc(), hot:"leaftot" }
   ];
   rows.forEach(r => {
-    g.push('<g data-at="' + r.at + '"><line x1="' + (xR + 14) + '" y1="' + r.y + '" x2="' + (xR + 32) +
-      '" y2="' + r.y + '" class="tot-arrow" marker-end="url(#ah)"/><text x="' + (xR + 38) + '" y="' + (r.y + 4) +
-      '" class="totlab' + (r.at === 0 ? ' rootlab' : (r.at === 4 ? ' leaftot' : '')) + '">' + r.lab + '</text></g>');
+    const m = mathAt(r.lab, xR + 38, r.y + 4.5, 13, "start");
+    g.push('<g data-at="' + r.at + '">' + (r.hot ? '<rect x="' + (xR + 33) + '" y="' + (r.y - 12) + '" width="' + (m.w + 10) +
+      '" height="23" rx="3" class="hotbg ' + r.hot + '"/>' : '') + '<line x1="' + (xR + 14) + '" y1="' + r.y + '" x2="' + (xR + 32) +
+      '" y2="' + r.y + '" class="tot-arrow" marker-end="url(#ah)"/>' + m.svg + '</g>');
   });
 
   /* ---- the total -------------------------------------------------------- */
-  g.push('<g data-at="5"><line x1="66" y1="392" x2="654" y2="392" class="rule"/>' +
-    '<text x="360" y="418" class="total">T(n) &#160;=&#160; ' + T_d() + '\u2009' + T_nc() +
-    ' &#160;+&#160; \u2211 ' + T_a() + S_UP("j") + ' <tspan class="sf">f</tspan>(n/' + T_b() + S_UP("j") + ')</text>' +
-    '<text x="360" y="440" class="totalsub">the sum runs over j = 0 \u2026 ' + T_logb() +
-    ' \u2212 1; the theorem asks which of its two ends wins</text></g>');
+  g.push('<g data-at="5"><line x1="66" y1="390" x2="654" y2="390" class="rule"/>' +
+    MA("T(n) \\wrel= " + T_d() + "\\," + T_nc() + " \\bin+ \\sum_{j=0}^{" + T_logb() + " - 1} " + T_a() + "^{j}\\,\\cf{f}(n/" + T_b() + "^{j})",
+       360, 424, 15, "middle") +
+    '<text x="360" y="455" class="totalsub">leaves plus internal levels \u2014 the theorem asks which of the two ends of the sum wins</text></g>');
 
   svg.innerHTML =
     '<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">' +
@@ -870,75 +1148,138 @@ function updateTree() {
     n.style.opacity = step >= at ? 1 : 0;
   });
   const cmp = step >= 6;
-  svg.querySelectorAll(".rootlab, .leaftot").forEach(n => n.classList.toggle("hot", cmp));
+  svg.querySelectorAll(".hotbg").forEach(n => n.classList.toggle("hot", cmp));
 }
+
+
 /* ==========================================================================
    MODE "grow" — the same tree, but with numbers.
-   Level j is drawn as a bar whose WIDTH is its share of the total cost, so the
-   picture is a shape rather than a size: bottom-heavy = case (a), rectangle =
-   case (b), top-heavy = case (c). Growing n by a factor b adds one row of
-   leaves at the bottom and squeezes everything else to fit.
+   Level j is a bar, and the picture is normalized in BOTH directions:
+     height: the k+1 rows always share the same total height, so the rows get
+             thinner as n grows;
+     width:  "area" (default) — a row's width is its cost divided by the
+             average level cost, so its AREA is its share of T(n) and the
+             whole picture keeps the same area at every n (the dashed
+             rectangle is the average level);
+             "max" — the widest level fills the frame.
+   Steps 0..K grow n by one factor b each (bars, node by node). After that
+   the long-run steps let k run off to 30, 100, 1000, 10 000 — as a smooth
+   animation of the outline only — and the last step is the limit k -> oo.
+   Every outline is computed from the exact level costs, in log space.
    ========================================================================= */
-const GW = 468, GH = 356, GX0 = 78, GYT = 34;
-/* "share": the whole width is T(n), so every bar is its share of the total —
-   the picture keeps a constant area and the shape is all that changes.
-   "max":   the widest level fills the frame, which shows the level costs
-            themselves on one common scale. */
-let NORM = "share";
+const GW = 468, GX0 = 78, GYT = 34, GU = GW / 4.5, NS = 600;
+/* the bars' total height GH follows the height of the canvas: viewBox width stays 720
+   (so the type keeps its size), and the viewBox height is the canvas's aspect ratio */
+let GH = 356, GVB = 470;
+function updateGH() {
+  const svg = el("mainSvg");
+  if (MAIN_H && svg.clientWidth > 0) GVB = Math.max(260, 720 * svg.clientHeight / svg.clientWidth);
+  else GVB = 470;
+  GH = GVB - 114;
+}
+const LONG_KS = [30, 100, 1000, 10000];
+let NORM = "area";
+const growSteps = () => P.K + 2 + LONG_KS.length;
+function kOfStep(s) {
+  if (s <= P.K) return s;
+  const i = s - P.K - 1;
+  return i < LONG_KS.length ? LONG_KS[i] : Infinity;
+}
+const isLongStep = s => mode === "grow" && s > P.K;
 
+/* --- bars for k <= K ------------------------------------------------------- */
 function geo(k) {
-  const L = levels(k), xc = GX0 + GW / 2;
-  const rowH = Math.min(38, GH / L.rows.length);
+  const L = levels(k), xc = GX0 + GW / 2, n = L.rows.length, rowH = GH / n;
   L.rowH = rowH;
   let mx = 0;
   L.rows.forEach(r => { if (r.cost > mx) mx = r.cost; });
   L.rows.forEach((r, i) => {
+    const w = NORM === "max" ? (mx > 0 ? GW * r.cost / mx : 0) : r.share * n * GU;
     r.h = rowH; r.y = GYT + i * rowH;
-    r.w = Math.max(1.6, GW * (NORM === "max" ? r.cost / mx : r.share)); r.x = xc - r.w / 2;
+    r.clipped = w > GW + 1e-9;
+    r.w = Math.max(1.6, Math.min(GW, w)); r.x = xc - r.w / 2;
     r.leafness = r.leaf ? 1 : 0;
   });
-  L.bottom = GYT + L.rows.length * rowH;
+  L.bottom = GYT + GH;
   return L;
 }
 
-const AINT = () => (Math.abs(P.a - Math.round(P.a)) < 1e-9 ? Math.round(P.a) : 0);
-function boxable(cnt, w) { return AINT() && cnt <= 24 && w / cnt >= 4.5; }
-
+const AINT = () => (isInt(P.a) ? Math.round(P.a) : 0);
+/* individual nodes are drawn while each still gets 2.5 screen pixels of width, so a
+   larger canvas shows more levels node by node */
+let BOX_PITCH = 2.4;                        /* in viewBox units; set from the canvas size */
+function setBoxPitch() {
+  const r = el("mainSvg").getBoundingClientRect();
+  const sc = r.width > 0 ? Math.min(r.width / 720, r.height / GVB) : 1;
+  BOX_PITCH = clamp(2.5 / sc, 1.2, 4);
+}
+function boxable(cnt, w) { return AINT() && cnt <= 2048 && w / cnt >= BOX_PITCH; }
+/* a bar too crowded to show its nodes is darkened, the way the separators would darken it
+   if they were drawn: the more nodes per unit of width, the darker */
+function crowd(cnt, w) {
+  if (!AINT() || cnt <= 1) return 0;
+  const dens = cnt * BOX_PITCH / Math.max(w, 0.05);
+  return clamp(0.34 + 0.07 * Math.log2(Math.max(1, dens)), 0.34, 0.66);
+}
 function mixCol(t) {                        /* violet (internal) -> orange (leaf) */
   const A = [128, 0, 128], B = [194, 94, 0];
   return "rgb(" + A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(",") + ")";
 }
-function mixFill(t) {
-  const A = [230, 211, 230], B = [242, 221, 194];
-  return "rgb(" + A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(",") + ")";
+function mixFill(t, dark) {
+  const A = [230, 211, 230], B = [242, 221, 194], SA = [128, 0, 128], SB = [194, 94, 0];
+  const fill = A.map((v, i) => v + (B[i] - v) * t), str = SA.map((v, i) => v + (SB[i] - v) * t), u = dark || 0;
+  return "rgb(" + fill.map((v, i) => Math.round(v + (str[i] - v) * u)).join(",") + ")";
+}
+function clipArrows(xl, xr, y0, y1, cls) {   /* little arrows: wider than the frame */
+  const y = (y0 + y1) / 2, a = Math.max(2.4, Math.min(4.5, (y1 - y0) / 2 + 2));
+  return '<path d="M' + (xl - 2) + ' ' + y + ' l-6 ' + (-a) + ' v' + (2 * a) + ' z" class="' + (cls || "lclip") + '"/>' +
+         '<path d="M' + (xr + 2) + ' ' + y + ' l6 ' + (-a) + ' v' + (2 * a) + ' z" class="' + (cls || "lclip") + '"/>';
+}
+function growFrame() {                       /* frame, average rectangle, root/leaves labels */
+  const xc = GX0 + GW / 2;
+  return '<rect x="' + GX0 + '" y="' + (GYT - 8) + '" width="' + GW + '" height="' + (GH + 16) + '" class="gframe"/>' +
+    (NORM === "area" ? '<rect x="' + (xc - GU / 2) + '" y="' + GYT + '" width="' + GU + '" height="' + GH + '" class="lavg"/>' : '') +
+    '<text x="' + (GX0 - 30) + '" y="' + (GYT + 9) + '" class="gside sf">root</text>' +
+    '<text x="' + (GX0 - 30) + '" y="' + (GYT + GH) + '" class="gside sd">leaves</text>';
+}
+function growRuler(text) {
+  const yb = GYT + GH + 22;
+  return '<line x1="' + GX0 + '" y1="' + yb + '" x2="' + (GX0 + GW) + '" y2="' + yb + '" class="rule"/>' +
+    '<line x1="' + GX0 + '" y1="' + (yb - 4) + '" x2="' + GX0 + '" y2="' + (yb + 4) + '" class="rule"/>' +
+    '<line x1="' + (GX0 + GW) + '" y1="' + (yb - 4) + '" x2="' + (GX0 + GW) + '" y2="' + (yb + 4) + '" class="rule"/>' +
+    mixAt(text, GX0 + GW / 2, yb + 19, 11.5, "middle", "var(--wi-ink-soft)");
+}
+function rulerText(totalTex) {
+  return NORM === "max"
+    ? "the widest level fills the frame \u2014 \\(T(n) = " + totalTex + "\\)"
+    : "the same area at every \\(n\\): the whole picture is \\(T(n) = " + totalTex + "\\); dashed: the average level";
 }
 
 function drawGrowRows(rows, meta) {
   const out = [], xc = GX0 + GW / 2;
-  /* the frame the bars are measured against */
-  out.push('<rect x="' + GX0 + '" y="' + (GYT - 8) + '" width="' + GW + '" height="' + (meta.bottom - GYT + 16) +
-    '" class="gframe"/>');
-
+  out.push(growFrame());
   rows.forEach((r, i) => {
     const col = mixCol(r.leafness), fill = mixFill(r.leafness);
-    const gap = 1.5;
-    if (r.h > 1.2 && boxable(r.cnt, r.w)) {
-      const bw = (r.w - gap * (r.cnt - 1)) / r.cnt;
+    if (r.h > 1.2 && !r.clipped && boxable(r.cnt, r.w)) {
+      const pitch = r.w / r.cnt, gap = Math.min(1.5, 0.3 * pitch), bw = (r.w - gap * (r.cnt - 1)) / r.cnt;
+      const sw = Math.min(0.9, 0.25 * pitch), rx = Math.min(1.5, bw / 3);
       for (let q = 0; q < r.cnt; q++)
-        out.push('<rect x="' + (r.x + q * (bw + gap)) + '" y="' + (r.y + 1) + '" width="' + bw +
-          '" height="' + Math.max(1, r.h - 3) + '" rx="1.5" fill="' + fill + '" stroke="' + col +
-          '" stroke-width=".9" class="gbar" data-row="' + i + '"/>');
+        out.push('<rect x="' + (r.x + q * (bw + gap)).toFixed(2) + '" y="' + (r.y + 1).toFixed(2) + '" width="' + bw.toFixed(2) +
+          '" height="' + Math.max(0.6, r.h - 2).toFixed(2) + '" rx="' + Math.min(rx, r.h / 3).toFixed(2) + '" fill="' + fill +
+          '" stroke="' + col + '" stroke-width="' + sw.toFixed(2) + '" class="gbar" data-row="' + i + '"/>');
       r.boxed = true; r.bw = bw; r.gap = gap;
     } else {
-      out.push('<rect x="' + r.x + '" y="' + (r.y + 1) + '" width="' + r.w + '" height="' + Math.max(1, r.h - 3) +
-        '" rx="1.5" fill="' + fill + '" stroke="' + col + '" stroke-width=".9" class="gbar" data-row="' + i + '"/>');
+      out.push('<rect x="' + r.x.toFixed(2) + '" y="' + (r.y + 1).toFixed(2) + '" width="' + r.w.toFixed(2) + '" height="' +
+        Math.max(0.6, r.h - 2).toFixed(2) + '" rx="' + Math.min(1.5, r.h / 3).toFixed(2) + '" fill="' +
+        mixFill(r.leafness, crowd(r.cnt, r.w)) + '" stroke="' + col + '" stroke-width=".9" class="gbar" data-row="' + i + '"/>');
       r.boxed = false;
     }
+    if (r.clipped && r.h > 0.5) out.push(clipArrows(GX0, GX0 + GW, r.y + 1, r.y + r.h - 1, "gclip"));
   });
   /* connectors, only where both rows are drawn as individual nodes */
   for (let i = 0; i + 1 < rows.length; i++) {
     const p = rows[i], c = rows[i + 1];
-    if (!p.boxed || !c.boxed || c.cnt > 24) continue;
+    if (!p.boxed || !c.boxed || c.w / c.cnt < 3.5) continue;     /* no grey smear of lines */
     const aa = Math.round(c.cnt / p.cnt);
     for (let q = 0; q < p.cnt; q++) {
       const px = p.x + q * (p.bw + p.gap) + p.bw / 2;
@@ -946,78 +1287,61 @@ function drawGrowRows(rows, meta) {
         const idx = q * aa + s;
         if (idx >= c.cnt) break;
         const cx2 = c.x + idx * (c.bw + c.gap) + c.bw / 2;
-        out.push('<line x1="' + px + '" y1="' + (p.y + p.h - 2) + '" x2="' + cx2 + '" y2="' + (c.y + 1) +
-          '" class="gconn"/>');
+        out.push('<line x1="' + px.toFixed(2) + '" y1="' + (p.y + p.h - 1).toFixed(2) + '" x2="' + cx2.toFixed(2) + '" y2="' +
+          (c.y + 1).toFixed(2) + '" class="gconn"/>');
       }
     }
   }
   /* labels */
-  rows.forEach((r, i) => {
+  rows.forEach(r => {
     if (r.h < 11 || r.ghost) return;
-    const col = mixCol(r.leafness);
-    out.push('<text x="' + (GX0 - 10) + '" y="' + (r.y + r.h / 2 + 3.5) + '" class="glvl">' + r.j + '</text>');
-    out.push('<text x="' + (GX0 + GW + 12) + '" y="' + (r.y + r.h / 2 + 3.5) + '" class="gval" fill="' + col + '">' +
-      fmt(r.cost) + '</text>');
+    const col = mixCol(r.leafness), yy = r.y + r.h / 2 + 3.5;
+    out.push('<text x="' + (GX0 - 10) + '" y="' + yy + '" class="glvl">' + r.j + '</text>');
+    out.push('<text x="' + (GX0 + GW + 14) + '" y="' + yy + '" class="gval" fill="' + col + '">' + fmt(r.cost) + '</text>');
     if (r.h >= 15)
-      out.push('<text x="' + (GX0 + GW + 96) + '" y="' + (r.y + r.h / 2 + 3.5) + '" class="gshare">' +
+      out.push('<text x="' + (GX0 + GW + 98) + '" y="' + yy + '" class="gshare">' +
         (r.share * 100).toFixed(r.share < 0.001 ? 3 : 1) + "%</text>");
   });
-  /* who is who */
-  const first = rows[0], last = rows[rows.length - 1];
-  if (first && first.h >= 11)
-    out.push('<text x="' + (GX0 - 26) + '" y="' + (first.y + first.h / 2 + 3.5) + '" class="gside sf">root</text>');
-  if (last && last.h >= 11)
-    out.push('<text x="' + (GX0 - 26) + '" y="' + (last.y + last.h / 2 + 3.5) + '" class="gside sd">leaves</text>');
-
-  /* the ruler: the whole width is T(n) */
-  const yb = meta.bottom + 16;
-  out.push('<line x1="' + GX0 + '" y1="' + yb + '" x2="' + (GX0 + GW) + '" y2="' + yb + '" class="rule"/>' +
-    '<line x1="' + GX0 + '" y1="' + (yb - 4) + '" x2="' + GX0 + '" y2="' + (yb + 4) + '" class="rule"/>' +
-    '<line x1="' + (GX0 + GW) + '" y1="' + (yb - 4) + '" x2="' + (GX0 + GW) + '" y2="' + (yb + 4) + '" class="rule"/>' +
-    '<text x="' + (GX0 + GW / 2) + '" y="' + (yb + 19) + '" class="grulelab">' + (NORM === "max"
-      ? 'widest level = ' + fmt(meta.maxCost) + ';  T(n) = ' + fmt(meta.total) +
-        ' \u2014 all rows at one common scale'
-      : 'total cost T(n) = ' + fmt(meta.total) +
-        ' \u2014 the same total width at every n, so each row shows its <tspan font-style="italic">share</tspan>') +
-    '</text>');
+  out.push(growRuler(rulerText(texFmt(meta.total))));
   return out.join("");
 }
 
-let growFrom = null, growRaf = null, growTo = null;
+let growRaf = null, growZ = null;
 function growSnapshot(k) {
+  updateGH();
   const L = geo(k);
-  return { rows:L.rows.map(r => ({ j:r.j, y:r.y, h:r.h, x:r.x, w:r.w, cnt:r.cnt, cost:r.cost,
+  return { rows:L.rows.map(r => ({ j:r.j, y:r.y, h:r.h, x:r.x, w:r.w, cnt:r.cnt, cost:r.cost, clipped:r.clipped,
                                    share:r.share, size:r.size, leafness:r.leafness })),
-           bottom:L.bottom, total:L.total, n:L.n, k:k,
-           maxCost:L.rows.reduce((m, r) => Math.max(m, r.cost), 0) };
+           bottom:L.bottom, total:L.total, n:L.n, k:k };
 }
 function paintGrow(snap) {
   const svg = el("mainSvg");
-  svg.setAttribute("viewBox", "0 0 720 470");
+  setBoxPitch();
+  svg.setAttribute("viewBox", "0 0 720 " + GVB.toFixed(2));
   svg.innerHTML = drawGrowRows(snap.rows, snap);
 }
-/* morph between two snapshots: rows are matched by level index j, the new
-   bottom row grows out of the old bottom edge */
-function morphGrow(k0, k1, done) {
+const easeIO = u => u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+/* morph between two neighbouring k: rows are matched by level index j, the new
+   bottom row grows out of the old bottom edge, all rows get thinner */
+function morphGrow(k0, k1) {
   const A = growSnapshot(k0), B = growSnapshot(k1);
   const idx = s => { const m = {}; s.rows.forEach(r => m[r.j] = r); return m; };
   const ma = idx(A), mb = idx(B);
   const js = Object.keys(mb).map(Number).sort((x, y) => x - y);
   const pairs = js.map(j => {
     const to = mb[j];
-    const from = ma[j] || { j:j, y:A.bottom, h:0, x:GX0 + GW / 2, w:0, cnt:to.cnt, cost:to.cost,
+    const from = ma[j] || { j:j, y:A.bottom, h:0, x:GX0 + GW / 2, w:0, cnt:to.cnt, cost:to.cost, clipped:false,
                             share:to.share, size:to.size, leafness:to.leafness };
     return { from:from, to:to };
   });
-  /* rows that vanish (shrinking n) fade into the bottom edge */
   Object.keys(ma).map(Number).forEach(j => {
-    if (!mb[j]) pairs.push({ from:ma[j], to:{ j:j, y:B.bottom, h:0, x:GX0 + GW / 2, w:0, cnt:ma[j].cnt,
+    if (!mb[j]) pairs.push({ from:ma[j], to:{ j:j, y:B.bottom, h:0, x:GX0 + GW / 2, w:0, cnt:ma[j].cnt, clipped:false,
                                               cost:0, share:0, size:1, leafness:ma[j].leafness, ghost:true } });
   });
   const t0 = performance.now(), dur = 520;
-  if (growRaf) cancelAnimationFrame(growRaf);
+  stopGrowAnim();
   function frame(now) {
-    const u = clamp((now - t0) / dur, 0, 1), e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+    const u = clamp((now - t0) / dur, 0, 1), e = easeIO(u);
     const rows = pairs.map(p => ({
       j:p.to.j,
       y:p.from.y + (p.to.y - p.from.y) * e,
@@ -1025,13 +1349,411 @@ function morphGrow(k0, k1, done) {
       w:p.from.w + (p.to.w - p.from.w) * e,
       x:p.from.x + (p.to.x - p.from.x) * e,
       leafness:p.from.leafness + (p.to.leafness - p.from.leafness) * e,
+      clipped:u < .5 ? p.from.clipped : p.to.clipped,
       cnt:p.to.cnt, cost:p.to.cost, share:p.to.share, size:p.to.size, ghost:p.to.ghost && u < 1
     })).sort((r, s) => r.j - s.j);
-    paintGrow({ rows:rows, bottom:B.bottom, total:B.total, n:B.n, k:B.k, maxCost:B.maxCost });
+    paintGrow({ rows:rows, bottom:B.bottom, total:B.total, n:B.n, k:B.k });
     if (u < 1) growRaf = requestAnimationFrame(frame);
-    else { growRaf = null; paintGrow(B); if (done) done(); }
+    else { growRaf = null; paintGrow(B); }
   }
   growRaf = requestAnimationFrame(frame);
+  return dur;
+}
+function stopGrowAnim() { if (growRaf) cancelAnimationFrame(growRaf); growRaf = null; }
+
+/* --- the outline for any (real) k, from exact level costs ------------------- */
+const LEVCACHE = new Map(), SAMPCACHE = new Map();
+let cacheKey = "";
+function checkCache() {
+  const key = JSON.stringify([P.a, P.b, P.B, P.beta, P.gamma, P.d]);
+  if (key !== cacheKey) { cacheKey = key; LEVCACHE.clear(); SAMPCACHE.clear(); }
+}
+function longLevels(k) {                       /* log level costs, shares, log T(n) */
+  checkCache();
+  const hit = LEVCACHE.get(k);
+  if (hit) return hit;
+  const lb = Math.log(P.b), la = Math.log(P.a), lgb = lb / LN2, lB = Math.log(P.B);
+  const L = new Float64Array(k + 1);
+  for (let j = 0; j < k; j++) {
+    const m = k - j;                          /* subproblem size b^m */
+    L[j] = lB + P.beta * m * lb + (P.gamma === 0 ? 0 : P.gamma * Math.log(m * lgb)) + j * la;
+  }
+  L[k] = P.d > 0 ? Math.log(P.d) + k * la : -Infinity;
+  let mx = -Infinity; for (let j = 0; j <= k; j++) if (L[j] > mx) mx = L[j];
+  let sum = 0; for (let j = 0; j <= k; j++) sum += Math.exp(L[j] - mx);
+  const lT = mx + Math.log(sum), sh = new Float64Array(k + 1);
+  for (let j = 0; j <= k; j++) sh[j] = Math.exp(L[j] - lT);
+  const res = { L:L, sh:sh, lT:lT, mx:mx, k:k };
+  if (LEVCACHE.size > 16) LEVCACHE.clear();
+  LEVCACHE.set(k, res);
+  return res;
+}
+/* the picture cut into NS horizontal slabs: mass = share of T(n) in the slab
+   (area-preserving), maxw = mean width in the widest-level normalization */
+function sampleK(k) {
+  checkCache();
+  const hit = SAMPCACHE.get(k);
+  if (hit) return hit;
+  const V = longLevels(k), n = k + 1;
+  const pm = new Float64Array(n + 1), pw = new Float64Array(n + 1), wm = new Float64Array(n);
+  for (let j = 0; j < n; j++) { wm[j] = Math.exp(V.L[j] - V.mx); pm[j + 1] = pm[j] + V.sh[j]; pw[j + 1] = pw[j] + wm[j]; }
+  const F = (pre, arr, x) => { const j = Math.min(n - 1, Math.floor(x)); return pre[j] + (x - j) * arr[j]; };
+  const mass = new Float64Array(NS), maxw = new Float64Array(NS);
+  for (let i = 0; i < NS; i++) {
+    const x0 = i * n / NS, x1 = (i + 1) * n / NS;
+    mass[i] = F(pm, V.sh, x1) - F(pm, V.sh, x0);
+    maxw[i] = (F(pw, wm, x1) - F(pw, wm, x0)) / (x1 - x0) * GW;
+  }
+  const res = { mass:mass, maxw:maxw, leafSh:V.sh[k], leafMax:wm[k] * GW, lT:V.lT, k:k };
+  if (SAMPCACHE.size > 16) SAMPCACHE.clear();
+  SAMPCACHE.set(k, res);
+  return res;
+}
+/* the limit k -> oo, derived from the level costs (see longNote) */
+function longCase() {
+  const c = cExp(), eq = Math.abs(P.beta - c) < 1e-9, g = P.gamma;
+  if (eq && g > -1 + 1e-9) return "shape";
+  if (eq && Math.abs(g + 1) < 1e-9) return "slow";
+  if (eq || P.beta < c) return "bottom";
+  return "top";
+}
+function sampleInf() {
+  const kind = longCase(), g = P.gamma, mass = new Float64Array(NS), maxw = new Float64Array(NS);
+  if (kind === "shape") {             /* width (g+1)(1-t)^g has area 1; integrate it over each slab */
+    for (let i = 0; i < NS; i++) {
+      const t0 = i / NS, t1 = (i + 1) / NS;
+      mass[i] = Math.pow(1 - t0, g + 1) - Math.pow(1 - t1, g + 1);
+      maxw[i] = g > 0 ? GW * mass[i] / ((g + 1) / NS) : 0;
+    }
+    if (g === 0) maxw.fill(GW);
+    if (g < 0) maxw[NS - 1] = GW;    /* the widest row is at the bottom: everything else vanishes */
+  } else if (kind === "top") { mass[0] = 1; maxw[0] = GW; }
+  else { mass[NS - 1] = 1; maxw[NS - 1] = GW; }
+  return { mass:mass, maxw:maxw, leafSh:0, leafMax:0, lT:Infinity, inf:true };
+}
+const blendArr = (A, B, t) => { const o = new Float64Array(A.length); for (let i = 0; i < A.length; i++) o[i] = A[i] + (B[i] - A[i]) * t; return o; };
+function profileAt(kappa) {          /* real kappa >= 0: blend the neighbouring integer profiles */
+  const k0 = Math.floor(kappa + 1e-9), phi = kappa - k0;
+  const S0 = sampleK(k0);
+  if (phi < 1e-6) return Object.assign({ kappa:k0 }, S0);
+  const S1 = sampleK(k0 + 1);
+  return { mass:blendArr(S0.mass, S1.mass, phi), maxw:blendArr(S0.maxw, S1.maxw, phi),
+           leafSh:S0.leafSh + (S1.leafSh - S0.leafSh) * phi, leafMax:S0.leafMax + (S1.leafMax - S0.leafMax) * phi,
+           lT:S0.lT + (S1.lT - S0.lT) * phi, kappa:kappa };
+}
+const KMAX = LONG_KS[LONG_KS.length - 1], ZMAX = Math.log(KMAX + 1);
+function profileZ(z) {               /* z = ln(k+1); beyond ZMAX, z - ZMAX in [0,1] blends into the limit */
+  if (z <= ZMAX + 1e-12) return profileAt(Math.exp(z) - 1);
+  const lam = clamp(z - ZMAX, 0, 1), S = sampleK(KMAX), I = sampleInf();
+  return { mass:blendArr(S.mass, I.mass, lam), maxw:blendArr(S.maxw, I.maxw, lam), leafSh:S.leafSh * (1 - lam),
+           leafMax:S.leafMax * (1 - lam), lT:S.lT, kappa:KMAX, lam:lam };
+}
+const zOfStep = s => { const k = kOfStep(s); return isFinite(k) ? Math.log(k + 1) : ZMAX + 1; };
+
+function longLimitCaption() {
+  const kind = longCase(), g = P.gamma;
+  if (kind === "shape") {
+    if (NORM === "max" && g < 0) return ["only the bottom row stays", "everything else \u2192 0"];
+    const g1 = nice(g + 1), gs = nice(g);
+    return [g === 0 ? "width 1: the rectangle" : NORM === "max"
+      ? "width (1\u2212t)" + (g === 1 ? "" : supStr(gs)) : "width " + (g1 === "1" ? "" : g1 + "\u00b7") + "(1\u2212t)" + (g === 1 ? "" : supStr(gs.replace("/", "\u2044"))),
+      "t = depth: 0 root, 1 leaves"];
+  }
+  if (kind === "slow") return ["\u2248 1/((1\u2212t)\u00b7ln k) \u2192 0", "drains to the bottom, slowly"];
+  return ["all of it in O(1) rows", "at the " + kind + (kind === "top" ? ": the root wins" : P.d > 0 ? ": the leaves win" : ": the bottom wins")];
+}
+const SUP_T = s => '<tspan baseline-shift="super" font-size="72%">' + s + '</tspan>';
+function fmtLog10Svg(e) {
+  if (!isFinite(e) || e < 5) return fmtLog10(e);
+  const ie = Math.floor(e), m = Math.pow(10, e - ie);
+  return m.toFixed(2) + "\u00b710" + SUP_T(ie);
+}
+function pct(p) {
+  const v = 100 * p;
+  return v > 99.95 ? ">99.9%" : v < 0.05 ? (v === 0 ? "0%" : "<0.1%") : v.toFixed(1) + "%";
+}
+/* the outline view of the main canvas */
+function drawOutline(pr, barsSvg, barsOpacity) {
+  const xc = GX0 + GW / 2, sh = GH / NS, out = [];
+  out.push(growFrame());
+  if (barsSvg && barsOpacity > 0.01) out.push('<g opacity="' + barsOpacity.toFixed(3) + '">' + barsSvg + '</g>');
+  const W = i => NORM === "max" ? pr.maxw[i] : pr.mass[i] * NS * GU;
+  /* one polygon per run of visible slabs, so vanishing rows leave no hairline */
+  let run = [], c0 = Infinity, c1 = -Infinity;
+  const flush = () => {
+    if (!run.length) return;
+    let d = "M" + (xc - run[0].hw).toFixed(2) + " " + run[0].y0.toFixed(2);
+    run.forEach(b => { d += " L" + (xc + b.hw).toFixed(2) + " " + b.y0.toFixed(2) + " L" + (xc + b.hw).toFixed(2) + " " + b.y1.toFixed(2); });
+    for (let q = run.length - 1; q >= 0; q--)
+      d += " L" + (xc - run[q].hw).toFixed(2) + " " + run[q].y1.toFixed(2) + " L" + (xc - run[q].hw).toFixed(2) + " " + run[q].y0.toFixed(2);
+    out.push('<path d="' + d + ' Z" class="goutline"/>');
+    run = [];
+  };
+  for (let i = 0; i < NS; i++) {
+    const w = W(i), y0 = GYT + i * sh, y1 = y0 + sh;
+    if (w > GW) { c0 = Math.min(c0, y0); c1 = Math.max(c1, y1); }
+    if (w / 2 >= 0.15) run.push({ hw:Math.min(GW / 2, w / 2), y0:y0, y1:y1 }); else flush();
+  }
+  flush();
+  /* the leaf row, while it is still a row */
+  if (pr.lam === undefined || pr.lam < 1) {
+    const kap = pr.kappa, h = GH / (kap + 1);
+    const wl = NORM === "max" ? pr.leafMax : pr.leafSh * (kap + 1) * GU;
+    if (wl >= 0.4 && !(pr.lam > 0)) {
+      const hw = Math.min(GW / 2, wl / 2);
+      out.push('<rect x="' + (xc - hw).toFixed(2) + '" y="' + (GYT + GH - h).toFixed(2) + '" width="' + (2 * hw).toFixed(2) +
+        '" height="' + h.toFixed(3) + '" class="goleaf"/>');
+    }
+  }
+  if (c1 > c0) out.push(clipArrows(GX0, GX0 + GW, c0, Math.max(c1, c0 + 2), "gclip"));
+  /* where the middle 90 % of T(n) sits */
+  let cum = 0, i05 = -1, i95 = NS - 1, top = 0, bot = 0;
+  for (let i = 0; i < NS; i++) { cum += pr.mass[i]; if (i05 < 0 && cum >= 0.05) i05 = i; if (cum >= 0.95) { i95 = i; break; } }
+  for (let i = 0; i < NS / 10; i++) { top += pr.mass[i]; bot += pr.mass[NS - 1 - i]; }
+  let y05 = GYT + i05 * sh, y95 = GYT + (i95 + 1) * sh;
+  if (y95 - y05 < 3) { const m = (y05 + y95) / 2; y05 = m - 1.5; y95 = m + 1.5; }
+  const bx = GX0 - 12, bym = clamp((y05 + y95) / 2, GYT + 14, GYT + GH - 14);
+  out.push('<path d="M' + (bx + 4) + ' ' + y05.toFixed(2) + ' H' + bx + ' V' + y95.toFixed(2) + ' H' + (bx + 4) + '" class="lbr"/>' +
+    '<text x="' + (bx - 5) + '" y="' + bym + '" class="lbrlab" transform="rotate(-90 ' + (bx - 5) + ' ' + bym + ')">90% of T(n)</text>');
+  /* the numbers, on the right */
+  const X = GX0 + GW + 16, inf = pr.lam !== undefined && pr.lam > 0.5;
+  const kk = Math.round(pr.kappa), bs = isInt(P.b) ? String(Math.round(P.b)) : "(" + niceFrac(P.b) + ")";
+  if (!inf) {
+    out.push('<text x="' + X + '" y="' + (GYT + 14) + '" class="okbig"><tspan font-style="italic">k</tspan> = ' + kk.toLocaleString("en-US") + '</text>' +
+      '<text x="' + X + '" y="' + (GYT + 34) + '" class="oksub"><tspan font-style="italic">n</tspan> = ' + bs + SUP_T(kk) + '</text>' +
+      '<text x="' + X + '" y="' + (GYT + 52) + '" class="oksub"><tspan font-style="italic">T</tspan>(<tspan font-style="italic">n</tspan>) \u2248 ' +
+        fmtLog10Svg(pr.lT / Math.LN10) + '</text>' +
+      '<text x="' + X + '" y="' + (GYT + 70) + '" class="oksub">' + (kk + 1).toLocaleString("en-US") + ' rows</text>');
+  } else {
+    const cap = longLimitCaption();
+    out.push('<text x="' + X + '" y="' + (GYT + 14) + '" class="okbig"><tspan font-style="italic">k</tspan> \u2192 \u221e</text>' +
+      '<text x="' + X + '" y="' + (GYT + 34) + '" class="oksub">' + cap[0] + '</text>' +
+      '<text x="' + X + '" y="' + (GYT + 52) + '" class="oksub">' + cap[1] + '</text>');
+  }
+  const yT = GYT + Math.max(GH / 2 - 8, 94);         /* below the k block, also on a short canvas */
+  out.push('<text x="' + X + '" y="' + yT + '" class="gshare">top \u2152: ' + pct(top) + '</text>' +
+    '<text x="' + X + '" y="' + (yT + 16) + '" class="gshare">bottom \u2152: ' + pct(bot) + '</text>');
+  out.push(growRuler(NORM === "max" ? "outline only \u2014 the widest level fills the frame"
+    : "outline only \u2014 the same area at every \\(k\\); dashed: the average level"));
+  return out.join("");
+}
+function paintOutline(pr, barsSvg, op) {
+  const svg = el("mainSvg");
+  updateGH();
+  svg.setAttribute("viewBox", "0 0 720 " + GVB.toFixed(2));
+  svg.innerHTML = drawOutline(pr, barsSvg, op);
+}
+/* time spent per stretch of the way: 1.1 s per factor 10 in k, 0.9 s for the limit */
+const tauOf = z => z <= ZMAX ? z / Math.LN10 * 1100 : ZMAX / Math.LN10 * 1100 + (z - ZMAX) * 900;
+function zOfTau(t) { const tm = tauOf(ZMAX); return t <= tm ? t / 1100 * Math.LN10 : ZMAX + (t - tm) / 900; }
+/* animate the outline from zA to zB; bars fade out at the start / in at the end */
+function animateOutline(zA, zB, fromBarsK, toBarsK, onZ) {
+  stopGrowAnim();
+  const tA = tauOf(zA), tB = tauOf(zB), dur = Math.max(700, Math.min(4200, Math.abs(tB - tA)));
+  const barsFrom = fromBarsK !== null ? (setBoxPitch(), drawGrowRows(growSnapshot(fromBarsK).rows, growSnapshot(fromBarsK))) : null;
+  const barsTo = toBarsK !== null ? drawGrowRows(growSnapshot(toBarsK).rows, growSnapshot(toBarsK)) : null;
+  const t0 = performance.now(), FADE = 320;
+  function frame(now) {
+    const el_ = now - t0, u = clamp(el_ / dur, 0, 1), e = easeIO(u);
+    const z = zOfTau(tA + (tB - tA) * e);
+    growZ = z;
+    let bars = null, op = 0;
+    if (barsFrom && el_ < FADE) { bars = barsFrom; op = 1 - el_ / FADE; }
+    if (barsTo && dur - el_ < FADE) { bars = barsTo; op = 1 - (dur - el_) / FADE; }
+    paintOutline(profileZ(z), bars, op);
+    if (onZ) onZ(z, u);
+    if (u < 1) growRaf = requestAnimationFrame(frame);
+    else { growRaf = null; if (toBarsK !== null) paintGrow(growSnapshot(toBarsK)); }
+  }
+  growRaf = requestAnimationFrame(frame);
+  return dur;
+}
+/* show step s (from step old) in the grow mode; returns the animation time */
+function growTransition(old, s, noAnim) {
+  const aBars = old <= P.K, bBars = s <= P.K;
+  if (noAnim || old === s) {
+    stopGrowAnim();
+    if (bBars) paintGrow(growSnapshot(s)); else { growZ = zOfStep(s); paintOutline(profileZ(growZ)); }
+    return 0;
+  }
+  if (aBars && bBars) {
+    if (Math.abs(s - old) === 1) return morphGrow(old, s);
+    stopGrowAnim(); paintGrow(growSnapshot(s)); return 0;
+  }
+  const zA = (growRaf && growZ !== null && !aBars) ? growZ : zOfStep(old);
+  return animateOutline(zA, zOfStep(s), aBars ? old : null, bBars ? s : null);
+}
+/* Play: one continuous run from step "from" to the 10 000 step; the step (and with it
+   the side panels) follows k as it passes 30, 100, 1000 */
+function growRun(from, to) {
+  return animateOutline(growRaf && growZ !== null && from > P.K ? growZ : zOfStep(from), zOfStep(to), from <= P.K ? from : null, null, (z, u) => {
+    let s_ = from;
+    while (s_ < to && zOfStep(s_ + 1) <= z + 1e-9) s_++;
+    if (u >= 1) s_ = to;
+    if (s_ !== step) { step = s_; render({ animated:true, keepSvg:true }); }
+  });
+}
+function paintGrowStep() {                       /* redraw the current step without animation */
+  if (growRaf) return;
+  if (step <= P.K) paintGrow(growSnapshot(step)); else paintOutline(profileZ(zOfStep(step)));
+}
+/* the numbers of a long-run step, for the side panels */
+function longInfo(s) {
+  const k = kOfStep(s);
+  if (!isFinite(k)) return { inf:true, pr:sampleInf() };
+  const V = longLevels(k), pr = sampleK(k), lb = Math.log(P.b);
+  const logRoot = Math.log(P.B) + P.beta * k * lb + (P.gamma === 0 ? 0 : P.gamma * Math.log(k * lb / LN2));
+  return { k:k, pr:pr, lT:V.lT, logLeaf:k * Math.log(P.a), logRoot:logRoot };
+}
+
+
+/* ==========================================================================
+   In the long run (panel): snapshots of the same normalization for k = K,
+   100 and 10 000, and the limit k -> oo. Width = level cost / average level
+   cost, rows of equal height, so every silhouette has area T(n); the dashed
+   rectangle is the average level. Widths are capped at 3.2.
+   ========================================================================= */
+const LW = 140, LH = 160, LT = 12, LU = LW / 3.2;
+const LX = i => 44 + i * 170;
+let longKey = "";
+function clipMarks(X, y0, y1) {               /* little arrows: wider than the frame */
+  const y = (y0 + y1) / 2, a = Math.max(2.2, Math.min(4, (y1 - y0) / 2 + 2));
+  return '<path d="M' + (X - 2) + ' ' + y + ' l-5 ' + (-a) + ' v' + (2 * a) + ' z" class="lclip"/>' +
+         '<path d="M' + (X + LW + 2) + ' ' + y + ' l5 ' + (-a) + ' v' + (2 * a) + ' z" class="lclip"/>';
+}
+function bracket(X, y0, y1) {                 /* where the middle 90% of T(n) sits */
+  if (y1 - y0 < 3) { const m = (y0 + y1) / 2; y0 = m - 1.5; y1 = m + 1.5; }
+  const x = X - 12, ym = clamp((y0 + y1) / 2, LT + 9, LT + LH - 9);
+  return '<path d="M' + (x + 3) + ' ' + y0 + ' H' + x + ' V' + y1 + ' H' + (x + 3) + '" class="lbr"/>' +
+    '<text x="' + (x - 4) + '" y="' + ym + '" class="lbrlab" transform="rotate(-90 ' + (x - 4) + ' ' + ym + ')">90%</text>';
+}
+function silhouette(sh, X) {
+  const k = sh.length - 1, n = k + 1, rh = LH / n, cx = X + LW / 2, out = [];
+  out.push('<rect x="' + X + '" y="' + LT + '" width="' + LW + '" height="' + LH + '" class="lframe"/>');
+  /* internal levels, averaged into at most 320 bins so the path stays small (area-preserving) */
+  const nb = Math.min(k, 320), bins = [];
+  let c0 = Infinity, c1 = -Infinity;
+  for (let q = 0; q < nb; q++) {
+    const j0 = Math.floor(q * k / nb), j1 = Math.floor((q + 1) * k / nb);
+    let s_ = 0; for (let j = j0; j < j1; j++) s_ += sh[j];
+    const w = s_ / (j1 - j0) * n * LU, y0 = LT + j0 * rh, y1 = LT + j1 * rh;
+    if (w > LW) { c0 = Math.min(c0, y0); c1 = Math.max(c1, y1); }
+    bins.push({ hw:Math.min(LW / 2, w / 2), y0:y0, y1:y1 });
+  }
+  /* one polygon per run of visible bins, so vanishing rows leave no hairline */
+  let run = [];
+  const flush = () => {
+    if (!run.length) return;
+    let d = "M" + (cx - run[0].hw).toFixed(2) + " " + run[0].y0.toFixed(2);
+    run.forEach(b => { d += " L" + (cx + b.hw).toFixed(2) + " " + b.y0.toFixed(2) + " L" + (cx + b.hw).toFixed(2) + " " + b.y1.toFixed(2); });
+    for (let q = run.length - 1; q >= 0; q--)
+      d += " L" + (cx - run[q].hw).toFixed(2) + " " + run[q].y1.toFixed(2) + " L" + (cx - run[q].hw).toFixed(2) + " " + run[q].y0.toFixed(2);
+    out.push('<path d="' + d + ' Z" class="lshape"/>');
+    run = [];
+  };
+  bins.forEach(b => { if (b.hw >= 0.2) run.push(b); else flush(); });
+  flush();
+  /* the leaf row */
+  const wl = sh[k] * n * LU;
+  if (wl >= 0.4) {
+    const hw = Math.min(LW / 2, wl / 2);
+    out.push('<rect x="' + (cx - hw) + '" y="' + (LT + k * rh) + '" width="' + 2 * hw + '" height="' + rh + '" class="lleaf"/>');
+    if (wl > LW) { c0 = Math.min(c0, LT + k * rh); c1 = Math.max(c1, LT + LH); }
+  }
+  if (c1 > c0) out.push(clipMarks(X, c0, c1));
+  out.push('<rect x="' + (cx - LU / 2) + '" y="' + LT + '" width="' + LU + '" height="' + LH + '" class="lavg"/>');
+  /* the middle 90% */
+  let cum = 0, j05 = -1, j95 = k;
+  for (let j = 0; j <= k; j++) { cum += sh[j]; if (j05 < 0 && cum >= 0.05) j05 = j; if (cum >= 0.95) { j95 = j; break; } }
+  out.push(bracket(X, LT + j05 * rh, LT + (j95 + 1) * rh));
+  /* captions */
+  const m = Math.max(1, Math.round(n / 10));
+  let top = 0, bot = 0;
+  for (let j = 0; j < m; j++) { top += sh[j]; bot += sh[k - j]; }
+  const bs = Math.abs(P.b - Math.round(P.b)) < 1e-9 ? String(Math.round(P.b)) : "(" + niceFrac(P.b) + ")";
+  const yC = LT + LH + 18;
+  out.push(MA("k = " + (k >= 10000 ? "10\\,000" : String(k)) + ",\\ n = " + bs + "^{" + (k >= 10000 ? "10\\,000" : k) + "}", cx, yC, 12.5, "middle") +
+    '<text x="' + cx + '" y="' + (yC + 16) + '" class="lcap2">top \u2152: ' + pct(top) + '</text>' +
+    '<text x="' + cx + '" y="' + (yC + 30) + '" class="lcap2">bottom \u2152: ' + pct(bot) + '</text>');
+  return out.join("");
+}
+/* the limit k -> infinity, derived from the level costs (see the note under the panel) */
+function limitFrame(X) {
+  const cx = X + LW / 2, out = [], kind = longCase(), g = P.gamma;
+  out.push('<rect x="' + X + '" y="' + LT + '" width="' + LW + '" height="' + LH + '" class="lframe"/>');
+  let cap2 = "", cap3 = "";
+  if (kind === "shape") {              /* width (gamma+1)(1-t)^gamma, area 1 */
+    const N = 240, R = [];
+    let c0 = Infinity, c1 = -Infinity;
+    for (let q = 0; q <= N; q++) {
+      const t = Math.min(q / N, 1 - 1e-6), w = (g + 1) * Math.pow(1 - t, g) * LU, y = LT + t * LH;
+      if (w > LW) { c0 = Math.min(c0, y); c1 = Math.max(c1, y); }
+      R.push([Math.min(LW / 2, w / 2), y]);
+    }
+    let d = "M" + (cx - R[0][0]).toFixed(2) + " " + LT;
+    R.forEach(p => { d += " L" + (cx + p[0]).toFixed(2) + " " + p[1].toFixed(2); });
+    for (let q = R.length - 1; q >= 0; q--) d += " L" + (cx - R[q][0]).toFixed(2) + " " + R[q][1].toFixed(2);
+    out.push('<path d="' + d + ' Z" class="lshape"/>');
+    if (c1 > c0) out.push(clipMarks(X, c0, Math.max(c1, c0 + 2)));
+    const gs = nice(g), g1 = nice(g + 1);
+    cap2 = g === 0 ? "\\text{width } 1\\text{: the rectangle}" : "\\text{width } " + (g1 === "1" ? "" : g1 + "\\,") + "(1-t)" + (g === 1 ? "" : "^{" + gs + "}");
+    cap3 = "t = depth: 0 root, 1 leaves";
+  } else if (kind === "slow") {
+    out.push('<rect x="' + X + '" y="' + (LT + LH - 3) + '" width="' + LW + '" height="3" class="lshape"/>');
+    out.push(clipMarks(X, LT + LH - 3, LT + LH));
+    cap2 = "\\approx 1/((1-t)\\ln k) \\to 0";
+    cap3 = "drains to the bottom, slowly";
+  } else {
+    const y0 = kind === "top" ? LT : LT + LH - 3;
+    out.push('<rect x="' + X + '" y="' + y0 + '" width="' + LW + '" height="3" class="lshape"/>');
+    if (kind === "bottom" && P.d > 0) out.push('<rect x="' + X + '" y="' + (LT + LH - 1.5) + '" width="' + LW + '" height="1.5" class="lleaf"/>');
+    out.push(clipMarks(X, y0, y0 + 3));
+    cap2 = "\\text{all in } O(1) \\text{ rows at the " + kind + "}";
+    cap3 = kind === "top" ? "the root wins" : (P.d > 0 ? "the leaves win" : "the bottom levels win");
+  }
+  out.push('<rect x="' + (cx - LU / 2) + '" y="' + LT + '" width="' + LU + '" height="' + LH + '" class="lavg"/>');
+  const yC = LT + LH + 18;
+  out.push(MA("k \\to \\infty", cx, yC, 12.5, "middle") + MA(cap2, cx, yC + 16, 11, "middle", "var(--wi-ink-soft)") +
+    '<text x="' + cx + '" y="' + (yC + 30) + '" class="lcap3">' + cap3 + '</text>');
+  return out.join("");
+}
+function longNote() {
+  const kind = longCase(), c = cExp(), r = P.a / Math.pow(P.b, P.beta), g = P.gamma;
+  if (kind === "bottom" && P.beta < c - 1e-9)
+    return "Towards the leaves the level costs grow geometrically, by a factor " + TM`\ca{a}/\cb{b}^{\alpha} \rel= ${fmt(r)} > 1` +
+      " per level (up to the log factor). So almost all of the area sits in the last few rows; as " + TM`k` + " grows, these rows get thinner " +
+      "and wider, and in the limit the whole area is a single line at the bottom. That line is " + TM`T(n) \rel= \Theta(n^{\cc{c}})` +
+      ": the leaves, together with the few levels just above them.";
+  if (kind === "top")
+    return "Towards the leaves the level costs shrink geometrically, by a factor " + TM`\ca{a}/\cb{b}^{\alpha} \rel= ${fmt(r)} \lt 1` +
+      " per level (up to the log factor). So almost all of the area sits in the first few rows; as " + TM`k` + " grows, these rows get thinner " +
+      "and wider, and in the limit the whole area is a single line at the top: " + TM`T(n) \rel= \Theta(\cf{f}(n))` + ", the root and the few levels below it.";
+  if (kind === "shape" && g === 0)
+    return "Every level costs the same, " + TM`B\,n^{\cc{c}}` + ", so every silhouette is the dashed rectangle (only the single leaf row, which costs " +
+      TM`\cd{d}\,n^{\cc{c}}` + ", may stick out). " + TM`T(n) \rel= (\text{number of levels}) \cdot B\,n^{\cc{c}} \rel= \Theta(n^{\cc{c}}\log n)` + ".";
+  if (kind === "shape")
+    return "Level " + TM`j` + " costs " + TM`\ca{a}^j\,\cf{f}(n/\cb{b}^j) \rel= B\,n^{\cc{c}}\bigl((k-j)\lg \cb{b}\bigr)^{\gamma}` +
+      ": it depends on the depth " + TM`t = j/k` + " only through " + TM`(1-t)^{\gamma}` + ". So the silhouettes converge to the curve " +
+      TM`(\gamma+1)(1-t)^{\gamma}` + ", whose area is 1, and " + TM`T(n)` + " is the number of levels times the average level, " +
+      TM`\Theta(\log n)\cdot\Theta(n^{\cc{c}}\log^{\gamma} n) \rel= \Theta(n^{\cc{c}}\log^{${nice(g + 1)}} n)` +
+      ". The master theorem has no case for this; Roura\u2019s case (b) does.";
+  if (kind === "slow")
+    return "Level " + TM`j` + " costs about " + TM`n^{\cc{c}}/(k-j)` + ", a harmonic sum. There is no limit shape: a row at depth " + TM`t` +
+      " has width about " + TM`1/\bigl((1-t)\ln k\bigr)` + ", which tends to 0 everywhere, so the area drains into the bottom rows \u2014 but only at the speed of " +
+      TM`1/\ln k` + ". " + TM`T(n) \rel= n^{\cc{c}}\cdot\Theta(\log k) \rel= \Theta(n^{\cc{c}}\log\log n)` + ", Roura\u2019s case (c).";
+  return "Level " + TM`j` + " costs about " + TM`n^{\cc{c}}(k-j)^{\gamma}` + " with " + TM`\gamma \lt -1` +
+    ", a convergent sum dominated by the levels next to the leaves: in the limit everything sits at the bottom, " +
+    TM`T(n) \rel= \Theta(n^{\cc{c}})` + ", as in Roura\u2019s case (d).";
+}
+
+function drawLong(opts_force) {
+  const key = JSON.stringify([P.a, P.b, P.B, P.beta, P.gamma, P.d, P.K]);
+  if (key === longKey && !opts_force) return;
+  longKey = key;
+  const ks = [P.K, 100, 10000];
+  el("longSvg").innerHTML = ks.map((k, i) => silhouette(longLevels(k).sh, LX(i))).join("") + limitFrame(LX(3));
+  el("longRhs").innerHTML = "same area in every frame &middot; width = level cost \u00f7 average level cost";
+  setMath(el("longNote"), longNote());
 }
 
 /* ==========================================================================
@@ -1040,9 +1762,17 @@ function morphGrow(k0, k1, done) {
    is all the theorem ever compares; in the intuition mode they carry the
    actual costs at the current n.
    ========================================================================= */
+
+
+/* ==========================================================================
+   The balance: the root's own work against the number of leaves.
+   lVal, lSub, rVal, rSub and note are TeX (the note may mix text and \( \)).
+   ========================================================================= */
 const MAXTILT = 12;
 function drawScale(o) {
   const svg = el("scaleSvg");
+  /* next to the drawing the panel is narrow: crop the empty margins so the type stays readable */
+  svg.setAttribute("viewBox", el("colMain").classList.contains("two") ? "84 0 552 222" : "0 0 720 218");
   const px = 360, py = 86, half = 200;
   const th = clamp(o.tilt, -MAXTILT, MAXTILT), rad = -th * Math.PI / 180;
   const lx = px - half * Math.cos(rad), ly = py - half * Math.sin(rad);
@@ -1050,9 +1780,8 @@ function drawScale(o) {
   function pan(x, y, col, fill, top, mid, bot) {
     return '<line x1="' + x + '" y1="' + y + '" x2="' + x + '" y2="' + (y + 28) + '" class="pstring"/>' +
       '<path d="M' + (x - 52) + ' ' + (y + 28) + ' q52 26 104 0 z" fill="' + fill + '" stroke="' + col + '" stroke-width="1.2"/>' +
-      '<text x="' + x + '" y="' + (y - 30) + '" class="panlab" fill="' + col + '">' + top + '</text>' +
-      '<text x="' + x + '" y="' + (y - 11) + '" class="panval" fill="' + col + '">' + mid + '</text>' +
-      '<text x="' + x + '" y="' + (y + 62) + '" class="pansub">' + bot + '</text>';
+      '<text x="' + x + '" y="' + (y - 32) + '" class="panlab" fill="' + col + '">' + top + '</text>' +
+      MA(mid, x, y - 11, 14, "middle", col) + MA(bot, x, y + 63, 12.5, "middle", "var(--wi-ink-soft)");
   }
   svg.innerHTML =
     '<path d="M' + (px - 26) + ' 176 L' + px + ' 92 L' + (px + 26) + ' 176 z" class="fulcrum"/>' +
@@ -1061,23 +1790,28 @@ function drawScale(o) {
     '<circle cx="' + px + '" cy="' + py + '" r="4.5" class="pivot"/>' +
     pan(lx, ly, "var(--mt-d)", "var(--mt-d-fill)", "leaves", o.lVal, o.lSub) +
     pan(rx, ry, "var(--mt-f)", "var(--mt-f-fill)", "root", o.rVal, o.rSub) +
-    '<text x="360" y="210" class="scalenote">' + o.note + '</text>';
-  el("scaleRhs").innerHTML = o.rhs;
+    mixAt(o.note, 360, 210, 11, "middle", "var(--wi-ink-faint)");
+  setMath(el("scaleRhs"), o.rhs);
 }
-/* how far the beam tips, from a ratio that may be 0 or infinite */
-function tiltFromRatio(leaf, root) {
-  if (!(root > 0) && !(leaf > 0)) return 0;
-  if (!(root > 0)) return MAXTILT;
-  if (!(leaf > 0)) return -MAXTILT;
-  return MAXTILT * Math.tanh(Math.log(leaf / root) / 2.2);
+/* how far the beam tips, from the log of the ratio leaves : root */
+function tiltFromLog(lr) {
+  if (isNaN(lr)) return 0;
+  if (lr === Infinity) return MAXTILT;
+  if (lr === -Infinity) return -MAXTILT;
+  return MAXTILT * Math.tanh(lr / 2.2);
 }
+const ratioTex = lr => lr >= 0 ? texLog10(lr / Math.LN10) + " : 1" : "1 : " + texLog10(-lr / Math.LN10);
 
 /* ==========================================================================
    A small log-scale chart of ratios: whichever curve goes flat is the truth.
+   Series labels and the axis title are TeX.
    ========================================================================= */
 function drawRatio(series, xs, xlab) {
   const svg = el("ratioSvg");
-  const X0 = 58, X1 = 636, Y0 = 26, Y1 = 152;
+  /* under both columns the chart gets wider, not taller */
+  const VW = el("colMain").classList.contains("two") ? 1320 : 720;
+  svg.setAttribute("viewBox", "0 0 " + VW + " 200");
+  const X0 = 58, X1 = VW - 84, Y0 = 26, Y1 = 152;
   let lo = Infinity, hi = -Infinity;
   series.forEach(s => s.pts.forEach(p => {
     if (!isFinite(p) || p <= 0) return;
@@ -1089,18 +1823,18 @@ function drawRatio(series, xs, xlab) {
   const sx = i => X0 + (X1 - X0) * (xs.length === 1 ? .5 : i / (xs.length - 1));
   const sy = v => Y1 - (Y1 - Y0) * (Math.log10(v) - lo) / (hi - lo);
   const out = [];
-  /* horizontal guides at powers of ten */
   for (let e = Math.ceil(lo); e <= Math.floor(hi); e++) {
     const y = Y1 - (Y1 - Y0) * (e - lo) / (hi - lo);
     out.push('<line x1="' + X0 + '" y1="' + y + '" x2="' + X1 + '" y2="' + y + '" class="grid"/>' +
-      '<text x="' + (X0 - 6) + '" y="' + (y + 3.5) + '" class="axlab">10' + supStr(e) + '</text>');
+      MA("10^{" + e + "}", X0 - 6, y + 3.5, 10, "end", "var(--wi-ink-faint)"));
   }
   out.push('<line x1="' + X0 + '" y1="' + Y1 + '" x2="' + X1 + '" y2="' + Y1 + '" class="rule"/>');
   xs.forEach((x, i) => {
     if (xs.length > 16 && i % 2) return;
     out.push('<text x="' + sx(i) + '" y="' + (Y1 + 16) + '" class="axlab mid">' + x + '</text>');
   });
-  out.push('<text x="' + ((X0 + X1) / 2) + '" y="' + (Y1 + 33) + '" class="axtitle">' + xlab + '</text>');
+  out.push(MA(xlab, (X0 + X1) / 2, Y1 + 34, 11, "middle", "var(--wi-ink-soft)"));
+  const labs = [];
   series.forEach(s => {
     let dd = "", started = false;
     s.pts.forEach((p, i) => {
@@ -1112,14 +1846,17 @@ function drawRatio(series, xs, xlab) {
       '" opacity="' + (s.bold ? 1 : .5) + '"/>');
     const last = s.pts.map((p, i) => [p, i]).filter(q => isFinite(q[0]) && q[0] > 0).pop();
     if (last) {
-      const room = X1 - sx(last[1]) > 108;          /* keep the label inside the frame */
-      out.push('<text x="' + (room ? sx(last[1]) + 7 : X1) + '" y="' + (sy(last[0]) + (room ? 3.5 : -9)) +
-        '" class="serlab" style="text-anchor:' + (room ? "start" : "end") + '" fill="' + s.color +
-        '" opacity="' + (s.bold ? 1 : .6) + '">' + s.label + '</text>');
+      const room = X1 - sx(last[1]) > 108;
+      labs.push({ x:room ? sx(last[1]) + 7 : X1, y:sy(last[0]) + (room ? 3.5 : -9), room:room, s:s });
     }
   });
+  labs.sort((p, q) => p.y - q.y);                   /* curves that coincide: labels one under the other */
+  for (let i = 1; i < labs.length; i++) if (labs[i].y - labs[i - 1].y < 13) labs[i].y = labs[i - 1].y + 13;
+  labs.forEach(L => out.push('<g opacity="' + (L.s.bold ? 1 : .65) + '">' + MA(L.s.label, L.x, L.y, 11, L.room ? "start" : "end", L.s.color) + '</g>'));
   svg.innerHTML = out.join("");
 }
+
+
 /* ==========================================================================
    MODE "roura" — the discrete master theorem.
    Everything hangs off one number: H = 1 - sum_d a_d (1/b_d)^alpha, the
@@ -1141,17 +1878,17 @@ function rouraCase() {
   if (Math.abs(g + 1) < T) return { k:"c", H:H, Hh:wsum() };
   return { k:"d", H:H };
 }
-function rouraForm() {
-  const R = rouraCase(), fn = fName(true);
-  if (R.k === "a") return { form:"= O(n<sup>" + fmt(R.at) + "</sup>)",
-    tag:"H &lt; 0 \u2014 the subproblems outweigh the parent, so the leaves rule" };
-  if (R.k === "e") return { form:"~ <span class='cf'>f</span>(n)/H = " + fmt(1 / R.H) + "\u2009&middot;\u2009" + fn,
-    tag:"H &gt; 0 \u2014 a convergent geometric sum; even the constant comes out" };
-  if (R.k === "b") return { form:"~ <span class='cf'>f</span>(n)\u2009ln n / " + fmt(R.Ht),
-    tag:"H = 0, &gamma; &gt; \u22121 \u2014 all levels contribute comparably" };
-  if (R.k === "c") return { form:"~ <span class='cf'>f</span>(n)\u2009ln n\u2009ln ln n / " + fmt(R.Hh),
-    tag:"H = 0, &gamma; = \u22121 \u2014 the harmonic borderline" };
-  return { form:"= O(n<sup>" + nice(P.beta) + "</sup>)", tag:"H = 0, &gamma; &lt; \u22121 \u2014 the sum converges after all" };
+function rouraForm() {          /* TeX */
+  const R = rouraCase(), fn = fTex();
+  if (R.k === "a") return { form:"\\rel= \\Theta(n^{" + fmt(R.at) + "})",
+    tag:TM`H \lt 0` + " \u2014 the subproblems outweigh the parent, so the leaves rule" };
+  if (R.k === "e") return { form:"\\sim \\cf{f}(n)/H \\rel= " + fmt(1 / R.H) + "\\cdot " + fn,
+    tag:TM`H > 0` + " \u2014 a convergent geometric sum; even the constant comes out" };
+  if (R.k === "b") return { form:"\\sim \\cf{f}(n)\\,\\ln n / " + fmt(R.Ht),
+    tag:TM`H = 0,\ \gamma > -1` + " \u2014 all levels contribute comparably" };
+  if (R.k === "c") return { form:"\\sim \\cf{f}(n)\\,\\ln n\\,\\ln\\ln n / " + fmt(R.Hh),
+    tag:TM`H = 0,\ \gamma = -1` + " \u2014 the harmonic borderline" };
+  return { form:"\\rel= \\Theta(n^{" + nice(P.beta) + "})", tag:TM`H = 0,\ \gamma \lt -1` + " \u2014 the sum converges after all" };
 }
 function rouraPredict(n) {
   const R = rouraCase();
@@ -1177,53 +1914,55 @@ function dpSolve(N) {
 }
 
 const ROURA_STEPS = [
-  { ph:"Shape", t:"Roura's theorem allows any number of recursive calls, of any sizes. Draw the parent as a bar of weight 1 and each child as a bar of weight (1/<span class='cb'>b</span><sub>d</sub>)<sup>&alpha;</sup>. What is left over is H." },
-  { ph:"H(&alpha;)", t:"H depends on the exponent &alpha; of <span class='cf'>f</span>. It falls from 1\u2212&sum;a<sub>d</sub> at &alpha; = \u2212&infin; and increases towards 1; where it crosses zero sits the critical exponent &alpha;\u0303 \u2014 the analogue of <span class='cc'>c</span> = log<sub class='cb'>b</sub>(<span class='ca'>a</span>)." },
-  { ph:"Case", t:"The sign of H at our &alpha; picks the case. H &lt; 0: leaves win. H &gt; 0: root wins. H = 0: everything is balanced and the log exponent &gamma; decides how the levels add up." },
-  { ph:"Constant", t:"Unlike the master theorem, the answer comes with its constant \u2014 the result is an asymptotic equivalence ~, not just a &Theta;." },
+  { ph:"Shape", t:"Roura\u2019s theorem allows any number of recursive calls, of any sizes. Draw the parent as a bar of weight 1 and each child as a bar of weight " +
+      TM`(1/\cb{b_d})^{\alpha}` + ". What is left over is " + TM`H` + "." },
+  { ph:"H(\u03b1)", t:TM`H` + " depends on the exponent " + TM`\alpha` + " of " + TM`\cf{f}` + ". It increases with " + TM`\alpha` + ": from " +
+      TM`-\infty` + " (for " + TM`\alpha \to -\infty` + ") through " + TM`1 - \sum_d \ca{a_d}` + " at " + TM`\alpha = 0` + " towards 1. Where it crosses zero sits the critical exponent " +
+      TM`\tilde\alpha` + " \u2014 the analogue of " + TM`\cc{c} \rel= \log_{\cb{b}}(\ca{a})` + "." },
+  { ph:"Case", t:"The sign of " + TM`H` + " at our " + TM`\alpha` + " picks the case. " + TM`H \lt 0` + ": leaves win. " + TM`H > 0` + ": root wins. " +
+      TM`H = 0` + ": everything is balanced and the log exponent " + TM`\gamma` + " decides how the levels add up." },
+  { ph:"Constant", t:"Unlike the master theorem, the answer comes with its constant \u2014 the result is an asymptotic equivalence " + TM`\sim` + ", not just a " + TM`\Theta` + "." },
   { ph:"Check", t:"Solving the recurrence numerically (with real floors, as an implementation would meet it) and dividing by the prediction: the ratio should settle at 1." }
 ];
 
+function sizeText(b) {          /* TeX */
+  if (isInt(b)) return "n/" + Math.round(b);
+  return sizeOf(1 / b);
+}
 function drawRoura() {
   const svg = el("mainSvg");
   svg.setAttribute("viewBox", "0 0 720 470");
   const out = [], al = P.beta, H = Hof(al), at = alphaTilde();
 
   /* ---- the weight picture ---------------------------------------------- */
-  const X0 = 74, W = 470, yP = 58, yC = 118, hB = 26;
-  out.push('<text x="' + X0 + '" y="' + (yP - 16) + '" class="rlab">one problem of size n, weight 1</text>');
+  /* weight 1 is 470 units wide, unless the children (weight 1 - H) would run off the canvas */
+  const X0 = 74, W = 470 * Math.min(1, 1.3 / Math.max(1, 1 - H)), yP = 58, yC = 118, hB = 26;
+  out.push(mixAt("one problem of size \\(n\\), weight 1", X0, yP - 16, 11.5, "start"));
   out.push('<rect x="' + X0 + '" y="' + yP + '" width="' + W + '" height="' + hB + '" rx="3" class="rparent"/>');
-  let x = X0, i = 0;
+  let x = X0;
   for (const t of P.terms) {
     const w = W * Math.pow(1 / t.b, al);
     for (let q = 0; q < Math.min(t.a, 12); q++) {
-      out.push('<rect x="' + x + '" y="' + yC + '" width="' + Math.max(1, w - 2) + '" height="' + hB +
-        '" rx="3" class="rchild"/>');
-      if (w > 44) {
-        const inv = nice(1 / t.b), fr = inv.split("/");
-        const lab = fr.length === 2 ? fr[0] + "n/" + fr[1] : (Math.abs(t.b - Math.round(t.b)) < 1e-9 ?
-                    "n/" + nice(t.b) : inv + "n");
-        out.push('<text x="' + (x + w / 2 - 1) + '" y="' + (yC + 17) + '" class="rchildlab">' + lab + '</text>');
-      }
+      out.push('<rect x="' + x + '" y="' + yC + '" width="' + Math.max(1, w - 2) + '" height="' + hB + '" rx="3" class="rchild"/>');
+      if (w > 44) out.push(MA(sizeText(t.b), x + w / 2 - 1, yC + 17, 11.5, "middle"));
       x += w;
       if (x > X0 + W + 60) break;
     }
-    i++;
   }
   const used = x - X0;
   if (used < W - 1) {
     out.push('<rect x="' + x + '" y="' + yC + '" width="' + (W - used) + '" height="' + hB + '" class="rgap"/>');
-    out.push('<text x="' + (x + (W - used) / 2) + '" y="' + (yC + 17) + '" class="rgaplab">H</text>');
+    out.push(MA("H", x + (W - used) / 2, yC + 18, 13, "middle", "var(--wi-accent)"));
   }
   out.push('<line x1="' + (X0 + W) + '" y1="' + (yP - 6) + '" x2="' + (X0 + W) + '" y2="' + (yC + hB + 8) + '" class="rmark"/>');
-  out.push('<text x="' + X0 + '" y="' + (yC + hB + 22) + '" class="rlab">children, total weight ' +
-    fmt(1 - H) + (used > W ? ' \u2014 more than the parent, so H &lt; 0' : '') + '</text>');
-  out.push('<text x="' + (X0 + W) + '" y="' + (yP - 16) + '" class="rH" text-anchor="end">H = ' + fmt(H) + '</text>');
+  out.push(mixAt("children, total weight " + fmt(1 - H) + (used > W ? " \u2014 more than the parent, so \\(H \\lt 0\\)" : ""),
+    X0, yC + hB + 22, 11.5, "start"));
+  out.push(MA("H = " + texFmt(H), X0 + W, yP - 16, 15, "end", "var(--wi-accent)"));
 
   /* ---- H as a function of alpha ---------------------------------------- */
   const gx0 = 74, gx1 = 544, gy0 = 208, gy1 = 400;
   const lo = Math.min(al, isFinite(at) ? at : al) - 1.3, hi = Math.max(al, isFinite(at) ? at : al) + 1.3;
-  let ymin = -1.6, ymax = 1.05;
+  const ymin = -1.6, ymax = 1.05;
   const sx = v => gx0 + (gx1 - gx0) * (v - lo) / (hi - lo);
   const sy = v => gy1 - (gy1 - gy0) * (clamp(v, ymin, ymax) - ymin) / (ymax - ymin);
   let d = "", pen = false;
@@ -1237,250 +1976,325 @@ function drawRoura() {
   out.push('<line x1="' + gx0 + '" y1="' + gy0 + '" x2="' + gx0 + '" y2="' + gy1 + '" class="rule"/>');
   out.push('<text x="' + (gx0 - 8) + '" y="' + (sy(0) + 3.5) + '" class="axlab">0</text>');
   out.push('<text x="' + (gx0 - 8) + '" y="' + (sy(1) + 3.5) + '" class="axlab">1</text>');
+  out.push(MA("H(\\alpha)", gx0 + 6, gy0 + 4, 12, "start", "var(--mt-f)"));
   out.push('<path d="' + d + '" class="rcurve"/>');
   for (let e = Math.ceil(lo); e <= Math.floor(hi); e++)
     out.push('<text x="' + sx(e) + '" y="' + (gy1 + 16) + '" class="axlab mid">' + e + '</text>');
-  out.push('<text x="' + ((gx0 + gx1) / 2) + '" y="' + (gy1 + 34) + '" class="axtitle">exponent \u03b1 of f</text>');
+  out.push(mixAt("exponent \\(\\alpha\\) of \\(\\cf{f}\\)", (gx0 + gx1) / 2, gy1 + 34, 11.5, "middle"));
   if (isFinite(at)) {
     out.push('<line x1="' + sx(at) + '" y1="' + gy0 + '" x2="' + sx(at) + '" y2="' + gy1 + '" class="rtilde"/>' +
-      '<text x="' + (sx(at) + (at <= al ? -5 : 5)) + '" y="' + (gy0 + 12) + '" class="rtildelab" text-anchor="' +
-      (at <= al ? "end" : "start") + '">\u03b1\u0303 = ' + fmt(at) + '</text>');
+      MA("\\tilde\\alpha = " + fmt(at), sx(at) + (at <= al ? -5 : 5), gy0 + 14, 11.5, at <= al ? "end" : "start", "var(--wi-accent)"));
   }
   out.push('<line x1="' + sx(al) + '" y1="' + gy0 + '" x2="' + sx(al) + '" y2="' + gy1 + '" class="ralpha"/>' +
     '<circle cx="' + sx(al) + '" cy="' + sy(H) + '" r="5" class="rdot"/>' +
-    '<text x="' + (sx(al) + 7) + '" y="' + (sy(H) - 8) + '" class="rdotlab">\u03b1 = ' + nice(al) +
-    ', H = ' + fmt(H) + '</text>');
+    MA("\\alpha = " + nice(al) + ",\\ H = " + texFmt(H), sx(al) + 8, sy(H) - 9, 11.5, "start", "var(--wi-queue)"));
   out.push('</g>');
   svg.innerHTML = out.join("");
   svg.querySelectorAll('[data-at]').forEach(n => n.style.opacity = step >= +n.getAttribute("data-at") ? 1 : 0);
 }
 
+
 /* ==========================================================================
-   Panels
+   Panels (all their maths is TeX, set with setMath)
    ========================================================================= */
-function sizeText(b) {
-  const inv = nice(1 / b), fr = inv.split("/");
-  if (Math.abs(b - Math.round(b)) < 1e-9) return "n/" + nice(b);
-  return fr.length === 2 ? fr[0] + "n/" + fr[1] : inv + "n";
+function recTex() {
+  const rhs = mode === "roura"
+    ? P.terms.map(t => (t.a === 1 ? "" : "\\ca{" + nice(t.a) + "}\\,") + "T(" + (isInt(t.b) ? "n/\\cb{" + nice(t.b) + "}" : "\\cb{" + sizeOf(1 / t.b) + "}") + ")").join(" \\bin+ ")
+    : "\\ca{" + nice(P.a) + "}\\cdot T(" + (isInt(P.b) ? "n/\\cb{" + nice(P.b) + "}" : "\\cb{" + sizeOf(1 / P.b) + "}") + ")";
+  return "\\displaystyle T(n) \\wrel= \\begin{cases} " + rhs + " \\bin+ \\cf{" + fTex() + "} & n > 1 \\\\ \\cd{" + nice(P.d) + "} & n \\le 1 \\end{cases}";
 }
 function recBox() {
-  const t = P.terms.map(t => '<span class="ca">' + nice(t.a) + '</span>\u2009T(n/<span class="cb">' + nice(t.b) +
-    '</span>)').join(" + ");
-  const rhs = mode === "roura" ? t + " + <span class='cf'>" + fName(true) + "</span>"
-    : '<span class="ca">' + nice(P.a) + '</span>\u2009&middot;\u2009T(<span class="m">n</span>/<span class="cb">' +
-      nice(P.b) + '</span>) + <span class="cf">' + fName(true) + '</span>';
-  return '<div class="recbox"><span class="m">T</span>(<span class="m">n</span>) =&nbsp;' +
-    '<span class="dcases"><span>' + rhs + '</span><span class="cond"><span class="m">n</span> &gt; 1</span>' +
-    '<span class="cd">' + nice(P.d) + '</span><span class="cond"><span class="m">n</span> &le; 1</span></span></div>';
+  return '<div class="recbox">' + M(recTex()) +
+    '<div class="recnote hide-p">' + (mode === "roura"
+      ? "the theorem allows arbitrary base values " + TM`c_n` + " for " + TM`0 \le n \lt n_0` + "; here " + TM`n_0 = 2` + " and " + TM`c_0 = c_1 = \cd{${nice(P.d)}}`
+      : "the theorem allows arbitrary base costs " + TM`d_n \ge 0` + " for " + TM`n \le n_0` + "; here " + TM`n_0 = 1` + " and " + TM`d_n = \cd{d}`) +
+    '</div></div>';
 }
 function rouraRows() {
   return [
-      ["a", "T(n) = O(n<sup>&alpha;&#771;</sup>), where &alpha;&#771;&nbsp;is the unique &alpha; that would make H = 0", "H &lt; 0"],
-      ["b", "T(n) ~ <span class='cf'>f</span>(n) ln(n)/H&#771;,&nbsp; H&#771; = (&gamma;+1)&sum;<sub>d</sub> a<sub>d</sub> b<sub>d</sub><sup>&minus;&alpha;</sup> ln(b<sub>d</sub>)", "H = 0 and &gamma; &gt; &minus;1"],
-      ["c", "T(n) ~ <span class='cf'>f</span>(n) ln(n) ln(ln(n))/H&#770;,&nbsp; H&#770; = &sum;<sub>d</sub> a<sub>d</sub> b<sub>d</sub><sup>&minus;&alpha;</sup> ln(b<sub>d</sub>)", "H = 0 and &gamma; = &minus;1"],
-      ["d", "T(n) = O(n<sup>&alpha;</sup>)", "H = 0 and &gamma; &lt; &minus;1"],
-      ["e", "T(n) ~ <span class='cf'>f</span>(n)/H", "H &gt; 0"]
+    ["a", TM`T(n) \rel= \Theta(n^{\tilde\alpha})` + ", for " + TM`\tilde\alpha` + " the unique value of " + TM`\alpha` + " that would make " + TM`H = 0`, TM`H \lt 0`],
+    ["b", TM`T(n) \sim \cf{f}(n)\ln(n)/\tilde H` + " with constant " + TM`\tilde H = (\gamma+1)\sum_{d=1}^{D} \ca{a_d}\,\cb{b_d}^{-\alpha}\ln(\cb{b_d})`, TM`H = 0` + " and " + TM`\gamma > -1`],
+    ["c", TM`T(n) \sim \cf{f}(n)\ln(n)\ln(\ln(n))/\hat H` + " with constant " + TM`\hat H = \sum_{d=1}^{D} \ca{a_d}\,\cb{b_d}^{-\alpha}\ln(\cb{b_d})`, TM`H = 0` + " and " + TM`\gamma = -1`],
+    ["d", TM`T(n) \rel= \Theta(n^{\alpha})`, TM`H = 0` + " and " + TM`\gamma \lt -1`],
+    ["e", TM`T(n) \sim \cf{f}(n)/H`, TM`H > 0`]
   ];
 }
 function thmPanel() {
-  const A = analyse(), C = closedForm(), reveal = (mode === "tree" ? step >= 6 : true);
+  const A = analyse();
   if (mode === "roura") {
-    const R = rouraCase(), rows = rouraRows();
+    const R = rouraCase();
     return recBox() + '<div class="thm"><h3>Roura\u2019s discrete master theorem</h3>' +
-      '<div class="thmlead">With <span class="m cf">f</span>(<span class="m">n</span>) ~ ' +
-      '<span class="m">B</span>&thinsp;<span class="m">n</span><sup>&alpha;</sup>(ln <span class="m">n</span>)<sup>&gamma;</sup>' +
-      ' and H = 1 &minus; &sum;<sub>d</sub> <span class="ca">a</span><sub>d</sub>(1/<span class="cb">b</span><sub>d</sub>)<sup>&alpha;</sup> = <b>' +
-      fmt(Hof(P.beta)) + '</b>:</div>' +
-      rows.map(r => '<div class="thmcase ' + (R.k === r[0] ? "on" : "off") + '"><span class="tag">(' + r[0] +
-        ')</span><span>' + r[1] + '<span class="check">if ' + r[2] + '</span></span></div>').join("") +
-      '</div>';
+      '<div class="thmlead">With ' + TM`\cf{f}(n) \sim B\,n^{\alpha}(\ln n)^{\gamma}` + " and " +
+      TM`H = 1 - \sum_d \ca{a_d}(1/\cb{b_d})^{\alpha} \rel= ${texFmt(Hof(P.beta))}` + ':</div>' +
+      rouraRows().map(r => '<div class="thmcase ' + (R.k === r[0] ? "on" : "off") + '"><span class="tag">(' + r[0] +
+        ')</span><span>If ' + r[2] + ", then " + r[1] + '.</span></div>').join("") + '</div>';
   }
-  const c = A.c, cs = '<span class="cc">c</span>', cv = (Math.abs(c - Math.round(c)) < 1e-9 ? nice(c) : fmt(c));
+  const c = A.c, cv = cNum(), al = nice(P.beta);
   const yn = k => (A.kase === k ? "\u2713 " : "\u2717 ");
   const checks = {
-    a: yn("a") + "&beta; = " + nice(P.beta) + (A.kase === "a" ? " &lt; " : " &nleq; ") + cv +
-       (A.kase === "a" ? ", so &epsilon; = " + fmt(A.eps) + " works" : ""),
-    b: yn("b") + "<span class='cf'>f</span>(n) " + (A.kase === "b" ? "=" : "&ne;") + " &Theta;(n<sup>" + cv + "</sup>)" +
-       (P.gamma !== 0 && Math.abs(P.beta - c) < 1e-9 ? " &mdash; the lg factor spoils it" : ""),
-    c: yn("c") + "&beta; = " + nice(P.beta) + (A.kase === "c" ? " &gt; " : " &ngeq; ") + cv +
-       (A.kase === "c" ? ", so &epsilon; = " + fmt(A.eps) + " works; regularity \u2713 by the lemma" : "")
+    a: yn("a") + (A.kase === "a" ? TM`\alpha = ${al} \lt ${cv}` + ", so " + TM`\varepsilon = ${fmt(A.eps)}` + " works" : TM`\alpha = ${al} \nless ${cv}`),
+    b: yn("b") + (A.kase === "b" ? TM`\cf{f}(n) \rel= \Theta(${texNc(false)})` : TM`\cf{f}(n) \ne \Theta(${texNc(false)})` +
+       (P.gamma !== 0 && Math.abs(P.beta - c) < 1e-9 ? " \u2014 the lg factor spoils it" : "")),
+    c: yn("c") + (A.kase === "c" ? TM`\alpha = ${al} > ${cv}` + ", so " + TM`\varepsilon = ${fmt(A.eps)}` + " works; regularity \u2713 by the lemma"
+                                 : TM`\alpha = ${al} \ngtr ${cv}`)
   };
-  const row = (k, body) => '<div class="thmcase ' + (!reveal ? "" : (A.kase === k ? "on" : "off")) +
+  /* the same HTML before and after the reveal (no re-typesetting); #thmBox.unrevealed hides the verdict */
+  const row = (k, body) => '<div class="thmcase ' + (A.kase === k ? "on" : "off") +
     '" data-case="' + k + '"><span class="tag">(' + k + ')</span><span>' + body +
-    '<span class="check">' + (reveal ? checks[k] : "") + '</span></span></div>';
+    '<span class="check">' + checks[k] + '</span></span></div>';
   return recBox() + '<div class="thm"><h3>Theorem &nbsp;(Master Theorem)</h3>' +
-    '<div class="thmlead">With <span class="m cc">c</span> := log<sub class="cb">b</sub>(<span class="ca">a</span>) = ' +
-    cv + ', we have for the above recurrence:</div>' +
-    row("a", "<span class='m'>T</span>(n) = &Theta;(n<sup>" + cs + "</sup>) &nbsp;if <span class='cf'>f</span>(n) = O(n<sup>" +
-      cs + "&minus;&epsilon;</sup>) for constant &epsilon; &gt; 0.") +
-    row("b", "<span class='m'>T</span>(n) = &Theta;(n<sup>" + cs + "</sup> log n) &nbsp;if <span class='cf'>f</span>(n) = &Theta;(n<sup>" +
-      cs + "</sup>).") +
-    row("c", "<span class='m'>T</span>(n) = &Theta;(<span class='cf'>f</span>(n)) &nbsp;if <span class='cf'>f</span>(n) = &Omega;(n<sup>" +
-      cs + "+&epsilon;</sup>) for constant &epsilon; &gt; 0 <b>and</b> <span class='cf'>f</span> satisfies the regularity condition " +
-      "&exist;n<sub>0</sub>, &alpha; &lt; 1 &forall;n &ge; n<sub>0</sub> : <span class='ca'>a</span>&middot;<span class='cf'>f</span>(n/<span class='cb'>b</span>) &le; &alpha;<span class='cf'>f</span>(n).") +
+    '<div class="thmlead">With ' + TM`\cc{c} := \log_{\cb{b}}(\ca{a}) \rel= ${cv}` + ', we have for the above recurrence:</div>' +
+    row("a", TM`T(n) \rel= \Theta(n^{\cc{c}})` + " if " + TM`\cf{f}(n) \rel= O(n^{\cc{c}-\varepsilon})` + " for constant " + TM`\varepsilon > 0` + ".") +
+    row("b", TM`T(n) \rel= \Theta(n^{\cc{c}}\log n)` + " if " + TM`\cf{f}(n) \rel= \Theta(n^{\cc{c}})` + ".") +
+    row("c", TM`T(n) \rel= \Theta(\cf{f}(n))` + " if " + TM`\cf{f}(n) \rel= \Omega(n^{\cc{c}+\varepsilon})` + " for constant " + TM`\varepsilon > 0` +
+      " <b>and</b> " + TM`\cf{f}` + " satisfies the regularity condition " +
+      TM`\exists n_1, \rho \lt 1\ \forall n \ge n_1 : \ca{a}\cdot\cf{f}(n/\cb{b}) \rel\le \rho\,\cf{f}(n)` + ".") +
     '</div>';
 }
-const noteHTML = t => String(t || "").replace(/\^\{([^}]*)\}/g, "<sup>$1</sup>");
 function verdictPanel() {
   if (mode === "roura") {
     const F = rouraForm();
     return '<div class="sim-title"><span>Verdict</span><span class="rhs">case (' + rouraCase().k +
-      ')</span></div><div class="verdict"><span class="m">T</span>(<span class="m">n</span>) <span class="big">' +
-      F.form + '</span></div><div class="vnote">' + F.tag + '</div>' +
-      (P.note ? '<div class="vnote" style="margin-top:8px">' + noteHTML(P.note) + '</div>' : "");
+      ')</span></div><div class="verdict big">' + M("T(n) " + F.form) + '</div><div class="vnote">' + F.tag + '</div>' +
+      (P.note ? '<div class="vnote" style="margin-top:8px">' + P.note + '</div>' : "");
   }
   const A = analyse(), C = closedForm();
   let s = '<div class="sim-title"><span>Verdict</span><span class="rhs">' +
     (A.gap ? "no case applies" : "case (" + A.kase + ")") + '</span></div>' +
-    '<div class="verdict"><span class="m">T</span>(<span class="m">n</span>) = <span class="big">' + C.form + '</span></div>' +
+    '<div class="verdict big">' + M("T(n) \\rel= " + C.form) + '</div>' +
     '<div class="vnote">' + C.tag + '</div>' +
     '<div class="vnote" style="margin-top:7px">' + A.why + '</div>';
+  if (A.kase === "a" && P.d === 0) s += '<div class="vnote" style="margin-top:7px">With ' + TM`\cd{d} = 0` + " the leaves " +
+    "themselves are free \u2014 but the level just above them costs " + TM`\ca{a}^{k-1}\cf{f}(\cb{b}) \rel= \Theta(n^{\cc{c}})` +
+    ", so the bottom of the tree still wins.</div>";
   if (P.terms.length > 1) s += '<div class="warn">This example has ' + P.terms.length +
-    ' differently sized subproblems, so the master theorem does not apply to it at all \u2014 these two modes are ' +
-    'showing only the first one, <span class="ca">a</span> = ' + nice(P.a) + ', <span class="cb">b</span> = ' +
-    nice(P.b) + '. Switch to the Roura mode for the real recurrence.</div>';
+    " differently sized subproblems, so the master theorem does not apply to it at all \u2014 these two modes are " +
+    "showing only the first one, " + TM`\ca{a} = ${nice(P.a)},\ \cb{b} = ${nice(P.b)}` + ". Switch to the Roura mode for the real recurrence.</div>";
   if (A.gap) s += '<div class="warn">The master theorem gives <b>no</b> answer here \u2014 the three cases do not cover ' +
-    'everything. The value above is what the level sum really is; Roura\u2019s theorem proves it.</div>';
-  if (P.note) s += '<div class="vnote" style="margin-top:9px; text-align:left">' + noteHTML(P.note) + '</div>';
+    "everything. The value above is what the level sum really is; Roura\u2019s theorem proves it.</div>";
+  if (P.note) s += '<div class="vnote" style="margin-top:9px; text-align:left">' + P.note + '</div>';
   return s;
 }
 function ledgerPanel() {
-  if (mode === "grow") {
+  if (mode === "grow" && step <= P.K) {
     const L = levels(step);
-    let s = '<div class="sim-title"><span>Level by level</span><span class="rhs">n = ' + fmtNum(L.n) + '</span></div>' +
+    let s = '<div class="sim-title"><span>Level by level</span><span class="rhs">' + TM`n = ${texFmt(L.n)}` + '</span></div>' +
       '<div class="scroller"><table class="led"><tr><th>level</th><th>count</th><th>size</th><th>each</th><th>level cost</th><th>share</th></tr>';
     L.rows.forEach(r => {
       s += '<tr class="' + (r.leaf ? "leafrow" : "") + '"><td>' + r.j + '</td><td>' + fmtNum(r.cnt) + '</td><td>' +
         fmtNum(r.size) + '</td><td>' + fmt(r.each) + '</td><td>' + fmt(r.cost) + '</td><td class="share">' +
         (r.share * 100).toFixed(2) + '%</td></tr>';
     });
-    s += '<tr class="sumrow"><td>T(n)</td><td></td><td></td><td></td><td>' + fmt(L.total) + '</td><td></td></tr>';
-    s += '</table></div>';
-    return s;
+    s += '<tr class="sumrow"><td>' + TM`T(n)` + '</td><td></td><td></td><td></td><td>' + fmt(L.total) + '</td><td></td></tr>';
+    return s + '</table></div>';
   }
+  if (mode === "grow") return "";                       /* the long run: no table */
   if (mode === "roura") {
     const al = P.beta;
-    let s = '<div class="sim-title"><span>The terms</span><span class="rhs">&alpha; = ' + nice(al) + '</span></div>' +
-      '<table class="led"><tr><th>d</th><th>a<sub>d</sub></th><th>b<sub>d</sub></th><th>a<sub>d</sub>b<sub>d</sub><sup>&minus;&alpha;</sup></th></tr>';
+    let s = '<div class="sim-title"><span>The terms</span><span class="rhs">' + TM`\alpha = ${nice(al)}` + '</span></div>' +
+      '<table class="led"><tr><th>' + TM`d` + '</th><th>' + TM`\ca{a_d}` + '</th><th>' + TM`\cb{b_d}` + '</th><th>' + TM`\ca{a_d}\,\cb{b_d}^{-\alpha}` + '</th></tr>';
     let sum = 0;
     P.terms.forEach((t, i) => {
       const w = t.a * Math.pow(t.b, -al); sum += w;
       s += '<tr><td>' + (i + 1) + '</td><td>' + nice(t.a) + '</td><td>' + nice(t.b) + '</td><td>' + fmt(w) + '</td></tr>';
     });
-    s += '<tr class="sumrow"><td>H = 1 &minus; &sum;</td><td></td><td></td><td>' + fmt(1 - sum) + '</td></tr></table>' +
-      '<div class="vnote" style="text-align:left; margin-top:9px">In the master-theorem special case D = 1 this is ' +
-      'H = 1 &minus; <span class="ca">a</span><span class="cb">b</span><sup>&minus;&alpha;</sup>, which vanishes exactly ' +
-      'when &alpha; = log<sub class="cb">b</sub>(<span class="ca">a</span>) = <span class="cc">c</span>. So &alpha;&#771;&nbsp;' +
-      '&nbsp;is the general form of <span class="cc">c</span>, and the sign of H is the case distinction.</div>';
+    s += '<tr class="sumrow"><td>' + TM`H = 1 - \sum` + '</td><td></td><td></td><td>' + fmt(1 - sum) + '</td></tr></table>' +
+      '<div class="vnote" style="text-align:left; margin-top:9px">In the master-theorem special case ' + TM`D = 1` + " this is " +
+      TM`H = 1 - \ca{a}\,\cb{b}^{-\alpha}` + ", which vanishes exactly when " + TM`\alpha = \log_{\cb{b}}(\ca{a}) \rel= \cc{c}` + ". So " +
+      TM`\tilde\alpha` + " is the general form of " + TM`\cc{c}` + ", and the sign of " + TM`H` + " is the case distinction.</div>";
     return s;
   }
   /* tree mode: the geometric series behind the picture */
-  const c = cExp(), r = P.a / Math.pow(P.b, P.beta);
+  const r = P.a / Math.pow(P.b, P.beta);
   const dir = r > 1.0000001 ? "grow towards the leaves" : (r < .9999999 ? "shrink towards the leaves" : "are all equal");
-  return '<div class="sim-title"><span>The level sum</span><span class="rhs">ratio r = ' + fmt(r) + '</span></div>' +
+  return '<div class="sim-title"><span>The level sum</span><span class="rhs">' + TM`r = ${fmt(r)}` + '</span></div>' +
     '<table class="led"><tr><th>level</th><th>count</th><th>size</th><th>level cost</th></tr>' +
-    '<tr><td>0</td><td>1</td><td>n</td><td>f(n)</td></tr>' +
-    '<tr><td>1</td><td>a</td><td>n/b</td><td>a f(n/b)</td></tr>' +
-    '<tr><td>j</td><td>a<sup>j</sup></td><td>n/b<sup>j</sup></td><td>a<sup>j</sup> f(n/b<sup>j</sup>)</td></tr>' +
-    '<tr class="leafrow"><td>log<sub>b</sub>n</td><td>n<sup>c</sup></td><td>1</td><td>d&thinsp;n<sup>c</sup></td></tr>' +
+    '<tr><td>0</td><td>1</td><td>' + TM`n` + '</td><td>' + TM`\cf{f}(n)` + '</td></tr>' +
+    '<tr><td>1</td><td>' + TM`\ca{a}` + '</td><td>' + TM`n/\cb{b}` + '</td><td>' + TM`\ca{a}\,\cf{f}(n/\cb{b})` + '</td></tr>' +
+    '<tr><td>' + TM`j` + '</td><td>' + TM`\ca{a}^j` + '</td><td>' + TM`n/\cb{b}^j` + '</td><td>' + TM`\ca{a}^j\,\cf{f}(n/\cb{b}^j)` + '</td></tr>' +
+    '<tr class="leafrow"><td>' + TM`\log_{\cb{b}} n` + '</td><td>' + TM`n^{\cc{c}}` + '</td><td>1</td><td>' + TM`\cd{d}\,n^{\cc{c}}` + '</td></tr>' +
     '</table>' +
-    '<div class="vnote" style="text-align:left; margin-top:9px">For <span class="cf">f</span>(n) = n<sup>&beta;</sup> the ' +
-    'level costs form a geometric series with ratio <b>r = <span class="ca">a</span>/<span class="cb">b</span><sup>&beta;</sup> = ' +
-    fmt(r) + '</b>: consecutive levels ' + dir + '. r &gt; 1 is case (a), r = 1 is case (b), r &lt; 1 is case (c) \u2014 ' +
-    'and r = 1 is the same as &beta; = <span class="cc">c</span>.</div>';
+    '<div class="vnote" style="text-align:left; margin-top:9px">For ' + TM`\cf{f}(n) = n^{\alpha}` +
+    " the level costs form a geometric series with ratio " + TM`r = \ca{a}/\cb{b}^{\alpha} \rel= \cb{b}^{\cc{c}-\alpha} \rel= ${fmt(r)}` +
+    ": consecutive levels " + dir + ". " + TM`r > 1` + " is case (a), " + TM`r = 1` + " is case (b), " + TM`r \lt 1` + " is case (c) \u2014 " +
+    "and " + TM`r = 1` + " is the same as " + TM`\alpha = \cc{c}` + ".</div>";
 }
 
 /* --- the side-condition reports ------------------------------------------ */
 function condReports() {
   const c = cExp(), lim = P.a / Math.pow(P.b, P.beta), ok = P.beta > c + 1e-12;
-  /* for f(n) = B n^beta lg^gamma n the ratio is an identity, not a measurement */
-  el("regReport").innerHTML =
-    'For <span class="m cf">f</span>(n) = <span class="m">B</span> n<sup>&beta;</sup>lg<sup>&gamma;</sup>n the ratio is ' +
-    'an <b>identity</b>, not a measurement: <span class="m ca">a</span>\u2009<span class="m cf">f</span>(n/<span class="m cb">b</span>)' +
-    '/<span class="m cf">f</span>(n) = (<span class="ca">a</span>/<span class="cb">b</span><sup>&beta;</sup>)' +
-    '&middot;(1 &minus; lg <span class="cb">b</span>/lg n)<sup>&gamma;</sup>, which tends to ' +
-    '<span class="ca">a</span>/<span class="cb">b</span><sup>&beta;</sup> = <span class="cb">b</span><sup><span class="cc">c</span>&minus;&beta;</sup> = <b>' +
-    fmt(lim) + '</b>. ' +
-    (ok ? 'Since &beta; &gt; <span class="cc">c</span>, that limit is below 1 and the lemma applies: ' +
-          '<span class="yes">the regularity condition holds</span> \u2014 proved, not observed. Any &alpha; with ' +
-          fmt(lim) + ' &lt; &alpha; &lt; 1 serves, for n large enough.'
-        : 'Since &beta; &le; <span class="cc">c</span>, the ratio is at least 1 (or, for &gamma; &gt; 0, approaches 1 from ' +
-          'below), so no constant &alpha; &lt; 1 can bound it: <span class="maybe">the regularity condition does not hold ' +
-          'here</span>. Only case (c) ever needs it, and case (c) does not apply either, so nothing is lost.');
-
+  setMath(el("regReport"),
+    "For " + TM`\cf{f}(n) = B\,n^{\alpha}\lg^{\gamma} n` + " the ratio is an <b>identity</b>, not a measurement: " +
+    TM`\ca{a}\,\cf{f}(n/\cb{b})/\cf{f}(n) \rel= (\ca{a}/\cb{b}^{\alpha})\,(1 - \lg\cb{b}/\lg n)^{\gamma}` + ", which tends to " +
+    TM`\ca{a}/\cb{b}^{\alpha} \rel= \cb{b}^{\cc{c}-\alpha} \rel= ${fmt(lim)}` + ". " +
+    (ok ? "Since " + TM`\alpha > \cc{c}` + ", that limit is below 1 and the lemma applies: " +
+          '<span class="yes">the regularity condition holds</span> \u2014 proved, not observed. Any ' + TM`\rho` + " with " +
+          TM`${fmt(lim)} \lt \rho \lt 1` + " serves, for " + TM`n` + " large enough."
+        : "Since " + TM`\alpha \le \cc{c}` + ", the ratio is at least 1 (or, for " + TM`\gamma > 0` + ", approaches 1 from " +
+          "below), so no constant " + TM`\rho \lt 1` + ' can bound it: <span class="maybe">the regularity condition does not hold ' +
+          "here</span>. Only case (c) ever needs it, and case (c) does not apply either, so nothing is lost."));
   let D = 0;
   for (let k = 3; k <= 26; k++) { const n = Math.pow(P.b, k); D = Math.max(D, f(2 * n) / f(n), f(n) / f(2 * n)); }
-  el("pgReport").innerHTML = 'Here <span class="m cf">f</span>(n) = ' + fName(true) + ' has exactly the shape ' +
-    '&Theta;(n<sup>&beta;</sup>log<sup>&gamma;</sup>n) named in the lemma, so ' +
-    '<span class="yes">the condition holds</span> and floors and ceilings may be ignored \u2014 again by the lemma, ' +
-    'not by inspection. Concretely <span class="m cf">f</span>(tn)/<span class="m cf">f</span>(n) &rarr; t<sup>&beta;</sup>, ' +
-    'so for C = 2 any D &gt; max(2<sup>&beta;</sup>, 2<sup>&minus;&beta;</sup>) = ' + fmt(Math.max(Math.pow(2, P.beta), Math.pow(2, -P.beta))) +
-    ' works for large n; sampling the quotient up to n = ' + fmt(Math.pow(P.b, 26)) + ' gives at most ' + fmt(D) +
-    ', which is an illustration of that, not a proof.';
-
+  setMath(el("pgReport"), "Here " + TM`\cf{f}(n) = ${fTex()}` + " has exactly the shape " + TM`\Theta(n^{\alpha}\log^{\gamma} n)` +
+    ' named in the lemma, so <span class="yes">the condition holds</span> and floors and ceilings may be ignored \u2014 again by the lemma, ' +
+    "not by inspection. Concretely " + TM`\cf{f}(tn)/\cf{f}(n) \to t^{\alpha}` + ", so for " + TM`C = 2` + " any " +
+    TM`D > \max(2^{\alpha}, 2^{-\alpha}) \rel= ${fmt(Math.max(Math.pow(2, P.beta), Math.pow(2, -P.beta)))}` +
+    " works for large " + TM`n` + "; sampling the quotient up to " + TM`n = ${texFmt(Math.pow(P.b, 26))}` + " gives at most " + fmt(D) +
+    ", which is an illustration of that, not a proof.");
   const A = analyse();
-  el("gapNote").innerHTML = A.gap
-    ? 'This recurrence sits in the gap: <span class="m cf">f</span> and n<sup class="cc">c</sup> differ by a log factor, ' +
-      'which is less than any n<sup>&epsilon;</sup>. Cases (a) and (c) need a <em>polynomial</em> separation and case (b) needs ' +
-      'exact equality, so nothing applies. The recursion tree is unbothered \u2014 the level costs still form a perfectly ' +
-      'well-behaved sum, as the intuition mode shows \u2014 and Roura\u2019s theorem turns that into a proof.'
-    : 'The three cases leave a gap. Multiply <span class="m cf">f</span> by lg n \u2014 or divide by it \u2014 and this ' +
-      'recurrence falls straight out of the theorem, because n<sup class="cc">c</sup>\u2009lg n is neither ' +
-      'O(n<sup class="cc">c</sup><sup>&minus;&epsilon;</sup>) nor &Omega;(n<sup class="cc">c</sup><sup>+&epsilon;</sup>) nor ' +
-      '&Theta;(n<sup class="cc">c</sup>). Try the example <i>Closest pair, first version</i> or <i>The gap</i>.';
+  setMath(el("gapNote"), A.gap
+    ? "This recurrence sits in the gap: " + TM`\cf{f}` + " and " + TM`n^{\cc{c}}` + " differ by a log factor, " +
+      "which is less than any " + TM`n^{\varepsilon}` + ". Cases (a) and (c) need a <em>polynomial</em> separation and case (b) needs " +
+      "exact equality, so nothing applies. The recursion tree is unbothered \u2014 the level costs still form a perfectly " +
+      "well-behaved sum, as the intuition mode shows \u2014 and Roura\u2019s theorem turns that into a proof."
+    : "The three cases leave a gap. Multiply " + TM`\cf{f}` + " by " + TM`\lg n` + " \u2014 or divide by it \u2014 and this " +
+      "recurrence falls straight out of the theorem, because " + TM`n^{\cc{c}}\lg n` + " is neither " +
+      TM`O(n^{\cc{c}-\varepsilon})` + " nor " + TM`\Omega(n^{\cc{c}+\varepsilon})` + " nor " + TM`\Theta(n^{\cc{c}})` +
+      ". Try the example <i>Closest pair, first version</i> or <i>The gap</i>.");
 }
+
+
+/* ==========================================================================
+   Phase bar: widths ∝ steps, at least PH_MIN px (water filling); the slider
+   maps piecewise-linearly onto exactly these widths
+   ========================================================================= */
+const PH_MIN = 30, SCALE = 100000, PB = { list:[], px:[], pw:[], W:1, key:"" };
+function fitPhaseBar() {
+  const bar = el("phasebar"), W = bar.getBoundingClientRect().width, P_ = PB.list;
+  if (!W || !P_.length) return;
+  const k = P_.map(p => p.to - p.from + 1);
+  let w;
+  if (P_.length * PH_MIN >= W) w = P_.map(() => W / P_.length);
+  else {                                   /* water filling: nobody narrower than PH_MIN */
+    const fixed = new Set();
+    for (;;) {
+      const rest = k.reduce((s_, x, i) => fixed.has(i) ? s_ : s_ + x, 0), room = W - fixed.size * PH_MIN, c = room / rest;
+      let more = false;
+      k.forEach((x, i) => { if (!fixed.has(i) && c * x < PH_MIN) { fixed.add(i); more = true; } });
+      if (!more) { w = k.map((x, i) => fixed.has(i) ? PH_MIN : c * x); break; }
+    }
+  }
+  let x = 0;
+  PB.pw = w; PB.px = w.map(v => { const a = x; x += v; return a; }); PB.W = W;
+  bar.querySelectorAll(".phasebtn").forEach((b, i) => {
+    b.style.width = w[i] + "px";
+    const font = getComputedStyle(b).font;
+    b.textContent = P_[i].names.find(t => textW(t, font) <= w[i] - 5) || "";
+    b.title = P_[i].title;
+  });
+  syncSlider();
+}
+const phaseOf = s_ => { let lo = 0, hi = PB.list.length - 1;
+  while (lo < hi) { const m = (lo + hi + 1) >> 1; if (PB.list[m].from <= s_) lo = m; else hi = m - 1; } return lo; };
+function stepToVal(s_) {
+  const p = phaseOf(s_), Q = PB.list[p], k = Q.to - Q.from + 1;
+  return Math.round((PB.px[p] + (s_ - Q.from + 0.5) / k * PB.pw[p]) / PB.W * SCALE);
+}
+function valToStep(v) {
+  const x = v / SCALE * PB.W;
+  let p = 0; while (p + 1 < PB.list.length && PB.px[p + 1] <= x) p++;
+  const Q = PB.list[p], k = Q.to - Q.from + 1;
+  return Q.from + clamp(Math.floor((x - PB.px[p]) / PB.pw[p] * k), 0, k - 1);
+}
+function syncSlider() { if (PB.pw.length === PB.list.length && PB.list.length) el("slider").value = stepToVal(step); }
+function renderPhases() {
+  const ph = phaseList(), bar = el("phasebar");
+  const key = mode + "|" + ph.map(p => p.names[0] + ":" + p.from + "-" + p.to).join(",");
+  PB.list = ph;
+  if (key !== PB.key) {
+    PB.key = key;
+    bar.innerHTML = ph.map((p, i) => '<button class="phasebtn' + (p.cls ? ' ' + p.cls : '') + '" data-p="' + i + '"></button>').join("");
+    bar.querySelectorAll(".phasebtn").forEach(b => b.onclick = () => { stop(); setStep(PB.list[+b.dataset.p].from); });
+    fitPhaseBar();
+  }
+  bar.querySelectorAll(".phasebtn").forEach((b, i) => {
+    b.classList.toggle("on", step >= ph[i].from && step <= ph[i].to);
+    b.classList.toggle("past", step > ph[i].to);
+  });
+  syncSlider();
+}
+
+
 
 /* ==========================================================================
    Steps, phases, rendering
    ========================================================================= */
-function stepCount() { return mode === "tree" ? TREE_STEPS.length : (mode === "grow" ? P.K + 1 : ROURA_STEPS.length); }
+function stepCount() { return mode === "tree" ? TREE_STEPS.length : (mode === "grow" ? growSteps() : ROURA_STEPS.length); }
+const kName = k => k >= 1000 ? k.toLocaleString("en-US") : String(k);
 function phaseList() {
   if (mode === "grow") {
     const out = [];
-    for (let k = 0; k <= P.K; k++) out.push({ label:String(k), from:k, to:k, title:"n = " + fmtNum(Math.pow(P.b, k)) });
+    for (let k = 0; k <= P.K; k++) out.push({ names:["k = " + k, String(k)], from:k, to:k,
+      title:"k = " + k + ", n = " + fmtNum(Math.pow(P.b, k)) });
+    LONG_KS.forEach((k, i) => out.push({ names:["k = " + kName(k), kName(k), k >= 1000 ? "10" + supStr(Math.round(Math.log10(k))) : String(k)],
+      from:P.K + 1 + i, to:P.K + 1 + i, cls:"long", title:"the long run: k = " + kName(k) + " (outline only)" }));
+    out.push({ names:["k \u2192 \u221e", "\u221e"], from:P.K + 1 + LONG_KS.length, to:P.K + 1 + LONG_KS.length, cls:"long",
+      title:"the limit k \u2192 \u221e" });
     return out;
   }
   const src = mode === "tree" ? TREE_STEPS : ROURA_STEPS, out = [];
   src.forEach((s, i) => {
-    if (out.length && out[out.length - 1].label === s.ph) out[out.length - 1].to = i;
-    else out.push({ label:s.ph, from:i, to:i });
+    const lab = s.ph;
+    if (out.length && out[out.length - 1].names[0] === lab) out[out.length - 1].to = i;
+    else out.push({ names:[lab, lab.charAt(0)], from:i, to:i, title:lab });
   });
   return out;
-}
-function renderPhases() {
-  const ph = phaseList(), bar = el("phasebar");
-  bar.innerHTML = ph.map((p, i) => '<button class="phasebtn' + (step >= p.from && step <= p.to ? " on" :
-    (step > p.to ? " past" : "")) + '" data-goto="' + p.from + '" title="' + (p.title || p.label) + '">' +
-    p.label + '</button>').join("");
-  bar.querySelectorAll("[data-goto]").forEach(b =>
-    b.onclick = () => setStep(+b.getAttribute("data-goto")));
-  ph.forEach((p, i) => { bar.children[i].style.flexGrow = (p.to - p.from + 1); });
 }
 
 function explainText() {
   if (mode === "tree") {
     if (step === 7) {
       const A = analyse(), C = closedForm();
-      return A.gap ? "None of the three cases applies: <span class='cf'>f</span> and n<sup class='cc'>c</sup> are separated " +
-          "only by a log factor, never by a power of n. The sum is still perfectly computable \u2014 see the other two modes."
-        : "Case (" + A.kase + ") applies, so <span class='m'>T</span>(n) = " + C.form + " \u2014 " + C.tag + ".";
+      return A.gap ? "None of the three cases applies: " + TM`\cf{f}` + " and " + TM`n^{\cc{c}}` + " are separated " +
+          "only by a log factor, never by a power of " + TM`n` + ". The sum is still perfectly computable \u2014 see the other two modes."
+        : "Case (" + A.kase + ") applies, so " + M("T(n) \\rel= " + C.form) + " \u2014 " + C.tag + ".";
     }
     return TREE_STEPS[step].t;
   }
   if (mode === "roura") return ROURA_STEPS[step].t;
-  const L = levels(step), rt = L.rows[0], lf = L.rows[L.rows.length - 1];
-  if (step === 0) return "n = 1: there is nothing but the base case, T(1) = <span class='cd'>" + nice(P.d) + "</span>.";
-  const rp = (rt.share * 100), lp = (lf.share * 100);
   const A = analyse();
+  if (step > P.K) {                                        /* the long run */
+    const I = longInfo(step);
+    if (I.inf) {
+      const kind = longCase();
+      return "The limit " + TM`k \to \infty` + ": " + (kind === "shape"
+        ? "the outline converges to the curve " + (P.gamma === 0 ? "1, the rectangle" : TM`(\gamma+1)(1-t)^{\gamma}`) + " (depth " + TM`t` + " from 0 at the root to 1 at the leaves)."
+        : kind === "slow" ? "there is no limit shape; the area drains into the bottom rows, but only at the speed of " + TM`1/\ln k` + "."
+        : "all of the area ends up in a band of a few rows at the " + kind + ", whose height tends to 0: " +
+          (kind === "top" ? TM`T(n) \rel= \Theta(\cf{f}(n))` : TM`T(n) \rel= \Theta(n^{\cc{c}})`) + ".") +
+        " How this follows from the level costs is spelled out under <i>In the long run</i>.";
+    }
+    let cum = 0, i05 = 0, i95 = NS - 1;
+    for (let i = 0; i < NS; i++) { cum += I.pr.mass[i]; if (cum < 0.05) i05 = i + 1; if (cum >= 0.95) { i95 = i; break; } }
+    const kk = kName(I.k).replace(",", "{,}");
+    return "The long run: " + TM`k = ${kk}` + ", so " + TM`n = ${isInt(P.b) ? Math.round(P.b) : "(" + niceFrac(P.b) + ")"}^{${kk}}` +
+      ". Each of the " + TM`${kName(I.k + 1).replace(",", "{,}")}` + " levels is a sliver of the height now; only the outline is drawn. " +
+      "The middle 90% of " + TM`T(n)` + " lies between depths " + TM`t = ${(i05 / NS).toFixed(2)}` + " and " + TM`${((i95 + 1) / NS).toFixed(2)}` + ".";
+  }
+  const L = levels(step), rt = L.rows[0], lf = L.rows[L.rows.length - 1];
+  if (step === 0) return TM`n = 1` + ": there is nothing but the base case, " + TM`T(1) = \cd{${nice(P.d)}}` + "." +
+    (P.d === 0 ? " (A base case may cost nothing at all \u2014 the theorem only needs " + TM`\cd{d} \ge 0` + ".)" : "");
+  const rp = (rt.share * 100), lp = (lf.share * 100);
   let tail = "";
-  if (step === P.K) tail = A.kase === "a" ? " Extrapolate: the leaf row swallows the whole picture, which is what \u0398(n<sup class='cc'>c</sup>) means."
-    : A.kase === "b" ? " The picture has stopped changing shape \u2014 a rectangle, log<sub class='cb'>b</sub>n rows of equal width. That is the extra log factor."
-    : A.kase === "c" ? " Extrapolate: the root row swallows the whole picture, which is what \u0398(<span class='cf'>f</span>(n)) means."
-    : " The shape keeps drifting, but slowly \u2014 no power of n separates the ends. That is exactly the gap in the theorem.";
-  return "n = " + (P.b === Math.round(P.b) ? nice(P.b) + "<sup>" + step + "</sup> = " : "") + fmtNum(L.n) +
+  if (step === P.K) tail = (A.kase === "a" ? " Bottom-heavy, and it gets more so with every row: a band of a few rows at the bottom is taking over \u2014 that is what " + TM`\Theta(n^{\cc{c}})` + " means."
+    : A.kase === "b" ? " The picture has stopped changing shape \u2014 a rectangle, " + TM`\log_{\cb{b}} n` + " rows of equal width. That is the extra log factor."
+    : A.kase === "c" ? " Top-heavy, and it gets more so with every row: a band of a few rows at the top is taking over \u2014 that is what " + TM`\Theta(\cf{f}(n))` + " means."
+    : " The shape keeps changing; no power of " + TM`n` + " separates the ends \u2014 that is exactly the gap in the theorem.") +
+    " Next: let " + TM`k` + " run off to 10 000.";
+  return TM`n = ${isInt(P.b) ? Math.round(P.b) + "^{" + step + "} = " : ""}${texFmt(L.n)}` +
     ". The root now carries <b>" + rp.toFixed(rp < .1 ? 3 : 1) + "%</b> of the total, the leaves <b>" +
     lp.toFixed(lp < .1 ? 3 : 1) + "%</b>." + tail;
 }
+
+const SUBTITLE = {
+  tree: "The recursion unfolded into a tree and added up level by level. The theorem compares the two ends of that sum: the single call at the root, and the " +
+        TM`n^{\cc{c}}` + " base cases at the bottom.",
+  grow: "Before the theorem: what actually happens as " + TM`n` + " grows. Each level of the recursion is a bar, and the picture shows only <b>relative</b> sizes: " +
+        "the levels always share the same total height, and a bar\u2019s <b>area is its share of the total cost</b>. Grow " + TM`n` + " by a factor " + TM`\cb{b}` +
+        " and one row is added at the bottom; after " + TM`k = K` + ", let " + TM`k` + " run off to 10 000 and watch the shape the outline settles into.",
+  roura: "The master theorem needs all subproblems to have the same size, and it says nothing when " + TM`\cf{f}` + " sits within a log factor of " + TM`n^{\cc{c}}` +
+        ". Roura\u2019s theorem has neither restriction, and returns constants rather than " + TM`\Theta` + "-classes."
+};
 
 function render(opts) {
   opts = opts || {};
@@ -1491,94 +2305,113 @@ function render(opts) {
   });
   el("condBox").style.display = mode === "roura" ? "none" : "";
   el("rouraThmBox").style.display = mode === "roura" ? "" : "none";
-  el("fEcho").innerHTML = "&nbsp;&rarr;&nbsp; <b><span class='cf'>f</span>(n) = " + fName(true) + "</b>";
-  el("termsEcho").innerHTML = mode === "roura"
-    ? "= <b>" + P.terms.map(t => (t.a === 1 ? "" : nice(t.a) + "\u2009") + "T(" + sizeText(t.b) + ")").join(" + ") +
-      "</b>" : "";
+  setMath(el("fEcho"), "&rarr; " + TM`\cf{f}(n) = ${fTex()}`);
+  setMath(el("termsEcho"), mode === "roura" ? "= " + M(P.terms.map(t => (t.a === 1 ? "" : "\\ca{" + nice(t.a) + "}\\,") + "T(\\cb{" + sizeText(t.b) + "})").join(" + ")) : "");
   el("scaleBox").style.display = mode === "roura" ? "none" : "";
   el("ratioBox").style.display = mode === "tree" ? "none" : "";
+  el("longBox").style.display = mode === "grow" ? "" : "none";
   el("svgTitle").textContent = mode === "tree" ? "Recursion tree" : mode === "grow" ?
-    "Cost by level, drawn to scale" : "Weights and the function H";
-  if (mode === "roura") el("rouraFull").innerHTML = rouraRows().map(r =>
-    '<div class="thmcase ' + (rouraCase().k === r[0] ? "on" : "") + '"><span class="tag">(' + r[0] + ')</span><span>' +
-    r[1] + '<span class="check">if ' + r[2] + '</span></span></div>').join("");
-  el("sub").innerHTML = mode === "tree"
-    ? "The recursion unfolded into a tree and added up level by level. The theorem compares the two ends of that sum: the single call at the root, and the n<sup class='cc'>c</sup> base cases at the bottom."
-    : mode === "grow"
-    ? "Before the theorem: what actually happens as n grows. Each level of the recursion is a bar whose <b>width is its share of the total cost</b>, and the picture is rescaled so the total width never changes. Grow n by a factor <span class='cb'>b</span> and one row of leaves is added at the bottom \u2014 watch where the width goes."
-    : "The master theorem needs all subproblems to have the same size, and it says nothing when <span class='cf'>f</span> sits within a log factor of n<sup class='cc'>c</sup>. Roura\u2019s theorem has neither restriction, and returns constants rather than \u0398-classes.";
+    "Cost by level, relative sizes" : "Weights and the function H";
+  if (mode === "roura") setMath(el("rouraFull"), rouraRows().map(r =>
+    '<div class="thmcase ' + (rouraCase().k === r[0] ? "on" : "") + '"><span class="tag">(' + r[0] + ')</span><span>If ' +
+    r[2] + ", then " + r[1] + '.</span></div>').join(""));
+  setMath(el("sub"), SUBTITLE[mode]);
 
-  el("slider").max = stepCount() - 1;
-  el("slider").value = step;
-  el("stepno").innerHTML = mode === "grow" ? "k = " + step + " / " + P.K : "step " + (step + 1) + " / " + stepCount();
+  el("stepno").textContent = mode === "grow" ? (step <= P.K ? "k = " + step + " / " + P.K : (isFinite(kOfStep(step)) ? "k = " + kName(kOfStep(step)) : "k \u2192 \u221e"))
+                                             : "step " + (step + 1) + " / " + stepCount();
   renderPhases();
   syncTransport();
-  el("explain").innerHTML = explainText();
-  el("thmBox").innerHTML = thmPanel();
-  el("verdictBox").innerHTML = verdictPanel();
-  el("ledgerBox").innerHTML = ledgerPanel();
-  el("legend").innerHTML = mode === "roura" ? "" :
-    '<span class="item"><span class="sw" style="background:var(--mt-f-fill); border-color:var(--mt-f)"></span> conquer work <span class="m cf">f</span></span>' +
-    '<span class="item"><span class="sw" style="background:var(--mt-d-fill); border-color:var(--mt-d)"></span> base cases <span class="m cd">d</span></span>' +
-    (mode === "grow" ? '<span class="item">width = share of the total cost</span>' : '');
+  setMath(el("explain"), explainText());
+  setMath(el("thmBox"), thmPanel());
+  setMath(el("verdictBox"), verdictPanel());
+  setMath(el("ledgerBox"), ledgerPanel());
+  el("ledgerBox").style.display = mode === "grow" && step > P.K ? "none" : "";
+  const veil = mode === "tree" && step < 6;
+  el("thmBox").classList.toggle("unrevealed", veil);
+  el("verdictBox").classList.toggle("veiled", veil);
+  el("scaleBox").classList.toggle("veiled", veil);
+  setMath(el("legend"), mode === "roura" ? "" :
+    '<span class="item"><span class="sw" style="background:var(--mt-f-fill); border-color:var(--mt-f)"></span> conquer work ' + TM`\cf{f}` + '</span>' +
+    '<span class="item"><span class="sw" style="background:var(--mt-d-fill); border-color:var(--mt-d)"></span> base cases ' + TM`\cd{d}` + '</span>' +
+    (mode === "grow" ? '<span class="item">' + (NORM === "max" ? "width: level cost, the widest level fills the frame"
+        : "area: share of " + TM`T(n)` + "; dashed: the average level") +
+      '</span><span class="item"><span class="sw" style="background:' + mixFill(0, 0.5) + '; border-color:var(--mt-f)"></span> darker: too many nodes to draw one by one</span>' : ''));
   condReports();
 
   if (mode === "tree") {
     if (!opts.keepSvg) buildTree();
     updateTree();
-    el("svgRhs").innerHTML = "<span class='ca'>a</span> = " + nice(P.a) + " &nbsp; <span class='cb'>b</span> = " +
-      nice(P.b) + " &nbsp; <span class='cc'>c</span> = " + fmt(cExp());
+    setMath(el("svgRhs"), TM`\ca{a} = ${nice(P.a)}\quad \cb{b} = ${nice(P.b)}\quad \cc{c} = ${fmt(cExp())}`);
     const c = cExp(), cs = cNum();
-    const fpow = "n" + (P.beta === 1 ? "" : "<tspan baseline-shift=\"super\" font-size=\"70%\">" + nice(P.beta) + "</tspan>") +
-      (P.gamma === 0 ? "" : " lg" + (P.gamma === 1 ? "" : "<tspan baseline-shift=\"super\" font-size=\"70%\">" +
-        nice(P.gamma) + "</tspan>") + " n");
-    const npow = c === 0 ? "1" : ("n" + (Math.abs(c - 1) < 1e-9 ? "" :
-      "<tspan baseline-shift=\"super\" font-size=\"70%\">" + cs + "</tspan>"));
     let tilt = MAXTILT * Math.tanh((c - P.beta) * 1.15);
     if (Math.abs(c - P.beta) < 1e-9 && P.gamma !== 0) tilt = -Math.sign(P.gamma) * 2.2;
-    drawScale({ lVal:npow, lSub:'<tspan class="sd">' + (SYM ? "d" : nice(P.d)) + '</tspan>\u2009n' +
-        S_UP('<tspan class="sc">' + (SYM ? "c" : cs) + '</tspan>'),
-      rVal:fpow, rSub:'<tspan class="sf">f</tspan>(n)', tilt:tilt,
-      note:"only the exponents count: <tspan class=\"sc\">c</tspan> = " + cs + " against \u03b2 = " + nice(P.beta) +
-        (Math.abs(c - P.beta) < 1e-9 && P.gamma !== 0 ?
-          " \u2014 equal, and a log factor is too little to tip the theorem" : ""),
-      rhs:"leaves n<sup>" + cs + "</sup> against root " + fName(true) });
+    drawScale({ lVal:texNc(false), lSub:texNc(SYM) + "\\text{ leaves}", rVal:fTex(), rSub:"\\cf{f}(n)", tilt:tilt,
+      note:"only the exponents count: \\(\\cc{c} = " + cs + "\\) against \\(\\alpha = " + nice(P.beta) + "\\)" +
+        (Math.abs(c - P.beta) < 1e-9 && P.gamma !== 0 ? " \u2014 equal, and a log factor is too little to tip the theorem" : ""),
+      rhs:"leaves " + TM`${texNc(false)}` + " against root " + TM`${fTex()}` });
   } else if (mode === "grow") {
-    if (!opts.morphed) paintGrow(growSnapshot(step));
-    const L = levels(step);
-    el("svgRhs").innerHTML = "n = " + fmtNum(L.n) + " &nbsp; T(n) = " + fmt(L.total);
-    const rootC = L.rows[0].cost, leafC = L.rows[L.rows.length - 1].cost;
-    drawScale({ lVal:fmt(leafC), lSub:'<tspan class="sd">d</tspan>\u2009n' + S_UP('<tspan class="sc">c</tspan>'),
-      rVal:fmt(rootC), rSub:'<tspan class="sf">f</tspan>(n)', tilt:tiltFromRatio(leafC, rootC),
-      note:"the top and bottom rows of the picture above, weighed against each other",
-      rhs:"leaves : root = " + (leafC >= rootC ? (rootC > 0 ? fmt(leafC / rootC) : "\u221e") + "\u2009:\u20091"
-                                              : "1\u2009:\u2009" + (leafC > 0 ? fmt(rootC / leafC) : "\u221e")) });
+    if (!opts.animated) paintGrowStep();
+    if (step <= P.K) {
+      const L = levels(step);
+      setMath(el("svgRhs"), TM`n = ${texFmt(L.n)}\quad T(n) = ${texFmt(L.total)}`);
+      /* the theorem weighs f(n) against the NUMBER of leaves n^c = a^k; the leaf row
+         itself costs d n^c, and d may be 0 */
+      const leafC = L.rows[L.rows.length - 1].cnt, rootC = step === 0 ? NaN : f(L.n), lr = Math.log(leafC) - Math.log(rootC);
+      drawScale({ lVal:texFmt(leafC), lSub:"n^{\\cc{c}}\\text{ leaves}", rVal:step === 0 ? "\\text{\u2013}" : texFmt(rootC), rSub:"\\cf{f}(n)",
+        tilt:step === 0 ? 0 : tiltFromLog(lr),
+        note:step === 0 ? "\\(n = 1\\): no root work yet, just one base case"
+          : "the root\u2019s own work against the number of leaves \u2014 what the theorem compares (\\(\\cd{d}\\) only scales the leaf row)",
+        rhs:step === 0 ? TM`n = 1` : TM`n^{\cc{c}} : \cf{f}(n) \rel= ${ratioTex(lr)}` });
+    } else {
+      const I = longInfo(step);
+      if (I.inf) {
+        setMath(el("svgRhs"), TM`k \to \infty`);
+        const c = cExp(), eq = Math.abs(P.beta - c) < 1e-9;
+        const w = P.beta < c - 1e-9 || (eq && P.gamma < 0) ? 1 : (P.beta > c + 1e-9 || (eq && P.gamma > 0) ? -1 : 0);
+        drawScale({ lVal:"n^{\\cc{c}}", lSub:"\\text{leaves}", rVal:"\\cf{f}(n)", rSub:"\\text{root}",
+          tilt:w === 0 ? tiltFromLog(-Math.log(P.B)) : w * MAXTILT,
+          note:w === 0 ? "the ratio stays constant: \\(n^{\\cc{c}} : \\cf{f}(n) = 1 : B\\)"
+                       : "the ratio \\(n^{\\cc{c}} : \\cf{f}(n)\\) tends to " + (w > 0 ? "\\(\\infty\\)" : "0"),
+          rhs:TM`n^{\cc{c}} : \cf{f}(n) \to ${w > 0 ? "\\infty" : w < 0 ? "0" : "1 : B"}` });
+      } else {
+        setMath(el("svgRhs"), TM`n = ${isInt(P.b) ? Math.round(P.b) : "(" + niceFrac(P.b) + ")"}^{${kName(I.k).replace(",", "{,}")}}\quad T(n) \approx ${texLog10(I.lT / Math.LN10)}`);
+        const lr = I.logLeaf - I.logRoot;
+        drawScale({ lVal:texLog10(I.logLeaf / Math.LN10), lSub:"n^{\\cc{c}}\\text{ leaves}", rVal:texLog10(I.logRoot / Math.LN10), rSub:"\\cf{f}(n)",
+          tilt:tiltFromLog(lr), note:"the root\u2019s own work against the number of leaves, at \\(k = " + kName(I.k).replace(",", "{,}") + "\\)",
+          rhs:TM`n^{\cc{c}} : \cf{f}(n) \rel= ${ratioTex(lr)}` });
+      }
+    }
+    drawLong();
     growRatio();
   } else {
     drawRoura();
-    el("svgRhs").innerHTML = "&alpha; = " + nice(P.beta) + " &nbsp; &gamma; = " + nice(P.gamma) +
-      " &nbsp; H = " + fmt(Hof(P.beta));
+    setMath(el("svgRhs"), TM`\alpha = ${nice(P.beta)}\quad \gamma = ${nice(P.gamma)}\quad H = ${texFmt(Hof(P.beta))}`);
     rouraRatio();
   }
 }
+/* MathJax has delivered labels for the drawings: redraw (but never in the middle of an animation) */
+function renderActive() {
+  if (growRaf) { setTimeout(renderActive, 300); return; }
+  longKey = "";
+  render({ keepSvg:false });
+}
 
 function growRatio() {
-  const A = analyse(), c = cExp(), xs = [], t = [], r1 = [], r2 = [], r3 = [];
+  const A = analyse(), c = cExp(), xs = [], r1 = [], r2 = [], r3 = [];
   for (let k = 1; k <= P.K; k++) {
     const L = levels(k), n = L.n;
-    xs.push(k); t.push(L.total);
+    xs.push(k);
     r1.push(L.total / Math.pow(n, c));
     r2.push(L.total / (Math.pow(n, c) * lg(n)));
     r3.push(L.total / f(n));
   }
   drawRatio([
-    { label:"T/n\u1d9c", color:"var(--mt-d)", pts:r1, bold:A.kase === "a" },
-    { label:"T/(n\u1d9c lg n)", color:"var(--wi-queue)", pts:r2, bold:A.kase === "b" },
-    { label:"T/f(n)", color:"var(--mt-f)", pts:r3, bold:A.kase === "c" }
-  ], xs, "k, where n = " + nice(P.b) + supStr("k"));
-  el("ratioRhs").innerHTML = analyse().gap
-    ? "none of the three settles \u2014 that is the gap"
-    : "the flat one is the answer: case (" + analyse().kase + ")";
+    { label:"T/n^{\\cc{c}}", color:"var(--mt-d)", pts:r1, bold:A.kase === "a" },
+    { label:"T/(n^{\\cc{c}}\\lg n)", color:"var(--wi-queue)", pts:r2, bold:A.kase === "b" },
+    { label:"T/\\cf{f}(n)", color:"var(--mt-f)", pts:r3, bold:A.kase === "c" }
+  ], xs, "k\\text{, where } n = " + (isInt(P.b) ? Math.round(P.b) : "(" + niceFrac(P.b) + ")") + "^k");
+  el("ratioRhs").innerHTML = A.gap ? "none of the three settles \u2014 that is the gap"
+                                   : "the flat one is the answer: case (" + A.kase + ")";
 }
 function rouraRatio() {
   const N = 40000, T = dpSolve(N), xs = [], pts = [];
@@ -1588,27 +2421,30 @@ function rouraRatio() {
     xs.push(n >= 1000 ? Math.round(n / 1000) + "k" : String(n));
     pts.push(T[n] / rouraPredict(n));
   }
-  drawRatio([{ label:"T(n) / prediction", color:"var(--wi-accent)", pts:pts, bold:true }], xs, "n");
+  drawRatio([{ label:"T(n)/\\text{prediction}", color:"var(--wi-accent)", pts:pts, bold:true }], xs, "n");
   const RK = rouraCase().k;
-  el("ratioRhs").innerHTML = "solved exactly with \u230an/b\u230b, divided by the prediction \u2014 " +
-    (RK === "a" || RK === "d" ? "cases (a) and (d) promise only O(\u00b7), so a flat curve is all we should expect"
-     : "it should settle at 1" + (RK === "c" ? ", though very slowly here" : ""));
+  setMath(el("ratioRhs"), "solved exactly with " + TM`\lfloor n/b\rfloor` + ", divided by the prediction \u2014 " +
+    (RK === "a" || RK === "d" ? "cases (a) and (d) give only a " + TM`\Theta` + ", so the ratio should stay between two constants, not necessarily near 1"
+     : "it should settle at 1" + (RK === "c" ? ", though very slowly here" : "")));
 }
 
 /* ==========================================================================
    Interaction
    ========================================================================= */
+/* returns how long the drawing animates (ms), so that Play can wait for it */
 function setStep(s, opts) {
+  opts = opts || {};
   s = clamp(s, 0, stepCount() - 1);
   const old = step;
-  if (mode === "grow" && Math.abs(s - old) === 1 && !(opts && opts.noAnim)) {
+  if (mode === "grow") {
     step = s;
-    morphGrow(old, s, null);
-    render({ morphed:true, keepSvg:true });
-    return;
+    const dur = growTransition(clamp(old, 0, stepCount() - 1), s, opts.noAnim || opts.rebuild);
+    render({ animated:true, keepSvg:true });
+    return dur;
   }
   step = s;
-  render({ keepSvg: mode === "tree" && !(opts && opts.rebuild) });
+  render({ keepSvg: mode === "tree" && !opts.rebuild });
+  return 0;
 }
 /* --- transport ----------------------------------------------------------- */
 function setPlayGlyph(running) {
@@ -1623,16 +2459,20 @@ function syncTransport() {
   el("btnPrev").disabled = step <= 0;
   el("btnNext").disabled = step >= last;
 }
-function stop() { playing = false; if (timer) clearInterval(timer); timer = null; setPlayGlyph(false); }
+function stop() { playing = false; if (timer) clearTimeout(timer); timer = null; setPlayGlyph(false); }
+const holdMs = () => mode === "grow" ? (step >= P.K ? 1300 : 900) : (mode === "tree" ? 1500 : 2200);
 function play() {
   if (playing) { stop(); return; }
-  if (step >= stepCount() - 1) { step = 0; render({ rebuild:true }); }
+  if (step >= stepCount() - 1) setStep(0, { noAnim:true, rebuild:true });
   playing = true; setPlayGlyph(true);
-  const ms = mode === "grow" ? 900 : (mode === "tree" ? 1500 : 2200);
-  timer = setInterval(() => {
+  const next = () => {
+    if (!playing) return;
     if (step >= stepCount() - 1) { stop(); return; }
-    setStep(step + 1);
-  }, ms);
+    const runTo = P.K + LONG_KS.length;          /* the long run plays as one smooth growth of k */
+    const d = (mode === "grow" && step >= P.K && step < runTo) ? growRun(step, runTo) : (setStep(step + 1) || 0);
+    timer = setTimeout(next, d + holdMs());
+  };
+  timer = setTimeout(next, holdMs());
 }
 
 function readInputs() {
@@ -1640,7 +2480,7 @@ function readInputs() {
   P.a = Math.max(1e-6, g("inA", P.a));
   P.b = Math.max(1.0001, g("inB", P.b));
   P.d = Math.max(0, g("inD", P.d));
-  P.B = g("inFB", P.B);
+  P.B = Math.max(1e-6, g("inFB", P.B));            /* f > 0 for n > n0 */
   P.beta = g("inBeta", P.beta);
   P.gamma = g("inGam", P.gamma);
   P.K = clamp(Math.round(g("inK", P.K)), 1, 24);
@@ -1652,12 +2492,13 @@ function readInputs() {
   }
 }
 function writeInputs() {
-  el("inA").value = nice(P.a); el("inB").value = nice(P.b); el("inD").value = nice(P.d);
-  el("inFB").value = nice(P.B); el("inBeta").value = nice(P.beta); el("inGam").value = nice(P.gamma);
+  el("inA").value = niceIn(P.a); el("inB").value = niceIn(P.b); el("inD").value = niceIn(P.d);
+  el("inFB").value = niceIn(P.B); el("inBeta").value = niceIn(P.beta); el("inGam").value = niceIn(P.gamma);
   el("inK").value = P.K;
-  el("inTerms").value = P.terms.map(t => nice(t.a) + " " + nice(t.b)).join(", ");
+  el("inTerms").value = P.terms.map(t => niceIn(t.a) + " " + niceIn(t.b)).join(", ");
 }
 function applyPreset(id) {
+  stopGrowAnim();
   const src = (mode === "roura" ? ROURA_PRESETS : PRESETS).find(p => p.id === id);
   if (!src) return;
   P.B = src.B; P.beta = src.beta; P.gamma = src.gamma; P.d = src.d; P.note = src.note || "";
@@ -1690,10 +2531,11 @@ function dump() {
   const L = ["name " + (P.name || "custom"), "a " + nice(P.a), "b " + nice(P.b), "d " + nice(P.d),
     "f " + nice(P.B) + " " + nice(P.beta) + " " + nice(P.gamma),
     "terms " + P.terms.map(t => nice(t.a) + " " + nice(t.b)).join(", "), "k " + P.K];
-  if (P.note) L.push("note " + P.note.replace(/<[^>]*>/g, ""));
+  if (P.note) L.push("note " + P.note.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&"));
   el("ta").value = L.join("\n");
 }
 function loadText() {
+  stopGrowAnim();
   const err = el("taErr"); err.textContent = "";
   try {
     el("ta").value.split(/\n+/).forEach(line => {
@@ -1716,6 +2558,158 @@ function loadText() {
   } catch (e) { err.textContent = String(e.message || e); }
 }
 
+/* --- spinner buttons: mouse-only stepping for the lecture ------------------
+   Each ingredient keeps its colour; the inputs still take any real number
+   or fraction by typing. Shift-click steps ten times finer; holding a button
+   repeats; arrow up/down in a box does the same as the buttons. */
+const SPIN = {
+  inA:    { cls:"ca", min:1,     step:() => 1 },
+  inB:    { cls:"cb", min:1.25,  step:(x, d) => (d > 0 ? x < 2 - 1e-9 : x <= 2 + 1e-9) ? 0.25 : 1 },
+  inD:    { cls:"cd", min:0,     step:() => 1 },
+  inFB:   { cls:"cf", min:0.25,  step:(x, d) => (d > 0 ? x < 1 - 1e-9 : x <= 1 + 1e-9) ? 0.25 : 1 },
+  inBeta: { cls:"cf", min:-4, max:8, step:() => 0.1 },
+  inGam:  { cls:"cf", min:-4, max:4, step:() => 0.5 },
+  inK:    { cls:"",   min:1, max:24, step:() => 1, int:true }
+};
+function spinStep(id, dir, fine) {
+  const cfg = SPIN[id], inp = el(id);
+  let x = frac(inp.value);
+  if (!isFinite(x)) x = Math.max(cfg.min, 0);
+  let st = cfg.step(x, dir);
+  if (fine && !cfg.int) st /= 10;
+  const q = x / st;
+  let nx = dir > 0 ? (Math.floor(q + 1e-7) + 1) * st : (Math.ceil(q - 1e-7) - 1) * st;   /* snap to the grid */
+  nx = Math.round(nx * 1e9) / 1e9;
+  if (cfg.min !== undefined) nx = Math.max(cfg.min, nx);
+  if (cfg.max !== undefined) nx = Math.min(cfg.max, nx);
+  inp.value = cfg.int ? String(Math.round(nx)) : niceIn(nx);
+  inp.dispatchEvent(new Event("input"));
+}
+const TRI_UP = '<svg width="8" height="5" viewBox="0 0 8 5"><path d="M0 5 L4 0 L8 5 Z" fill="currentColor"/></svg>';
+const TRI_DN = '<svg width="8" height="5" viewBox="0 0 8 5"><path d="M0 0 L4 5 L8 0 Z" fill="currentColor"/></svg>';
+function initSpinners() {
+  Object.keys(SPIN).forEach(id => {
+    const inp = el(id), cfg = SPIN[id], w = document.createElement("span");
+    w.className = "spin " + cfg.cls;
+    inp.parentNode.insertBefore(w, inp);
+    w.appendChild(inp);
+    const bx = document.createElement("span");
+    bx.className = "spbtns";
+    bx.innerHTML = '<button type="button" tabindex="-1" data-d="1" aria-label="increase">' + TRI_UP + '</button>' +
+                   '<button type="button" tabindex="-1" data-d="-1" aria-label="decrease">' + TRI_DN + '</button>';
+    w.appendChild(bx);
+    bx.querySelectorAll("button").forEach(b => {
+      let t1 = null, t2 = null;
+      const end = () => { clearTimeout(t1); clearInterval(t2); t1 = t2 = null; };
+      b.addEventListener("pointerdown", e => {
+        e.preventDefault(); end();
+        const d = +b.dataset.d, fine = e.shiftKey;
+        spinStep(id, d, fine);
+        t1 = setTimeout(() => { t2 = setInterval(() => spinStep(id, d, fine), 110); }, 420);
+      });
+      ["pointerup", "pointerleave", "pointercancel", "blur"].forEach(ev => b.addEventListener(ev, end));
+    });
+    inp.addEventListener("keydown", e => {
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); spinStep(id, e.key === "ArrowUp" ? 1 : -1, e.shiftKey); }
+    });
+  });
+}
+
+/* --- presentation view, splitter, folding panels, link hash ---------------- */
+function setPresent(on) {
+  document.body.classList.toggle("present", on);
+  writeHash();
+  requestAnimationFrame(() => fitPhaseBar());
+}
+const SPLIT = { f:0.57, def:0.57 };
+function setSplit(f) {
+  const st = document.querySelector(".stage"), hide = f > 0.93;
+  SPLIT.f = hide ? 1 : clamp(f, 0.3, 0.82);
+  st.classList.toggle("noside", hide);
+  if (!hide) {
+    st.style.setProperty("--lf", (100 * SPLIT.f).toFixed(2) + "fr");
+    st.style.setProperty("--rf", (100 * (1 - SPLIT.f)).toFixed(2) + "fr");
+  }
+  clearTimeout(setSplit.t);
+  setSplit.t = setTimeout(() => { if (mode === "grow") paintGrowStep(); }, 120);
+}
+/* a vertical splitter: drag sets the fraction f of the container's width left of it */
+function verticalSplitter(sp, box, set, get, def) {
+  let drag = false, raf = 0;
+  const moveTo = x => { const r = box.getBoundingClientRect(); cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => set((x - r.left) / (r.width || 1))); };
+  sp.addEventListener("pointerdown", e => { drag = true; sp.classList.add("drag"); sp.setPointerCapture(e.pointerId); e.preventDefault(); });
+  sp.addEventListener("pointermove", e => { if (drag) moveTo(e.clientX); });
+  sp.addEventListener("pointerup", () => { drag = false; sp.classList.remove("drag"); if (mode === "grow") paintGrowStep(); });
+  sp.addEventListener("dblclick", () => set(def));
+  sp.addEventListener("keydown", e => {
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); set(Math.min(0.82, get()) + (e.key === "ArrowLeft" ? -0.03 : 0.03)); }
+  });
+}
+function initSplitter() {
+  verticalSplitter(el("splitter"), document.querySelector(".stage"), setSplit, () => SPLIT.f, SPLIT.def);
+  verticalSplitter(el("subsplit"), el("colMain"), setSubSplit, () => SUB.f, SUB.def);
+  initHeightBar();
+  /* main area: drawing and balance side by side once there is room for both */
+  const cm = el("colMain");
+  const fit = () => {
+    const two = cm.getBoundingClientRect().width >= TWO_COL_MIN;
+    if (two !== cm.classList.contains("two")) {
+      cm.classList.toggle("two", two);
+      requestAnimationFrame(() => { if (PB.list.length) render({ animated:true, keepSvg:true }); if (mode === "grow") paintGrowStep(); });
+    }
+  };
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(cm);
+  fit();
+}
+/* the drawing and the panels next to it (balance, prediction, long run) */
+const TWO_COL_MIN = 1000, SUB = { f:0.6, def:0.6 };
+function setSubSplit(f) {
+  SUB.f = clamp(f, 0.4, 0.8);
+  el("colMain").style.setProperty("--mf", (100 * SUB.f).toFixed(2) + "fr");
+  el("colMain").style.setProperty("--sf", (100 * (1 - SUB.f)).toFixed(2) + "fr");
+  clearTimeout(setSubSplit.t);
+  setSubSplit.t = setTimeout(() => { if (mode === "grow") paintGrowStep(); }, 120);
+}
+/* the horizontal bar under the drawing: drag it up to make the drawing less tall.
+   In the intuition tab the bars use the new height; the other drawings scale down. */
+let MAIN_H = null;
+function setMainH(h) {
+  MAIN_H = h === null ? null : clamp(h, 150, Math.max(300, window.innerHeight * 0.92));
+  el("mainSvg").style.height = MAIN_H === null ? "" : MAIN_H.toFixed(0) + "px";
+  if (mode === "grow") paintGrowStep();
+}
+function initHeightBar() {
+  const hb = el("hsplit");
+  let drag = false, y0 = 0, h0 = 0, raf = 0;
+  hb.addEventListener("pointerdown", e => {
+    drag = true; hb.classList.add("drag"); hb.setPointerCapture(e.pointerId); e.preventDefault();
+    y0 = e.clientY; h0 = el("mainSvg").getBoundingClientRect().height;
+  });
+  hb.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const y = e.clientY; cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => setMainH(h0 + y - y0));
+  });
+  hb.addEventListener("pointerup", () => { drag = false; hb.classList.remove("drag"); });
+  hb.addEventListener("dblclick", () => setMainH(null));
+  hb.addEventListener("keydown", e => {
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      e.preventDefault(); setMainH(el("mainSvg").getBoundingClientRect().height + (e.key === "ArrowUp" ? -20 : 20));
+    }
+  });
+}
+function writeHash() {
+  const parts = ["mode=" + mode], ex = el("presetSel").value;
+  if (ex) parts.push("ex=" + ex);
+  if (document.body.classList.contains("present")) parts.push("present");
+  history.replaceState(null, "", "#" + parts.join("&"));
+}
+function readHash() {
+  const q = new URLSearchParams(location.hash.slice(1));
+  return { mode:q.get("mode"), ex:q.get("ex"), present:q.has("present") };
+}
+
 /* --- tooltips ------------------------------------------------------------ */
 const tt = () => el("tt");
 function showTip(ev, html) {
@@ -1727,19 +2721,33 @@ function showTip(ev, html) {
 const hideTip = () => { tt().style.display = "none"; };
 
 function init() {
+  initSpinners();
+  if (window.innerWidth >= 1700) { SPLIT.def = 0.66; setSplit(0.66); }   /* large screen: room for drawing + balance */
+  initSplitter();
   fillPresets();
   el("modeSeg").querySelectorAll("button").forEach(b => b.onclick = () => {
-    stop(); mode = b.dataset.mode;      /* the recurrence is shared; only the view changes */
+    stop(); stopGrowAnim(); mode = b.dataset.mode;      /* the recurrence is shared; only the view changes */
     fillPresets(); matchPreset();
     step = clamp(step, 0, stepCount() - 1);
     render({ rebuild:true });
+    writeHash();
   });
+  el("presBtn").onclick = () => setPresent(true);
+  el("exitPres").onclick = () => setPresent(false);
+  /* a click on a panel title folds the panel */
+  document.addEventListener("click", e => {
+    const t = e.target.closest ? e.target.closest(".sim-box.collapsible > .sim-title") : null;
+    if (t) t.parentNode.classList.toggle("collapsed");
+  });
+  let rz = 0;
+  window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => {
+    fitPhaseBar(); if (mode === "grow") paintGrowStep(); }, 80); });
   el("symSeg").querySelectorAll("button").forEach(b => b.onclick = () => {
     SYM = b.dataset.sym === "1";
     el("symSeg").querySelectorAll("button").forEach(x => x.classList.toggle("on", (x.dataset.sym === "1") === SYM));
     render({ rebuild:true });
   });
-  el("presetSel").onchange = e => { stop(); applyPreset(e.target.value); };
+  el("presetSel").onchange = e => { stop(); applyPreset(e.target.value); writeHash(); };
   el("normSeg").querySelectorAll("button").forEach(b => b.onclick = () => {
     NORM = b.dataset.norm;
     el("normSeg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.norm === NORM));
@@ -1747,7 +2755,7 @@ function init() {
   });
   ["inA", "inB", "inD", "inFB", "inBeta", "inGam", "inK", "inTerms"].forEach(id => {
     el(id).addEventListener("input", () => {
-      stop();
+      stop(); stopGrowAnim();
       if (mode !== "roura" && (id === "inA" || id === "inB")) P.terms = [{ a:P.a, b:P.b }];
       readInputs();
       if (mode !== "roura" && (id === "inA" || id === "inB")) P.terms = [{ a:P.a, b:P.b }];
@@ -1756,16 +2764,19 @@ function init() {
       render({ rebuild:true });
     });
   });
-  el("slider").addEventListener("input", e => { stop(); setStep(+e.target.value); });
+  el("slider").addEventListener("input", e => { stop(); setStep(valToStep(+e.target.value)); });
   el("btnFirst").onclick = () => { stop(); setStep(0); };
   el("btnPrev").onclick = () => { stop(); setStep(step - 1); };
   el("btnNext").onclick = () => { stop(); setStep(step + 1); };
   el("playBtn").onclick = play;
-  el("btnReset").onclick = () => { stop(); el("presetSel").value = PRESETS[0].id; applyPreset(PRESETS[0].id); };
+  el("btnReset").onclick = () => { stop(); const id = (mode === "roura" ? ROURA_PRESETS : PRESETS)[0].id;
+    el("presetSel").value = id; applyPreset(id); writeHash(); };
   el("btnLoad").onclick = loadText;
   el("btnDump").onclick = dump;
   document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && document.body.classList.contains("present")) { e.preventDefault(); setPresent(false); return; }
     if (/input|textarea|select/i.test(e.target.tagName)) return;
+    if (e.target === el("splitter") || e.target === el("subsplit") || e.target === el("hsplit")) return;
     if (e.key === "ArrowRight") { stop(); setStep(step + 1); }
     if (e.key === "ArrowLeft") { stop(); setStep(step - 1); }
     if (e.key === " ") { e.preventDefault(); play(); }
@@ -1773,7 +2784,7 @@ function init() {
   /* hover: the level bars carry their own numbers */
   el("mainSvg").addEventListener("mousemove", ev => {
     const g = ev.target.closest ? ev.target.closest("[data-row]") : null;
-    if (!g || mode !== "grow") { hideTip(); return; }
+    if (!g || mode !== "grow" || step > P.K || growRaf) { hideTip(); return; }
     const L = levels(step), r = L.rows[+g.getAttribute("data-row")];
     if (!r) { hideTip(); return; }
     showTip(ev, '<span class="tt-h">level ' + r.j + (r.leaf ? " \u00b7 base cases" : "") + '</span><br>' +
@@ -1787,17 +2798,39 @@ function init() {
     if (!c || mode === "roura") { hideTip(); return; }
     const A = analyse(), k = c.getAttribute("data-case");
     showTip(ev, '<span class="tt-h">case (' + k + ')</span><br>' +
-      (A.kase === k ? "applies here: " + A.why : "does not apply: " + A.why));
+      texToPlain(A.kase === k ? "applies here: " + A.why : "does not apply: " + A.why));
   });
   el("thmBox").addEventListener("mouseleave", hideTip);
 
-  el("presetSel").value = PRESETS[0].id;
-  applyPreset(PRESETS[0].id);
-  step = Math.min(4, P.K);
+  const H = readHash();
+  if (H.mode === "tree" || H.mode === "grow" || H.mode === "roura") mode = H.mode;
+  if (H.present) document.body.classList.add("present");
+  fillPresets();
+  const list = mode === "roura" ? ROURA_PRESETS : PRESETS;
+  const ex = list.find(p => p.id === H.ex) ? H.ex : list[0].id;
+  el("presetSel").value = ex;
+  applyPreset(ex);
+  step = mode === "grow" ? Math.min(4, P.K) : 0;
   render({ rebuild:true });
   dump();
+  requestAnimationFrame(() => fitPhaseBar());
+  /* MathJax arrives later (deferred): then typeset the static text and set everything again */
+  const hook = () => {
+    if (!(window.MathJax && MathJax.startup && MathJax.startup.promise)) return;
+    MathJax.startup.promise.then(() => MathJax.typesetPromise(Array.from(document.querySelectorAll(".mj-static")))).then(() => {
+      document.querySelectorAll("[data-mj]").forEach(nd => { const w = nd._want; nd._want = null; if (w !== undefined && w !== null) setMath(nd, w); });
+      MJL.clear();
+      renderActive();
+      requestAnimationFrame(() => fitPhaseBar());
+    }).catch(e => console.warn("MathJax:", e));
+  };
+  if (document.readyState === "complete") hook(); else window.addEventListener("load", hook);
 }
-document.addEventListener("DOMContentLoaded", init);
+function texToPlain(html) {
+  return String(html).replace(/\\\(([\s\S]*?)\\\)/g, (m, t) => plainOf(t));
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+
 </script>
 </body>
 </html>

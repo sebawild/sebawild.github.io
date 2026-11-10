@@ -177,6 +177,7 @@
   table.tbl td.xcell { background:var(--t-x); color:var(--xcol); font-weight:bold; }
   table.tbl th.xcol { background:var(--t-x); color:var(--xcol); }
   table.tbl td.copied { background:var(--guess); }
+  table.tbl td.read-now { background:var(--guess); box-shadow:inset 0 0 0 2px var(--wi-active); color:var(--wi-active); font-weight:bold; }
   table.tbl th.colhot { background:#f6e6df; color:var(--wi-accent); }
   table.tbl td.colhot { background:#f3ebdd; }
   table.tbl td.l, table.tbl th.l { text-align:left; }
@@ -248,18 +249,18 @@ body { font-family: var(--wi-font-body); }
 
 <div class="titlebar">
   <h1>Constructing the string-matching automaton</h1>
-  
+  <span class="ctl"><input type="hidden" id="stage" value="naive"><span class="seg" data-field="stage"><button data-v="naive" title="naiveDFA(P): run A_j on P[1..j)c for every c">1 · simulate A<sub>j</sub> from scratch</button><button data-v="fast" title="constructDFA(P): copy the column of x">2 · efficient (with x)</button></span></span>
   <span class="ctl hide-p"><button id="presBtn" title="A clutter-free view for the lecture (Esc to leave)">Presentation view</button></span>
 </div>
 <button id="exitPres" class="only-p exitp" title="Leave the presentation view (Esc)">✕ leave presentation</button>
-<p class="subtitle hide-p">Fill the transition table column by column: copy the column of the state x that simulates P[1..j), overwrite the one match edge, update x.</p>
+<p class="subtitle hide-p">Grow the automaton A<sub>j</sub> for P[0..j) one state at a time. Stage 1 finds every new transition by running A<sub>j</sub> from scratch on P[1..j)·c; stage 2 notices that all these runs pass through the same state x and simply copies its column.</p>
 
 <div class="controls hide-p">
   <div class="ctl">
     <label for="presetSel">Example</label>
     <select id="presetSel"></select>
   </div>
-<div class="ctl"><label for="P">Pattern P</label><input type="text" id="P" class="str " value="ababaca" spellcheck="false"><label for="sigma">Σ</label><input type="text" id="sigma" class="str narrow" value="abc" spellcheck="false" title="the alphabet; empty = the characters of P only"><button class="pri" data-run title="Run with these inputs (Enter)">Set</button></div><div class="ctl"><label class="chk"><input id="fine" type="checkbox"> one step per copied entry</label></div>
+<div class="ctl"><label for="P">Pattern P</label><input type="text" id="P" class="str " value="ababaca" spellcheck="false"><label for="sigma">Σ</label><input type="text" id="sigma" class="str narrow" value="abc" spellcheck="false" title="the alphabet; empty = the characters of P only"><button class="pri" data-run title="Run with these inputs (Enter)">Set</button></div><div class="ctl"><label class="chk" title="Stage 1: mark the state in which the run on P[1..j) ends"><input id="showx" type="checkbox" onchange="stabiliseHeights(); show()"> highlight x</label><label class="chk" title="Stage 2"><input id="fine" type="checkbox"> one step per copied entry</label></div>
 <script type="application/json" id="presetData">[{"name": "example: ababaca", "v": {"P": "ababaca", "sigma": "abc"}}, {"name": "abbaba over {a,b}", "v": {"P": "abbaba", "sigma": "ab"}}, {"name": "aabaaa over {a,b}", "v": {"P": "aabaaa", "sigma": "ab"}}, {"name": "algs4: abracadabra", "v": {"P": "abracadabra", "sigma": "abcdr"}}, {"name": "a³b", "v": {"P": "aaab", "sigma": "ab"}}]</script>
   <div class="ctl">
     <button id="copyBtn" title="Copy a link that reopens exactly this example">Copy link</button>
@@ -281,7 +282,7 @@ body { font-family: var(--wi-font-body); }
     </span>
     <span class="stepno" id="stepNo">— / —</span>
     <span class="ctl hide-p" style="gap:6px">
-      <span class="lbl">Speed</span>
+      <span class="lbl">Delay</span>
       <input type="range" id="sSpeed" min="60" max="2000" value="700" style="width:88px;accent-color:var(--wi-accent)" aria-label="Delay between steps">
       <span class="stepno" id="sSpeedVal" style="min-width:4.5em">700ms</span>
     </span>
@@ -320,7 +321,7 @@ body { font-family: var(--wi-font-body); }
       <div style="margin-top:8px"><button class="pri" id="loadBtn">Load</button></div>
       <div class="err" id="parseErr"></div>
     </div>
-    <div class="hint">One line, the pattern. <code>@sigma</code> is the alphabet (empty: the characters of P), <code>@fine 1</code> shows every copied entry as a step of its own.<br><br>Spaces inside a line are kept (and drawn as <code>␣</code>). Lines <code>@name value</code> set the other options; lines starting with <code>#</code> are comments, so a file can hold an example together with a remark. The box is refilled with the current input whenever an example is run, so it doubles as an export. The same inputs are in the page address, which is what <i>Copy link</i> copies; add <code>&amp;present</code> to open the presentation view.</div>
+    <div class="hint">One line, the pattern. <code>@sigma</code> is the alphabet (empty: the characters of P), <code>@stage naive</code> or <code>@stage fast</code> picks the stage, and <code>@fine 1</code> shows every copied entry of stage 2 as a step of its own.<br><br>Spaces inside a line are kept (and drawn as <code>␣</code>). Lines <code>@name value</code> set the other options; lines starting with <code>#</code> are comments, so a file can hold an example together with a remark. The box is refilled with the current input whenever an example is run, so it doubles as an export. The same inputs are in the page address, which is what <i>Copy link</i> copies; add <code>&amp;present</code> to open the presentation view.</div>
   </div>
 </details>
 
@@ -328,7 +329,20 @@ body { font-family: var(--wi-font-body); }
   <summary>About this page — conventions and what to look for</summary>
   <div class="about"><p><b>Input.</b> Only the pattern is needed. Σ defaults to the characters occurring in P; give it explicitly (e.g.
 <code>abc</code>) if the alphabet is larger than the set of pattern characters.</p>
-<p><b>The idea.</b> The table is filled column by column. Column <code>j</code> holds all transitions out of state
+<p><b>Stage 1: simulate A<sub>j</sub> from scratch.</b> The automaton is built inductively. A<sub>j</sub>, the automaton
+for <code>P[0..j)</code>, is drawn inside the frame; it has the states <code>0, …, j</code> and all transitions out of
+<code>0, …, j−1</code>. To get A<sub>j+1</sub>, add state <code>j+1</code> with the match edge
+<code>δ[j][P[j]] := j+1</code>, and for every other character <code>c</code> set <code>δ[j][c]</code> to the state
+in which A<sub>j</sub> ends after reading <code>P[1..j)·c</code>. Why that is right is shown in the box
+“why A<sub>j</sub> suffices”: state <code>q</code> means “we have seen <code>P[0..q)</code> until here, but no longer
+prefix of P”. On a mismatch the text ends with <code>P[0..j)·c</code>, which is not a prefix of P, so the new longest
+matched prefix <code>P[0..q′)</code> starts at the earliest inside <code>P[1..j)·c</code> — hence <code>q′ ≤ j</code>,
+and A<sub>j</sub> can compute it. Every simulation is shown character by character, on purpose: all runs for one
+column follow the same path through <code>P[1..j)</code> and end in the same state, and only the last
+character differs. Tick <em>highlight x</em> to mark that state in green (it is off by default: on a first pass it
+is a distraction, on the second it is the point). The edge that a new table entry adds is drawn growing out of its
+source state. That costs Θ(m²σ) simulated transitions in total.</p>
+<p><b>Stage 2: the efficient version.</b> The table is filled column by column. Column <code>j</code> holds all transitions out of state
 <code>j</code>. On a mismatch in state <code>j</code> the automaton has to continue exactly as it would after reading
 <code>P[1..j)</code> — and the state for that is <code>x</code>, which is already known. So the whole column
 <code>x</code> is copied into column <code>j</code> (shaded), a single entry is overwritten by the match edge
@@ -338,8 +352,8 @@ left shows the invariant: <code>P[1..j)</code>, the string that <code>x</code> s
 and the edge it follows when it is updated; red is the state whose column is currently being built.</p>
 <p><b>Cost.</b> Every entry is written exactly once: Θ(mσ) time and Θ(mσ) space. The chips count the writes.
 Tick <em>one step per copied entry</em> to slow the copying down to single table cells.</p>
-<p>The automaton below the table shows only the states whose transitions are already known; edges with a common
-target share a label.</p>
+<p>The automaton shows only the states that exist so far, but keeps room for all of them, so the picture does not move
+while it grows; edges with a common target share a label.</p>
 </div>
 </details>
 
@@ -369,6 +383,8 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 function ch(c){ return c === ' ' ? '␣' : esc(c); }
 
 let STEPS = [], IDX = 0, PAGE = null, playTimer = null, PHASES = [];
+/* true while stabiliseHeights renders steps only to measure them (no animations then) */
+let MEASURING = false;
 
 /* ── pseudocode panel ─────────────────────────────────────────────── */
 const KEYWORDS = ['procedure','for','while','do','if','then','else','return','break','end','new','array','initialized','to','loop','inner','each'];
@@ -446,20 +462,32 @@ const App = {
 };
 
 /* Every dynamic box is given the height of its tallest step, so that stepping
-   through an animation never moves the picture up and down. */
+   through an animation never moves the picture up and down. Elements that a page
+   marks with data-fixw="name" also get the largest width and height they take in any
+   step (the union of their bounding boxes), so that what stands to their right stays put. */
+let FIXW = {};
+function applyFixW(){
+  $$('[data-fixw]').forEach(e => { const r = FIXW[e.dataset.fixw]; if (r) { e.style.minWidth = r[0] + 'px'; e.style.minHeight = r[1] + 'px'; } });
+}
 function stabiliseHeights(){
   const boxes = [$('#log'), $('#cost'), $('#view')];
   boxes.forEach(b => { b.style.minHeight = ''; });
   const [log, cost, view] = boxes;
-  const N = STEPS.length, stride = Math.max(1, Math.ceil(N / 160));
+  const N = STEPS.length, stride = Math.max(1, Math.ceil(N / 400));
+  FIXW = {};
   const mx = [0, 0, 0];
   const measure = s => {
     log.innerHTML = s.desc || ''; renderCost(s.cost);
     try { PAGE.render(s); } catch (e) { /* ignore while measuring */ }
     boxes.forEach((b, k) => { mx[k] = Math.max(mx[k], b.offsetHeight); });
+    $$('[data-fixw]').forEach(e => { const k = e.dataset.fixw, r = e.getBoundingClientRect(), o = FIXW[k] || [0, 0];
+      FIXW[k] = [Math.max(o[0], Math.ceil(r.width)), Math.max(o[1], Math.ceil(r.height))]; });
   };
-  for (let i = 0; i < N; i += stride) measure(STEPS[i]);
-  if ((N - 1) % stride !== 0) measure(STEPS[N - 1]);   /* the last step is often the tallest */
+  MEASURING = true;
+  try {
+    for (let i = 0; i < N; i += stride) measure(STEPS[i]);
+    if ((N - 1) % stride !== 0) measure(STEPS[N - 1]);   /* the last step is often the tallest */
+  } finally { MEASURING = false; }
   boxes.forEach((b, k) => { b.style.minHeight = mx[k] + 'px'; });
 }
 
@@ -468,6 +496,7 @@ function show(){
   $('#log').innerHTML = s.desc || '';
   renderCost(s.cost);
   try { PAGE.render(s); } catch (e) { $('#view').innerHTML = '<span class="err">' + esc(e.message) + '</span>'; }
+  applyFixW();
   highlightCode(s.code);
   const N = STEPS.length;
   $('#stepNo').textContent = `${IDX + 1} / ${N}`;
@@ -759,28 +788,68 @@ function table(head, rows, opts = {}){
 const COL = { base: '#6b675c', hot: '#cc2f22', fail: '#902015', out: '#2a6a63', x: '#4a7c3f' };
 const FILL = { base: '#fcf9f3', hot: '#f6e6df', x: '#e8f0e2' };
 const AUT_FS = 14;          /* label size in px, close to the text size of the page */
+function growEdges(){
+  if (typeof MEASURING !== 'undefined' && MEASURING) return;
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelectorAll('svg.aut path.grow').forEach(p => {
+    if (p.dataset.grown) return;
+    p.dataset.grown = '1';
+    const labs = p.parentNode.querySelectorAll('text.grow-lab');
+    const done = () => { p.style.strokeDasharray = ''; p.style.strokeDashoffset = '';
+                         p.setAttribute('marker-end', p.dataset.mk); labs.forEach(t => t.style.opacity = ''); };
+    if (reduce) { done(); return; }
+    const L = p.getTotalLength();
+    p.style.strokeDasharray = L; p.style.strokeDashoffset = L;
+    const t0 = performance.now(), D = 800;
+    const tick = now => {
+      if (!p.isConnected) return;
+      const u = Math.min(1, (now - t0) / D), e = u < .5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u);
+      p.style.strokeDashoffset = L * (1 - e);
+      labs.forEach(t => t.style.opacity = Math.max(0, (u - .6) / .4));
+      if (u < 1) requestAnimationFrame(tick); else done();
+    };
+    requestAnimationFrame(tick);
+  });
+}
 function linearAutomaton(cfg){
-  const S = cfg.states, R = 18, DX = Math.max(68, cfg.dx || 74), fs = AUT_FS;
+  /* optional: slots (positions reserved, for a width that does not change while states appear),
+     depthSpan (the longest back edge to reserve room for), box {to, label} (a frame around states 0..to),
+     trail [{from,to}] (edges already taken, drawn lighter than the hot one), tags {state: text} */
+  const S = cfg.states, R = 18, DX = Math.max(68, cfg.dx || 74), fs = AUT_FS, SL = Math.max(S, cfg.slots || 0);
   const backEdges = (cfg.edges || []).filter(e => e.kind === 'back' || e.kind === 'fail');
   let maxSpan = 0;
   backEdges.forEach(e => maxSpan = Math.max(maxSpan, Math.abs(e.from - e.to)));
   const depthOf = span => 26 + Math.min(span, 8) * 13;
-  const top = 68, W = 40 + S * DX + 20, H = top + (backEdges.length ? R - 2 + .75 * (depthOf(maxSpan) + 14 - R) + fs + 8 : R + 12);
+  /* the newly added edge, drawn as if it grew out of its source state (no-op while measuring) */
+  if (cfg.grow && !(typeof MEASURING !== 'undefined' && MEASURING)) setTimeout(() => growEdges(), 0);
+  if (cfg.depthSpan != null) maxSpan = Math.max(maxSpan, cfg.depthSpan);
+  const top = cfg.box ? 92 : 68, W = 40 + SL * DX + 20,
+        H = top + (maxSpan > 0 ? R - 2 + .75 * (depthOf(maxSpan) + 14 - R) + fs + 8 : R + 12);
   const x = i => 36 + i * DX, cy = top;
   let s = `<svg class="aut" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><defs>`;
   for (const k in COL) s += `<marker id="ar-${k}" viewBox="0 0 9 7" markerWidth="11" markerHeight="8.5" markerUnits="userSpaceOnUse" refX="8.5" refY="3.5" orient="auto">
       <path d="M0,0 L9,3.5 L0,7 z" fill="${COL[k]}"/></marker>`;
   s += '</defs>';
   const same = (a, b) => a && b && a.from === b.from && a.to === b.to;
-  const isHot = e => same(cfg.hot && cfg.hot.edge, e);
+  const isHot = e => same(cfg.hot && cfg.hot.edge, e) || same(cfg.grow, e);   /* grow: the edge that has just been added */
+  /* a growing edge starts out invisible (no dash drawn, no arrowhead), so it never flashes before growEdges() runs */
+  const mkA = e => same(cfg.grow, e) ? ` class="grow" data-mk="url(#${mk(e)})" style="stroke-dasharray:0 100000"` : ` marker-end="url(#${mk(e)})"`;
   const isX   = e => same(cfg.xedge, e);
-  const key = e => isX(e) ? 'x' : isHot(e) ? 'hot' : e.kind === 'fail' ? 'fail' : e.kind === 'out' ? 'out' : 'base';
+  const isTr  = e => (cfg.trail || []).some(t => same(t, e));
+  const key = e => isX(e) ? 'x' : isHot(e) ? 'hot' : isTr(e) ? 'hot' : e.kind === 'fail' ? 'fail' : e.kind === 'out' ? 'out' : 'base';
   const col = e => COL[key(e)];
-  const wd  = e => (isX(e) || isHot(e)) ? 2.6 : (e.kind === 'fail' ? 1.4 : 1.3);
-  const op  = e => (isX(e) || isHot(e)) ? 1 : (e.kind === 'fail' ? .6 : e.kind === 'out' ? .8 : 1);
+  const wd  = e => (isX(e) || isHot(e)) ? 2.6 : isTr(e) ? 1.9 : (e.kind === 'fail' ? 1.4 : 1.3);
+  const op  = e => (isX(e) || isHot(e)) ? 1 : isTr(e) ? .5 : (e.kind === 'fail' ? .6 : e.kind === 'out' ? .8 : 1);
   const mk  = e => 'ar-' + key(e);
-  const lab = (tx, ty, e) => `<text x="${tx}" y="${ty}" font-size="${fs}" text-anchor="middle" fill="${col(e)}"${isX(e) || isHot(e) ? ' font-weight="bold"' : ''}>${e.label}</text>`;
+  const lab = (tx, ty, e) => `<text${same(cfg.grow, e) ? ' class="grow-lab" style="opacity:0"' : ''} x="${tx}" y="${ty}" font-size="${fs}" text-anchor="middle" fill="${col(e)}"${isX(e) || isHot(e) ? ' font-weight="bold"' : ''}>${e.label}</text>`;
 
+  if (cfg.box) {
+    const bx = 3, bw = x(cfg.box.to) + R + 12 - bx;
+    s += `<rect id="autbox" x="${bx}" y="${top - R - 46}" width="${bw}" height="${H - (top - R - 46) - 3}" rx="8"
+           fill="none" stroke="${COL.base}" stroke-width="1.6"/>` +
+         `<text id="autboxlab" x="${bx + bw}" y="${top - R - 53}" font-size="${fs + 2}" text-anchor="end" font-style="italic"
+           fill="${COL.base}">${cfg.box.label}</text>`;
+  }
   s += `<path d="M${x(0) - R - 18},${cy} L${x(0) - R - 3},${cy}" stroke="${COL.base}" stroke-width="1.3" marker-end="url(#ar-base)" fill="none"/>`;
 
   (cfg.edges || []).forEach(e => {
@@ -788,18 +857,18 @@ function linearAutomaton(cfg){
     if (e.from === e.to) {
       const cx = x(e.from);
       s += `<path d="M${cx - 10},${cy - R + 3} C${cx - 26},${cy - R - 34} ${cx + 26},${cy - R - 34} ${cx + 10},${cy - R + 3}"
-             fill="none" stroke="${col(e)}" stroke-width="${wd(e)}" opacity="${op(e)}"${dash} marker-end="url(#${mk(e)})"/>` +
+             fill="none" stroke="${col(e)}" stroke-width="${wd(e)}" opacity="${op(e)}"${dash} ${mkA(e)}/>` +
            lab(cx, cy - R - 31, e);
     } else if (e.to === e.from + 1) {
       const x1 = x(e.from) + R + 2, x2 = x(e.to) - R - 3, mx = (x1 + x2) / 2;
       s += `<path d="M${x1},${cy} L${x2},${cy}" stroke="${col(e)}" stroke-width="${wd(e)}" opacity="${op(e)}"${dash}
-             marker-end="url(#${mk(e)})" fill="none"/>` + lab(mx, cy - 7, e);
+             ${mkA(e)} fill="none"/>` + lab(mx, cy - 7, e);
     } else {
       const x1 = x(e.from), x2 = x(e.to);
       const depth = depthOf(Math.abs(e.from - e.to));
       const y1 = cy + R - 2, my = cy + depth + 12;
       s += `<path d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2 + (x2 < x1 ? 4 : -4)},${y1 + 1}"
-             fill="none" stroke="${col(e)}" stroke-width="${wd(e)}" opacity="${op(e)}"${dash} marker-end="url(#${mk(e)})"/>` +
+             fill="none" stroke="${col(e)}" stroke-width="${wd(e)}" opacity="${op(e)}"${dash} ${mkA(e)}/>` +
            lab(.784 * x1 + .216 * x2, .37 * y1 + .63 * my + fs + 1, e);
     }
   });
@@ -811,7 +880,10 @@ function linearAutomaton(cfg){
     s += `<circle cx="${x(i)}" cy="${cy}" r="${R}" fill="${fill}" stroke="${stroke}" stroke-width="${hot || isx ? 2.6 : 1.3}"/>`;
     if (acc) s += `<circle cx="${x(i)}" cy="${cy}" r="${R - 4}" fill="none" stroke="${stroke}" stroke-width="1.1"/>`;
     s += `<text x="${x(i)}" y="${cy + 5}" font-size="${fs + 1}" text-anchor="middle" fill="${stroke}"${hot || isx ? ' font-weight="bold"' : ''}>${i}</text>`;
-    const tag = isx ? 'x' : (hot && cfg.hotLabel) ? cfg.hotLabel : '';
+    const tag = isx ? (hot && cfg.hotLabel ? 'x, ' + cfg.hotLabel : 'x') : (hot && cfg.hotLabel) ? cfg.hotLabel : '';
+    const plain = !tag && cfg.tags && cfg.tags[i];
+    if (plain) s += `<text x="${x(i) + ((cfg.edges || []).some(e => e.from === i && e.to === i) ? R + 3 : 0)}" y="${cy - R - ((cfg.edges || []).some(e => e.from === i && e.to === i) ? -1 : 9)}"
+           font-size="${fs}" font-style="italic" text-anchor="${(cfg.edges || []).some(e => e.from === i && e.to === i) ? 'start' : 'middle'}" fill="${COL.base}">${plain}</text>`;
     if (tag && !(cfg.edges || []).some(e => e.from === i && e.to === i))
       s += `<text x="${x(i)}" y="${cy - R - 9}" font-size="${fs}" font-style="italic" text-anchor="middle" fill="${isx ? COL.x : COL.hot}">${tag}</text>`;
     else if (tag)
@@ -834,7 +906,22 @@ function groupedEdges(delta, sigma, q){
 </script>
 <script>
 const PSEUDO = [{
-  key: 'cons', title: 'procedure constructDFA(P[0..m))',
+  key: 'naive', title: 'procedure naiveDFA(P[0..m))   — stage 1, simulate Aⱼ from scratch',
+  lines: [
+    'procedure naiveDFA(P[0..m)):',
+    '    for c ∈ Σ do',
+    '        δ[0][c] := 0',
+    '    δ[0][P[0]] := 1',
+    '    for j = 1, ..., m − 1 do              // A_j → A_{j+1}',
+    '        δ[j][P[j]] := j + 1               // new state, match edge',
+    '        for c ∈ Σ, c ≠ P[j] do',
+    '            q := 0',
+    '            for k = 1, ..., j − 1 do      // run A_j on P[1..j) ...',
+    '                q := δ[q][P[k]]',
+    '            δ[j][c] := δ[q][c]            // ... and then on c'
+  ]
+}, {
+  key: 'cons', title: 'procedure constructDFA(P[0..m))   — stage 2, efficient',
   lines: [
     'procedure constructDFA(P[0..m)):',
     '    // δ[q][c] = target state when reading c in state q',
@@ -857,7 +944,7 @@ function alphabet(P){
   return set.sort();
 }
 
-function compute(){
+function computeFast(){
   const P = val('P'), fine = val('fine') === true || val('fine') === 'true';
   if (!P.length) throw new Error('The pattern P must not be empty.');
   const m = P.length, sigma = alphabet(P);
@@ -867,7 +954,7 @@ function compute(){
   let writes = 0, x = 0, filled = 0;
 
   const snap = (desc, lines, extra = {}) => steps.push({
-    desc, code: { sec: 'cons', lines }, P, m, sigma,
+    stage: 'fast', desc, code: { sec: 'cons', lines }, P, m, sigma, span: finalSpan(P, sigma),
     d: d.map(o => ({ ...o })), x, filled,
     cost: [
       { label: 'table entries written', value: writes, hot: !!extra.hot },
@@ -926,8 +1013,7 @@ function compute(){
   return steps;
 }
 
-function render(s){
-  if (!s.P) { $('#view').innerHTML = ''; return; }
+function renderFast(s){
   const { P, m, sigma, d } = s;
 
   /* pattern strip: P[0..j) matched, P[1..j) is what x simulates */
@@ -969,21 +1055,239 @@ function render(s){
       kind: t === q ? 'loop' : t === q + 1 ? 'match' : 'back'
     }));
   }
-  const aut = linearAutomaton({ states: Math.max(2, s.filled + 1), accepting: m,
+  const aut = linearAutomaton({ states: Math.max(2, s.filled + 1), slots: m + 1, depthSpan: s.span, accepting: m,
     edges, hot: { state: s.j != null ? s.j : -1 }, hotLabel: 'j',
     x: s.x, xedge: s.xedge });
 
   $('#view').innerHTML =
-    `<div class="block two-col"><div><h3>pattern</h3>${pat}</div>` +
+    `<div class="block two-col"><div data-fixw="pat"><h3>pattern</h3>${pat}</div>` +
     `<div><h3>transition table (columns = states)</h3>${tbl}</div></div>` +
     `<div class="block"><h3>automaton so far</h3>${aut}` +
     `<div class="legend"><span><i class="x"></i>green = the failure state <span class="mono">x</span> and the edge followed when it is updated</span>` +
     `<span style="color:var(--accent)">red = the state whose column is being built</span></div></div>`;
 }
 
-App.init({ pseudo: PSEUDO, compute, render, fields: ['P', 'sigma', 'fine'], lines: ['P'], lineNames: { P: 'the pattern P' },
-  phase: s => s.j === null ? null : { key: s.j || 0, names: ['column ' + (s.j || 0), String(s.j || 0)],
-                                      title: 'column ' + (s.j || 0) + ': the transitions out of state ' + (s.j || 0) } });
+/* ── the complete table (only used to reserve room for the longest back edge) ── */
+function fullDelta(P, sigma){
+  const m = P.length, d = [];
+  for (let q = 0; q < m; q++) d[q] = {};
+  sigma.forEach(c => { d[0][c] = 0; }); d[0][P[0]] = 1;
+  let x = 0;
+  for (let j = 1; j < m; j++) { sigma.forEach(c => { d[j][c] = d[x][c]; }); d[j][P[j]] = j + 1; x = d[x][P[j]]; }
+  return d;
+}
+function finalSpan(P, sigma){
+  let mx = 0;
+  fullDelta(P, sigma).forEach((o, q) => sigma.forEach(c => { if (o[c] < q) mx = Math.max(mx, q - o[c]); }));
+  return mx;
+}
+/* edges of the automaton given by the (partial) table d, for the states q < upto */
+function tableEdges(d, sigma, upto){
+  const edges = [];
+  for (let q = 0; q < upto; q++) {
+    const byT = new Map();
+    sigma.forEach(c => { const t = d[q] && d[q][c]; if (t === undefined) return; if (!byT.has(t)) byT.set(t, []); byT.get(t).push(c); });
+    [...byT.entries()].forEach(([t, cs]) => edges.push({
+      from: q, to: t, label: cs.map(ch).join(','),
+      kind: t === q ? 'loop' : t === q + 1 ? 'match' : 'back'
+    }));
+  }
+  return edges;
+}
+const subs = n => String(n).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);
+const A = j => `A<tspan dy="4" font-size="12">${j}</tspan>`;
+const Ah = j => `A<sub>${j}</sub>`;
+
+/* ── stage 1: build A_{j+1} from A_j by simulating A_j from scratch ── */
+function computeNaive(){
+  const P = val('P');
+  if (!P.length) throw new Error('The pattern P must not be empty.');
+  const m = P.length, sigma = alphabet(P), span = finalSpan(P, sigma);
+  const d = [];
+  for (let q = 0; q < m; q++) d[q] = {};
+  const steps = [];
+  let writes = 0, reads = 0;
+  const snap = (desc, lines, ex = {}) => steps.push({
+    stage: 'naive', desc, code: { sec: 'naive', lines }, P, m, sigma, span,
+    d: d.map(o => ({ ...o })),
+    cost: [
+      { label: 'transitions simulated', value: reads, hot: !!ex.hotR },
+      { label: 'table entries written', value: writes, hot: !!ex.hotW },
+      { label: 'm · σ =', value: m * sigma.length }, { label: 'm =', value: m }, { label: 'σ =', value: sigma.length }
+    ],
+    ...ex
+  });
+
+  snap(`Build the automaton for <span class="mono">P = ${esc(P)}</span> over ` +
+       `<span class="mono">Σ = {${sigma.map(ch).join(',')}}</span> inductively: ${Ah('j')}, the automaton for ` +
+       `<span class="mono">P[0..j)</span> (the frame), is extended to ${Ah('j+1')} by one state and the transitions out of state ` +
+       `<span class="mono">j</span>. ${Ah(0)} is the single state 0.`, [1], { j: 0, box: 0, vis: 1 });
+  sigma.forEach(c => { d[0][c] = 0; writes++; });
+  snap(`State 0 has seen nothing, and reading a character still leaves no nonempty prefix of P — ` +
+       `except for <span class="mono">P[0]</span>: <span class="mono">δ[0][c] := 0</span> for all <span class="mono">c ∈ Σ</span>.`,
+       [2, 3], { j: 0, box: 0, vis: 1, hotW: true, col: 0, grow: { from: 0, to: 0 } });
+  d[0][P[0]] = 1; writes++;
+  snap(`New state 1 and the match edge <span class="mono">δ[0][${ch(P[0])}] := 1</span>.`, [4],
+       { j: 0, box: 0, vis: 2, hotW: true, col: 0, cell: { q: 0, c: P[0] }, matchStep: true, grow: { from: 0, to: 1 } });
+
+  for (let j = 1; j < m; j++) {
+    snap(`${Ah(j)} is complete: it recognises <span class="mono">P[0..${j}) = ${esc(P.slice(0, j))}</span>, ` +
+         `with all transitions out of the states <span class="mono">0, …, ${j - 1}</span>. ` +
+         `Now the transitions out of state <span class="mono">j = ${j}</span>.`, [5], { j, box: j, vis: j + 1 });
+    d[j][P[j]] = j + 1; writes++;
+    snap(`New state <span class="mono">${j + 1}</span> and the match edge <span class="mono">δ[${j}][${ch(P[j])}] := ${j + 1}</span>: ` +
+         `<span class="mono">P[0..${j})·${ch(P[j])}</span> is a longer prefix of P. The easy part.`, [6],
+         { j, box: j, vis: j + 2, hotW: true, col: j, cell: { q: j, c: P[j] }, matchStep: true, grow: { from: j, to: j + 1 } });
+    let prevX = null, prevC = null;
+    sigma.filter(c => c !== P[j]).forEach(c => {
+      let q = 0;
+      const trail = [], readCells = [];
+      snap(`<span class="mono">c = ${ch(c)}</span>: <span class="mono">δ[${j}][${ch(c)}]</span> = the state of ${Ah(j)} after reading ` +
+           `<span class="mono">P[1..${j})·c = ${esc(P.slice(1, j))}${ch(c)}</span>. Run ${Ah(j)} from scratch: ` +
+           `<span class="mono">q := 0</span>.`, [7, 8],
+           { j, box: j, vis: j + 2, col: j, c, k: 0, q, trail: [], readCells: [] });
+      for (let k = 1; k < j; k++) {
+        const from = q;
+        q = d[q][P[k]]; reads++;
+        trail.push({ from, to: q }); readCells.push({ q: from, c: P[k] });
+        snap(`Read <span class="mono">P[${k}] = ${ch(P[k])}</span>: <span class="mono">q := δ[${from}][${ch(P[k])}] = ${q}</span>.` +
+             (k === j - 1 ? ` That was all of <span class="mono">P[1..${j})</span>; now the last character, c.` : ''),
+             [9, 10], { j, box: j, vis: j + 2, col: j, c, k, q, hotR: true,
+                        trail: trail.slice(0, -1), hotEdge: { from, to: q }, readCells: readCells.slice(), readNow: { q: from, c: P[k] } });
+      }
+      const x = q, t = d[x][c]; reads++;
+      readCells.push({ q: x, c });
+      d[j][c] = t; writes++;
+      const same = prevX === null ? '' : (prevX === x
+        ? ` The run on <span class="mono">P[1..${j})</span> ended in <span class="mono">q = ${x}</span> again, as for ` +
+          `<span class="mono">c = ${ch(prevC)}</span>: it does not depend on c at all.`
+        : '');
+      const desc = `Read <span class="mono">c = ${ch(c)}</span>: <span class="mono">δ[${x}][${ch(c)}] = ${t}</span>, so ` +
+           `<b>δ[${j}][${ch(c)}] := ${t}</b>. ` +
+           (t === 0 ? `No nonempty prefix of P ends here.` :
+             `The text ends with <span class="mono">P[0..${t}) = ${esc(P.slice(0, t))}</span>, and with no longer prefix.`);
+      snap(desc, [11], { descX: desc + same, j, box: j, vis: j + 2, col: j, c, k: j, q: t, x, res: t, hotR: true, hotW: true, grow: { from: j, to: t },
+                   trail, hotEdge: { from: x, to: t }, readCells: readCells.slice(), readNow: { q: x, c }, cell: { q: j, c } });
+      prevX = x; prevC = c;
+    });
+  }
+  snap(`${Ah(m)} is the string-matching automaton for P. It took <b>${reads}</b> simulated transitions for ` +
+       `<b>${writes}</b> table entries — Θ(m²σ) in general. Every run for column j passed through the same state ` +
+       `after <span class="mono">P[1..j)</span>; the efficient version (stage 2) remembers that state as x and needs Θ(mσ).`,
+       [], { j: null, box: m, vis: m + 1 });
+  return steps;
+}
+
+let BOX_W = null;          /* width of the frame in the step shown last, for the smooth transition */
+function renderNaive(s){
+  const { P, m, sigma, d, j } = s, jj = j == null ? m : j;
+  const sim = s.c != null;
+  /* highlighting x (the state after P[1..j)) is optional: it helps more on the second pass than on the first */
+  const showX = !!($('#showx') && $('#showx').checked), sx = showX && s.x != null ? s.x : -1;
+  if (showX && s.descX) $('#log').innerHTML = s.descX;
+
+  /* automaton with the frame around A_j */
+  const tags = {}; if (j != null && j > 0) tags[j] = 'j';
+  const aut = linearAutomaton({
+    states: s.vis, slots: m + 1, depthSpan: s.span, accepting: m,
+    edges: tableEdges(d, sigma, Math.min(m, s.vis)),
+    hot: { state: sim ? s.q : -1, edge: s.hotEdge }, hotLabel: 'q', trail: s.trail,
+    x: sx, tags, box: { to: s.box, label: A(s.box) }, grow: s.grow
+  });
+
+  /* the argument of the slide: T = ··· P[0..j) c, and what A_j is fed */
+  const W = m + 2, pad = r => { while (r.length < W) r.push({ t: '', cls: '' }); return r; };
+  let tbox = '';
+  if (j != null && j > 0) {
+    const cc = sim ? s.c : (s.matchStep ? P[j] : null);
+    const r1 = [{ t: '···', cls: 'ghost' }].concat([...P.slice(0, jj)].map(a => ({ t: ch(a), cls: 'b guess' })))
+               .concat([{ t: cc == null ? '?' : ch(cc), cls: 'b ' + (cc == null ? 'ghost' : s.matchStep ? 'guess' : 'alert') }]);
+    const rows = [{ label: 'T =', cells: pad(r1) }];
+    if (sim) {
+      const r2 = [null, null];
+      for (let k = 1; k < jj; k++) r2.push({ t: ch(P[k]), cls: 'b' + (k <= s.k ? ' match' : '') + (k === s.k ? ' cur' : '') });
+      r2.push({ t: ch(s.c), cls: 'b alert' + (s.res != null ? ' match cur' : '') });
+      rows.push({ label: `fed to A<sub>${jj}</sub>:`, cells: pad(r2),
+                  note: s.res != null ? '' : `state <span class="mono">q = ${s.q}</span>` });
+    }
+    if (s.res != null || s.matchStep) {
+      const q2 = s.matchStep ? jj + 1 : s.res, r3 = [];
+      for (let i = 0; i < jj + 2 - q2; i++) r3.push(null);
+      for (let i = 0; i < q2; i++) r3.push({ t: ch(P[i]), cls: 'b match' });
+      rows.push({ label: s.matchStep ? 'P[0..j+1):' : 'P[0..q′):', cells: pad(r3),
+                  note: s.matchStep ? `the match edge: q′ = j + 1 = ${jj + 1}`
+                                    : `q′ = ${q2} ≤ j = ${jj}` + (q2 === 0 ? ' (the empty prefix)' : '') });
+    }
+    tbox = grid(rows);
+  }
+
+  /* transition table */
+  const isIn = (L, q, c) => (L || []).some(e => e.q === q && e.c === c);
+  const rows = sigma.map(c => ({
+    head: ch(c),
+    cells: Array.from({ length: m }, (_, q) => {
+      const v = d[q][c];
+      let cls = v === undefined ? 'empty' : '';
+      if (s.cell && s.cell.q === q && s.cell.c === c) cls += ' set-now';
+      else if (s.readNow && s.readNow.q === q && s.readNow.c === c) cls += ' read-now';
+      else if (isIn(s.readCells, q, c)) cls += ' copied';
+      return { t: v === undefined ? '·' : v, cls };
+    })
+  }));
+  const head = ['δ(c,q)'].concat(Array.from({ length: m }, (_, q) => q === sx ? `<span class="xtag">${q}</span>` : q));
+  const tbl = table(head, rows, { colhot: s.col != null ? s.col : -2,
+    caption: j == null ? 'transition table δ, complete' : `column j = ${jj}: the transitions out of state ${jj}` });
+
+  $('#view').innerHTML =
+    `<div class="block"><h3>the automaton A<sub>j</sub> (framed) and the new state</h3>${aut}` +
+    `<div class="legend"><span style="color:var(--accent)">red = state q of the simulation and the edge just followed (lighter: the edges before)</span>` +
+    (showX ? `<span><i class="x"></i>green x = where the run on P[1..j) ended</span>` : '') + `</div></div>` +
+    `<div class="block two-col"><div data-fixw="why"><h3>why A<sub>j</sub> suffices</h3>${tbox ||
+      `<div class="hint" style="max-width:34em">${j == null ? 'All columns are filled.' : 'For j = 0 there is nothing to simulate.'}</div>`}` +
+    `<div class="hint" style="max-width:34em;margin-top:8px">State q means: “we have seen P[0..q) until here (but not any longer prefix of P)”. ` +
+    `On a mismatch c, the text ends with P[0..j)·c, which is not a prefix of P; so the new longest matched prefix ` +
+    `P[0..q′) is a suffix of P[1..j)·c, and q′ ≤ j — the state of A<sub>j</sub> after reading P[1..j)·c.</div></div>` +
+    `<div><h3>transition table (columns = states)</h3>${tbl}</div></div>`;
+
+  /* the frame grows smoothly to the next state */
+  const rect = $('#autbox'), lab = $('#autboxlab');
+  if (!rect || MEASURING) return;
+  const w1 = +rect.getAttribute('width'), x0 = +rect.getAttribute('x');
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (BOX_W != null && BOX_W !== w1 && !reduce) {
+    const w0 = BOX_W, t0 = performance.now(), D = 480;
+    const tick = now => {
+      if (!rect.isConnected) return;
+      const u = Math.min(1, (now - t0) / D), e = u < .5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u);
+      const w = w0 + (w1 - w0) * e;
+      rect.setAttribute('width', w); lab.setAttribute('x', x0 + w);
+      if (u < 1) requestAnimationFrame(tick);
+    };
+    rect.setAttribute('width', w0); lab.setAttribute('x', x0 + w0);
+    requestAnimationFrame(tick);
+  }
+  BOX_W = w1;
+}
+
+function compute(){
+  const naive = val('stage') !== 'fast';
+  const f = $('#fine'); if (f) { f.disabled = naive; f.closest('label').style.opacity = naive ? .45 : 1; }
+  const g = $('#showx'); if (g) { g.disabled = !naive; g.closest('label').style.opacity = naive ? 1 : .45; }
+  return naive ? computeNaive() : computeFast();
+}
+function render(s){
+  if (!s.P) { $('#view').innerHTML = ''; return; }
+  if (s.stage === 'naive') renderNaive(s); else renderFast(s);
+}
+
+App.init({ pseudo: PSEUDO, compute, render, fields: ['P', 'sigma', 'fine', 'stage'], lines: ['P'], lineNames: { P: 'the pattern P' },
+  phase: s => {
+    if (s.j === null) return null;
+    const j = s.j || 0;
+    if (s.stage === 'naive') return { key: j, names: ['column ' + j, String(j)],
+      title: j === 0 ? 'column 0: A₀ → A₁' : 'column ' + j + ': from A' + subs(j) + ' to A' + subs(j + 1) };
+    return { key: j, names: ['column ' + j, String(j)], title: 'column ' + j + ': the transitions out of state ' + j };
+  } });
 
 </script>
 </body>

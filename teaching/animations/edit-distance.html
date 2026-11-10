@@ -18,7 +18,7 @@
     --wi-inert:#b6b1a1;
     --wi-font-body:texgyrepagella, Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
     --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
-    --wi-font-mono:var(--wi-font-mono);
+    --wi-font-mono:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --wi-radius:4px; --wi-radius-lg:5px;
   }
   * { box-sizing:border-box; }
@@ -104,8 +104,15 @@
   .phasebtn.past .fill { border-right-color:transparent; }
 
   /* --- stage --- */
-  .stage { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(330px,1fr); gap:18px; align-items:start; }
-  @media (max-width:1080px) { .stage { grid-template-columns:1fr; } }
+  /* the picture | a draggable splitter | the side column */
+  .stage { display:grid; grid-template-columns:minmax(0, var(--lf, 56fr)) 18px minmax(300px, var(--rf, 44fr));
+           gap:0; align-items:start; }
+  @media (max-width:1080px) { .stage { grid-template-columns:1fr; gap:16px; } .splitter { display:none !important; } }
+  .col-main { min-width:0; }
+  .splitter { align-self:stretch; min-height:200px; cursor:col-resize; touch-action:none; display:flex; justify-content:center; }
+  .splitter::before { content:""; width:4px; margin:30px 0; border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .splitter:hover::before, .splitter.drag::before, .splitter:focus-visible::before { background:var(--wi-accent-soft); }
+  .splitter:focus-visible { outline:none; }
   .col-side { display:flex; flex-direction:column; gap:14px; }
   .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
              border-radius:var(--wi-radius-lg); padding:12px 15px; }
@@ -168,7 +175,7 @@
                            font-size:.72rem; text-transform:uppercase; letter-spacing:.1em;
                            color:var(--wi-ink-faint); }
   details.code[open] > summary { border-bottom:1px solid var(--wi-border-soft); color:var(--wi-accent); }
-  .codebody { padding:8px 6px 12px; }
+  .codebody { padding:8px 6px 12px; overflow-x:auto; }
   .cline { display:flex; gap:9px; padding:2px 9px; font-family:var(--wi-font-mono); font-size:.75rem;
            line-height:1.55; color:var(--wi-ink-strong); border-left:3px solid transparent;
            white-space:pre; }
@@ -348,15 +355,15 @@ body { font-family: var(--wi-font-body); }
     </span>
     <span class="stepno" id="stepNo">— / —</span>
     <span class="ctl" style="gap:6px">
-      <span class="lbl">Speed</span>
+      <span class="lbl">Delay</span>
       <input type="range" id="speed" min="60" max="1400" value="420" style="width:88px">
       <span class="stepno" id="speedVal">420ms</span>
     </span>
   </div>
 </div>
 
-<div class="stage">
-  <div>
+<div class="stage" id="stageBox">
+  <div class="col-main">
     <div class="sim-box">
       <div class="sim-title"><span>The table D</span><span class="rhs" id="tabMeta"></span></div>
       <div class="svgscroll"><svg id="gridSvg" class="stagesvg"></svg></div>
@@ -370,11 +377,22 @@ body { font-family: var(--wi-font-body); }
     </div>
   </div>
 
+  <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" tabindex="0"
+       title="Drag to share the width between the table and the explanations (double-click: back to the default)"></div>
+
   <div class="col-side">
     <div class="sim-box">
       <div class="sim-title"><span>What just happened</span><span class="rhs" id="phaseName"></span></div>
       <div class="status" id="statusBox"></div>
     </div>
+
+    <details class="code desk-only" id="codeBox" open>
+      <summary>Recurrence &amp; pseudocode</summary>
+      <div id="codeWrap">
+        <div class="codebody" id="codeBody"></div>
+        <div class="codenote" id="codeNote"></div>
+      </div>
+    </details>
 
     <div class="sim-box">
       <div class="sim-title"><span>Alignment</span><span class="rhs" id="alignMeta"></span></div>
@@ -387,12 +405,6 @@ body { font-family: var(--wi-font-body); }
     </div>
   </div>
 </div>
-
-<details class="code desk-only" id="codeBox" open style="margin-top:18px">
-  <summary>Recurrence &amp; pseudocode</summary>
-  <div class="codebody" id="codeBody"></div>
-  <div class="codenote" id="codeNote"></div>
-</details>
 
 <details class="editor">
   <summary>Input</summary>
@@ -659,6 +671,29 @@ function build() {
         hl: ["head"], hlp: ["t_ret"], trace: true, done: true });
 }
 
+/* ---------- splitter between the table and the side column ---------------- */
+
+const SPLIT = { f: 0.56, def: 0.56 };
+function setSplit(f) {
+  SPLIT.f = Math.max(0.3, Math.min(0.8, f));
+  const st = el("stageBox");
+  st.style.setProperty("--lf", (100 * SPLIT.f).toFixed(2) + "fr");
+  st.style.setProperty("--rf", (100 * (1 - SPLIT.f)).toFixed(2) + "fr");
+  render();
+}
+function initSplitter() {
+  const sp = el("splitter"), st = el("stageBox");
+  let drag = false, raf = 0;
+  sp.addEventListener("pointerdown", e => { drag = true; sp.classList.add("drag"); sp.setPointerCapture(e.pointerId); e.preventDefault(); });
+  sp.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const r = st.getBoundingClientRect(), x = e.clientX;
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(() => setSplit((x - r.left) / (r.width || 1)));
+  });
+  sp.addEventListener("pointerup", () => { drag = false; sp.classList.remove("drag"); });
+  sp.addEventListener("dblclick", () => setSplit(SPLIT.def));
+}
+
 /* ---------- geometry ----------------------------------------------------- */
 
 let CS = 52;
@@ -667,9 +702,12 @@ const cxOf = j => X0 + j * CS + CS / 2;
 const cyOf = i => Y0 + i * CS + CS / 2;
 
 /* keep the table on screen without letting the digits shrink out of scale
-   with the running text: wide tables scroll instead */
+   with the running text: the cells fill the width the splitter leaves the
+   picture, between 32 and 52 px; wider tables scroll instead */
 function sizeCells() {
-  CS = Math.max(32, Math.min(52, Math.round(900 / (n + 1))));
+  const box = el("gridSvg").parentNode, avail = box ? box.clientWidth : 0;
+  const fit = avail > 0 ? Math.floor((avail - X0 - 24) / (n + 1)) : Math.round(900 / (n + 1));
+  CS = Math.max(32, Math.min(52, fit));
 }
 
 /* ---------- drawing ------------------------------------------------------ */
@@ -906,8 +944,17 @@ const TRACE = [
   { k: "t_ret",  t: "    " + K("return") + " script" }
 ];
 
-function renderCode() {
-  const st = steps[cur] || {};
+/* The panel shows either the filling or the backtracing code; it keeps the height of the
+   taller one, so that the panels below it in the side column never move. */
+function fixCodeHeight() {
+  const w = el("codeWrap");
+  w.style.minHeight = "";
+  let h = 0;
+  [{ trace: false }, { trace: true }].forEach(st => { renderCode(st); h = Math.max(h, w.offsetHeight); });
+  w.style.minHeight = h + "px";
+}
+
+function renderCode(st = steps[cur] || {}) {
   const hl = new Set(st.hl || []), hlp = new Set(st.hlp || []);
   const block = (label, lines, numbered, act) => {
     const out = ['<div class="sublabel">' + label + "</div>"];
@@ -957,7 +1004,7 @@ function renderPhases() {
 function render() {
   const st = steps[cur] || {};
   drawGrid(); renderAlign(); renderScript(); renderPhases();
-  if (window.innerWidth > 760) renderCode();
+  if (window.innerWidth > 760) { fixCodeHeight(); renderCode(); }
   el("statusBox").innerHTML = (st.txt || "") + (st.ans ? '<b class="ans">' + st.ans + "</b>" : "");
   el("phaseName").textContent = phases[st.ph] ? phases[st.ph].name : "";
   el("tabMeta").textContent = "|A| = " + m + " · |B| = " + n + " · d_edit = " + (D.length ? D[m][n] : "—");
@@ -1143,8 +1190,12 @@ function init() {
   });
 
   window.addEventListener("resize", () => render());
+  initSplitter();
   document.addEventListener("keydown", ev => {
     if (ev.target.tagName === "TEXTAREA" || ev.target.tagName === "INPUT") return;
+    if (ev.target.id === "splitter" && (ev.key === "ArrowLeft" || ev.key === "ArrowRight")) {
+      setSplit(SPLIT.f + (ev.key === "ArrowLeft" ? -0.03 : 0.03)); ev.preventDefault(); return;
+    }
     if (ev.key === "ArrowRight") { stopPlay(); stepFwd(); ev.preventDefault(); }
     if (ev.key === "ArrowLeft")  { stopPlay(); stepBack(); ev.preventDefault(); }
   });

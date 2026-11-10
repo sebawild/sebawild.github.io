@@ -177,6 +177,7 @@
   table.tbl td.xcell { background:var(--t-x); color:var(--xcol); font-weight:bold; }
   table.tbl th.xcol { background:var(--t-x); color:var(--xcol); }
   table.tbl td.copied { background:var(--guess); }
+  table.tbl td.read-now { background:var(--guess); box-shadow:inset 0 0 0 2px var(--wi-active); color:var(--wi-active); font-weight:bold; }
   table.tbl th.colhot { background:#f6e6df; color:var(--wi-accent); }
   table.tbl td.colhot { background:#f3ebdd; }
   table.tbl td.l, table.tbl th.l { text-align:left; }
@@ -281,7 +282,7 @@ body { font-family: var(--wi-font-body); }
     </span>
     <span class="stepno" id="stepNo">— / —</span>
     <span class="ctl hide-p" style="gap:6px">
-      <span class="lbl">Speed</span>
+      <span class="lbl">Delay</span>
       <input type="range" id="sSpeed" min="60" max="2000" value="700" style="width:88px;accent-color:var(--wi-accent)" aria-label="Delay between steps">
       <span class="stepno" id="sSpeedVal" style="min-width:4.5em">700ms</span>
     </span>
@@ -369,6 +370,8 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 function ch(c){ return c === ' ' ? '␣' : esc(c); }
 
 let STEPS = [], IDX = 0, PAGE = null, playTimer = null, PHASES = [];
+/* true while stabiliseHeights renders steps only to measure them (no animations then) */
+let MEASURING = false;
 
 /* ── pseudocode panel ─────────────────────────────────────────────── */
 const KEYWORDS = ['procedure','for','while','do','if','then','else','return','break','end','new','array','initialized','to','loop','inner','each'];
@@ -446,20 +449,32 @@ const App = {
 };
 
 /* Every dynamic box is given the height of its tallest step, so that stepping
-   through an animation never moves the picture up and down. */
+   through an animation never moves the picture up and down. Elements that a page
+   marks with data-fixw="name" also get the largest width and height they take in any
+   step (the union of their bounding boxes), so that what stands to their right stays put. */
+let FIXW = {};
+function applyFixW(){
+  $$('[data-fixw]').forEach(e => { const r = FIXW[e.dataset.fixw]; if (r) { e.style.minWidth = r[0] + 'px'; e.style.minHeight = r[1] + 'px'; } });
+}
 function stabiliseHeights(){
   const boxes = [$('#log'), $('#cost'), $('#view')];
   boxes.forEach(b => { b.style.minHeight = ''; });
   const [log, cost, view] = boxes;
-  const N = STEPS.length, stride = Math.max(1, Math.ceil(N / 160));
+  const N = STEPS.length, stride = Math.max(1, Math.ceil(N / 400));
+  FIXW = {};
   const mx = [0, 0, 0];
   const measure = s => {
     log.innerHTML = s.desc || ''; renderCost(s.cost);
     try { PAGE.render(s); } catch (e) { /* ignore while measuring */ }
     boxes.forEach((b, k) => { mx[k] = Math.max(mx[k], b.offsetHeight); });
+    $$('[data-fixw]').forEach(e => { const k = e.dataset.fixw, r = e.getBoundingClientRect(), o = FIXW[k] || [0, 0];
+      FIXW[k] = [Math.max(o[0], Math.ceil(r.width)), Math.max(o[1], Math.ceil(r.height))]; });
   };
-  for (let i = 0; i < N; i += stride) measure(STEPS[i]);
-  if ((N - 1) % stride !== 0) measure(STEPS[N - 1]);   /* the last step is often the tallest */
+  MEASURING = true;
+  try {
+    for (let i = 0; i < N; i += stride) measure(STEPS[i]);
+    if ((N - 1) % stride !== 0) measure(STEPS[N - 1]);   /* the last step is often the tallest */
+  } finally { MEASURING = false; }
   boxes.forEach((b, k) => { b.style.minHeight = mx[k] + 'px'; });
 }
 
@@ -468,6 +483,7 @@ function show(){
   $('#log').innerHTML = s.desc || '';
   renderCost(s.cost);
   try { PAGE.render(s); } catch (e) { $('#view').innerHTML = '<span class="err">' + esc(e.message) + '</span>'; }
+  applyFixW();
   highlightCode(s.code);
   const N = STEPS.length;
   $('#stepNo').textContent = `${IDX + 1} / ${N}`;
@@ -759,28 +775,68 @@ function table(head, rows, opts = {}){
 const COL = { base: '#6b675c', hot: '#cc2f22', fail: '#902015', out: '#2a6a63', x: '#4a7c3f' };
 const FILL = { base: '#fcf9f3', hot: '#f6e6df', x: '#e8f0e2' };
 const AUT_FS = 14;          /* label size in px, close to the text size of the page */
+function growEdges(){
+  if (typeof MEASURING !== 'undefined' && MEASURING) return;
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelectorAll('svg.aut path.grow').forEach(p => {
+    if (p.dataset.grown) return;
+    p.dataset.grown = '1';
+    const labs = p.parentNode.querySelectorAll('text.grow-lab');
+    const done = () => { p.style.strokeDasharray = ''; p.style.strokeDashoffset = '';
+                         p.setAttribute('marker-end', p.dataset.mk); labs.forEach(t => t.style.opacity = ''); };
+    if (reduce) { done(); return; }
+    const L = p.getTotalLength();
+    p.style.strokeDasharray = L; p.style.strokeDashoffset = L;
+    const t0 = performance.now(), D = 800;
+    const tick = now => {
+      if (!p.isConnected) return;
+      const u = Math.min(1, (now - t0) / D), e = u < .5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u);
+      p.style.strokeDashoffset = L * (1 - e);
+      labs.forEach(t => t.style.opacity = Math.max(0, (u - .6) / .4));
+      if (u < 1) requestAnimationFrame(tick); else done();
+    };
+    requestAnimationFrame(tick);
+  });
+}
 function linearAutomaton(cfg){
-  const S = cfg.states, R = 18, DX = Math.max(68, cfg.dx || 74), fs = AUT_FS;
+  /* optional: slots (positions reserved, for a width that does not change while states appear),
+     depthSpan (the longest back edge to reserve room for), box {to, label} (a frame around states 0..to),
+     trail [{from,to}] (edges already taken, drawn lighter than the hot one), tags {state: text} */
+  const S = cfg.states, R = 18, DX = Math.max(68, cfg.dx || 74), fs = AUT_FS, SL = Math.max(S, cfg.slots || 0);
   const backEdges = (cfg.edges || []).filter(e => e.kind === 'back' || e.kind === 'fail');
   let maxSpan = 0;
   backEdges.forEach(e => maxSpan = Math.max(maxSpan, Math.abs(e.from - e.to)));
   const depthOf = span => 26 + Math.min(span, 8) * 13;
-  const top = 68, W = 40 + S * DX + 20, H = top + (backEdges.length ? R - 2 + .75 * (depthOf(maxSpan) + 14 - R) + fs + 8 : R + 12);
+  /* the newly added edge, drawn as if it grew out of its source state (no-op while measuring) */
+  if (cfg.grow && !(typeof MEASURING !== 'undefined' && MEASURING)) setTimeout(() => growEdges(), 0);
+  if (cfg.depthSpan != null) maxSpan = Math.max(maxSpan, cfg.depthSpan);
+  const top = cfg.box ? 92 : 68, W = 40 + SL * DX + 20,
+        H = top + (maxSpan > 0 ? R - 2 + .75 * (depthOf(maxSpan) + 14 - R) + fs + 8 : R + 12);
   const x = i => 36 + i * DX, cy = top;
   let s = `<svg class="aut" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><defs>`;
   for (const k in COL) s += `<marker id="ar-${k}" viewBox="0 0 9 7" markerWidth="11" markerHeight="8.5" markerUnits="userSpaceOnUse" refX="8.5" refY="3.5" orient="auto">
       <path d="M0,0 L9,3.5 L0,7 z" fill="${COL[k]}"/></marker>`;
   s += '</defs>';
   const same = (a, b) => a && b && a.from === b.from && a.to === b.to;
-  const isHot = e => same(cfg.hot && cfg.hot.edge, e);
+  const isHot = e => same(cfg.hot && cfg.hot.edge, e) || same(cfg.grow, e);   /* grow: the edge that has just been added */
+  /* a growing edge starts out invisible (no dash drawn, no arrowhead), so it never flashes before growEdges() runs */
+  const mkA = e => same(cfg.grow, e) ? ` class="grow" data-mk="url(#${mk(e)})" style="stroke-dasharray:0 100000"` : ` marker-end="url(#${mk(e)})"`;
   const isX   = e => same(cfg.xedge, e);
-  const key = e => isX(e) ? 'x' : isHot(e) ? 'hot' : e.kind === 'fail' ? 'fail' : e.kind === 'out' ? 'out' : 'base';
+  const isTr  = e => (cfg.trail || []).some(t => same(t, e));
+  const key = e => isX(e) ? 'x' : isHot(e) ? 'hot' : isTr(e) ? 'hot' : e.kind === 'fail' ? 'fail' : e.kind === 'out' ? 'out' : 'base';
   const col = e => COL[key(e)];
-  const wd  = e => (isX(e) || isHot(e)) ? 2.6 : (e.kind === 'fail' ? 1.4 : 1.3);
-  const op  = e => (isX(e) || isHot(e)) ? 1 : (e.kind === 'fail' ? .6 : e.kind === 'out' ? .8 : 1);
+  const wd  = e => (isX(e) || isHot(e)) ? 2.6 : isTr(e) ? 1.9 : (e.kind === 'fail' ? 1.4 : 1.3);
+  const op  = e => (isX(e) || isHot(e)) ? 1 : isTr(e) ? .5 : (e.kind === 'fail' ? .6 : e.kind === 'out' ? .8 : 1);
   const mk  = e => 'ar-' + key(e);
-  const lab = (tx, ty, e) => `<text x="${tx}" y="${ty}" font-size="${fs}" text-anchor="middle" fill="${col(e)}"${isX(e) || isHot(e) ? ' font-weight="bold"' : ''}>${e.label}</text>`;
+  const lab = (tx, ty, e) => `<text${same(cfg.grow, e) ? ' class="grow-lab" style="opacity:0"' : ''} x="${tx}" y="${ty}" font-size="${fs}" text-anchor="middle" fill="${col(e)}"${isX(e) || isHot(e) ? ' font-weight="bold"' : ''}>${e.label}</text>`;
 
+  if (cfg.box) {
+    const bx = 3, bw = x(cfg.box.to) + R + 12 - bx;
+    s += `<rect id="autbox" x="${bx}" y="${top - R - 46}" width="${bw}" height="${H - (top - R - 46) - 3}" rx="8"
+           fill="none" stroke="${COL.base}" stroke-width="1.6"/>` +
+         `<text id="autboxlab" x="${bx + bw}" y="${top - R - 53}" font-size="${fs + 2}" text-anchor="end" font-style="italic"
+           fill="${COL.base}">${cfg.box.label}</text>`;
+  }
   s += `<path d="M${x(0) - R - 18},${cy} L${x(0) - R - 3},${cy}" stroke="${COL.base}" stroke-width="1.3" marker-end="url(#ar-base)" fill="none"/>`;
 
   (cfg.edges || []).forEach(e => {
@@ -788,18 +844,18 @@ function linearAutomaton(cfg){
     if (e.from === e.to) {
       const cx = x(e.from);
       s += `<path d="M${cx - 10},${cy - R + 3} C${cx - 26},${cy - R - 34} ${cx + 26},${cy - R - 34} ${cx + 10},${cy - R + 3}"
-             fill="none" stroke="${col(e)}" stroke-width="${wd(e)}" opacity="${op(e)}"${dash} marker-end="url(#${mk(e)})"/>` +
+             fill="none" stroke="${col(e)}" stroke-width="${wd(e)}" opacity="${op(e)}"${dash} ${mkA(e)}/>` +
            lab(cx, cy - R - 31, e);
     } else if (e.to === e.from + 1) {
       const x1 = x(e.from) + R + 2, x2 = x(e.to) - R - 3, mx = (x1 + x2) / 2;
       s += `<path d="M${x1},${cy} L${x2},${cy}" stroke="${col(e)}" stroke-width="${wd(e)}" opacity="${op(e)}"${dash}
-             marker-end="url(#${mk(e)})" fill="none"/>` + lab(mx, cy - 7, e);
+             ${mkA(e)} fill="none"/>` + lab(mx, cy - 7, e);
     } else {
       const x1 = x(e.from), x2 = x(e.to);
       const depth = depthOf(Math.abs(e.from - e.to));
       const y1 = cy + R - 2, my = cy + depth + 12;
       s += `<path d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2 + (x2 < x1 ? 4 : -4)},${y1 + 1}"
-             fill="none" stroke="${col(e)}" stroke-width="${wd(e)}" opacity="${op(e)}"${dash} marker-end="url(#${mk(e)})"/>` +
+             fill="none" stroke="${col(e)}" stroke-width="${wd(e)}" opacity="${op(e)}"${dash} ${mkA(e)}/>` +
            lab(.784 * x1 + .216 * x2, .37 * y1 + .63 * my + fs + 1, e);
     }
   });
@@ -811,7 +867,10 @@ function linearAutomaton(cfg){
     s += `<circle cx="${x(i)}" cy="${cy}" r="${R}" fill="${fill}" stroke="${stroke}" stroke-width="${hot || isx ? 2.6 : 1.3}"/>`;
     if (acc) s += `<circle cx="${x(i)}" cy="${cy}" r="${R - 4}" fill="none" stroke="${stroke}" stroke-width="1.1"/>`;
     s += `<text x="${x(i)}" y="${cy + 5}" font-size="${fs + 1}" text-anchor="middle" fill="${stroke}"${hot || isx ? ' font-weight="bold"' : ''}>${i}</text>`;
-    const tag = isx ? 'x' : (hot && cfg.hotLabel) ? cfg.hotLabel : '';
+    const tag = isx ? (hot && cfg.hotLabel ? 'x, ' + cfg.hotLabel : 'x') : (hot && cfg.hotLabel) ? cfg.hotLabel : '';
+    const plain = !tag && cfg.tags && cfg.tags[i];
+    if (plain) s += `<text x="${x(i) + ((cfg.edges || []).some(e => e.from === i && e.to === i) ? R + 3 : 0)}" y="${cy - R - ((cfg.edges || []).some(e => e.from === i && e.to === i) ? -1 : 9)}"
+           font-size="${fs}" font-style="italic" text-anchor="${(cfg.edges || []).some(e => e.from === i && e.to === i) ? 'start' : 'middle'}" fill="${COL.base}">${plain}</text>`;
     if (tag && !(cfg.edges || []).some(e => e.from === i && e.to === i))
       s += `<text x="${x(i)}" y="${cy - R - 9}" font-size="${fs}" font-style="italic" text-anchor="middle" fill="${isx ? COL.x : COL.hot}">${tag}</text>`;
     else if (tag)

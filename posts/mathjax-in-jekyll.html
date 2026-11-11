@@ -152,29 +152,22 @@
   <div class="post-content" itemprop="articleBody">
     <p>I describe how I include MathJax using Euler fonts.</p>
 
-<script type="text/x-mathjax-config">
-	var font = "Neo-Euler";
-	MathJax.Hub.Config({
-		tex2jax: {
-			inlineMath: [['$','$']],
-			displayMath: [['\\[','\\]']],
-			processEscapes: true,
-		},
-		"SVG":{ 
-			font:font
-		},
-		"HTML-CSS": {
-			webFont: font,
-			imageFont: font,
-			preferredFont: font,
-			availableFonts: [],
-			scale: 85,
-			mtextFontInherit: true
-		}
-	});
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['\\[', '\\]']],
+      processEscapes: true,
+      // as in MathJax 2: \texttt{..} etc. take their argument verbatim
+      // (textmacros would reject e.g. \texttt{node_rank}, after kramdown ate the \_)
+      packages: { '[-]': ['textmacros'] }
+    }
+  };
 </script>
 
-<script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script src="/assets/mathjax/wi-mathjax.js" data-output="chtml"></script>
+
+<script defer="" src="/assets/mathjax/v4/tex-chtml.js"></script>
 
 <h1 id="non-standard-fonts">Non-Standard Fonts</h1>
 
@@ -189,26 +182,15 @@ A nice place to try out the different available fonts is
 where it is actually used, so I created a new <code class="language-plaintext highlighter-rouge">_include</code> file
 <code class="language-plaintext highlighter-rouge">mathjax.html</code> with the usual MathJax contents:</p>
 
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;script type="text/x-mathjax-config"&gt;
-var font = "Neo-Euler";
-MathJax.Hub.Config({
-	tex2jax: {
-		inlineMath: [['$','$']],
-		displayMath: [['\\[','\\]']],
-		processEscapes: true,
-	},
-	"SVG":{ 
-		font:font
-	},
-	"HTML-CSS": {
-		webFont: font,
-		imageFont: font,
-		preferredFont: font,
-		availableFonts: [],
-		scale: 85,
-		mtextFontInherit: true
-	}
-}); &lt;/script&gt; &lt;script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"&gt;&lt;/script&gt;
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;script&gt;   window.MathJax = {
+tex: {
+  inlineMath: [['$', '$'], ['\\(', '\\)']],
+  displayMath: [['\\[', '\\]']],
+  processEscapes: true,
+  // as in MathJax 2: \texttt{..} etc. take their argument verbatim
+  // (textmacros would reject e.g. \texttt{node_rank}, after kramdown ate the \_)
+  packages: { '[-]': ['textmacros'] }
+}   }; &lt;/script&gt; &lt;script src="/assets/mathjax/wi-mathjax.js" data-output="chtml"&gt;&lt;/script&gt; &lt;script defer src="/assets/mathjax/v4/tex-chtml.js"&gt;&lt;/script&gt;
 </code></pre></div></div>
 
 <p>By starting a new page with  <code class="language-plaintext highlighter-rouge">{% include mathjax.html %}</code>, 
@@ -220,14 +202,14 @@ To show liquid tags literally (i.e. not expanded by jekyll),
 you can use the raw-tag of liquid.
 </div>
 
-<p>By default, double dollars are used to delimit math,
+<p>By default, MathJax uses <code class="language-plaintext highlighter-rouge">\(...\)</code> for inline math,
 but it can also be configured
 to work with single dollars $\sum_{i=1}^n i^2 = \frac{n(n+1)(2n+1)}{6}$.</p>
 
 <h1 id="using-macros">Using macros</h1>
 
-<p>Using macros with MathJax is possible, but the support is limited;
-<code class="language-plaintext highlighter-rouge">\newcommand</code> with optional parameters does not seem to work.
+<p>Using macros with MathJax is possible
+(in MathJax 2, <code class="language-plaintext highlighter-rouge">\newcommand</code> with optional parameters did not work; it does now).
 In Jekyll, one runs into trouble with opening braces followed by % parts
 since these are interpreted as
 liquid tag opening.</p>
@@ -253,17 +235,29 @@ $
 <p>Then we can use <code class="language-plaintext highlighter-rouge">$\testmacro{17}{\text{hallo}}$</code> to get
 $\testmacro{17}{\text{hallo}}$.</p>
 
-<h1 id="font-trouble">Font Trouble</h1>
+<h1 id="text-fonts">Text Fonts</h1>
 
-<p>Not all fonts work as they should with Euler math;
-switching to <code class="language-plaintext highlighter-rouge">\mathrm</code> or <code class="language-plaintext highlighter-rouge">\mathit</code> does not work:
-$\mathrm{mathrm}$ and $\mathit{mathit}$ both use the ordinary Euler
-font intended for single-letter variables—this is ugly.</p>
+<p><em>Updated November 2026:</em> the site now uses MathJax 4, served from the site
+itself rather than a CDN, with its Euler font extension; see
+<code class="language-plaintext highlighter-rouge">_tools/README-mathjax.md</code> in the
+<a href="https://github.com/sebawild/sebawild.github.io/">sources</a>.</p>
 
-<p>With the <code class="language-plaintext highlighter-rouge">mtextFontInherit</code> inherit option, we can at least use
-<code class="language-plaintext highlighter-rouge">\text</code> to get multi-letter variables in roman font
-$x+2\cdot\text{slope}$, but they do not seem to inherit further
-attributes like <em>italic text $\text{math}$.</em></p>
+<p>In 2016, not all fonts worked as they should with Euler math:
+<code class="language-plaintext highlighter-rouge">\mathrm</code> and <code class="language-plaintext highlighter-rouge">\mathit</code> used the Euler letters meant for single-letter
+variables, and <code class="language-plaintext highlighter-rouge">\text</code> did not follow italic surroundings.
+MathJax has no setting for this, so a small extension now does what
+LaTeX’s <code class="language-plaintext highlighter-rouge">eulervm</code> package does: words are set in the text font, single
+letters, digits and Greek in Euler.</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">$\mathrm{mathrm}$</code> and <code class="language-plaintext highlighter-rouge">$\mathit{mathit}$</code>: $\mathrm{mathrm}$ and $\mathit{mathit}$</li>
+  <li>operator names, <code class="language-plaintext highlighter-rouge">$\log n$</code>, <code class="language-plaintext highlighter-rouge">$\max_i a_i$</code>, <code class="language-plaintext highlighter-rouge">$\operatorname{rank}(M)$</code>:
+$\log n$, $\max_i a_i$, $\operatorname{rank}(M)$</li>
+  <li>multi-letter variables, <code class="language-plaintext highlighter-rouge">$x+2\cdot\text{slope}$</code>: $x+2\cdot\text{slope}$,
+and <em>in italic text, $\text{math}$ follows suit.</em></li>
+  <li>variables stay Euler: in $\mathrm{d}x$ only the d is Pagella, and
+$\Gamma(x) + \mathcal{O}(n)$ is all Euler.</li>
+</ul>
 
 <h1 id="further-resources">Further Resources</h1>
 

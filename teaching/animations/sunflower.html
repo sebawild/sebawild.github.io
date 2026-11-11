@@ -8,18 +8,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sunflowers · the Erdős–Rado lemma and a kernel for d-Hitting Set</title>
-<script type="text/x-mathjax-config">
-MathJax.Hub.Config({
-  skipStartupTypeset: true,
-  messageStyle: "none",
-  showMathMenu: false,
-  tex2jax: { inlineMath: [["\\(", "\\)"]], processEscapes: true },
-  TeX: { extensions: ["AMSmath.js", "AMSsymbols.js"],
-         Macros: { wrel: ["\\mathrel{\\;#1\\;}", 1] } },
-  SVG: { font: "Neo-Euler", useGlobalCache: false, useFontCache: true, mtextFontInherit: true, blacker: 0 }
-});
+<script>
+  /* MathJax 4, local (see /assets/mathjax/wi-mathjax.js): Euler letters, Pagella for \text, \mathrm & co. */
+  window.MathJax = {
+    tex: { inlineMath: [['\\(', '\\)']], macros: { wrel: ['\\mathrel{\\;#1\\;}', 1] } },
+    svg: { fontCache: 'none' },
+    output: { linebreaks: { inline: false } },
+    options: { enableMenu: false, enableEnrichment: false, enableSpeech: false, enableBraille: false, enableExplorer: false,
+               menuOptions: { settings: { enrich: false, speech: false, braille: false } } },
+    startup: { typeset: false }
+  };
 </script>
-<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS_SVG"></script>
+<script src="/assets/mathjax/wi-mathjax.js" data-output="svg"></script>
+<script defer src="/assets/mathjax/v4/tex-svg.js"></script>
 <style>
   :root {
     --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
@@ -569,7 +570,7 @@ const NS = "http://www.w3.org/2000/svg";
 const LSKEY = "sunflower-kernel:";
 
 /* ======================================================================
-   Math: MathJax 2 (SVG output, Neo-Euler) renders every TeX snippet once
+   Math: MathJax 4 (SVG output, Euler) renders every TeX snippet once
    into a hidden host; the resulting <svg> is cached and reused, inline in
    HTML ($...$ markup) and nested inside the drawings. Until MathJax is
    ready, a plain-text fallback is shown and the page re-renders when the
@@ -578,7 +579,7 @@ const LSKEY = "sunflower-kernel:";
 const TEX = new Map();
 const texPending = new Set();
 let texBusy = false;
-function texReady() { return !!(window.MathJax && MathJax.isReady && MathJax.Hub); }
+function texReady() { return !!(window.MathJax && MathJax.startup && MathJax.startup.document); }
 function texReq(t) {
   if (TEX.has(t) || texPending.has(t)) return;
   texPending.add(t); setTimeout(kickTex, 0);
@@ -592,14 +593,14 @@ function kickTex() {
     const s = document.createElement("span"); s.textContent = "\\(" + t + "\\)";
     host.appendChild(s); host.appendChild(document.createTextNode(" ")); return s;
   });
-  MathJax.Hub.Queue(["Typeset", MathJax.Hub, host], () => {
+  wiTypeset(host).then(() => {
     batch.forEach((t, i) => {
       const svg = spans[i].querySelector("svg");
       if (!svg || !svg.getAttribute("viewBox")) { TEX.set(t, false); return; }
       const vb = svg.getAttribute("viewBox").trim().split(/[\s,]+/).map(Number);
       TEX.set(t, { html: svg.outerHTML, vb });
     });
-    host.innerHTML = "";
+    MathJax.typesetClear([host]); host.innerHTML = "";
     texBusy = false;
     scheduleRender();
     if (texPending.size) kickTex();

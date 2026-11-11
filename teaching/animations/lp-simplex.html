@@ -1,0 +1,2864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linear programs · feasible regions, objective, simplex</title>
+<script>
+  /* MathJax: TeX in \( \), Euler letters, SVG output (also used for the labels inside the drawings) */
+  window.MathJax = {
+    tex: { inlineMath: [["\\(", "\\)"]] },
+    svg: { fontCache: "none", mtextInheritFont: true },
+    output: { linebreaks: { inline: false } },
+    options: { enableMenu: false },
+    startup: { typeset: false }
+  };
+</script>
+<script src="/assets/mathjax/wi-mathjax.js" data-output="svg"></script>
+<script defer src="/assets/mathjax/v4/tex-svg.js"></script>
+<style>
+  /* Same token values as /css/animations.css, repeated so the page also works when opened directly. */
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#9c866d;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, "TeX Gyre Pagella", Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-font-mono:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    /* page tints: the feasible region purple as on the slides (purple!20, border purple!50), the objective orange */
+    --t-region:#e6d3e3; --t-region-line:#9a6a96; --t-obj:#e07b10; --t-obj-dark:#a85808;
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .wi-topbar { display:flex; align-items:baseline; justify-content:space-between; gap:1em; flex-wrap:wrap;
+               margin:0 0 1.1em; padding-bottom:.5em; border-bottom:1px solid var(--wi-border);
+               font-family:var(--wi-font-head); letter-spacing:.03em; }
+  .wi-topbar .wi-home { color:var(--wi-ink-strong); font-size:1.05em; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:14px 22px; flex-wrap:wrap; margin:0 0 6px; }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 14px; max-width:100ch; line-height:1.5; }
+
+  /* --- chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:11px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .lbl, .ctl > label:not(.chk) { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer; line-height:1.35;
+           transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text; font-size:1.02rem; line-height:1.1;
+                padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  .seg { display:inline-flex; flex-wrap:wrap; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  .seg button.on:hover:not(:disabled) { background:var(--wi-accent-dark); color:var(--wi-panel-2); }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+  .hidden { display:none !important; }
+
+  /* --- stage --- */
+  .stage { display:grid; grid-template-columns:minmax(0, var(--lf, 60fr)) 18px minmax(330px, var(--rf, 40fr)); gap:0; align-items:start; }
+  @media (max-width:980px) { .stage { grid-template-columns:1fr; gap:16px; } .splitter { display:none !important; } }
+  .splitter { align-self:stretch; min-height:200px; cursor:col-resize; touch-action:none; display:flex; justify-content:center; }
+  .splitter::before { content:""; width:4px; margin:30px 0; border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .splitter:hover::before, .splitter.drag::before, .splitter:focus-visible::before { background:var(--wi-accent-soft); }
+  .splitter:focus-visible { outline:none; }
+  .col-main, .col-side { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  @media (min-width:981px) { .col-side { position:sticky; top:10px; } }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); padding:11px 13px; min-width:0; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--wi-ink-faint);
+               margin:0 0 8px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--wi-font-body); font-size:1.15em; color:var(--wi-ink-soft); }
+  svg.stagesvg { display:block; background:var(--wi-bg); border-radius:var(--wi-radius); touch-action:none; user-select:none; -webkit-user-select:none; }
+  #cvWrap { position:relative; }
+  /* the canvas height: drag the handle under the drawing */
+  .vhandle { height:14px; cursor:row-resize; touch-action:none; display:flex; align-items:center; justify-content:center; }
+  .vhandle::before { content:""; height:4px; width:64px; border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .vhandle:hover::before, .vhandle.drag::before, .vhandle:focus-visible::before { background:var(--wi-accent-soft); }
+  .vhandle:focus-visible { outline:none; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:4px; font-size:.74rem; color:var(--wi-ink-soft); align-items:center; min-height:2.4em; }
+  .legend .item { display:inline-flex; align-items:center; gap:6px; }
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius);
+            padding:9px 13px; font-size:.88rem; color:var(--wi-ink-strong); height:10.4em; overflow-y:auto; line-height:1.5; }
+  .status b { font-family:var(--wi-font-head); font-weight:normal; letter-spacing:.04em; color:var(--wi-accent); }
+  .status .good { color:var(--wi-relax); }
+  .about { font-size:.82rem; line-height:1.55; color:var(--wi-ink-soft); }
+  .about p { margin:0 0 6px; }
+  .about b { color:var(--wi-ink-strong); font-family:var(--wi-font-head); font-weight:normal; letter-spacing:.04em; font-size:.92em; }
+  mjx-container[jax="SVG"] { color:inherit; }
+  .mj-buf  { position:absolute; left:-10000px; top:0; visibility:hidden; }
+
+  /* the objective-value slider under the drawing */
+  .zrow { display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; margin-top:4px; padding:8px 4px 2px; border-top:1px solid var(--wi-border-soft); }
+  .zrow .zlab { font-size:.95rem; white-space:nowrap; }
+  .zslide { flex:1 1 260px; display:flex; flex-direction:column; min-width:200px; }
+  .zslide .ends { display:flex; justify-content:space-between; font-size:.7rem; color:var(--wi-ink-faint); font-family:var(--wi-font-head); letter-spacing:.05em; height:1.1em; }
+  .zslide .ends .bt { color:var(--t-obj-dark); }
+  input.zr { -webkit-appearance:none; appearance:none; width:100%; height:18px; margin:0; background:transparent; cursor:pointer; }
+  input.zr::-webkit-slider-runnable-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.zr::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; box-sizing:border-box; width:16px; height:16px; margin-top:-6px;
+                border-radius:50%; background:var(--t-obj); border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--t-obj-dark); }
+  input.zr::-moz-range-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.zr::-moz-range-thumb { box-sizing:border-box; width:16px; height:16px; border-radius:50%; background:var(--t-obj);
+                border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--t-obj-dark); }
+  .zval { font-variant-numeric:tabular-nums; min-width:8.5em; text-align:left; color:var(--t-obj-dark); font-size:.95rem; white-space:nowrap; }
+
+  /* the LP and its constraints */
+  .lp-obj { font-size:.95rem; padding:0 2px 6px; border-bottom:1px solid var(--wi-border-soft); margin-bottom:4px; min-height:2em; }
+  .lp-obj .st { color:var(--wi-ink-faint); font-size:.85em; margin-left:2px; }
+  .crow { display:grid; grid-template-columns:20px 14px minmax(0,1fr) 8.6em; gap:6px; align-items:center; padding:2px 4px;
+          border-radius:3px; font-size:.9rem; cursor:pointer; border-left:3px solid transparent; }
+  .crow:hover, .crow.hot { background:#f3ebdd; }
+  .crow.off .tx { opacity:.42; text-decoration:line-through; text-decoration-color:var(--wi-ink-faint); }
+  .crow.iis { border-left-color:var(--wi-active); background:#f6e6df; }
+  .crow input { margin:0; cursor:pointer; accent-color:var(--wi-accent); }
+  .crow .sw { width:12px; height:12px; border-radius:2px; display:inline-block; }
+  .crow .tx { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .crow .nm { color:var(--wi-ink-faint); font-size:.85em; margin-left:.6em; }
+  .crow .tag { font-size:.74rem; text-align:right; color:var(--wi-ink-faint); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .crow .tag.tight { color:var(--wi-accent); font-family:var(--wi-font-head); letter-spacing:.05em; }
+  .crow .tag.bad { color:var(--wi-active); font-family:var(--wi-font-head); letter-spacing:.05em; }
+  .lp-foot { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:8px; font-size:.74rem; color:var(--wi-ink-faint); flex-wrap:wrap; }
+  .lp-foot button { padding:3px 9px; font-size:.74rem; }
+
+  /* transport: step buttons, step slider with phase bar (as on the other animation pages) */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:16px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; }
+  input.scrub { -webkit-appearance:none; appearance:none; display:block; width:100%; height:16px; margin:2px 0 0; background:transparent; cursor:pointer; }
+  input.scrub::-webkit-slider-runnable-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; box-sizing:border-box; width:16px; height:16px; margin-top:-6px; border-radius:50%; background:var(--wi-accent); border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  input.scrub::-moz-range-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-moz-range-thumb { box-sizing:border-box; width:16px; height:16px; border-radius:50%; background:var(--wi-accent); border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  .prep { font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.05em; color:var(--wi-ink-faint); white-space:nowrap; padding-top:3px; min-width:12em; }
+  .prep.ready { color:var(--wi-relax); }
+  .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint); white-space:nowrap; text-align:right; padding-top:2px; min-width:6ch; }
+  .phasebar { display:flex; margin:6px 8px 0; height:1.55rem; }
+  .phasebtn { flex:1 1 0; position:relative; overflow:hidden; padding:0; min-width:0; height:100%; font-size:.68rem; line-height:1.55rem; font-family:var(--wi-font-head);
+              letter-spacing:.02em; text-align:center; background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-left-width:0; border-radius:0;
+              color:var(--wi-ink-faint); cursor:pointer; white-space:nowrap; text-overflow:ellipsis; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3; border-right:1px solid var(--wi-accent-soft); }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+  /* code panel: the pseudocode of the slides */
+  .codebox { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  .codebox > .sim-title { padding:10px 15px 0; }
+  .codescroll { position:relative; overflow:auto; padding:0 6px 6px; }
+  .cline { display:flex; gap:10px; padding:1px 9px; font-size:.84rem; line-height:1.7; color:var(--wi-ink-strong); border-left:3px solid transparent; align-items:center; transition:opacity .2s; }
+  .cline .ln { color:var(--wi-ink-faint); min-width:1.3em; text-align:right; user-select:none; flex:none; font-size:.8em; align-self:flex-start; padding-top:.2em; }
+  .cline .tx { white-space:nowrap; }
+  .cline .cm { color:var(--wi-ink-faint); font-style:italic; }
+  .cline .tt { font-family:var(--wi-font-mono); font-size:.86em; }
+  .cline.caller { background:#f3ebdd; border-left-color:var(--wi-accent-soft); }
+  .cline.on { background:#f6e6df; border-left-color:var(--wi-active); }
+  .cline.dim { opacity:.4; }
+  .codenote { font-size:.74rem; color:var(--wi-ink-faint); padding:2px 15px 12px; line-height:1.45; }
+  /* the algebra: the dictionary of the current basis */
+  .alg { font-size:.95rem; overflow-x:auto; }
+  .alg .gen { font-size:.82rem; color:var(--wi-ink-soft); margin:0 0 4px; }
+  .alg .sets { font-size:.88rem; margin:0 0 8px; color:var(--wi-ink-strong); }
+  .alg .gnote { font-size:.78rem; color:var(--wi-ink-faint); }
+  .alg .mrow { margin:6px 0; }
+  .algflex { display:flex; flex-wrap:wrap; gap:10px 26px; align-items:flex-start; }
+  .algflex > .alg { flex:1 1 360px; min-width:0; }
+  .lpblk { flex:none; font-size:.86rem; padding:2px 16px 4px 0; border-right:1px solid var(--wi-border-soft); max-width:100%; overflow-x:auto; }
+  .lpblk .gnote { margin:0 0 3px; }
+  table.dict { border-collapse:collapse; }
+  table.dict td { padding:2px 8px; white-space:nowrap; text-align:left; border-radius:3px; }
+  table.dict td.c0 { text-align:right; }
+  table.dict td.bv { padding-left:2px; }
+  table.dict td.bv .sw { width:9px; height:9px; border-radius:2px; display:inline-block; margin-right:7px; vertical-align:1px; }
+  table.dict .dname { font-size:.72rem; color:var(--wi-ink-faint); margin-left:.5em; }
+  table.dict tr.objrow td { border-top:1.5px solid var(--wi-border); padding-top:5px; border-radius:0; }
+  table.dict td.neg { color:var(--wi-active); }
+  table.dict td.pick { cursor:pointer; box-shadow:inset 0 0 0 1px var(--wi-accent-soft); }
+  table.dict td.pick:hover { background:#f6e6df; box-shadow:inset 0 0 0 1.5px var(--wi-active); }
+  table.dict td.ent { background:#f3e6d6; }
+  table.dict td.old { background:#eee6da; }
+  table.dict tr.leave td { background:#f6e0d8; }
+  table.dict tr.leave td.rt.min { color:var(--wi-accent); font-weight:bold; }
+  table.dict tr.fresh td.bv { background:#f3e6d6; }
+  table.dict td.rt { padding-left:16px; color:var(--wi-ink-soft); font-size:.9em; }
+  .gwrap { overflow-x:auto; }
+  .sv-gv { font-family:var(--wi-font-body); font-size:12px; fill:var(--wi-ink-soft); }
+  .sv-gv.bad { fill:var(--wi-active); }
+
+  /* the collapsed explanation under the algebra */
+  details.explain { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.explain > summary { cursor:pointer; padding:10px 14px; font-family:var(--wi-font-head); font-size:.76rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  details.explain[open] > summary { border-bottom:1px solid var(--wi-border-soft); color:var(--wi-accent); }
+  .num-body { padding:6px 10px 10px; font-size:.86rem; overflow-x:auto; }
+  .nsec { display:grid; grid-template-columns:9.5em minmax(0,1fr); gap:4px 14px; padding:7px 8px; border-left:3px solid transparent; border-radius:3px; }
+  .nsec + .nsec { border-top:1px solid var(--wi-border-soft); }
+  .nsec.now { background:#f6e6df; border-left-color:var(--wi-active); }
+  .nsec.later .nval { color:var(--wi-ink-faint); }
+  .nlab { font-family:var(--wi-font-head); font-size:.7rem; letter-spacing:.06em; color:var(--wi-ink-soft); padding-top:.35em; }
+  .nsec.now .nlab { color:var(--wi-accent); }
+  .nval { min-width:0; overflow-x:auto; line-height:1.9; }
+  .nnote { font-size:.76rem; color:var(--wi-ink-faint); line-height:1.4; }
+  .nrows > div { margin:2px 0; }
+  .explain-body { padding:4px 16px 12px; font-size:.86rem; line-height:1.55; color:var(--wi-ink); max-width:92ch; }
+  .explain-body h4 { font-family:var(--wi-font-head); font-weight:normal; font-size:.8rem; letter-spacing:.06em; color:var(--wi-accent); margin:12px 0 3px; }
+  .explain-body p { margin:0 0 5px; }
+  .explain-body p.disp { text-align:center; margin:6px 0 8px; overflow-x:auto; }
+  .explain-body .here { color:var(--wi-ink-soft); font-style:italic; }
+
+  /* input editor */
+  details.editor { margin-top:16px; background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:11px 16px; font-family:var(--wi-font-head); font-size:.78rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,430px) 1fr; gap:16px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  textarea { width:100%; height:250px; font-family:var(--wi-font-mono); font-size:.76rem; background:var(--wi-panel-2);
+             color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.78rem; color:var(--wi-ink-soft); line-height:1.55; }
+  .hint code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; font-family:var(--wi-font-mono); }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+
+  .tooltip { position:fixed; z-index:40; pointer-events:none; background:var(--wi-panel-2);
+             border:1px solid var(--wi-border-strong); border-radius:var(--wi-radius);
+             padding:6px 9px; font-size:.78rem; color:var(--wi-ink-strong);
+             box-shadow:0 3px 10px rgba(0,0,0,.12); max-width:290px; display:none; line-height:1.45; }
+  .tooltip .tt-h { font-family:var(--wi-font-head); letter-spacing:.04em; color:var(--wi-accent); }
+  .tooltip .tt-s { color:var(--wi-ink-faint); }
+
+  .placeholder { font-size:.9rem; color:var(--wi-ink-soft); line-height:1.6; max-width:80ch; }
+
+  /* SVG text */
+  .sv-tick { font-family:var(--wi-font-body); font-size:12.5px; fill:var(--wi-ink-soft); }
+  .sv-lab  { font-family:var(--wi-font-body); font-size:14px; fill:var(--wi-ink-strong); }
+  .sv-name { font-family:var(--wi-font-body); font-size:13.5px; paint-order:stroke; stroke:var(--wi-bg); stroke-width:4px; stroke-linejoin:round; }
+  .sv-z    { font-family:var(--wi-font-body); font-size:13.5px; fill:var(--t-obj-dark); paint-order:stroke; stroke:var(--wi-bg); stroke-width:4px; stroke-linejoin:round; }
+  .sv-note { font-family:var(--wi-font-body); font-size:14px; fill:var(--wi-ink-faint); font-style:italic; }
+  .sv-small{ font-family:var(--wi-font-head); font-size:10.5px; letter-spacing:.06em; fill:var(--wi-ink-faint); text-anchor:middle; }
+  .sv-small.halo { fill:var(--t-obj-dark); font-size:11px; paint-order:stroke; stroke:var(--wi-bg); stroke-width:3.5px; stroke-linejoin:round; }
+  .hit { cursor:pointer; }
+  .grab { cursor:grab; }
+
+  /* presentation view */
+  .only-p { display:none !important; }
+  body.present .only-p { display:inline-flex !important; }
+  body.present .hide-p { display:none !important; }
+  body.present h1 { font-size:1.9rem; }
+  .exitp { position:fixed; bottom:10px; right:12px; z-index:20; font-size:.75rem; opacity:.5; }
+  .exitp:hover, .exitp:focus-visible { opacity:1; }
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls { gap:8px 12px; padding:10px 12px; }
+    .seg button { padding:5px 9px; font-size:.74rem; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { animation-duration:.001ms !important; transition-duration:.001ms !important; } }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption { font-family: var(--wi-font-head); letter-spacing: .05em; }
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar hide-p">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1 id="pageTitle">Linear programs</h1>
+  <span class="ctl" style="gap:14px">
+    <span class="seg" id="modeSeg" role="tablist">
+      <button data-mode="geo" class="on" role="tab" title="The feasible region and the lines (planes) of constant objective value">Feasible region &amp; objective</button>
+      <button data-mode="simplex" role="tab" title="The simplex method in the cleanest case: from vertex to better neighbouring vertex">Simplex</button>
+      <button data-mode="full" role="tab" title="Phase I, unbounded and degenerate cases, pivot rules, the matrices">Simplex: the full story</button>
+    </span>
+  </span>
+  <span class="ctl hide-p"><button id="presBtn" title="A clutter-free view for the lecture (Esc to leave)">Presentation view</button></span>
+</div>
+<button id="exitPres" class="only-p exitp" title="Leave the presentation view (Esc)">✕ leave presentation</button>
+<p class="subtitle hide-p" id="subGeo">An LP with two or three variables, drawn: every constraint is a half-plane (in 3D a half-space), the feasible region is their intersection.
+  Slide the line (plane) of equal objective value through the picture and watch where it leaves the region.
+  Switch constraints on and off to make the LP unbounded or infeasible; drag the arrow to turn the objective.</p>
+
+
+<div class="controls hide-p" id="ctlGeo">
+  <div class="ctl">
+    <label for="presetSel">LP</label>
+    <select id="presetSel"></select>
+  </div>
+  <div class="ctl">
+    <span class="lbl">Objective</span>
+    <span class="seg" id="senseSeg">
+      <button data-sense="max" class="on" title="Maximize the objective">max</button>
+      <button data-sense="min" title="Minimize the objective">min</button>
+    </span>
+  </div>
+  <div class="ctl">
+    <span class="lbl">View</span>
+    <button id="zoomOut" class="icon" title="Zoom out" aria-label="Zoom out">−</button>
+    <button id="zoomIn" class="icon" title="Zoom in" aria-label="Zoom in">+</button>
+    <button id="viewFit" title="Fit the view to the feasible region">fit</button>
+    <button id="viewReset" title="Back to the view of the input (and, in 3D, the initial rotation)">reset</button>
+  </div>
+  <div class="ctl">
+    <label class="chk" id="hatchLab"><input type="checkbox" id="hatchChk" checked> hatch the forbidden side</label>
+    <label class="chk"><input type="checkbox" id="xiChk"> all intersection points</label>
+  </div>
+</div>
+
+<div class="stage" id="stageGeo">
+  <div class="col-main">
+    <div class="sim-box">
+      <div class="sim-title"><span id="cvTitle">Feasible region</span><span class="rhs" id="cvMeta"></span></div>
+      <div id="cvWrap"><svg id="cv" class="stagesvg"></svg></div>
+      <div class="vhandle hide-p" id="vhandle" role="separator" aria-orientation="horizontal" tabindex="0"
+           title="Drag to change the height of the drawing (double-click: back to the default)"></div>
+      <div class="zrow">
+        <span class="zlab" id="zLab">\(z\;=\)</span>
+        <span class="zval" id="zVal"></span>
+        <span class="zslide">
+          <input type="range" class="zr" id="zRange" min="0" max="10000" value="0" step="1" aria-label="Objective value z">
+          <span class="ends"><span id="endL"></span><span id="endR"></span></span>
+        </span>
+        <span class="ctl" style="gap:6px">
+          <button id="sweepBtn" class="pri" title="Push the line (plane) towards better values, until it leaves the region (space)">▶&#xFE0E; push</button>
+          <button id="optBtn" title="Jump to the best value (End)">best</button>
+        </span>
+      </div>
+      <div class="legend hide-p" id="cvLegend"></div>
+    </div>
+  </div>
+  <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" tabindex="0"
+       title="Drag to share the width between drawing and side panel (double-click: back to the default)"></div>
+  <div class="col-side">
+    <div class="sim-box">
+      <div class="sim-title"><span>What you see</span><span class="rhs" id="stateName"></span></div>
+      <div class="status" id="statusBox"></div>
+    </div>
+    <div class="sim-box">
+      <div class="sim-title"><span>The LP</span><span class="rhs" id="lpMeta"></span></div>
+      <div class="lp-obj" id="lpObj"></div>
+      <div id="lpRows"></div>
+      <div class="lp-foot"><span id="lpFoot">click a constraint to switch it off or on</span>
+        <span><button id="allOn" title="Switch all constraints on">all on</button> <button id="asGiven" title="Back to the constraints as switched in the input">as given</button></span></div>
+    </div>
+    <div class="sim-box hide-p">
+      <div class="about" id="aboutBox"></div>
+    </div>
+  </div>
+</div>
+
+<div id="s2Box" class="hidden"></div>
+<div id="s3Box" class="hidden"></div>
+
+<details class="editor hide-p" id="editorBox">
+  <summary>Input as text</summary>
+  <div class="editor-body">
+    <div>
+      <textarea id="inputText" spellcheck="false"></textarea>
+      <div style="margin-top:8px; display:flex; gap:8px"><button class="pri" id="loadBtn">Load</button><button id="curBtn" title="Put the LP currently shown into the text box">current LP</button></div>
+      <div class="err" id="parseErr"></div>
+    </div>
+    <div class="hint" id="formatHint">
+      One line per item; lines starting with <code>#</code> are comments.
+      <br><code>vars s k</code> — the variables (two or three of them; the first is the horizontal axis, in 3D the third points up).
+      <br><code>max 195s + 255k</code> or <code>min 2x + 3y</code> — the objective.
+      <br><code>4s + 4k &lt;= 5000 | Orchard | red</code> — a constraint: linear expressions on both sides of <code>&lt;=</code>, <code>&gt;=</code> or <code>=</code>
+      (also <code>≤</code>, <code>≥</code>; chains like <code>0 &lt;= x &lt;= 4</code> give two constraints; <code>x, y &gt;= 0</code> one per variable).
+      After <code>|</code> an optional name, then optionally a colour (<code>red blue green teal purple brown pink olive gray</code> or <code>#hex</code>)
+      and <code>off</code> for a constraint that starts switched off.
+      <br><code>nonneg</code> — shorthand for <i>x</i> ≥ 0 for every variable.
+      <br><code>view -30 1450 -30 950</code> — the visible window (\(x\) range, then \(y\), in 3D also \(z\)); both axes are drawn to the same scale.
+      <br><code>label s #Sossenheimer Roter trees</code> — an axis label; <code>unit €</code> — a prefix for objective values; <code>title …</code> — the name in the menu.
+      <br><br>
+      The page address can carry an LP, too: <code>#lp=hessy</code> picks a prepared one, <code>&amp;min</code> flips the objective,
+      <code>&amp;off=2,5</code> switches constraints off (numbered from 1 as in the list), <code>&amp;present</code> opens the presentation view.
+      <code>#src=…</code> holds a whole LP in the format above (URL-encoded); “current LP” then “Load” and the address bar give you such a link.
+      <br><br>
+      <b>Simplex tabs.</b> “Load” puts the LP into the tab that is open. There every variable needs <i>x</i> ≥ 0, “≥” constraints are multiplied by −1, and “=” is not allowed;
+      up to eight variables (pictures for two or three) and twelve constraints. The tab “Simplex” also needs the origin to be feasible; the full story runs Phase I otherwise.
+      <code>stretch</code> scales the three axes of a 3D picture to the same length. Addresses: <code>#simplex</code> or <code>#full</code>, with <code>&amp;lp=walk</code>,
+      <code>&amp;step=5</code>, and in the full story <code>&amp;rule=bland</code> (<code>dantzig</code>, <code>best</code>, <code>click</code>).
+    </div>
+  </div>
+</details>
+<div class="tooltip" id="tip"></div>
+
+<script>
+"use strict";
+/* ==========================================================================
+   Linear programs in 2D and 3D.
+
+   Geometry is done by brute force, which is exact enough and simple: the
+   vertices of {x : a_i·x <= b_i} are found among the solutions of all
+   d×d subsystems (d = 2, 3), the feasible ones are kept.  For the picture,
+   the six (four) faces of the visible box are added as extra constraints;
+   for the LP itself, a huge box instead -- the LP is unbounded iff its
+   optimum over the huge box only lies on that box and moves when the box
+   grows.  Infeasible LPs get a witness: a smallest set of switched-on
+   constraints without a common point (by Helly, at most d+1 of them).
+   ========================================================================== */
+const el  = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const M = s => "\\(" + s + "\\)";
+const f1 = x => x.toFixed(1);
+const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
+const norm = a => Math.sqrt(dot(a, a));
+const sub = (a, b) => a.map((x, i) => x - b[i]);
+const add = (a, b) => a.map((x, i) => x + b[i]);
+const mul = (a, k) => a.map(x => x * k);
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+
+/* ---------- colours ------------------------------------------------------- */
+const PALETTE = { red: "#c62f22", blue: "#2c5aa0", green: "#3d7b2c", teal: "#2a6a63", purple: "#7d3f8f",
+                  brown: "#8b5a2b", pink: "#b0446e", olive: "#6f7a1f", gray: "#7d786b", grey: "#7d786b", orange: "#e07b10" };
+const AUTO = ["red", "blue", "green", "teal", "purple", "brown", "pink", "olive"];
+const OBJ = "#e07b10", OBJD = "#a85808";
+
+/* ---------- numbers: exact-looking where the value is a small fraction ----- */
+function ratApprox(x, maxQ) {
+  let h0 = 0, h1 = 1, k0 = 1, k1 = 0, b = x;
+  const tol = 1e-9 * Math.max(1, Math.abs(x));
+  for (let it = 0; it < 30; it++) {
+    const a = Math.floor(b), h2 = a * h1 + h0, k2 = a * k1 + k0;
+    if (k2 > maxQ) break;
+    h0 = h1; h1 = h2; k0 = k1; k1 = k2;
+    if (Math.abs(x - h1 / k1) <= tol) return [h1, k1];
+    const fr = b - a; if (fr < 1e-13) break; b = 1 / fr;
+  }
+  return null;
+}
+function groupInt(s, tex) {
+  if (s.length < 5) return s;
+  const sep = tex ? "\\," : "\u202F";
+  let out = ""; for (let i = 0; i < s.length; i++) { if (i && (s.length - i) % 3 === 0) out += sep; out += s[i]; }
+  return out;
+}
+/* { tex, plain, exact } for a number; repeating decimals with an overline as on the slides (533.\overline3) */
+function num(x) {
+  if (!isFinite(x)) return { tex: x > 0 ? "\\infty" : "-\\infty", plain: x > 0 ? "∞" : "−∞", exact: true };
+  if (Math.abs(x) < 1e-9) x = 0;
+  const neg = x < 0, ax = Math.abs(x), r = ratApprox(ax, 1000);
+  const sg = s => (neg ? "-" : "") + s, sgp = s => (neg ? "−" : "") + s;
+  if (r) {
+    const [p, q] = r, I = Math.floor(p / q); let rem = p - I * q;
+    const intS = String(I);
+    if (rem === 0) return { tex: sg(groupInt(intS, true)), plain: sgp(groupInt(intS, false)), exact: true };
+    const digits = [], seen = new Map();
+    let start = -1;
+    while (rem && digits.length < 12) {
+      if (seen.has(rem)) { start = seen.get(rem); break; }
+      seen.set(rem, digits.length); rem *= 10; digits.push(Math.floor(rem / q)); rem %= q;
+    }
+    if (!rem && digits.length <= 4) { const d = digits.join(""); return { tex: sg(groupInt(intS, true) + "." + d), plain: sgp(groupInt(intS, false) + "." + d), exact: true }; }
+    if (start >= 0 && digits.length <= 5) {
+      const pre = digits.slice(0, start).join(""), per = digits.slice(start).join("");
+      const VF = { "1/2": "½", "1/3": "⅓", "2/3": "⅔", "1/4": "¼", "3/4": "¾", "1/6": "⅙", "5/6": "⅚", "1/7": "⅐", "1/9": "⅑" };
+      const fr = VF[(p - I * q) + "/" + q];
+      return { tex: sg(groupInt(intS, true) + "." + pre + "\\overline{" + per + "}"),
+               plain: sgp(fr ? (I ? groupInt(intS, false) : "") + fr : groupInt(intS, false) + "." + pre + per + "…"), exact: true };
+    }
+  }
+  let s = ax >= 100 ? ax.toFixed(1) : ax >= 1 ? ax.toFixed(2) : ax.toPrecision(3);
+  if (s.includes(".")) s = s.replace(/0+$/, "").replace(/\.$/, "");
+  const [ip, fp] = s.split(".");
+  const t = groupInt(ip, true) + (fp ? "." + fp : ""), pl = groupInt(ip, false) + (fp ? "." + fp : "");
+  return { tex: sg(t), plain: sgp(pl), exact: false };
+}
+const numT = x => num(x).tex, numP = x => num(x).plain;
+const approxT = x => { const n = num(x); return (n.exact ? "" : "\\approx ") + n.tex; };
+
+/* ---------- linear algebra for d <= 3 ------------------------------------- */
+function solve(A, b) {                      /* A: d×d rows, b: d; null if (relatively) singular */
+  const d = A.length;
+  if (d === 2) {
+    const det = A[0][0] * A[1][1] - A[0][1] * A[1][0];
+    if (Math.abs(det) <= 1e-11 * norm(A[0]) * norm(A[1])) return null;
+    return [(b[0] * A[1][1] - A[0][1] * b[1]) / det, (A[0][0] * b[1] - b[0] * A[1][0]) / det];
+  }
+  const c12 = cross(A[1], A[2]), det = dot(A[0], c12);
+  if (Math.abs(det) <= 1e-11 * norm(A[0]) * norm(A[1]) * norm(A[2])) return null;
+  const c20 = cross(A[2], A[0]), c01 = cross(A[0], A[1]);
+  return [0, 1, 2].map(i => (b[0] * c12[i] + b[1] * c20[i] + b[2] * c01[i]) / det);
+}
+const tolOf = (h, x) => 1e-9 * (Math.abs(h.b) + norm(h.a) * norm(x) + 1);
+const sat = (h, x) => dot(h.a, x) <= h.b + tolOf(h, x);
+const tightOn = (h, x) => Math.abs(dot(h.a, x) - h.b) <= tolOf(h, x) * 10;
+/* all vertices of the polyhedron {x : a·x <= b for every halfspace in H}, each with the indices of its tight halfspaces */
+function vertices(H, d) {
+  const out = [], n = H.length;
+  const push = p => {
+    for (const h of H) if (!sat(h, p)) return;
+    const sc = 1e-7 * (1 + norm(p));
+    for (const q of out) if (norm(sub(q.p, p)) <= sc) return;
+    out.push({ p });
+  };
+  if (d === 2) {
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const p = solve([H[i].a, H[j].a], [H[i].b, H[j].b]); if (p) push(p);
+    }
+  } else {
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) for (let k = j + 1; k < n; k++) {
+      const p = solve([H[i].a, H[j].a, H[k].a], [H[i].b, H[j].b, H[k].b]); if (p) push(p);
+    }
+  }
+  for (const v of out) {
+    v.tight = []; H.forEach((h, i) => { if (tightOn(h, v.p)) v.tight.push(i); });
+    v.real = v.tight.every(i => !H[i].box);
+    v.cons = [...new Set(v.tight.filter(i => !H[i].box).map(i => H[i].ci))];
+  }
+  return out;
+}
+function boxH(lo, hi) {
+  const d = lo.length, H = [];
+  for (let i = 0; i < d; i++) {
+    const e = new Array(d).fill(0); e[i] = 1;
+    H.push({ a: e, b: hi[i], box: true, ci: -1, bf: 2 * i + 1 });
+    H.push({ a: mul(e, -1), b: -lo[i], box: true, ci: -1, bf: 2 * i });
+  }
+  return H;
+}
+/* order points of a planar convex polygon (in R^2, or in the plane with normal nrm in R^3) */
+function orderPoly(pts, nrm) {
+  if (pts.length < 3) return pts.slice();
+  const d = pts[0].length, c = pts.reduce((s, p) => add(s, p), new Array(d).fill(0)).map(x => x / pts.length);
+  let ang;
+  if (d === 2) ang = p => Math.atan2(p[1] - c[1], p[0] - c[0]);
+  else {
+    const n = mul(nrm, 1 / norm(nrm)), t = Math.abs(n[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+    const u = cross(n, t), un = mul(u, 1 / norm(u)), v = cross(n, un);
+    ang = p => { const q = sub(p, c); return Math.atan2(dot(q, v), dot(q, un)); };
+  }
+  return pts.slice().sort((p, q) => ang(p) - ang(q));
+}
+
+/* ---------- the LP: input format ------------------------------------------ */
+const OPS = /(<=|>=|=<|=>|≤|≥|==|=|<|>)/;
+const opNorm = o => (o === "<=" || o === "=<" || o === "≤" || o === "<") ? "<=" : (o === ">=" || o === "=>" || o === "≥" || o === ">") ? ">=" : "=";
+function parseLin(str, vars, lineNo) {
+  const s = str.replace(/\s+/g, "").replace(/−/g, "-").replace(/·|×/g, "*");
+  const co = new Array(vars.length).fill(0); let k = 0, first = null;
+  if (!s.length) throw new Error("line " + lineNo + ": an empty side");
+  const terms = s.replace(/([^eE*\/])-/g, "$1+-").replace(/^\+/, "").split("+").filter(t => t.length);
+  for (let t of terms) {
+    let sign = 1;
+    while (t[0] === "-" || t[0] === "+") { if (t[0] === "-") sign = -sign; t = t.slice(1); }
+    const m = /^((?:\d+\.?\d*|\.\d+)(?:\/(?:\d+\.?\d*))?)?\*?([A-Za-z_][A-Za-z0-9_]*)?$/.exec(t);
+    if (!m || (!m[1] && !m[2])) throw new Error("line " + lineNo + ": cannot read the term “" + t + "”");
+    let cf = 1;
+    if (m[1]) { const [p, q] = m[1].split("/"); cf = parseFloat(p) / (q !== undefined ? parseFloat(q) : 1); }
+    if (m[2]) {
+      const vi = vars.indexOf(m[2]);
+      if (vi < 0) throw new Error("line " + lineNo + ": unknown variable “" + m[2] + "” (declared: " + vars.join(", ") + ")");
+      co[vi] += sign * cf; if (first === null) first = "v";
+    } else { k += sign * cf; if (first === null) first = "k"; }
+  }
+  return { co, k, kFirst: first === "k" };
+}
+function parseLP(text) {
+  const lp = { title: "", vars: null, labels: {}, unit: "", sense: "max", c: null, cons: [], view: null, src: text };
+  const pend = [];
+  text.split(/\r?\n/).forEach((raw, i) => {
+    const line = raw.trim(), no = i + 1;
+    if (!line || line.startsWith("#") || line.startsWith("//")) return;
+    const m = /^(\w+)\b\s*(.*)$/.exec(line), kw = m ? m[1].toLowerCase() : "", rest = m ? m[2] : "";
+    if (kw === "title") { lp.title = rest; return; }
+    if (kw === "vars" || kw === "variables") {
+      lp.vars = rest.split(/[\s,]+/).filter(x => x);
+      if (lp.vars.length < 2 || lp.vars.length > 8) throw new Error("line " + no + ": between two and eight variables, please (pictures for two or three)");
+      lp.vars.forEach(v => { if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(v)) throw new Error("line " + no + ": “" + v + "” is not a variable name"); });
+      if (new Set(lp.vars).size !== lp.vars.length) throw new Error("line " + no + ": a variable twice");
+      return;
+    }
+    if (kw === "label") { const mm = /^(\w+)\s+(.*)$/.exec(rest); if (!mm) throw new Error("line " + no + ": label <variable> <text>"); lp.labels[mm[1]] = mm[2]; return; }
+    if (kw === "unit") { lp.unit = rest; return; }
+    if (kw === "stretch") { lp.stretch = true; return; }
+    if (kw === "view") {
+      const v = rest.split(/[\s,]+/).filter(x => x).map(Number);
+      if (v.some(x => !isFinite(x)) || (v.length !== 4 && v.length !== 6)) throw new Error("line " + no + ": view needs 4 (2D) or 6 (3D) numbers");
+      lp.view = v; return;
+    }
+    if (!lp.vars && (kw !== "")) {
+      if (/^(max|min|maximize|minimize|maximise|minimise|nonneg)$/.test(kw) || OPS.test(line)) throw new Error("line " + no + ": declare the variables first (vars …)");
+    }
+    if (/^(max|maximize|maximise|min|minimize|minimise)$/.test(kw)) {
+      lp.sense = kw.startsWith("max") ? "max" : "min";
+      const e = parseLin(rest, lp.vars, no);
+      if (e.co.every(x => x === 0)) throw new Error("line " + no + ": the objective has no variable");
+      lp.c = e.co; return;
+    }
+    if (kw === "nonneg") { lp.vars.forEach(v => pend.push({ a: lp.vars.map(w => w === v ? 1 : 0), op: ">=", b: 0, name: "", color: "", on: true, nonneg: true })); return; }
+    const parts = line.split("|").map(x => x.trim()), body = parts[0];
+    let name = parts[1] || "", color = "", on = true;
+    for (const f of parts.slice(2)) for (const tok of f.split(/\s+/).filter(x => x)) {
+      if (tok.toLowerCase() === "off") on = false;
+      else if (PALETTE[tok.toLowerCase()]) color = PALETTE[tok.toLowerCase()];
+      else if (/^#[0-9a-fA-F]{3,6}$/.test(tok)) color = tok;
+      else throw new Error("line " + no + ": “" + tok + "” is neither a colour nor “off”");
+    }
+    const seg = body.split(OPS);
+    if (seg.length < 3) throw new Error("line " + no + ": neither a keyword nor a constraint");
+    /* x, y >= 0 : one constraint per variable */
+    if (seg.length === 3 && seg[0].includes(",")) {
+      const vs = seg[0].split(",").map(x => x.trim()), op = opNorm(seg[1]), r = parseLin(seg[2], lp.vars, no);
+      if (r.co.some(x => x)) throw new Error("line " + no + ": “x, y >= …” needs a number on the right");
+      for (const v of vs) { const vi = lp.vars.indexOf(v); if (vi < 0) throw new Error("line " + no + ": unknown variable “" + v + "”");
+        pend.push({ a: lp.vars.map((w, j) => j === vi ? 1 : 0), op, b: r.k, name, color, on, nonneg: op === ">=" && r.k === 0 }); }
+      return;
+    }
+    for (let q = 0; q + 2 < seg.length; q += 2) {
+      const L = parseLin(seg[q], lp.vars, no), R = parseLin(seg[q + 2], lp.vars, no), op = opNorm(seg[q + 1]);
+      let a = L.co.map((x, j) => x - R.co[j]), b = R.k - L.k;
+      if (a.every(x => Math.abs(x) < 1e-15)) throw new Error("line " + no + ": a constraint without a variable");
+      /* write it with the variables on the left; keep the user's orientation if the left side held them */
+      let op2 = op;
+      if (L.co.every(x => x === 0) && R.co.some(x => x)) { a = a.map(x => -x); b = -b; op2 = op === "<=" ? ">=" : op === ">=" ? "<=" : "="; }
+      const nz = a.map((x, j) => x ? j : -1).filter(j => j >= 0);
+      const both = L.co.some(x => x) && R.co.some(x => x);
+      pend.push({ a, op: op2, b, name, color, on, disp: both ? { L, R, op } : null, nonneg: nz.length === 1 && b === 0 && ((op2 === ">=" && a[nz[0]] > 0) || (op2 === "<=" && a[nz[0]] < 0)) });
+    }
+  });
+  if (!lp.vars) throw new Error("no variables declared (vars x y)");
+  if (!lp.c) throw new Error("no objective (max … or min …)");
+  if (lp.view && lp.view.length !== 2 * lp.vars.length) throw new Error("view: " + 2 * lp.vars.length + " numbers for " + lp.vars.length + " variables");
+  let ai = 0;
+  pend.forEach(p => {
+    if (!p.color) p.color = p.nonneg ? PALETTE.gray : PALETTE[AUTO[ai++ % AUTO.length]];
+    if (!p.name && p.nonneg) p.name = "";
+  });
+  lp.cons = pend;
+  lp.d = lp.vars.length;
+  if (!lp.title) lp.title = "custom LP";
+  return lp;
+}
+/* TeX of a variable name: x1 -> x_1 */
+function varT(v) {
+  const m = /^([A-Za-z]+)_?(\d+)$/.exec(v);
+  if (m) return (m[1].length > 1 ? "\\mathit{" + m[1] + "}" : m[1]) + "_{" + m[2] + "}";
+  return v.length > 1 ? "\\mathit{" + v.replace(/_/g, "\\_") + "}" : v;
+}
+function exprT(co, vars) {
+  let s = "";
+  co.forEach((c, j) => {
+    if (!c) return;
+    const n = num(Math.abs(c)).tex, t = (Math.abs(c) === 1 ? "" : n) + varT(vars[j]);
+    s += s ? (c < 0 ? " - " : " + ") + t : (c < 0 ? "-" : "") + t;
+  });
+  return s || "0";
+}
+function exprP(co, vars) {
+  let s = "";
+  co.forEach((c, j) => {
+    if (!c) return;
+    const t = (Math.abs(c) === 1 ? "" : numP(Math.abs(c))) + vars[j];
+    s += s ? (c < 0 ? " − " : " + ") + t : (c < 0 ? "−" : "") + t;
+  });
+  return s || "0";
+}
+const REL = { "<=": "\\;\\le\\;", ">=": "\\;\\ge\\;", "=": "\\;=\\;" };
+function sideT(e, vars) {
+  const hasV = e.co.some(x => x);
+  if (!hasV) return numT(e.k);
+  let s = exprT(e.co, vars);
+  if (e.k) s = e.kFirst ? numT(e.k) + (s[0] === "-" ? " " + s.replace(/^-/, "- ") : " + " + s) : s + (e.k < 0 ? " - " : " + ") + numT(Math.abs(e.k));
+  return s;
+}
+const consT = (k, vars) => k.disp ? sideT(k.disp.L, vars) + REL[k.disp.op] + sideT(k.disp.R, vars) : exprT(k.a, vars) + REL[k.op] + numT(k.b);
+const consP = (k, vars) => exprP(k.a, vars) + " " + ({ "<=": "≤", ">=": "≥", "=": "=" })[k.op] + " " + numP(k.b);
+function lpToText(lp, cons, c, sense) {
+  const L = ["title " + lp.title, "vars " + lp.vars.join(" ")];
+  for (const v of lp.vars) if (lp.labels[v]) L.push("label " + v + " " + lp.labels[v]);
+  if (lp.unit) L.push("unit " + lp.unit);
+  const ex = (co) => { let s = ""; co.forEach((x, j) => { if (!x) return; const a = Math.abs(x), t = (a === 1 ? "" : String(+a.toPrecision(12))) + lp.vars[j]; s += s ? (x < 0 ? " - " : " + ") + t : (x < 0 ? "-" : "") + t; }); return s; };
+  L.push(sense + " " + ex(c));
+  const colName = h => Object.keys(PALETTE).find(k => PALETTE[k] === h) || h;
+  cons.forEach(k => L.push(ex(k.a) + " " + k.op + " " + (+k.b.toPrecision(12)) + " | " + (k.name || "") + " | " + colName(k.color) + (k.on ? "" : " off")));
+  if (lp.view) L.push("view " + lp.view.join(" "));
+  return L.join("\n") + "\n";
+}
+
+/* ---------- prepared LPs ------------------------------------------------------ */
+const PRESETS = [
+  { key: "hessy", text:
+`# Hessy James's apple farm, as on the slides
+title Hessy James's apple farm (slides)
+vars s k
+label s #Sossenheimer Roter trees
+label k #Korbacher Edelrenette trees
+unit €
+max 195s + 255k
+4s + 4k <= 5000     | Orchard     | red
+6s + 4.5k <= 3000   | Fertilizer  | green
+s + 3k <= 1700      | Harvest     | blue
+s >= 0              | Non-negativity
+k >= 0              | Non-negativity
+view -30 1450 -30 950
+` },
+  { key: "hessy-contract", text:
+`# Hessy's farm with a supply contract he cannot keep (switch it on)
+title Hessy's farm, overbooked (infeasible)
+vars s k
+label s #Sossenheimer Roter trees
+label k #Korbacher Edelrenette trees
+unit €
+max 195s + 255k
+4s + 4k <= 5000     | Orchard     | red
+6s + 4.5k <= 3000   | Fertilizer  | green
+s + 3k <= 1700      | Harvest     | blue
+s + k >= 1300       | Supply contract: 1300 trees | purple
+s >= 0              | Non-negativity
+k >= 0              | Non-negativity
+view -30 1450 -30 1350
+` },
+  { key: "unbdregion", text:
+`# an unbounded region: the minimum exists, the maximum does not
+title Unbounded region (min fine, max unbounded)
+vars x y
+min 2x + 3y
+x + 2y >= 4
+3x + y >= 6
+x, y >= 0
+view -0.6 7 -0.6 6
+` },
+  { key: "edge", text:
+`# the objective is parallel to an edge: a whole edge is optimal (with its two end vertices)
+title Optimal edge
+vars x y
+max x + y
+x + y <= 5
+x <= 4
+y <= 3.5
+x, y >= 0
+view -0.5 5.5 -0.5 4.5
+` },
+  { key: "many", text:
+`# many constraints, as in the picture on the slides (n = 2, m = 12)
+title Many constraints (m = 12)
+vars x y
+max 2x + 3y
+x <= 9
+3x + 2y <= 33
+x + y <= 13
+x + 3y <= 26
+y <= 8
+-x + 2y <= 13
+-2x + y <= 4
+x >= 1
+x + y >= 4
+3x - 2y <= 20
+x, y >= 0
+view -0.7 10 -0.7 9
+` },
+  { key: "helly", text:
+`# every two of the first three constraints can be satisfied together -- all three cannot
+title Infeasible: three constraints that clash
+vars x y
+max x + y
+y <= x        | | red
+x + y <= 4    | | blue
+y >= 2.5      | | green
+x, y >= 0
+view -0.6 5 -0.6 4
+` },
+  { key: "novertex", text:
+`# a region without any vertex: the optimum is reached, but on a whole line
+title No vertex at all (a strip)
+vars x y
+max x + y
+x + y <= 4    | | red
+x + y >= 1    | | blue
+x >= 0        | | gray | off
+y >= 0        | | gray | off
+view -3 6 -3 6
+` },
+  { key: "degen", text:
+`# three constraint lines through one vertex (degenerate)
+title Degenerate vertex
+vars x y
+max 2x + y
+x + y <= 4
+x <= 3
+x - y <= 2
+x, y >= 0
+view -0.5 4.5 -0.5 4.5
+` },
+  { key: "cube", text:
+`# a cube with two corners cut off; switch on the last constraint for an infeasible LP
+title 3D: cube with two corners cut
+vars x y z
+max x + 2y + 3z
+x <= 4               | | red
+y <= 4               | | blue
+z <= 4               | | green
+x + y + z <= 10      | Cut A | purple
+x - y + z <= 5.5     | Cut B | teal
+x, y, z >= 0
+z >= 4.5             | Too ambitious | brown | off
+view -0.4 4.8 -0.4 4.8 -0.4 4.8
+` },
+  { key: "funnel", text:
+`# open to the top: minimize is fine, maximize is unbounded
+title 3D: unbounded region
+vars x y z
+min x + y + z
+x + y - z <= 2   | | red
+x <= 3           | | blue
+y <= 3           | | green
+x, y, z >= 0
+view -0.4 3.6 -0.4 3.6 -0.4 5
+` },
+  { key: "klee", text:
+`# a (deformed) Klee-Minty cube in 3D, epsilon = 1/4
+title 3D: Klee–Minty cube
+vars x1 x2 x3
+max x3
+0 <= x1 <= 1         | | red
+x2 >= 0.25x1         | | blue
+x2 <= 1 - 0.25x1     | | blue
+x3 >= 0.25x2         | | green
+x3 <= 1 - 0.25x2     | | green
+view -0.12 1.12 -0.12 1.12 -0.12 1.12
+` }
+];
+
+/* ==========================================================================
+   State and analysis
+   ========================================================================== */
+const G = {
+  cvId: "cv", wrapId: "cvWrap",
+  lp: null, preset: "hessy", sense: "max", c: null, on: [], z: 0,
+  view2: null, view3: null, yaw: 215, pitch: 22, zoom3: 1,
+  hatch: true, xi: false, hover: -1, H: 0, Hdef: 0, mode: "geo",
+  sweep: 0, A: null
+};
+let S = G, MODE = "geo";
+function halfspaces(lp, on, which) {
+  const H = [];
+  lp.cons.forEach((k, i) => {
+    if (which ? !which.includes(i) : !on[i]) return;
+    if (k.op === "<=" || k.op === "=") H.push({ a: k.a.slice(), b: k.b, ci: i });
+    if (k.op === ">=" || k.op === "=") H.push({ a: k.a.map(x => -x), b: -k.b, ci: i });
+  });
+  return H;
+}
+function baseView(lp) {
+  if (lp.view) {
+    const v = lp.view, d = lp.d;
+    return { lo: [...Array(d)].map((_, i) => v[2 * i]), hi: [...Array(d)].map((_, i) => v[2 * i + 1]) };
+  }
+  /* automatic: the real vertices of the region with every constraint on, plus the origin */
+  const d = lp.d, H = halfspaces(lp, null, lp.cons.map((_, i) => i));
+  const B = boxH(new Array(d).fill(-1e6), new Array(d).fill(1e6));
+  let V = vertices(H.concat(B), d).filter(v => v.real).map(v => v.p);
+  if (!V.length) V = [new Array(d).fill(0), new Array(d).fill(10)];
+  V.push(new Array(d).fill(0));
+  const lo = [...Array(d)].map((_, i) => Math.min(...V.map(p => p[i]))), hi = [...Array(d)].map((_, i) => Math.max(...V.map(p => p[i])));
+  const span = Math.max(...hi.map((x, i) => x - lo[i]), 1);
+  return { lo: lo.map(x => x - 0.12 * span), hi: hi.map(x => x + 0.12 * span) };
+}
+/* the LP's own answer: optimal (at a vertex), optimal without a vertex, unbounded, infeasible */
+function lpSolve(H, c, sgn, ctr, R) {
+  const d = c.length, big = (L) => boxH(ctr.map(x => x - L), ctr.map(x => x + L));
+  const V = vertices(H.concat(big(R)), d);
+  if (!V.length) return { status: "infeasible" };
+  const val = v => sgn * dot(c, v.p);
+  let best = -Infinity; for (const v of V) best = Math.max(best, val(v));
+  const tol = 1e-8 * (Math.abs(best) + norm(c) * R * 1e-6 + 1);
+  const O = V.filter(v => val(v) >= best - tol);
+  const real = O.filter(v => v.real);
+  if (real.length) {
+    const z = dot(c, real[0].p);
+    return { status: "optimal", z, verts: real, rayToo: O.some(v => !v.real) };
+  }
+  const V2 = vertices(H.concat(big(2 * R)), d);
+  let best2 = -Infinity; for (const v of V2) best2 = Math.max(best2, val(v));
+  if (Math.abs(best2 - best) > 1e-6 * (Math.abs(best) + 1)) return { status: "unbounded" };
+  return { status: "novertex", z: sgn * best };
+}
+function analyse() {
+  const lp = S.lp, d = lp.d, H = halfspaces(lp, S.on);
+  const bv = baseView(lp), ctr = bv.lo.map((x, i) => (x + bv.hi[i]) / 2);
+  const span = Math.max(...bv.hi.map((x, i) => x - bv.lo[i]));
+  const R = 1e4 * span + 1e4 * norm(ctr);
+  const sg = S.sense === "max" ? 1 : -1;
+  const A = { H, opt: lpSolve(H, S.c, sg, ctr, R), opp: lpSolve(H, S.c, -sg, ctr, R), iis: null, xi: null };
+  if (A.opt.status === "infeasible") {
+    /* a smallest infeasible set of switched-on constraints (Helly: at most d+1) */
+    const act = lp.cons.map((_, i) => i).filter(i => S.on[i]), B = boxH(ctr.map(x => x - R), ctr.map(x => x + R));
+    const feas = idx => vertices(halfspaces(lp, null, idx).concat(B), d).length > 0;
+    const comb = (k, from, cur, out) => { if (out.r) return; if (cur.length === k) { if (!feas(cur)) out.r = cur.slice(); return; }
+      for (let i = from; i < act.length && !out.r; i++) { cur.push(act[i]); comb(k, i + 1, cur, out); cur.pop(); } };
+    for (let k = 1; k <= d + 1 && !A.iis; k++) { const out = {}; comb(k, 0, [], out); if (out.r) A.iis = out.r; }
+  }
+  /* all intersection points x_I of d constraint hyperplanes (equalities counted once) */
+  const act = lp.cons.map((_, i) => i).filter(i => S.on[i]);
+  const P = [];
+  const rec = (from, cur) => {
+    if (cur.length === d) {
+      const p = solve(cur.map(i => lp.cons[i].a), cur.map(i => lp.cons[i].b));
+      P.push({ I: cur.slice(), p, feas: p ? H.every(h => sat(h, p)) : false });
+      return;
+    }
+    for (let i = from; i < act.length; i++) { cur.push(act[i]); rec(i + 1, cur); cur.pop(); }
+  };
+  if (act.length >= d && act.length <= 22) rec(0, []);
+  A.xi = P;
+  S.A = A;
+}
+
+/* ==========================================================================
+   MathJax helpers (from the house template): typeset HTML off-screen and swap
+   it in; TeX labels inside the SVG drawings
+   ========================================================================== */
+const mjReady = () => !!(window.MathJax && MathJax.typesetPromise && MathJax.startup && MathJax.startup.document);
+/* All typesetting goes through one queue (MathJax does not like overlapping calls).
+   Every result is cached by its source, so a formula that was typeset once — e.g. ahead of time,
+   in the background — is shown instantly and without MathJax afterwards. */
+const MJC = new Map();
+const MJQ = { hi: [], lo: [], busy: false };
+function mjRun() {
+  if (MJQ.busy || !mjReady()) return;
+  const job = MJQ.hi.shift() || MJQ.lo.shift();
+  if (!job) return;
+  MJQ.busy = true;
+  Promise.resolve().then(job).catch(() => {}).finally(() => { MJQ.busy = false; setTimeout(mjRun, 0); });
+}
+function mjTypeset(html, ctx) {
+  if (MJC.has(html)) return Promise.resolve(MJC.get(html));
+  const tmp = document.createElement("div"), cs = getComputedStyle(ctx || document.body);
+  tmp.className = "mj-buf"; tmp.style.fontSize = cs.fontSize; tmp.style.fontFamily = cs.fontFamily; tmp.innerHTML = html;
+  document.body.appendChild(tmp);
+  return MathJax.typesetPromise([tmp]).then(() => {
+    const out = tmp.innerHTML; MJC.set(html, out);
+    if (MathJax.typesetClear) MathJax.typesetClear([tmp]);
+    return out;
+  }).finally(() => tmp.remove());
+}
+function setMath(node, html) {
+  node._want = html;
+  if (MJC.has(html)) { if (node._shown !== html) { node.innerHTML = MJC.get(html); node._shown = html; } return; }
+  if (!mjReady()) { if (node._shown !== html) { node.innerHTML = html; node._shown = html; node._raw = true; } return; }
+  if (node._queued) return;
+  node._queued = true;
+  MJQ.hi.push(() => {
+    node._queued = false;
+    const want = node._want;
+    return mjTypeset(want, node).then(out => { if (node._want === want) { node.innerHTML = out; node._shown = want; node._raw = false; } else setMath(node, node._want); });
+  });
+  mjRun();
+}
+/* typeset in place (static parts of the page), through the same queue */
+function mjInPlace(nodes) { MJQ.hi.push(() => MathJax.typesetPromise(nodes)); mjRun(); }
+/* background: typeset these sources (each with the element it will go to, for the font) */
+function mjPrepare(items, onProgress, alive) {
+  const todo = items.filter(it => !MJC.has(it[0])).filter((it, i, arr) => arr.findIndex(q => q[0] === it[0]) === i);
+  let done = 0; const total = todo.length;
+  onProgress(done, total);
+  for (const [html, ctx] of todo) MJQ.lo.push(() => { if (!alive()) return; return mjTypeset(html, ctx).then(() => { done++; onProgress(done, total); }); });
+  mjRun();
+}
+const MJL = new Map(); let mjAgain = 0;
+function mjSvg(tex) {
+  const c = MJL.get(tex);
+  if (c) return c === 1 ? null : c;
+  if (!mjReady()) return null;
+  MJL.set(tex, 1);
+  MJQ.hi.push(() => MathJax.tex2svgPromise(tex, { display: false }).then(node => {
+    const sv = node.querySelector("svg");
+    MJL.set(tex, { vb: sv.getAttribute("viewBox").split(/[\s,]+/).map(Number), inner: sv.innerHTML });
+    if (!mjAgain) mjAgain = requestAnimationFrame(() => { mjAgain = 0; render(); });
+  }).catch(() => MJL.delete(tex)));
+  mjRun();
+  return null;
+}
+let MEASURE = null;
+const BODYFONT = () => getComputedStyle(document.body).fontFamily;
+function textW(s, font) {
+  if (!MEASURE) MEASURE = document.createElement("canvas").getContext("2d");
+  MEASURE.font = font; return MEASURE.measureText(s).width;
+}
+function mathAt(tex, x, y, fs, anchor, color, plain) {
+  const c = mjSvg(tex);
+  if (!c) {
+    const w = textW(plain, "italic " + fs + "px " + BODYFONT());
+    return { w, svg: '<text x="' + f1(x) + '" y="' + f1(y) + '" style="font:italic ' + fs + 'px var(--wi-font-body);fill:' + color + ';text-anchor:' + (anchor || "start") + '">' + esc(plain) + "</text>" };
+  }
+  const [, vy, vw, vh] = c.vb, w = vw / 1000 * fs, h = vh / 1000 * fs;
+  const left = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w : x;
+  return { w, svg: '<svg x="' + f1(left) + '" y="' + f1(y + vy / 1000 * fs) + '" width="' + f1(w) + '" height="' + f1(h) +
+                   '" viewBox="' + c.vb.join(" ") + '" overflow="visible" style="color:' + color + '">' + c.inner + "</svg>" };
+}
+
+/* ==========================================================================
+   Shared derived quantities: range of the slider, state of the level set
+   ========================================================================== */
+const better = () => S.sense === "max" ? 1 : -1;       /* direction of improvement = better()·c */
+function viewCorners() {
+  const v = S.lp.d === 2 ? S.E2 : S.view3;
+  if (!v) return [];
+  const out = [];
+  const d = S.lp.d;
+  for (let m = 0; m < (1 << d); m++) out.push([...Array(d)].map((_, i) => (m >> i) & 1 ? v.hi[i] : v.lo[i]));
+  return out;
+}
+function zRange() {
+  const vals = viewCorners().map(p => dot(S.c, p));
+  return [Math.min(...vals), Math.max(...vals)];
+}
+const relTol = () => { const [a, b] = zRange(); return 1e-7 * (Math.abs(a) + Math.abs(b) + 1); };
+/* where is z, relative to the region?  'empty' | 'before' | 'entry' | 'inside' | 'opt' | 'beyond' */
+function zState(z) {
+  const A = S.A, g = better(), t = relTol() * 50;
+  if (A.opt.status === "infeasible") return "empty";
+  const zs = g * z;
+  if (A.opt.status === "optimal" || A.opt.status === "novertex") {
+    const zo = g * A.opt.z;
+    if (Math.abs(zs - zo) <= t) return "opt";
+    if (zs > zo) return "beyond";
+  }
+  if (A.opp.status === "optimal" || A.opp.status === "novertex") {
+    const ze = g * A.opp.z;
+    if (Math.abs(zs - ze) <= t) return "entry";
+    if (zs < ze) return "before";
+  }
+  return "inside";
+}
+function snapZ(z) {
+  const [a, b] = zRange(), w = (b - a) * 0.007, A = S.A;
+  for (const r of [A.opt, A.opp]) if ((r.status === "optimal" || r.status === "novertex") && Math.abs(z - r.z) <= w) return r.z;
+  return z;
+}
+function isSnap(z) { const A = S.A; return [A.opt, A.opp].some(r => (r.status === "optimal" || r.status === "novertex") && z === r.z); }
+function unitP() { return S.lp.unit ? S.lp.unit + "\u2009" : ""; }
+function unitT() { return S.lp.unit ? "\\text{" + S.lp.unit + "}\\," : ""; }
+
+/* ==========================================================================
+   2D drawing
+   ========================================================================== */
+const PAD = { l: 58, r: 14, t: 12, b: 50 };
+function view2Effective(W, H) {
+  const v = S.view2, pw = W - PAD.l - PAD.r, ph = H - PAD.t - PAD.b;
+  const k = Math.min(pw / (v.hi[0] - v.lo[0]), ph / (v.hi[1] - v.lo[1]));
+  const cx = (v.lo[0] + v.hi[0]) / 2, cy = (v.lo[1] + v.hi[1]) / 2;
+  return { lo: [cx - pw / 2 / k, cy - ph / 2 / k], hi: [cx + pw / 2 / k, cy + ph / 2 / k], k, pw, ph };
+}
+function niceStep(range, n) {
+  const raw = range / Math.max(1, n), p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+  return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
+}
+/* the part of the line {x : n·x = z} inside all halfspaces of H: [p0, p1] or null */
+function clipLine(n, z, H) {
+  const nn = dot(n, n), p0 = mul(n, z / nn), dv = [-n[1], n[0]];
+  let lo = -Infinity, hi = Infinity;
+  for (const h of H) {
+    const ad = dot(h.a, dv), r = h.b - dot(h.a, p0);
+    if (Math.abs(ad) < 1e-14 * norm(h.a) * norm(dv)) { if (r < -tolOf(h, p0)) return null; continue; }
+    const t = r / ad; if (ad > 0) hi = Math.min(hi, t); else lo = Math.max(lo, t);
+  }
+  if (!(lo <= hi + 1e-12 * (Math.abs(lo) + Math.abs(hi) + 1))) return null;
+  return [add(p0, mul(dv, lo)), add(p0, mul(dv, hi))];
+}
+function hatchDefs(cols) {
+  return cols.map((c, i) => '<pattern id="hp' + i + '" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+    '<line x1="0" y1="0" x2="0" y2="6" stroke="' + c + '" stroke-width="1.5" opacity=".75"/></pattern>').join("");
+}
+const ARROWDEFS = '<marker id="aRed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#cc2f22"/></marker>' +
+                  '<marker id="aObj" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="' + OBJD + '"/></marker>' +
+                  '<marker id="aInk" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6b675c"/></marker>';
+
+function render2D() {
+  const lp = S.lp, A = S.A, svg = el(S.cvId), W = Math.max(320, el(S.wrapId).clientWidth), H = S.H;
+  const E = view2Effective(W, H); S.E2 = E;
+  const X = x => PAD.l + (x - E.lo[0]) * E.k, Y = y => H - PAD.b - (y - E.hi[1] + (E.hi[1] - E.lo[1])) * E.k;
+  const P = p => [X(p[0]), Y(p[1])];
+  const Hv = boxH(E.lo, E.hi);
+  const g = better();
+  let defs = "<defs>" + ARROWDEFS + hatchDefs(lp.cons.map(k => k.color)).replace(/id="hp/g, 'id="hp' + S.cvId) +
+             '<clipPath id="plotClip"><rect x="' + PAD.l + '" y="' + PAD.t + '" width="' + f1(E.pw) + '" height="' + f1(E.ph) + '"/></clipPath></defs>';
+  let grid = "", body = "", lines = "", over = "", top = "";
+  /* grid, ticks */
+  const sx = niceStep(E.hi[0] - E.lo[0], E.pw / 85), sy = niceStep(E.hi[1] - E.lo[1], E.ph / 60);
+  for (let x = Math.ceil(E.lo[0] / sx) * sx; x <= E.hi[0] + 1e-9; x += sx) {
+    const xx = X(x); grid += '<line x1="' + f1(xx) + '" x2="' + f1(xx) + '" y1="' + PAD.t + '" y2="' + f1(H - PAD.b) + '" stroke="#e2d5c2" stroke-width="1"/>';
+    grid += '<text class="sv-tick" x="' + f1(xx) + '" y="' + f1(H - PAD.b + 16) + '" text-anchor="middle">' + esc(numP(+x.toPrecision(10))) + "</text>";
+  }
+  for (let y = Math.ceil(E.lo[1] / sy) * sy; y <= E.hi[1] + 1e-9; y += sy) {
+    const yy = Y(y); grid += '<line x1="' + PAD.l + '" x2="' + f1(W - PAD.r) + '" y1="' + f1(yy) + '" y2="' + f1(yy) + '" stroke="#e2d5c2" stroke-width="1"/>';
+    grid += '<text class="sv-tick" x="' + (PAD.l - 6) + '" y="' + f1(yy + 4) + '" text-anchor="end">' + esc(numP(+y.toPrecision(10))) + "</text>";
+  }
+  grid += '<rect x="' + PAD.l + '" y="' + PAD.t + '" width="' + f1(E.pw) + '" height="' + f1(E.ph) + '" fill="none" stroke="var(--wi-border)" stroke-width="1"/>';
+  if (E.lo[0] < 0 && E.hi[0] > 0) grid += '<line x1="' + f1(X(0)) + '" x2="' + f1(X(0)) + '" y1="' + PAD.t + '" y2="' + f1(H - PAD.b) + '" stroke="#b9a793" stroke-width="1.2"/>';
+  if (E.lo[1] < 0 && E.hi[1] > 0) grid += '<line x1="' + PAD.l + '" x2="' + f1(W - PAD.r) + '" y1="' + f1(Y(0)) + '" y2="' + f1(Y(0)) + '" stroke="#b9a793" stroke-width="1.2"/>';
+  /* axis labels */
+  const axLab = (vi, x, y, rot) => {
+    const v = lp.vars[vi], txt = lp.labels[v] ? lp.labels[v] + " (" : "", fs = 14;
+    const tw = txt ? textW(txt, fs + "px " + BODYFONT()) : 0;
+    const m = mathAt(varT(v), 0, 0, fs, "start", "var(--wi-ink-strong)", v), cw = txt ? textW(")", fs + "px " + BODYFONT()) : 0;
+    const total = tw + m.w + cw, x0 = -total / 2;
+    let s = '<g transform="translate(' + f1(x) + "," + f1(y) + ")" + (rot ? " rotate(-90)" : "") + '">';
+    if (txt) s += '<text class="sv-lab" x="' + f1(x0) + '" y="0">' + esc(txt) + "</text>";
+    s += mathAt(varT(v), x0 + tw, 0, fs, "start", "var(--wi-ink-strong)", v).svg;
+    if (txt) s += '<text class="sv-lab" x="' + f1(x0 + tw + m.w) + '" y="0">)</text>';
+    return s + "</g>";
+  };
+  top += axLab(0, PAD.l + E.pw / 2, H - 12, false) + axLab(1, 16, PAD.t + E.ph / 2, true);
+
+  /* the feasible region, clipped to the window */
+  const RV = A.opt.status === "infeasible" ? [] : vertices(A.H.concat(Hv), 2);
+  const poly = orderPoly(RV.map(v => v.p));
+  if (poly.length >= 3) body += '<path d="M' + poly.map(p => P(p).map(f1).join(",")).join("L") + 'Z" fill="var(--t-region)" stroke="none" opacity=".9"/>';
+  /* hatch bands on the forbidden side, constraint lines */
+  const iisSet = new Set(A.iis || []);
+  lp.cons.forEach((k, i) => {
+    const seg = clipLine(k.a, k.b, Hv); if (!seg) return;
+    const [p, q] = seg.map(P), on = S.on[i], hot = S.hover === i || S.hl === i;
+    if (on && S.hatch && k.op !== "=") {
+      const n = mul(k.a, k.op === "<=" ? 1 : -1), ns = [n[0], -n[1]], ln = norm(ns), o = [ns[0] / ln * 10, ns[1] / ln * 10];
+      body += '<path d="M' + f1(p[0]) + "," + f1(p[1]) + "L" + f1(q[0]) + "," + f1(q[1]) + "L" + f1(q[0] + o[0]) + "," + f1(q[1] + o[1]) + "L" + f1(p[0] + o[0]) + "," + f1(p[1] + o[1]) + 'Z" fill="url(#hp' + S.cvId + i + ')"/>';
+    }
+    if (hot) lines += '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="' + k.color + '" stroke-width="9" opacity=".18" stroke-linecap="round"/>';
+    lines += '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="' + k.color + '" stroke-width="' +
+             (on ? (iisSet.has(i) || hot ? 3 : 1.7) : 1.2) + '"' + (on ? "" : ' stroke-dasharray="2 4" opacity=".5"') + "/>";
+    /* the boundary part of the region, emphasised */
+    if (on && RV.length >= 2) {
+      const onLine = RV.filter(v => v.tight.some(t => A.H[t] && A.H[t].ci === i));
+      if (onLine.length >= 2) {
+        const dv = [-k.a[1], k.a[0]]; onLine.sort((u, w) => dot(u.p, dv) - dot(w.p, dv));
+        const a = P(onLine[0].p), b = P(onLine[onLine.length - 1].p);
+        lines += '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="' + k.color + '" stroke-width="3.4" stroke-linecap="round"/>';
+      }
+    }
+    /* the name, near the end of the visible part */
+    if (k.name && on && !k.nonneg) {
+      const [a, b] = p[0] < q[0] - 1 ? [p, q] : [q, p], t = 0.9, lx = a[0] + (b[0] - a[0]) * t, ly = a[1] + (b[1] - a[1]) * t;
+      let ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI; if (ang > 90) ang -= 180; if (ang < -90) ang += 180;
+      top += '<text class="sv-name" x="' + f1(lx) + '" y="' + f1(ly) + '" transform="rotate(' + ang.toFixed(1) + " " + f1(lx) + " " + f1(ly) + ')" dy="-5" text-anchor="end" fill="' + k.color + '">' + esc(k.name) + "</text>";
+    }
+  });
+  /* the level line of the objective */
+  const z = S.z, st = S.simplex ? "none" : zState(z), full = S.noLevel ? null : clipLine(S.c, z, Hv);
+  if (full) {
+    const [p, q] = full.map(P);
+    over += '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="' + OBJ + '" stroke-width="2" stroke-dasharray="7 5"/>';
+    /* little arrows towards better values */
+    const gs = [g * S.c[0], -g * S.c[1]], gl = norm(gs), u = [gs[0] / gl, gs[1] / gl];
+    const L = Math.hypot(q[0] - p[0], q[1] - p[1]), nA = Math.max(1, Math.floor(L / 140));
+    for (let t = 1; t <= nA; t++) {
+      const fx = p[0] + (q[0] - p[0]) * t / (nA + 1), fy = p[1] + (q[1] - p[1]) * t / (nA + 1);
+      over += '<line x1="' + f1(fx) + '" y1="' + f1(fy) + '" x2="' + f1(fx + u[0] * 16) + '" y2="' + f1(fy + u[1] * 16) + '" stroke="' + OBJD + '" stroke-width="1.4" marker-end="url(#aObj)"/>';
+    }
+    /* the value on the line, as on the slide */
+    const [a, b] = p[0] < q[0] - 1 ? [p, q] : [q, p];
+    let ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI; if (ang > 90) ang -= 180; if (ang < -90) ang += 180;
+    const fz = nA >= 2 ? 1.5 / (nA + 1) : 0.78, lx = a[0] + (b[0] - a[0]) * fz, ly = a[1] + (b[1] - a[1]) * fz;
+    top += '<text class="sv-z" x="' + f1(lx) + '" y="' + f1(ly) + '" dy="-6" text-anchor="middle" transform="rotate(' + ang.toFixed(1) + " " + f1(lx) + " " + f1(ly) + ')">' + esc(S.simplex ? S.zLabel : unitP() + numP(zShown(z))) + "</text>";
+  }
+  /* where the line meets the region */
+  if (st === "opt" || st === "entry") {
+    const zz = st === "opt" ? A.opt.z : A.opp.z, tz = relTol() * 100;
+    const C = RV.filter(v => Math.abs(dot(S.c, v.p) - zz) <= tz * (1 + norm(v.p) * norm(S.c) * 1e-6));
+    if (C.length >= 2) {
+      const dv = [-S.c[1], S.c[0]]; C.sort((u, w) => dot(u.p, dv) - dot(w.p, dv));
+      const a = P(C[0].p), b = P(C[C.length - 1].p);
+      over += '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="' + OBJ + '" stroke-width="6" stroke-linecap="round"/>';
+    }
+    for (const v of C) if (v.real) { const a = P(v.p); top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="6.5" fill="' + OBJ + '" stroke="#38362e" stroke-width="1.6"/>'; }
+  } else if (st === "inside") {
+    const seg = clipLine(S.c, z, A.H.concat(Hv));
+    if (seg) { const [a, b] = seg.map(P); over += '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="' + OBJ + '" stroke-width="5" stroke-linecap="round"/>'; }
+  }
+  /* all intersection points x_I */
+  if (S.xi && A.xi) for (const x of A.xi) {
+    if (!x.p || x.feas) continue;
+    const a = P(x.p); if (a[0] < PAD.l - 2 || a[0] > W - PAD.r + 2 || a[1] < PAD.t - 2 || a[1] > H - PAD.b + 2) continue;
+    over += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="3.6" fill="var(--wi-panel-2)" stroke="var(--wi-ink-soft)" stroke-width="1.3"/>';
+  }
+  /* vertices (hover for details) */
+  let hits = "";
+  RV.forEach((v, i) => {
+    if (!v.real) return;
+    const a = P(v.p);
+    top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="3.4" fill="var(--wi-ink-strong)"/>';
+    hits += '<circle class="hit vtx" data-v="' + i + '" cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="9" fill="transparent"/>';
+  });
+  S.RV = RV;
+  if (S.overlay) { const o = S.overlay(P); over += o.over; top += o.top; hits += o.hits; }
+  /* the direction of improvement: a compass to drag */
+  const cx = W - PAD.r - 44, cy = PAD.t + 44, gsc = [g * S.c[0], -g * S.c[1]], gl = norm(gsc);
+  const tip = [cx + gsc[0] / gl * 27, cy + gsc[1] / gl * 27];
+  let comp = '<g><circle cx="' + cx + '" cy="' + cy + '" r="36" fill="var(--wi-panel-2)" opacity=".88" stroke="var(--wi-border-soft)"/>' +
+             '<line x1="' + f1(cx - gsc[0] / gl * 12) + '" y1="' + f1(cy - gsc[1] / gl * 12) + '" x2="' + f1(tip[0]) + '" y2="' + f1(tip[1]) + '" stroke="' + OBJD + '" stroke-width="2.4" marker-end="url(#aObj)"/>' +
+             '<line x1="' + f1(cx + gsc[1] / gl * 20) + '" y1="' + f1(cy - gsc[0] / gl * 20) + '" x2="' + f1(cx - gsc[1] / gl * 20) + '" y2="' + f1(cy + gsc[0] / gl * 20) + '" stroke="' + OBJ + '" stroke-width="1.4" stroke-dasharray="4 3"/>' +
+             (S.simplex ? "" : '<circle id="cHandle" class="grab" cx="' + f1(tip[0]) + '" cy="' + f1(tip[1]) + '" r="9" fill="' + OBJ + '" fill-opacity=".35" stroke="' + OBJD + '" stroke-width="1.2"/>') +
+             '<text class="sv-small" x="' + cx + '" y="' + (cy + 49) + '">better</text></g>';
+  S.compass = { cx, cy };
+  let note = "";
+  if (A.opt.status !== "infeasible" && poly.length < 2 && RV.length === 0)
+    note = '<text class="sv-note" x="' + f1(PAD.l + E.pw / 2) + '" y="' + f1(PAD.t + 26) + '" text-anchor="middle">the feasible region lies outside this window — try “fit”</text>';
+  if (A.opt.status === "infeasible")
+    note = '<text class="sv-note" x="' + f1(PAD.l + E.pw / 2) + '" y="' + f1(PAD.t + 26) + '" text-anchor="middle">no feasible point: the region is empty</text>';
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  note += '<text class="sv-small" x="' + f1(W - PAD.r - 4) + '" y="' + f1(H - 6) + '" style="text-anchor:end">drag to move · wheel or pinch to zoom · double-click to reset</text>';
+  svg.innerHTML = defs.replace(/plotClip/g, "plotClip" + S.cvId) + grid + '<g clip-path="url(#plotClip' + S.cvId + ')">' + body + lines + over + "</g>" + top + note + (S.noLevel ? "" : comp) + hits;
+}
+
+/* ==========================================================================
+   3D drawing (orthographic, drag to rotate)
+   ========================================================================== */
+function cam3(W, H) {
+  const v = S.view3, ctr = v.lo.map((x, i) => (x + v.hi[i]) / 2);
+  const rng = v.hi.map((x, i) => x - v.lo[i]), mxr = Math.max(...rng);
+  const sc = S.stretch ? rng.map(r => mxr / r) : [1, 1, 1];
+  const rad = 0.5 * norm(sub(v.hi, v.lo).map((x, i) => x * sc[i]));
+  const k = S.zoom3 * 0.47 * Math.min(W, H) / rad;
+  const th = S.yaw * Math.PI / 180, ph = S.pitch * Math.PI / 180;
+  const ct = Math.cos(th), st = Math.sin(th), cp = Math.cos(ph), sp = Math.sin(ph);
+  const proj = p => {
+    const x = (p[0] - ctr[0]) * sc[0], y = (p[1] - ctr[1]) * sc[1], z = (p[2] - ctr[2]) * sc[2];
+    const u = x * ct - y * st, t = x * st + y * ct;
+    const up = z * cp + t * sp, depth = -t * cp + z * sp;
+    return [W / 2 + u * k, H / 2 - up * k, depth];
+  };
+  const toViewer = [-st * cp, -ct * cp, sp];
+  return { proj, toViewer, k, nrm: a => a.map((x, i) => x / sc[i]) };
+}
+function render3D() {
+  const lp = S.lp, A = S.A, svg = el(S.cvId), W = Math.max(320, el(S.wrapId).clientWidth), H = S.H;
+  const C = cam3(W, H), Pj = p => C.proj(p), g = better();
+  const v3 = S.view3, Hb = boxH(v3.lo, v3.hi);
+  const Hd = A.opt.status === "infeasible" ? null : A.H.concat(Hb);
+  const RV = Hd ? vertices(Hd, 3) : [];
+  S.RV = RV;
+  const pts = p => p.map(q => { const r = Pj(q); return f1(r[0]) + "," + f1(r[1]); }).join(" ");
+  let back = "", mid = "", front = "", top = "", hits = "";
+  /* the window: a faint wire box, the axes through the origin */
+  const corners = []; for (let m = 0; m < 8; m++) corners.push([0, 1, 2].map(i => (m >> i) & 1 ? v3.hi[i] : v3.lo[i]));
+  for (let m = 0; m < 8; m++) for (let i = 0; i < 3; i++) if (!((m >> i) & 1)) {
+    const a = Pj(corners[m]), b = Pj(corners[m | (1 << i)]);
+    back += '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="#d4c5b4" stroke-width="1" stroke-dasharray="2 3"/>';
+  }
+  for (let i = 0; i < 3; i++) {
+    if (v3.lo[(i + 1) % 3] > 0 || v3.hi[(i + 1) % 3] < 0 || v3.lo[(i + 2) % 3] > 0 || v3.hi[(i + 2) % 3] < 0) continue;
+    const p0 = [0, 0, 0], p1 = [0, 0, 0]; p0[i] = Math.max(v3.lo[i], Math.min(0, v3.hi[i])); p1[i] = v3.hi[i];
+    const a = Pj(p0), b = Pj(p1);
+    back += '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="#6b675c" stroke-width="1.3" marker-end="url(#aInk)"/>';
+    const dx = b[0] - a[0], dy = b[1] - a[1], dl = Math.hypot(dx, dy) || 1;
+    top += mathAt(varT(lp.vars[i]), b[0] + dx / dl * 12, b[1] + dy / dl * 12 + 5, 15, "middle", "var(--wi-ink-strong)", lp.vars[i]).svg;
+  }
+  /* faces of the region (clipped to the window) */
+  const faces = [];
+  if (Hd) Hd.forEach((h, hi) => {
+    const on = RV.filter(v => v.tight.includes(hi));
+    if (on.length < 3) return;
+    const key = on.map(v => RV.indexOf(v)).sort((a, b) => a - b).join(",");
+    if (faces.some(f => f.key === key)) return;
+    faces.push({ h, hi, key, vs: orderPoly(on.map(v => v.p), h.a), ids: on.map(v => RV.indexOf(v)), real: !h.box,
+                 front: dot(C.nrm(h.a), C.toViewer) > 0 });
+  });
+  const colOf = h => h.box ? "#b6b1a1" : lp.cons[h.ci].color;
+  for (const f of faces) {
+    const c = colOf(f.h), hot = !f.real ? false : (S.hover === f.h.ci || S.hl === f.h.ci);
+    const fill = f.real ? (f.front ? (hot ? 0.5 : 0.3) : 0.12) : 0.05;
+    const s = '<polygon points="' + pts(f.vs) + '" fill="' + (f.real ? c : "var(--t-region)") + '" fill-opacity="' + fill + '" stroke="none"' +
+              (f.real && f.front ? ' class="hit face" data-ci="' + f.h.ci + '"' : "") + "/>";
+    if (f.front) front += s; else back += s;
+  }
+  /* edges: from the face polygons */
+  const E = new Map();
+  for (const f of faces) {
+    const order = f.vs.map(p => RV.findIndex(v => v.p === p));
+    for (let i = 0; i < order.length; i++) {
+      const a = order[i], b = order[(i + 1) % order.length], key = Math.min(a, b) + "-" + Math.max(a, b);
+      if (!E.has(key)) E.set(key, { a, b, faces: [] });
+      E.get(key).faces.push(f);
+    }
+  }
+  let edges = "", bedges = "";
+  for (const e of E.values()) {
+    const nReal = e.faces.filter(f => f.real).length, fr = e.faces.some(f => f.front);
+    if (!nReal) continue;
+    const a = Pj(RV[e.a].p), b = Pj(RV[e.b].p);
+    const ln = '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '"';
+    if (nReal === 1) { const s = ln + ' stroke="#9a6a96" stroke-width="1.1" stroke-dasharray="1.5 3" opacity=".8"/>'; if (fr) edges += s; else bedges += s; continue; }
+    if (fr) edges += ln + ' stroke="#38362e" stroke-width="1.7" stroke-linejoin="round"/>';
+    else bedges += ln + ' stroke="#6b675c" stroke-width="1.1" stroke-dasharray="5 4" opacity=".75"/>';
+  }
+  /* the plane of constant objective value: within the window faintly, within the region strongly */
+  const z = S.z, st = S.simplex ? "none" : zState(z);
+  const plane = [{ a: S.c.slice(), b: z, box: true, ci: -2 }, { a: mul(S.c, -1), b: -z, box: true, ci: -2 }];
+  const PW = vertices(Hb.concat(plane), 3).map(v => v.p);
+  if (PW.length >= 3 && !S.noLevel) back = '<polygon points="' + pts(orderPoly(PW, S.c)) + '" fill="' + OBJ + '" fill-opacity=".09" stroke="' + OBJ + '" stroke-opacity=".55" stroke-width="1.2" stroke-dasharray="6 4"/>' + back;
+  let crossC = null;
+  if (Hd && (st === "inside" || st === "opt" || st === "entry")) {
+    let CS;
+    if (st === "inside") CS = vertices(Hd.concat(plane), 3).map(v => v.p);
+    else { const zz = st === "opt" ? A.opt.z : A.opp.z, tz = relTol() * 100;
+           CS = RV.filter(v => Math.abs(dot(S.c, v.p) - zz) <= tz * (1 + norm(v.p) * norm(S.c) * 1e-6)).map(v => v.p);
+           CS._contact = true; }
+    if (CS.length >= 3) mid += '<polygon points="' + pts(orderPoly(CS, S.c)) + '" fill="' + OBJ + '" fill-opacity=".55" stroke="' + OBJD + '" stroke-width="1.8" stroke-linejoin="round"/>';
+    else if (CS.length === 2) { const a = Pj(CS[0]), b = Pj(CS[1]); mid += '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="' + OBJ + '" stroke-width="6" stroke-linecap="round"/>'; }
+    if (st !== "inside") for (const p of CS) { const real = RV.find(v => v.p === p); if (real && real.real) { const a = Pj(p); top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="6.5" fill="' + OBJ + '" stroke="#38362e" stroke-width="1.6"/>'; } }
+    if (CS.length) crossC = CS.reduce((s, p) => add(s, p), [0, 0, 0]).map(x => x / CS.length);
+  }
+  /* the push direction: an arrow from the middle of the cut (or of the plane) */
+  const base = crossC || (PW.length ? PW.reduce((s, p) => add(s, p), [0, 0, 0]).map(x => x / PW.length) : null);
+  if (base && !S.noLevel) {
+    const a = Pj(base), dir = mul(S.c, g / norm(S.c)), b = Pj(add(base, dir));
+    let dx = b[0] - a[0], dy = b[1] - a[1]; const dl = Math.hypot(dx, dy);
+    if (dl > 1e-6) { dx = dx / dl * 42; dy = dy / dl * 42;
+      top += '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(a[0] + dx) + '" y2="' + f1(a[1] + dy) + '" stroke="' + OBJD + '" stroke-width="2.4" marker-end="url(#aObj)"/>' +
+             '<text class="sv-small halo" x="' + f1(a[0] + dx * 1.35) + '" y="' + f1(a[1] + dy * 1.35 + 4) + '">better</text>'; }
+  }
+  /* the hovered constraint: its whole plane in the window */
+  if (S.hover >= 0 && S.hover < lp.cons.length) {
+    const k = lp.cons[S.hover], pl = [{ a: k.a.slice(), b: k.b, box: true }, { a: mul(k.a, -1), b: -k.b, box: true }];
+    const PP = vertices(Hb.concat(pl), 3).map(v => v.p);
+    if (PP.length >= 3) top = '<polygon points="' + pts(orderPoly(PP, k.a)) + '" fill="' + k.color + '" fill-opacity=".14" stroke="' + k.color + '" stroke-width="1.4" stroke-dasharray="5 3"/>' + top;
+  }
+  /* all intersection points */
+  if (S.xi && A.xi) for (const x of A.xi) {
+    if (!x.p || x.feas || x.p.some((c, i) => c < v3.lo[i] - 1e-9 || c > v3.hi[i] + 1e-9)) continue;
+    const a = Pj(x.p); top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="3.4" fill="var(--wi-panel-2)" stroke="var(--wi-ink-soft)" stroke-width="1.2"/>';
+  }
+  /* vertices */
+  RV.forEach((v, i) => {
+    if (!v.real) return;
+    const a = Pj(v.p), vis = faces.some(f => f.front && f.ids.includes(i));
+    top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="' + (vis ? 3.4 : 2.6) + '" fill="' + (vis ? "#38362e" : "#8b8779") + '"/>';
+    hits += '<circle class="hit vtx" data-v="' + i + '" cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="9" fill="transparent"/>';
+  });
+  if (S.overlay) { const o = S.overlay(Pj); top += o.over + o.top; hits += o.hits; }
+  let note = "";
+  if (A.opt.status === "infeasible") note = '<text class="sv-note" x="' + f1(W / 2) + '" y="26" text-anchor="middle">no feasible point: the region is empty</text>';
+  else if (!RV.length) note = '<text class="sv-note" x="' + f1(W / 2) + '" y="26" text-anchor="middle">the feasible region lies outside this window — try “fit”</text>';
+  note += '<text class="sv-small" x="' + (W - 10) + '" y="' + (H - 8) + '" style="text-anchor:end">drag to rotate · wheel or pinch to zoom · double-click to reset</text>';
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.innerHTML = "<defs>" + ARROWDEFS + "</defs>" + back + bedges + mid + front + edges + top + note + hits;
+}
+
+/* ==========================================================================
+   Side panel: status, the LP with its constraints, legend
+   ========================================================================== */
+function ptT(p) { return "(" + p.map(x => num(x).tex).join(",\\,") + ")"; }
+function ptP(p) { return "(" + p.map(x => numP(x)).join(", ") + ")"; }
+function namesOf(cis) {
+  const lp = S.lp;
+  return cis.map(i => { const k = lp.cons[i]; return k.name ? "<i>" + esc(k.name) + "</i>" : M(consT(k, lp.vars)); });
+}
+const listJoin = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
+function contactKind(verts, ray) {
+  const d = S.lp.d;
+  if (ray) return "ray";
+  if (verts.length === 1) return "vertex";
+  if (d === 2 || verts.length === 2) return "edge";
+  /* in 3D: collinear points form an edge, otherwise a face */
+  const p0 = verts[0].p, d1 = sub(verts[1].p, p0);
+  return verts.some(v => norm(cross(d1, sub(v.p, p0))) > 1e-7 * (norm(d1) * norm(sub(v.p, p0)) + 1)) ? "face" : "edge";
+}
+function statusHtml() {
+  const lp = S.lp, A = S.A, d = lp.d, L = d === 2 ? "line" : "plane", g = better();
+  const bw = S.sense === "max" ? "larger" : "smaller", ww = S.sense === "max" ? "smaller" : "larger";
+  const zT = "z = " + unitT() + numT(zShown(S.z)), st = zState(S.z);
+  if (A.opt.status === "infeasible") {
+    const w = A.iis || [];
+    return ["infeasible", "<b>Infeasible.</b> The switched-on constraints contradict each other: the feasible region is empty, so no " + L +
+      " of constant objective value meets it, whatever \\(z\\). " +
+      (w.length ? "Already " + (w.length === 1 ? "the constraint " : "these " + w.length + " constraints ") + listJoin(namesOf(w)) + " have no common point" +
+        (w.length === d + 1 ? " — though any " + d + " of them do. (In \\(\\mathbb R^{" + d + "}\\), " + (d + 1) + " constraints always suffice to show infeasibility: Helly’s theorem.)" : ".") : "")];
+  }
+  if (st === "opt") {
+    if (A.opt.status === "novertex")
+      return ["optimal, no vertex", "<b>Best value \\(z^* = " + unitT() + approxT(A.opt.z) + "\\)</b>, reached along a whole " + (d === 2 ? "line" : "line or plane") +
+        " — but the region has <i>no vertex at all</i>: it contains an entire line. This is why the normal form has \\(\\mathbf x \\ge \\mathbf 0\\): then every nonempty region has a vertex, and so does every optimal face."];
+    const kind = contactKind(A.opt.verts, A.opt.rayToo), v = A.opt.verts[0];
+    const tight = v.cons;
+    let s = "<b>Optimal: \\(z^* = " + unitT() + approxT(A.opt.z) + "\\).</b> Pushed any further, the " + L + " no longer meets the region. ";
+    if (kind === "vertex") s += "It touches the region only at the vertex \\(" + ptT(v.p) + "\\), where " + listJoin(namesOf(tight)) + " are tight.";
+    else if (kind === "edge") s += "It touches the region along a whole edge: all its points are optimal — in particular its end vertices " + A.opt.verts.map(u => M(ptT(u.p))).join(" and ") + ".";
+    else if (kind === "face") s += "It touches the region along a whole face: all its points are optimal — in particular its " + A.opt.verts.length + " vertices.";
+    else s += "The optimal points form an unbounded edge (a ray), starting at the vertex \\(" + ptT(v.p) + "\\) — which is optimal, too.";
+    return ["optimal", s];
+  }
+  if (st === "beyond") return ["too good", "No feasible point has value \\(" + zT + "\\): the " + L + " has left the region. " +
+    (A.opt.status === "optimal" ? "The best value is \\(z^* = " + unitT() + approxT(A.opt.z) + "\\) — press <i>best</i>." : "")];
+  if (st === "before") return ["not reached yet", "No feasible point is this bad: all of them have " + bw + " value than \\(" + zT + "\\). " +
+    "The " + L + " has not reached the region yet — push it in the better direction."];
+  if (st === "entry") return ["first contact", "The " + L + " just reaches the region — again at a vertex or a whole edge" + (d === 3 ? "/face" : "") +
+    ": these are the <i>worst</i> feasible points, the optimum of the opposite objective. Push on."];
+  const ub = A.opt.status === "unbounded";
+  return [ub ? "unbounded" : "inside", "Every point of the region on the orange " + (d === 2 ? "segment" : "cut") + " is feasible with value \\(" + zT + "\\). " +
+    "The region still reaches to the better side of the " + L + ", so we can push on" +
+    (ub ? " — and that never ends: there are feasible points with arbitrarily " + bw + " value. <b>The LP is unbounded</b> (in this direction; with the opposite objective it " +
+          (A.opp.status === "optimal" ? "has an optimum" : "is unbounded too") + ")."
+        : ". " + (A.opt.status === "optimal" ? "The " + L + " leaves the region at its boundary, so the last points it touches form a vertex or an edge" + (d === 3 ? " or a face" : "") + "." : ""))];
+}
+function lpPanel() {
+  const lp = S.lp, A = S.A, iis = new Set(A.iis || []);
+  setMath(el("lpObj"), M((S.sense === "max" ? "\\max\\;\\;" : "\\min\\;\\;") + exprT(S.c, lp.vars)) + ' <span class="st">subject to</span>');
+  const xo = A.opt.status === "optimal" && zState(S.z) === "opt" ? A.opt.verts.map(v => v.p) : null;
+  const rows = lp.cons.map((k, i) => {
+    let tag = "", cls = "";
+    if (iis.has(i)) { tag = "contradiction"; cls = "bad"; }
+    else if (xo && S.on[i]) {
+      const sls = xo.map(p => { const lhs = dot(k.a, p), sl = k.op === "<=" ? k.b - lhs : k.op === ">=" ? lhs - k.b : 0;
+                               return Math.abs(sl) <= 1e-7 * (Math.abs(k.b) + norm(k.a) * norm(p) + 1) ? 0 : sl; });
+      if (sls.every(x => x === 0)) { tag = "tight"; cls = "tight"; }
+      else if (sls.some(x => x === 0)) { tag = xo.length === 2 ? "tight at one end" : "tight in part"; cls = "tight"; }
+      else tag = "slack " + numP(Math.min(...sls));
+    }
+    return '<div class="crow' + (S.on[i] ? "" : " off") + (iis.has(i) ? " iis" : "") + (S.hover === i ? " hot" : "") + '" data-ci="' + i + '">' +
+      '<input type="checkbox"' + (S.on[i] ? " checked" : "") + ' aria-label="constraint ' + (i + 1) + ' on">' +
+      '<span class="sw" style="background:' + k.color + '"></span>' +
+      '<span class="tx">' + M(consT(k, lp.vars)) + (k.name ? '<span class="nm">' + esc(k.name) + "</span>" : "") + "</span>" +
+      '<span class="tag ' + cls + '">' + esc(tag) + "</span></div>";
+  });
+  const box = el("lpRows");
+  const key = rows.join("");
+  /* rebuild only what changed: the TeX of the rows is static, the tags and classes are not */
+  if (box._sig !== lp.cons.map(k => consT(k, lp.vars) + k.name).join("|") + S.lp.title) {
+    box._sig = lp.cons.map(k => consT(k, lp.vars) + k.name).join("|") + S.lp.title;
+    box.innerHTML = key;
+    if (mjReady()) mjInPlace([box]);
+    box.querySelectorAll(".crow").forEach(r => {
+      const i = +r.dataset.ci;
+      r.onclick = e => { if (e.target.tagName !== "INPUT") { S.on[i] = !S.on[i]; } else S.on[i] = e.target.checked; changed(); };
+      r.onmouseenter = () => { S.hover = i; render(); };
+      r.onmouseleave = () => { if (S.hover === i) { S.hover = -1; render(); } };
+    });
+  }
+  box.querySelectorAll(".crow").forEach((r, i) => {
+    r.className = "crow" + (S.on[i] ? "" : " off") + (iis.has(i) ? " iis" : "") + (S.hover === i ? " hot" : "");
+    r.querySelector("input").checked = S.on[i];
+    const t = r.querySelector(".tag"), m = /class="tag ([^"]*)">([^<]*)</.exec(rows[i]);
+    t.className = "tag " + m[1]; t.textContent = m[2].replace(/&amp;/g, "&");
+  });
+  const nOn = S.on.filter(x => x).length;
+  el("lpMeta").textContent = lp.d + " variables, " + nOn + " of " + lp.cons.length + " constraints on";
+  const lab = A.opt.status === "optimal" ? "optimum at a vertex" : A.opt.status === "novertex" ? "optimum, but no vertex" : A.opt.status === "unbounded" ? "unbounded" : "infeasible";
+  el("lpFoot").textContent = "LP: " + lab;
+}
+function legend() {
+  const L = S.lp.d === 2 ? "line" : "plane";
+  const sw = (fill, stroke, dash) => '<svg width="24" height="12"><rect x="1" y="1" width="22" height="10" rx="2" fill="' + fill + '" stroke="' + stroke + '"' + (dash ? ' stroke-dasharray="' + dash + '"' : "") + "/></svg>";
+  let h = '<span class="item">' + sw("var(--t-region)", "none") + "feasible region</span>";
+  if (S.lp.d === 2) h += '<span class="item"><svg width="24" height="12"><defs><pattern id="lgh" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#6b675c" stroke-width="1.5"/></pattern></defs><rect x="1" y="1" width="22" height="10" fill="url(#lgh)"/></svg>forbidden side of a constraint</span>';
+  h += '<span class="item"><svg width="30" height="12"><line x1="1" x2="29" y1="6" y2="6" stroke="' + OBJ + '" stroke-width="2" stroke-dasharray="6 4"/></svg>' + L + " of constant " + M("z") + "</span>";
+  h += '<span class="item"><svg width="30" height="12"><line x1="3" x2="27" y1="6" y2="6" stroke="' + OBJ + '" stroke-width="5" stroke-linecap="round"/></svg>its feasible part</span>';
+  h += '<span class="item"><svg width="16" height="16"><circle cx="8" cy="8" r="6" fill="' + OBJ + '" stroke="#38362e" stroke-width="1.5"/></svg>optimal vertex</span>';
+  if (S.xi) h += '<span class="item"><svg width="14" height="14"><circle cx="7" cy="7" r="4" fill="var(--wi-panel-2)" stroke="#6b675c" stroke-width="1.3"/></svg>intersection point, infeasible</span>';
+  if (S.lp.d === 3) h += '<span class="item"><svg width="30" height="12"><line x1="1" x2="29" y1="6" y2="6" stroke="#9a6a96" stroke-width="1.2" stroke-dasharray="1.5 3"/></svg>where the window cuts the region</span>';
+  setMath(el("cvLegend"), h);
+}
+function metaText() {
+  const A = S.A, lp = S.lp, d = lp.d;
+  if (!A.xi || !A.xi.length) return "";
+  const feas = A.xi.filter(x => x.p && x.feas), par = A.xi.filter(x => !x.p).length;
+  const distinct = []; for (const x of feas) if (!distinct.some(p => norm(sub(p, x.p)) <= 1e-7 * (1 + norm(p)))) distinct.push(x.p);
+  const nOn = S.on.filter(x => x).length;
+  return M("\\tbinom{" + nOn + "}{" + d + "} = " + A.xi.length) + " choices of " + d + " constraints: " + feas.length + " give a vertex" +
+         (distinct.length < feas.length ? " (" + distinct.length + " distinct)" : "") + (par ? ", " + par + " no single point" : "");
+}
+
+/* ==========================================================================
+   Render, slider, sweep
+   ========================================================================== */
+function render() {
+  if (MODE !== "geo") { if (S.lp) sxRender(); return; }
+  if (!S.lp) return;
+  if (S.lp.d === 2) render2D(); else render3D();
+  syncSlider();
+  const [nm, html] = statusHtml();
+  el("stateName").textContent = nm;
+  setMath(el("statusBox"), html);
+  lpPanel();
+  setMath(el("cvMeta"), S.xi ? metaText() : "");
+}
+function syncSlider() {
+  const [a, b] = zRange(), r = el("zRange");
+  r.value = Math.round(b > a ? (S.z - a) / (b - a) * 10000 : 0);
+  el("zVal").textContent = unitP() + numP(zShown(S.z));
+  const bt = '<span class="bt">better</span>', wt = "worse";
+  el("endL").innerHTML = S.sense === "max" ? wt : "← " + bt;
+  el("endR").innerHTML = S.sense === "max" ? bt + " →" : wt;
+}
+function setZ(z, snap) {
+  const [a, b] = zRange();
+  z = snap ? snapZ(z) : z;
+  if (snap && z === snapZ(z) && !isSnap(z)) z = niceRound(z);
+  S.z = clamp(z, a, b);
+  render();
+}
+function sweepTarget() {
+  const A = S.A, [a, b] = zRange(), g = better();
+  const bestEnd = g > 0 ? b : a, worstEnd = g > 0 ? a : b;
+  let from = worstEnd, to = bestEnd;
+  if (A.opp.status === "optimal" || A.opp.status === "novertex") from = clamp(A.opp.z, a, b);
+  else from = niceRound(from, true);
+  if (A.opt.status === "optimal" || A.opt.status === "novertex") to = clamp(A.opt.z, a, b);
+  return [from, to];
+}
+/* a round number near z, on the slider's grid */
+function zStep() { const [a, b] = zRange(); return niceStep(b - a, 400); }
+function niceRound(z, inward) {
+  const st = zStep(), [a, b] = zRange();
+  let r = Math.round(z / st) * st; if (inward) r = clamp(r, Math.ceil(a / st) * st, Math.floor(b / st) * st);
+  return +r.toPrecision(12);
+}
+function zShown(z) {
+  const A = S.A;
+  for (const r of [A.opt, A.opp]) if ((r.status === "optimal" || r.status === "novertex") && z === r.z) return z;
+  return niceRound(z);
+}
+function stopSweep() { if (S.sweep) { cancelAnimationFrame(S.sweep); S.sweep = 0; } el("sweepBtn").innerHTML = "▶&#xFE0E; push"; }
+function sweep() {
+  if (S.sweep) { stopSweep(); return; }
+  let [from, to] = sweepTarget();
+  const g = better();
+  /* continue from where we are if that is on the way */
+  if (g * (S.z - from) > 0 && g * (to - S.z) > 1e-9 * (Math.abs(to) + 1)) from = S.z;
+  const dur = 900 + 2600 * Math.abs(to - from) / Math.max(1e-12, Math.abs(zRange()[1] - zRange()[0]));
+  const t0 = performance.now();
+  el("sweepBtn").innerHTML = "❚❚&#xFE0E; stop";
+  const step = now => {
+    const t = clamp((now - t0) / dur, 0, 1), e = t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
+    S.z = from + (to - from) * e; render();
+    if (t < 1) S.sweep = requestAnimationFrame(step); else { S.z = to; render(); stopSweep(); }
+  };
+  S.sweep = requestAnimationFrame(step);
+}
+
+/* ==========================================================================
+   Loading an LP, toggles, hash
+   ========================================================================== */
+function useLP(lp, keepView) {
+  stopSweep();
+  S.lp = lp; S.c = lp.c.slice(); S.sense = lp.sense; S.on = lp.cons.map(k => k.on);
+  const bv = baseView(lp);
+  if (lp.d === 2) { if (!keepView || !S.view2) S.view2 = bv; }
+  else { if (!keepView || !S.view3) { S.view3 = bv; S.yaw = 215; S.pitch = 22; S.zoom3 = 1; } }
+  el("hatchLab").classList.toggle("hidden", lp.d !== 2);
+  S.Hdef = lp.d === 2 ? 520 : 560; if (!S.Huser) S.H = S.Hdef;
+  el("lpRows")._sig = null;
+  changed(true);
+}
+function changed(fresh) {
+  stopSweep();
+  analyse();
+  el("senseSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.sense === S.sense));
+  if (S.lp.d === 2) { const W = Math.max(320, el(S.wrapId).clientWidth); S.E2 = view2Effective(W, S.H); }
+  if (fresh) {
+    /* start with the line on the worse side of the region, so that "push" has something to show */
+    const [from] = sweepTarget(); S.z = from;
+  }
+  const [a, b] = zRange(); S.z = clamp(S.z, a, b);
+  legend();
+  render();
+  writeHash();
+}
+function applyPreset(key) {
+  const p = PRESETS.find(q => q.key === key); if (!p) return;
+  S.preset = key; el("presetSel").value = key;
+  const lp = parseLP(p.text);
+  el("inputText").value = p.text;
+  el("parseErr").textContent = "";
+  useLP(lp);
+}
+function writeHash() {
+  if (!S.lp) return;
+  let h = [];
+  if (MODE === "geo") {
+    if (S.preset === "custom") h.push("src=" + encodeURIComponent(lpToText(S.lp, S.lp.cons, S.lp.c, S.lp.sense)));
+    else if (S.preset !== "hessy") h.push("lp=" + S.preset);
+    if (S.sense !== S.lp.sense) h.push(S.sense);
+    const flipped = S.on.map((x, i) => x !== S.lp.cons[i].on ? i + 1 : 0).filter(x => x);
+    if (flipped.length) h.push("off=" + S.on.map((x, i) => x ? 0 : i + 1).filter(x => x).join(","));
+  } else {
+    h.push(MODE);
+    if (S.preset === "custom") h.push("src=" + encodeURIComponent(S.lp.src));
+    else if (S.preset !== "hessy") h.push("lp=" + S.preset);
+    if (S.full && S.rule !== "dantzig") h.push("rule=" + S.rule);
+    if (S.cur) h.push("step=" + (S.cur + 1));
+  }
+  if (document.body.classList.contains("present")) h.push("present");
+  const s = h.length ? "#" + h.join("&") : location.pathname + location.search;
+  try { history.replaceState(null, "", s); } catch (e) { /* sandboxed preview */ }
+}
+function readHash() {
+  const q = new URLSearchParams(location.hash.replace(/^#/, ""));
+  const sx = q.has("simplex") ? "simplex" : q.has("full") ? "full" : null;
+  let ok = false;
+  try {
+    if (!sx && q.get("src")) { const lp = parseLP(q.get("src")); if (lp.d > 3) throw new Error("3D at most"); G.preset = "custom"; el("inputText").value = q.get("src"); useLP(lp); ok = true; }
+    else if (!sx && q.get("lp") && PRESETS.some(p => p.key === q.get("lp"))) { applyPreset(q.get("lp")); ok = true; }
+  } catch (e) { /* a broken link: keep the default */ }
+  if (!ok) applyPreset("hessy");
+  if (!sx) {
+    if (q.has("min")) S.sense = "min"; if (q.has("max")) S.sense = "max";
+    if (q.get("off") !== null) { const off = q.get("off").split(",").map(Number); S.on = S.lp.cons.map((_, i) => !off.includes(i + 1)); }
+    changed(true);
+  } else {
+    const T = sx === "simplex" ? T2 : T3;
+    try {
+      if (q.get("src")) { sxLoad(T, parseLP(q.get("src")), "custom"); el("inputText").value = q.get("src"); }
+      else if (q.get("lp") && SX_LISTS[T.prefix].includes(q.get("lp"))) sxLoad(T, parseLP(LPTEXT[q.get("lp")]), q.get("lp"));
+    } catch (e) { /* keep the default */ }
+    if (T.full) {
+      if (["dantzig", "bland", "best", "click"].includes(q.get("rule"))) { T.rule = q.get("rule"); sxRecord(T); }
+    }
+    if (q.get("step")) T.cur = clamp((+q.get("step") || 1) - 1, 0, T.steps.length - 1);
+    MODE = sx;
+  }
+  return q.has("present");
+}
+
+/* ==========================================================================
+   Pointer: pan (2D), rotate (3D), compass, tooltips
+   ========================================================================== */
+function tipShow(e, html) { const t = el("tip"); t.innerHTML = html; t.style.display = "block"; t.style.left = (e.clientX + 14) + "px"; t.style.top = (e.clientY + 12) + "px"; }
+function tipHide() { el("tip").style.display = "none"; }
+function vertexTip(v) {
+  const lp = S.lp, val = dot(S.c, v.p);
+  return '<div class="tt-h">vertex ' + esc(ptP(v.p)) + '</div><div>value ' + esc(unitP() + numP(val)) + '</div><div class="tt-s">on ' +
+         v.cons.map(i => esc(lp.cons[i].name || consP(lp.cons[i], lp.vars))).join(", ") + "</div>";
+}
+function initPointer(T) {
+  const svg = el(T.cvId);
+  let drag = null;
+  const touches = new Map();
+  const local = e => { const r = svg.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  /* scroll wheel (and trackpad pinch, which arrives as a wheel event with ctrlKey) zooms about the pointer */
+  svg.addEventListener("wheel", e => {
+    if (!S.lp || S.lp.d > 3) return;
+    e.preventDefault(); tipHide();
+    const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1) * (e.ctrlKey ? 2.5 : 1);
+    const [x, y] = local(e);
+    zoomAt(Math.exp(clamp(dy, -300, 300) * 0.0015), x, y);
+  }, { passive: false });
+  svg.addEventListener("dblclick", e => { if (e.target.id !== "cHandle" && !(e.target.dataset && e.target.dataset.pick !== undefined)) { e.preventDefault(); resetView(); } });
+  /* two fingers: pinch to zoom */
+  svg.addEventListener("pointerdown", e => { if (e.pointerType === "touch") touches.set(e.pointerId, local(e));
+    if (touches.size === 2 && S.lp && S.lp.d <= 3) {
+      const [a, b] = [...touches.values()];
+      drag = { kind: "pinch", d0: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
+               base: S.lp.d === 2 ? { lo: S.view2.lo.slice(), hi: S.view2.hi.slice() } : { z3: S.zoom3 } };
+    }
+  }, true);
+  const lift = e => { touches.delete(e.pointerId); if (drag && drag.kind === "pinch" && touches.size < 2) { drag = null; writeHash(); } };
+  svg.addEventListener("pointerup", lift, true); svg.addEventListener("pointercancel", lift, true);
+  svg.addEventListener("pointerdown", e => {
+    if (e.button !== 0) return;
+    if (drag && drag.kind === "pinch") { svg.setPointerCapture(e.pointerId); e.preventDefault(); return; }
+    if (e.target.dataset && e.target.dataset.pick !== undefined) { e.preventDefault(); sxPick(S, +e.target.dataset.pick); return; }
+    tipHide(); stopSweep();
+    const r = svg.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    if (S.lp.d === 2 && e.target.id === "cHandle") drag = { kind: "comp" };
+    else drag = { kind: S.lp.d === 2 ? "pan" : "rot", x, y, v: S.lp.d === 2 ? { lo: S.view2.lo.slice(), hi: S.view2.hi.slice() } : null, yaw: S.yaw, pitch: S.pitch };
+    svg.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  svg.addEventListener("pointermove", e => {
+    const r = svg.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    if (touches.has(e.pointerId)) touches.set(e.pointerId, [x, y]);
+    if (drag && drag.kind === "pinch") {
+      if (touches.size < 2) return;
+      const [a, b] = [...touches.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]) || 1;
+      if (S.lp.d === 2) { S.view2 = drag.base; }
+      zoomAt(drag.d0 / d, drag.mid[0], drag.mid[1], drag.base);
+      return;
+    }
+    if (!drag) {
+      const t = e.target;
+      if (t.classList && t.classList.contains("vtx")) tipShow(e, vertexTip(S.RV[+t.dataset.v]));
+      else if (t.dataset && t.dataset.pick !== undefined) tipShow(e, '<div class="tt-h">take this edge</div><div>let ' + esc(S.gvars[+t.dataset.pick].name) + " enter the basis</div>");
+      else if (t.classList && t.classList.contains("face")) { const k = S.lp.cons[+t.dataset.ci]; tipShow(e, '<div class="tt-h">' + esc(k.name || "constraint " + (+t.dataset.ci + 1)) + "</div><div>" + esc(consP(k, S.lp.vars)) + "</div>"); }
+      else tipHide();
+      const ci = t.classList && t.classList.contains("face") ? +t.dataset.ci : -1;
+      if (S === G && S.lp.d === 3 && ci !== S.faceHover) { S.faceHover = ci; el("lpRows").querySelectorAll(".crow").forEach((rw, i) => rw.classList.toggle("hot", i === ci || i === S.hover)); }
+      return;
+    }
+    if (drag.kind === "comp") {
+      const dx = x - S.compass.cx, dy = -(y - S.compass.cy); if (Math.hypot(dx, dy) < 4) return;
+      setDirection(Math.atan2(dy, dx));
+    } else if (drag.kind === "pan") {
+      const k = S.E2.k, dx = (x - drag.x) / k, dy = (y - drag.y) / k;
+      S.view2 = { lo: [drag.v.lo[0] - dx, drag.v.lo[1] + dy], hi: [drag.v.hi[0] - dx, drag.v.hi[1] + dy] };
+      render();
+    } else {
+      S.yaw = drag.yaw - (x - drag.x) * 0.5; S.pitch = clamp(drag.pitch + (y - drag.y) * 0.5, -85, 85);
+      render();
+    }
+  });
+  const end = () => { if (drag) { drag = null; writeHash(); } };
+  svg.addEventListener("pointerup", end); svg.addEventListener("pointercancel", end);
+  svg.addEventListener("pointerleave", () => { if (!drag) tipHide(); });
+}
+/* turn the objective: the improvement direction points at angle phi; snaps to constraint normals and the axes */
+function setDirection(phi) {
+  const lp = S.lp, g = better(), len = norm(S.c);
+  const cands = [];
+  lp.cons.forEach((k, i) => { if (S.on[i]) { cands.push(k.a); cands.push(mul(k.a, -1)); } });
+  cands.push([1, 0], [0, 1], [-1, 0], [0, -1]);
+  let c = null;
+  for (const a of cands) {
+    const ang = Math.atan2(a[1], a[0]); let dd = Math.abs(ang - phi); dd = Math.min(dd, 2 * Math.PI - dd);
+    if (dd < 2.5 * Math.PI / 180) { const k = Math.max(1, Math.round(len / norm(a))); c = mul(a, g * k); break; }
+  }
+  if (!c) {
+    const st = Math.pow(10, Math.floor(Math.log10(len)) - 2);
+    c = [Math.cos(phi), Math.sin(phi)].map(x => Math.round(g * x * len / st) * st).map(x => +x.toPrecision(10));
+    if (c.every(x => x === 0)) return;
+  }
+  if (c[0] === S.c[0] && c[1] === S.c[1]) return;
+  const frac = (() => { const [a, b] = zRange(); return b > a ? (S.z - a) / (b - a) : 0; })();
+  S.c = c; analyse();
+  const [a, b] = zRange(); S.z = a + frac * (b - a);
+  render(); writeHash();
+}
+function fitView() {
+  const lp = S.lp, d = lp.d, A = S.A;
+  const bv = baseView(lp), ctr = bv.lo.map((x, i) => (x + bv.hi[i]) / 2), span = Math.max(...bv.hi.map((x, i) => x - bv.lo[i]));
+  const R = 50 * span + norm(ctr);
+  let V = A.opt.status === "infeasible" ? [] : vertices(A.H.concat(boxH(ctr.map(x => x - R), ctr.map(x => x + R))), d).filter(v => v.real).map(v => v.p);
+  if (!V.length) { if (d === 2) S.view2 = bv; else S.view3 = bv; render(); return; }
+  const lo = [...Array(d)].map((_, i) => Math.min(...V.map(p => p[i]))), hi = [...Array(d)].map((_, i) => Math.max(...V.map(p => p[i])));
+  const sp = Math.max(...hi.map((x, i) => x - lo[i]), 1e-6 * (norm(lo) + 1));
+  /* an unbounded region: show some of where it goes */
+  const m = A.opt.status === "unbounded" || A.opp.status === "unbounded" ? 0.45 : 0.12;
+  const v = { lo: lo.map(x => x - m * sp), hi: hi.map(x => x + m * sp) };
+  if (d === 2) S.view2 = v; else { S.view3 = v; S.zoom3 = 1; }
+  const [a, b] = zRange(); S.z = clamp(S.z, a, b);
+  render();
+}
+function zoomAt(f, px, py, base) {
+  if (!S.lp || S.lp.d > 3) return;
+  if (S.lp.d === 2) {
+    const v = base || S.view2, E = base ? view2Effective(Math.max(320, el(S.wrapId).clientWidth), S.H) : S.E2; if (!E) return;
+    const w = [E.lo[0] + (px - PAD.l) / E.k, E.lo[1] + (S.H - PAD.b - py) / E.k];
+    const span = Math.max(v.hi[0] - v.lo[0], v.hi[1] - v.lo[1]), b0 = baseView(S.lp), bs = Math.max(b0.hi[0] - b0.lo[0], b0.hi[1] - b0.lo[1]);
+    f = clamp(f, bs / 200 / span, bs * 50 / span);
+    S.view2 = { lo: v.lo.map((x, i) => w[i] + (x - w[i]) * f), hi: v.hi.map((x, i) => w[i] + (x - w[i]) * f) };
+  } else S.zoom3 = clamp((base ? base.z3 : S.zoom3) / f, 0.25, 8);
+  render();
+}
+function resetView() {
+  if (!S.lp || S.lp.d > 3) return;
+  const bv = baseView(S.lp);
+  if (S.lp.d === 2) S.view2 = bv; else { S.view3 = bv; S.yaw = 215; S.pitch = 22; S.zoom3 = 1; }
+  render();
+}
+function zoom(f) {
+  if (S.lp.d === 2) {
+    const v = S.view2, c = v.lo.map((x, i) => (x + v.hi[i]) / 2);
+    S.view2 = { lo: v.lo.map((x, i) => c[i] + (x - c[i]) * f), hi: v.hi.map((x, i) => c[i] + (x - c[i]) * f) };
+  } else S.zoom3 = clamp(S.zoom3 / f, 0.3, 6);
+  render();
+}
+
+/* ==========================================================================
+   The simplex tabs.  The LP is put into the form of the slides,
+     min c^T x  s.t.  A x + x_s = b,  x, x_s >= 0     (one slack per row),
+   a run is recorded step by step (each step: the line of the pseudocode,
+   the basis J and its dictionary), and one can scrub back and forth.
+   The dictionary of a basis J is the boxed formula of the slides,
+     x_J = A_J^{-1} b - A_J^{-1} A_Jbar x_Jbar,   z = c_J^T A_J^{-1} b + ct_Jbar^T x_Jbar,
+   with numbers.
+   ========================================================================== */
+const SXTOL = 1e-9;
+const clean = x => Math.abs(x) < 1e-10 ? 0 : x;
+const LPTEXT = {};
+PRESETS.forEach(p => LPTEXT[p.key] = p.text);
+Object.assign(LPTEXT, {
+  walk:
+`# Dantzig's rule first heads right, then has to work its way back around the region
+title Walk around the region
+vars x y
+max 3x + 2y
+x <= 4            | | red
+2x + y <= 10      | | blue
+x + 2y <= 11      | | green
+y <= 5            | | teal
+x, y >= 0
+view -0.6 5.4 -0.6 6
+`,
+  chvatal:
+`# the first example in Chvatal's "Linear Programming"
+title 3D: Chvátal’s first example
+vars x1 x2 x3
+max 5x1 + 4x2 + 3x3
+2x1 + 3x2 + x3 <= 5     | | red
+4x1 + x2 + 2x3 <= 11    | | blue
+3x1 + 4x2 + 2x3 <= 8    | | green
+x1, x2, x3 >= 0
+view -0.3 3 -0.3 2 -0.3 4.4
+`,
+  unb2:
+`# after one pivot, the improving edge is a ray
+title Unbounded LP
+vars x y
+max 2x + y
+-x + y <= 2   | | red
+x - 2y <= 2   | | blue
+x, y >= 0
+view -0.6 9 -0.6 6
+`,
+  degpiv:
+`# three constraint lines through the origin: the first pivot has length 0
+title Degenerate pivot
+vars x y
+max 2x + y
+x - y <= 0     | | red
+x + y <= 4     | | blue
+y <= 3         | | green
+x, y >= 0
+view -0.5 4.5 -0.5 4.5
+`,
+  kleeminty:
+`# Klee and Minty (1972), n = 3: Dantzig's rule visits all 2^3 vertices.
+# The axes have very different ranges, so the picture stretches them ("stretch").
+title 3D: Klee–Minty cube (Dantzig: all 8 vertices)
+vars x1 x2 x3
+max 4x1 + 2x2 + x3
+x1 <= 5                   | | red
+4x1 + x2 <= 25            | | blue
+8x1 + 4x2 + x3 <= 125     | | green
+x1, x2, x3 >= 0
+stretch
+view -0.6 5.6 -3 28 -14 140
+`,
+  four:
+`# four variables: no picture, but the algebra does not care
+title No picture: four variables
+vars x1 x2 x3 x4
+max 3x1 + 2x2 + 4x3 + x4
+x1 + x2 + 2x3 + x4 <= 4   | | red
+2x1 + x3 + 3x4 <= 5       | | blue
+2x1 + x2 + 3x3 <= 7       | | green
+x2 + x3 + x4 <= 3         | | teal
+x1, x2, x3, x4 >= 0
+`
+});
+const SX_LISTS = {
+  s2: ["hessy", "walk", "cube", "chvatal"],
+  s3: ["hessy", "walk", "cube", "chvatal", "unb2", "degpiv", "unbdregion", "many", "hessy-contract", "helly", "kleeminty", "four"]
+};
+const SX_NAMES = {
+  "hessy": "Hessy James's apple farm (slides)",
+  "unbdregion": "Phase I: the origin is infeasible",
+  "many": "Phase I, then a longer walk (m = 12)",
+  "hessy-contract": "Phase I: infeasible (Hessy overbooked)",
+  "helly": "Phase I: infeasible (three constraints clash)",
+  "cube": "3D: cube with two corners cut"
+};
+const SX_CODE = [
+  [0, "<b>procedure</b> simplexIteration(" + M("H = \\{H_1,\\ldots,H_m\\}") + "):"],
+  [1, "<b>if</b> " + M("\\bigcap H = \\emptyset") + ' <b>return</b> <span class="tt">INFEASIBLE</span>'],
+  [1, M("\\mathbf x \\gets") + " any feasible vertex"],
+  [1, "<b>while</b> " + M("\\mathbf x") + ' is not locally optimal <span class="cm">// ' + M("\\mathbf c") + " “against wall”</span>"],
+  [2, '<span class="cm">// pivot towards better objective function</span>'],
+  [2, "<b>if</b> the improving edge has no end vertex"],
+  [3, '<b>return</b> <span class="tt">UNBOUNDED</span>'],
+  [2, "<b>else</b>"],
+  [3, M("\\mathbf x \\gets") + " some feasible lower neighbor of " + M("\\mathbf x")],
+  [1, "<b>return</b> " + M("\\mathbf x")]
+];
+
+/* the full story: the detailed version, one line per algebraic step */
+const SX_CODE_FULL = [
+  [0, "<b>procedure</b> simplex(" + M("\\mathbf A,\\mathbf b,\\mathbf c") + '): <span class="cm">// ' + M("\\min \\mathbf c^T\\mathbf x") + " s.t. " + M("\\mathbf A\\mathbf x = \\mathbf b,\\; \\mathbf x\\ge\\mathbf 0") + "</span>"],
+  [1, M("J \\gets") + ' phaseI' + "(" + M("\\mathbf A,\\mathbf b") + ')' + ' <span class="cm">// a feasible basis: slacks if ' + M("\\mathbf b \\ge \\mathbf 0") + "</span>"],
+  [2, '<b>if</b> there is none: <b>return</b> <span class="tt">INFEASIBLE</span>'],
+  [1, "<b>loop</b>"],
+  [2, M("\\mathbf x_J \\gets \\mathbf A_J^{-1}\\mathbf b,\\;\\; \\mathbf x_{\\overline{J}} \\gets \\mathbf 0") + ' <span class="cm">// the current vertex</span>'],
+  [2, M("\\tilde{\\mathbf c}_{\\overline{J}}^T \\gets \\mathbf c_{\\overline{J}}^T - \\mathbf c_J^T\\mathbf A_J^{-1}\\mathbf A_{\\overline{J}}") + ' <span class="cm">// reduced costs</span>'],
+  [2, "<b>if</b> " + M("\\tilde{\\mathbf c}_{\\overline{J}} \\ge \\mathbf 0") + ": <b>return</b> " + M("\\mathbf x") + ' <span class="cm">// optimal</span>'],
+  [2, "choose " + M("e \\in \\overline{J}") + " with " + M("\\tilde c_e < 0") + ' <span class="cm">// entering variable (pivot rule)</span>'],
+  [2, M("\\mathbf d \\gets \\mathbf A_J^{-1}\\mathbf A_{\\bullet,e}") + ' <span class="cm">// ' + M("x_e = t") + " moves " + M("\\mathbf x_J") + " to " + M("\\mathbf x_J - t\\,\\mathbf d") + "</span>"],
+  [2, "<b>if</b> " + M("\\mathbf d \\le \\mathbf 0") + ': <b>return</b> <span class="tt">UNBOUNDED</span> <span class="cm">// the edge has no end vertex</span>'],
+  [2, M("\\theta \\gets \\min\\{\\, x_{j_i}/d_i : d_i > 0 \\,\\}") + ", attained at " + M("i = r") + ' <span class="cm">// ratio test</span>'],
+  [2, M("J \\gets J") + " with " + M("j_r") + " replaced by " + M("e") + ' <span class="cm">// pivot: ' + M("x_e") + " enters, " + M("x_{j_r}") + " leaves</span>"]
+];
+/* Phase I, in the same style; shown in the full story only when the run needs it */
+const SX_CODE_P1 = [
+  [0, "<b>procedure</b> phaseI(" + M("\\mathbf A,\\mathbf b") + '): <span class="cm">// a feasible basis of ' + M("\\mathbf A\\mathbf x + \\mathbf x_s = \\mathbf b,\\; \\mathbf x, \\mathbf x_s \\ge \\mathbf 0") + "</span>"],
+  [1, "<b>if</b> " + M("\\mathbf b \\ge \\mathbf 0") + ": <b>return</b> the slacks " + M("J = (x_{s_1},\\ldots,x_{s_m})") + ' <span class="cm">// the origin is a vertex</span>'],
+  [1, "add " + M("x_0 \\ge 0") + ": " + M("\\mathbf A\\mathbf x - x_0\\mathbf 1 + \\mathbf x_s = \\mathbf b") + ", objective " + M("\\min\\, x_0") + ' <span class="cm">// auxiliary LP</span>'],
+  [1, M("r \\gets \\arg\\min_i b_i") + ", " + M("J \\gets") + " slacks with " + M("x_{s_r}") + " replaced by " + M("x_0") + ' <span class="cm">// now ' + M("\\mathbf x_J \\ge \\mathbf 0") + "</span>"],
+  [1, "run the loop (lines 4–12) on the auxiliary LP from " + M("J")],
+  [1, "<b>if</b> " + M("x_0 > 0") + ' at its optimum: <b>return</b> none <span class="cm">// every point violates some constraint</span>'],
+  [1, "<b>if</b> " + M("x_0 \\in J") + ": pivot it out " + '<span class="cm">// a step of length 0</span>'],
+  [1, "<b>return</b> " + M("J") + ' <span class="cm">// drop ' + M("x_0") + ": a feasible basis of the original LP</span>"]
+];
+const SX_P1LINES = { p1orig: [2], p1intro: [3], p1first: [4], infeasible: [6], p1out: [7], start: [8] };
+/* which lines a step executes */
+const SX_LINES = {
+  simple: { check: [2], p1intro: [2], p1first: [2], p1out: [2], infeasible: [2], start: [3], test: [4], ratio: [6], unbounded: [7], pivot: [9], "return": [10], cycle: [4] },
+  full:   { check: [2], p1orig: [2], p1intro: [2], p1first: [2], p1out: [2], start: [2], infeasible: [3], price: [5, 6], test: [8], "return": [7], dir: [9], unbounded: [10], ratio: [11], pivot: [12], cycle: [4] }
+};
+function mkSx(prefix, full) {
+  return { prefix, full, cvId: prefix + "Cv", wrapId: prefix + "Wrap", simplex: true, overlay: p => simplexOverlay(p),
+    lp: null, preset: "hessy", sense: "max", c: null, on: [], z: 0, view2: null, view3: null, yaw: 215, pitch: 22, zoom3: 1,
+    hatch: true, xi: false, hover: -1, hl: -1, H: 440, Hdef: 440, stretch: false,
+    steps: [], cur: 0, frac: 1, choices: {}, rule: "dantzig", view: "dict", anim: 0, timer: 0, playing: false, split: 0.6 };
+}
+const T2 = mkSx("s2", false), T3 = mkSx("s3", true);
+
+/* --- the LP in the form of the slides ------------------------------------- */
+function stdForm(lp, needOrigin) {
+  const n = lp.d, rows = [], nn = new Array(n).fill(-1);
+  lp.cons.forEach((k, i) => {
+    if (!k.on) return;
+    const nz = k.a.map((x, j) => x ? j : -1).filter(j => j >= 0);
+    if (nz.length === 1 && k.b === 0 && ((k.op === ">=" && k.a[nz[0]] > 0) || (k.op === "<=" && k.a[nz[0]] < 0))) { if (nn[nz[0]] < 0) nn[nz[0]] = i; return; }
+    if (k.op === "=") throw new Error("“" + consP(k, lp.vars) + "”: equality constraints are not handled in the simplex tabs — write them as two inequalities");
+    rows.push(k.op === "<=" ? { a: k.a.slice(), b: k.b, ci: i } : { a: k.a.map(x => -x), b: -k.b, ci: i, flipped: true });
+  });
+  nn.forEach((ci, j) => { if (ci < 0) throw new Error("the simplex tabs need " + lp.vars[j] + " ≥ 0: every variable non-negative, as in the normal form"); });
+  if (!rows.length) throw new Error("no constraints besides the non-negativity ones");
+  if (rows.length > 12) throw new Error("at most 12 constraints besides x ≥ 0, please");
+  if (needOrigin && rows.some(r => r.b < 0)) throw new Error("the origin is infeasible here (written with “≤” only, some right-hand side is negative): this LP needs Phase I — load it in the tab “Simplex: the full story”");
+  const m = rows.length, N = n + m, vars = [];
+  lp.vars.forEach((v, j) => vars.push({ name: v, tex: varT(v), color: "#38362e", kind: "x", ci: nn[j] }));
+  rows.forEach((r, i) => vars.push({ name: "x_s" + (i + 1), tex: "x_{s_{" + (i + 1) + "}}", color: lp.cons[r.ci].color, kind: "s", ci: r.ci }));
+  const A = rows.map((r, i) => r.a.concat([...Array(m)].map((_, q) => q === i ? 1 : 0)));
+  const sg = lp.sense === "max" ? -1 : 1;
+  return { n, m, N, A, b: rows.map(r => r.b), c: lp.c.map(x => sg * x).concat(new Array(m).fill(0)), vars, rows, sg };
+}
+function invert(B) {
+  const m = B.length, X = B.map((r, i) => r.concat([...Array(m)].map((_, q) => q === i ? 1 : 0)));
+  for (let col = 0; col < m; col++) {
+    let p = col; for (let r = col + 1; r < m; r++) if (Math.abs(X[r][col]) > Math.abs(X[p][col])) p = r;
+    if (Math.abs(X[p][col]) < 1e-12) return null;
+    [X[col], X[p]] = [X[p], X[col]];
+    const pv = X[col][col]; for (let q = 0; q < 2 * m; q++) X[col][q] /= pv;
+    for (let r = 0; r < m; r++) if (r !== col) { const f = X[r][col]; if (f) for (let q = 0; q < 2 * m; q++) X[r][q] -= f * X[col][q]; }
+  }
+  return X.map(r => r.slice(m).map(clean));
+}
+function dictionary(Q, J, c) {
+  const m = Q.m, N = Q.N, Bi = invert(Q.A.map(r => J.map(j => r[j])));
+  const xB = Bi.map(r => clean(dot(r, Q.b)));
+  const D = Bi.map(r => [...Array(N)].map((_, j) => clean(r.reduce((s, x, k) => s + x * Q.A[k][j], 0))));
+  const cJ = J.map(j => c[j]);
+  const y = [...Array(m)].map((_, k) => clean(cJ.reduce((s, x, i) => s + x * Bi[i][k], 0)));
+  const ct = [...Array(N)].map((_, j) => J.includes(j) ? 0 : clean(c[j] - y.reduce((s, x, k) => s + x * Q.A[k][j], 0)));
+  const NB = [...Array(N)].map((_, j) => j).filter(j => !J.includes(j));
+  return { J: J.slice(), NB, Bi, xB, D, y, ct, z: clean(dot(cJ, xB)) };
+}
+function ratioTest(dc, e) {
+  let th = Infinity, r = -1; const lim = [];
+  dc.D.forEach((row, i) => {
+    if (row[e] > SXTOL) {
+      const t = clean(Math.max(0, dc.xB[i]) / row[e]); lim.push(t);
+      const tie = Math.abs(t - th) <= 1e-9 * (1 + Math.abs(t));
+      if (r < 0 || (t < th && !tie) || (tie && dc.J[i] < dc.J[r])) { th = t; r = i; }
+    } else lim.push(null);
+  });
+  return { th, r, lim };
+}
+function chooseEntering(dc, rule) {
+  const imp = dc.NB.filter(j => dc.ct[j] < -SXTOL);
+  if (!imp.length) return { imp, e: -1 };
+  let e = -1, bv = Infinity;
+  if (rule === "bland") e = Math.min(...imp);
+  else if (rule === "click") e = -1;
+  else if (rule === "best") for (const j of imp) { const rt = ratioTest(dc, j), v = rt.th === Infinity ? -Infinity : dc.ct[j] * rt.th; if (v < bv - 1e-12) { bv = v; e = j; } }
+  else for (const j of imp) if (dc.ct[j] < bv - 1e-12) { bv = dc.ct[j]; e = j; }
+  return { imp, e };
+}
+const fullX = (dc, N) => { const x = new Array(N).fill(0); dc.J.forEach((j, i) => { x[j] = dc.xB[i]; }); return x; };
+function edgeDir(dc, e, N) { const d = new Array(N).fill(0); d[e] = 1; dc.J.forEach((j, i) => { d[j] = -dc.D[i][e]; }); return d; }
+
+/* --- recording a run --------------------------------------------------- */
+function sxRecord(T) {
+  const P = T.P, n = P.n, steps = [], path = [];
+  let piv = 0;
+  const orig = x => x.slice(0, n);
+  const add = o => { o.path = path.map(q => ({ p: q.p.slice(), ph: q.ph })); steps.push(o); return o; };
+  const loop = (Q, cc, J, ph) => {
+    for (let it = 0; it < 60; it++) {
+      const dc = dictionary(Q, J, cc), x = fullX(dc, Q.N), ch = chooseEntering(dc, T.rule), p = piv;
+      let e = ch.e;
+      if (ch.imp.length && T.choices[p] !== undefined && ch.imp.includes(T.choices[p])) e = T.choices[p];
+      let ask;
+      if (T.full) {
+        ask = add({ kind: "price", phase: ph, Q, cc, dc, x, imp: ch.imp, e, piv: p });
+        if (!ch.imp.length) return { st: "opt", J, dc, x };
+        if (e >= 0) add({ kind: "test", phase: ph, Q, cc, dc, x, imp: ch.imp, e, piv: p });
+      } else {
+        ask = add({ kind: "test", phase: ph, Q, cc, dc, x, imp: ch.imp, e, piv: p });
+        if (!ch.imp.length) return { st: "opt", J, dc, x };
+      }
+      if (e < 0) { ask.wait = true; return { st: "wait" }; }
+      const rt = ratioTest(dc, e), dir = edgeDir(dc, e, Q.N);
+      const xTo = rt.th === Infinity ? null : x.map((v, k) => clean(v + rt.th * dir[k]));
+      if (T.full) {
+        add({ kind: "dir", phase: ph, Q, cc, dc, x, e, imp: ch.imp, rt, dir, piv: p });
+        if (rt.th === Infinity) { add({ kind: "unbounded", phase: ph, Q, cc, dc, x, e, rt, dir }); return { st: "unb" }; }
+      }
+      add({ kind: "ratio", phase: ph, Q, cc, dc, x, e, imp: ch.imp, rt, dir, xTo, piv: p });
+      if (rt.th === Infinity) { add({ kind: "unbounded", phase: ph, Q, cc, dc, x, e, rt, dir }); return { st: "unb" }; }
+      const leave = dc.J[rt.r];
+      J = J.slice(); J[rt.r] = e; piv++;
+      path.push({ p: orig(xTo), ph });
+      add({ kind: "pivot", phase: ph, Q, cc, dc: dictionary(Q, J, cc), prev: dc, rt, x: xTo, e, leave, th: rt.th, piv: p });
+    }
+    add({ kind: "cycle", line: 4, phase: ph, Q, cc, dc: dictionary(Q, J, cc), x: fullX(dictionary(Q, J, cc), Q.N) });
+    return { st: "cycle" };
+  };
+  const slackJ = [...Array(P.m)].map((_, i) => n + i);
+  const needP1 = P.b.some(x => x < -SXTOL);
+  let J = slackJ;
+  path.push({ p: new Array(n).fill(0), ph: needP1 ? "I" : "II" });
+  T.hasP1 = needP1;
+  if (needP1) {
+    /* Phase I: A x - x0 1 + x_s = b, minimize x0 */
+    const Q = { n, m: P.m, N: P.N + 1, A: P.A.map(r => r.concat([-1])), b: P.b, art: P.N };
+    const c1 = new Array(Q.N).fill(0); c1[P.N] = 1;
+    const dcO = dictionary(P, J, P.c);
+    add({ kind: "p1orig", phase: "I", Q: P, cc: P.c, dc: dcO, x: fullX(dcO, P.N) });
+    const dc0 = dictionary(Q, J, c1), x0v = fullX(dc0, Q.N);
+    add({ kind: "p1intro", line: 2, phase: "I", Q, cc: c1, dc: dc0, x: x0v });
+    let r = 0; P.b.forEach((v, i) => { if (v < P.b[r]) r = i; });
+    const th = -P.b[r], dir = edgeDir(dc0, P.N, Q.N), xTo = x0v.map((v, k) => clean(v + th * dir[k]));
+    const lim = P.b.map(v => v < 0 ? -v : null);
+    J = J.slice(); J[r] = P.N;
+    add({ kind: "p1first", line: 2, phase: "I", Q, cc: c1, dc: dc0, x: x0v, xTo, e: P.N, leave: n + r, rt: { th, r, lim }, dir, after: dictionary(Q, J, c1) });
+    const res = loop(Q, c1, J, "I");
+    if (res.st !== "opt") return sxFinish(T, steps);
+    if (res.dc.z > 1e-7 * (1 + Math.abs(th))) { add({ kind: "infeasible", line: 2, phase: "I", Q, cc: c1, dc: res.dc, x: res.x }); return sxFinish(T, steps); }
+    J = res.J.slice();
+    if (J.includes(P.N)) {
+      const i = J.indexOf(P.N), j = res.dc.NB.find(q => q !== P.N && Math.abs(res.dc.D[i][q]) > 1e-9);
+      J[i] = j;
+      add({ kind: "p1out", line: 2, phase: "I", Q, cc: c1, dc: dictionary(Q, J, c1), x: res.x, e: j, leave: P.N });
+    }
+    const dcs = dictionary(P, J, P.c);
+    path.forEach(q => { q.ph = "I"; });
+    path.push({ p: orig(fullX(dcs, P.N)), ph: "II" });
+    add({ kind: "start", line: 3, phase: "II", Q: P, cc: P.c, dc: dcs, x: fullX(dcs, P.N), viaP1: true });
+  } else {
+    const dcs = dictionary(P, J, P.c);
+    if (T.full) add({ kind: "check", line: 2, phase: "II", Q: P, cc: P.c, dc: dcs, x: fullX(dcs, P.N) });
+    add({ kind: "start", line: 3, phase: "II", Q: P, cc: P.c, dc: dcs, x: fullX(dcs, P.N) });
+  }
+  const res = loop(P, P.c, J, "II");
+  if (res.st === "opt") add({ kind: "return", line: 10, phase: "II", Q: P, cc: P.c, dc: res.dc, x: res.x });
+  return sxFinish(T, steps);
+}
+function sxFinish(T, steps) {
+  T.steps = steps;
+  const LM = SX_LINES[T.full ? "full" : "simple"];
+  for (const st of steps) {
+    st.lines = LM[st.kind] || [st.line];
+    st.p1lines = !T.hasP1 ? [] : st.phase === "I" && !SX_P1LINES[st.kind] ? [] : st.kind === "start" && !st.viaP1 ? [] : (SX_P1LINES[st.kind] || []);
+    st.p1caller = T.hasP1 && st.phase === "I" && !SX_P1LINES[st.kind];
+  }
+  /* the variables of the gauges: x, the slacks, and x0 if there is a Phase I */
+  T.gvars = T.P.vars.slice();
+  if (T.hasP1) T.gvars.push({ name: "x_0", tex: "x_0", color: "#902015", kind: "a", ci: -1 });
+  T.gmax = T.gvars.map((_, k) => {
+    let mx = 0; for (const st of steps) for (const x of [st.x, st.xTo]) if (x && k < x.length && isFinite(x[k])) mx = Math.max(mx, Math.abs(x[k]));
+    return mx || 1;
+  });
+  /* segments of the phase bar */
+  let k2 = 0;
+  T.seg = steps.map(st => {
+    if (st.phase === "I") return "Phase I";
+    if (st.kind === "check" || st.kind === "start") return "start";
+    if (st.kind === "return" || (st.kind === "test" && !st.imp.length)) return "optimal";
+    if (st.kind === "unbounded" || (st.kind === "ratio" && st.rt.th === Infinity)) return "unbounded";
+    if (st.kind === "cycle") return "stopped";
+    if ((st.kind === "test" || st.kind === "price") && st.wait) return "your move";
+    if (st.kind === "price" && !st.imp.length) return "optimal";
+    const lab = "pivot " + (k2 + 1); if (st.kind === "pivot") k2++; return lab;
+  });
+  if (steps.length && steps[steps.length - 1].kind === "infeasible") T.seg[T.seg.length - 1] = "infeasible";
+  T.cur = clamp(T.cur, 0, steps.length - 1);
+  sxBuildBar(T);
+  T._drawn = null;
+  setTimeout(() => sxPrerender(T), 50);
+  return steps;
+}
+function sxLoad(T, lp, key) {
+  const P = stdForm(lp, !T.full);
+  T.lp = lp; T.P = P; T.preset = key; T.c = lp.c.slice(); T.sense = lp.sense; T.on = lp.cons.map(k => k.on);
+  T.stretch = !!lp.stretch; T.choices = {}; T.cur = 0; T.frac = 1; T.hover = -1; T.hl = -1;
+  if (lp.d <= 3) {
+    const bv = baseView(lp);
+    if (lp.d === 2) T.view2 = bv; else { T.view3 = bv; T.yaw = 215; T.pitch = 22; T.zoom3 = 1; }
+    const keep = S; S = T; analyse(); S = keep;
+  }
+  setMath(el(T.prefix + "ExplainBody"), sxExplain(T));
+  if (T.full) { const sc = el(T.prefix + "Stretch"); sc.checked = T.stretch; el(T.prefix + "StretchLab").classList.toggle("hidden", lp.d !== 3); }
+  el(T.prefix + "Preset").value = key;
+  el(T.prefix + "Alg").style.minHeight = (4.2 + 2.05 * (P.m + 1)) + "em";
+  sxRecord(T);
+}
+
+/* --- the collapsed panel: what the algebra means ------------------------ */
+function sxExplain(T) {
+  const P = T.P, N = P.N, m = P.m, lp = T.lp;
+  const here = (txt) => '<span class="here">' + txt + "</span>";
+  const xs = P.vars.slice(0, P.n).map(v => v.tex).join(",\\,");
+  let h = "";
+  h += "<h4>1 · Equality form, slack variables</h4><p>The simplex method works with the LP in the form " +
+       M("\\min\\;\\mathbf c^T\\mathbf x\\;\\text{ s.t. }\\;\\mathbf A\\mathbf x = \\mathbf b,\\;\\mathbf x \\ge \\mathbf 0") + ". " +
+       "A constraint " + M("\\mathbf A_{i,\\bullet}\\,\\mathbf x \\le b_i") + " becomes an equation with a new <i>slack variable</i> " + M("x_{s_i} \\ge 0") + ": " +
+       M("\\mathbf A_{i,\\bullet}\\,\\mathbf x + x_{s_i} = b_i") + ". The slack is the room left in constraint " + M("i") +
+       "; " + M("x_{s_i} = 0") + " means we stand exactly on its line (plane). A “≥” constraint is first multiplied by " + M("-1") +
+       ", and a maximization becomes a minimization of " + M("-\\mathbf c^T\\mathbf x") + ". " +
+       here("Here: the variables " + M(xs) + " plus " + m + " slacks, so " + M("n = " + N) + " variables and " + M("m = " + m) + " equations.") + "</p>";
+  h += "<h4>2 · Basis and non-basis</h4><p>Pick " + M("m") + " of the " + M("n") + " variables whose columns of " + M("\\mathbf A") + " are linearly independent: the <i>basis</i> " +
+       M("J") + "; the other " + M("n-m") + " form the <i>non-basis</i> " + M("\\overline{J}") + ". " +
+       M("\\mathbf A_J \\in \\mathbb R^{m\\times m}") + " and " + M("\\mathbf A_{\\overline{J}} \\in \\mathbb R^{m\\times(n-m)}") + " are the columns of " + M("\\mathbf A") +
+       " for " + M("J") + " and " + M("\\overline{J}") + "; likewise " + M("\\mathbf x_J, \\mathbf x_{\\overline{J}}, \\mathbf c_J, \\mathbf c_{\\overline{J}}") + ". Since " + M("\\mathbf A_J") + " is invertible,</p>" +
+       '<p class="disp">' + M("\\mathbf A\\mathbf x = \\mathbf b \\iff \\mathbf A_J\\mathbf x_J + \\mathbf A_{\\overline{J}}\\mathbf x_{\\overline{J}} = \\mathbf b \\iff \\mathbf x_J = \\mathbf A_J^{-1}\\mathbf b - \\mathbf A_J^{-1}\\mathbf A_{\\overline{J}}\\,\\mathbf x_{\\overline{J}}") + "</p>" +
+       "<p>So the non-basic variables can be chosen freely; the basic ones then follow.</p>";
+  h += "<h4>3 · Basic solutions are vertices</h4><p>Setting all non-basic variables to " + M("0") + " gives the <i>basic solution</i> " +
+       M("\\mathbf x_{\\overline{J}} = \\mathbf 0,\\; \\mathbf x_J = \\mathbf A_J^{-1}\\mathbf b") + ". It is feasible if " + M("\\mathbf x_J \\ge \\mathbf 0") + ". " +
+       "Geometrically, the " + M("n-m") + " variables that are " + M("0") + " say which constraints we stand on (a slack " + M("=0") + ": on that constraint; an original variable " + M("=0") +
+       ": on that axis); " + M("n-m") + " of them pin down one point — a vertex. In the panel “All variables”, the shaded columns are " + M("J") + ".</p>";
+  h += "<h4>4 · The dictionary</h4><p>The table writes the equation of section 2 out, one row per basic variable " + M("x_{j_i}") + ": " +
+       "the number after “=” is " + M("(\\mathbf A_J^{-1}\\mathbf b)_i") + ", the value at the current vertex; the coefficient of a non-basic " + M("x_j") + " is " +
+       M("-(\\mathbf A_J^{-1}\\mathbf A_{\\bullet,j})_i") + ", how fast " + M("x_{j_i}") + " changes when " + M("x_j") + " is raised. The view “matrices” shows " +
+       M("\\mathbf A_J^{-1}") + " — the panel “The numbers” shows these products with their values.</p>";
+  h += "<h4>5 · The last row: reduced costs " + M("\\tilde{\\mathbf c}") + "</h4><p>Substitute " + M("\\mathbf x_J") + " into the objective:</p>" +
+       '<p class="disp">' + M("z = \\mathbf c_J^T\\mathbf x_J + \\mathbf c_{\\overline{J}}^T\\mathbf x_{\\overline{J}} = \\mathbf c_J^T\\mathbf A_J^{-1}\\mathbf b + \\bigl(\\underbrace{\\mathbf c_{\\overline{J}}^T - \\mathbf c_J^T\\mathbf A_J^{-1}\\mathbf A_{\\overline{J}}}_{\\textstyle \\tilde{\\mathbf c}_{\\overline{J}}^T}\\bigr)\\,\\mathbf x_{\\overline{J}}") + "</p>" +
+       "<p>The vector " + M("\\tilde{\\mathbf c}_{\\overline{J}}") + " (one entry " + M("\\tilde c_j") + " per non-basic variable) is called the <i>reduced costs</i>. " +
+       M("\\tilde c_j") + " is the rate at which " + M("z") + " changes when we raise " + M("x_j") + " from " + M("0") + " and let the basic variables follow so that " + M("\\mathbf A\\mathbf x = \\mathbf b") + " stays true. " +
+       "It differs from the plain cost " + M("c_j") + " by exactly that adjustment: raising " + M("x_j") + " by " + M("1") + " moves " + M("\\mathbf x_J") + " by " + M("-\\mathbf A_J^{-1}\\mathbf A_{\\bullet,j}") +
+       ", which costs " + M("-\\mathbf c_J^T\\mathbf A_J^{-1}\\mathbf A_{\\bullet,j}") + ". At the start, the basis consists of slacks with cost " + M("0") + ", so " + M("\\tilde c_j = c_j") +
+       "; later they differ. (The constant " + M("\\mathbf c_J^T\\mathbf A_J^{-1}\\mathbf b") + " is the objective value of the current vertex.)</p>";
+  h += "<h4>6 · Optimality test (" + (T.full ? "lines 5–8" : "line 4") + ")</h4><p>If " + M("\\tilde{\\mathbf c}_{\\overline{J}} \\ge \\mathbf 0") + ", raising any non-basic variable cannot decrease " + M("z") +
+       ": the vertex is locally optimal, and since an LP is convex, optimal. Otherwise every " + M("j") + " with " + M("\\tilde c_j < 0") + " (red) is an improving edge; " +
+       "a <i>pivot rule</i> picks the entering variable " + M("x_e") + " — Dantzig’s rule takes the most negative " + M("\\tilde c_j") + ".</p>";
+  h += "<h4>7 · Ratio test (" + (T.full ? "lines 9–11" : "line 6") + ")</h4><p>Raise " + M("x_e = t") + ", keep the other non-basic variables at " + M("0") + ": " +
+       M("\\mathbf x_J = \\mathbf A_J^{-1}\\mathbf b - t\\,\\mathbf A_J^{-1}\\mathbf A_{\\bullet,e}") + ". A basic variable decreases iff its entry of " + M("\\mathbf A_J^{-1}\\mathbf A_{\\bullet,e}") +
+       " is positive, and it reaches " + M("0") + " at " + M("t = (\\mathbf A_J^{-1}\\mathbf b)_i / (\\mathbf A_J^{-1}\\mathbf A_{\\bullet,e})_i") + " (the extra column of the table). " +
+       "The smallest such " + M("t") + ", " + M("\\theta") + ", is how far we can go; its row is the <i>leaving</i> variable. " +
+       (T.full ? "If no entry is positive, nothing stops us: the edge is a ray and the LP is unbounded (line 10). If " + M("\\theta = 0") + ", the pivot is <i>degenerate</i>: the basis changes, the vertex does not. "
+               : "(If no entry were positive, the edge would be a ray and the LP unbounded — line 7, shown in the next tab.) ") + "</p>";
+  h += "<h4>8 · Pivot (" + (T.full ? "line 12" : "line 9") + ")</h4><p>" + M("x_e") + " enters " + M("J") + ", the leaving variable moves to " + M("\\overline{J}") + " (it is " + M("0") + " now: we stand on its constraint). " +
+       "The objective changes by " + M("\\tilde c_e\\cdot\\theta \\le 0") + ". Then the dictionary is recomputed for the new basis — equivalently, solve the leaving variable’s row for " + M("x_e") +
+       " and substitute it into all other rows.</p>";
+  if (T.full) h += "<h4>9 · Phase I (lines 2–3)</h4><p>If some " + M("b_i < 0") + " (with every constraint written as “≤”), the origin is infeasible and there is no obvious starting basis. " +
+       "Then solve the auxiliary LP " + M("\\min x_0") + " s.t. " + M("\\mathbf A\\mathbf x - x_0\\mathbf 1 \\le \\mathbf b,\\; \\mathbf x, x_0 \\ge \\mathbf 0") + " with the same method: " +
+       "after one special pivot (" + M("x_0") + " enters, the slack of the most violated constraint leaves) its slack basis is feasible. If the optimum has " + M("x_0 > 0") +
+       ", the original LP is infeasible; if " + M("x_0 = 0") + ", dropping " + M("x_0") + " leaves a feasible basis to start from.</p>";
+  return h;
+}
+
+/* --- display helpers --------------------------------------------------- */
+const vT = (T, j) => T.gvars[j].tex;
+function wallName(T, j) {
+  const v = T.gvars[j], lp = T.lp;
+  if (v.kind === "a") return "the artificial variable";
+  const k = lp.cons[v.ci];
+  if (v.kind === "x") return "the axis " + M(v.tex + " = 0");
+  return (k.name ? "<i>" + esc(k.name) + "</i> " : "") + M(consT(k, lp.vars));
+}
+function ptOf(T, x) { return M("(" + T.lp.vars.map(varT).join(",") + ") = (" + x.slice(0, T.P.n).map(numT).join(",\\,") + ")"); }
+function zT(T, z, ph) {
+  if (ph === "I") return M("x_0 = " + numT(z));
+  let s = M("z = " + numT(z));
+  if (T.P.sg < 0) s += " (that is, " + M(exprT(T.lp.c, T.lp.vars) + " = " + (T.lp.unit ? "\\text{" + T.lp.unit + "}\\," : "") + numT(-z)) + ")";
+  return s;
+}
+function termT(c, tex, first) {
+  if (!c) return "";
+  const a = Math.abs(c), mag = a === 1 ? "" : num(a).tex + "\\,";
+  return (c < 0 ? "-" : first ? "" : "+") + "\\," + mag + tex;
+}
+function sxStatus(T, st) {
+  const lp = T.lp, P = T.P, dc = st.dc, ph = st.phase, nm = j => M(vT(T, j));
+  const rules = { dantzig: "Dantzig’s rule takes the most negative one", bland: "Bland’s rule takes the one with the smallest index",
+                  best: "the “largest step” rule takes the one that decreases the objective most, step length included", click: "" };
+  switch (st.kind) {
+    case "check": return "Is the region empty? With every constraint written as “≤”, all right-hand sides are \\(\\ge 0\\), so the origin \\(\\mathbf x = \\mathbf 0\\) satisfies every constraint: \\(\\bigcap H \\ne \\emptyset\\).";
+    case "start": return st.viaP1
+      ? "Phase I found a feasible basis with \\(x_0 = 0\\). Drop \\(x_0\\), put the real objective back, and start at the vertex " + ptOf(T, st.x) + ": the basic solution of \\(J\\), " + zT(T, dc.z, "II") + "."
+      : "Start at the origin, a vertex: the original variables are non-basic, \\(\\overline{J} = \\{" + dc.NB.map(j => vT(T, j)).join(", ") + "\\}\\), all \\(0\\). " +
+        "The slacks form the basis \\(J\\); with \\(\\mathbf A_J = \\mathbf I\\) they take the values \\(\\mathbf x_J = \\mathbf b\\). " +
+        "A slack measures how far we are from its constraint line; \\(0\\) means we stand on it.";
+    case "p1orig": {
+      const bad = P.rows.map((r, i) => r.b < 0 ? i : -1).filter(i => i >= 0);
+      return "The LP as given, in equality form (with “≥” constraints multiplied by \\(-1\\)). The obvious start would be the origin with the slacks as basis, " +
+        "\\(\\mathbf x_J = \\mathbf b\\). But " + listJoin(bad.map(i => wallName(T, P.n + i))) + (bad.length > 1 ? " have" : " has") +
+        " a negative right-hand side, so " + listJoin(bad.map(i => M(vT(T, P.n + i)))) + (bad.length > 1 ? " are" : " is") + " negative (red): the origin violates " +
+        (bad.length > 1 ? "these constraints" : "this constraint") + ". There is no obvious feasible basis — line 2 calls Phase I.";
+    }
+    case "p1intro": return "Phase I finds a feasible basis — with the simplex method itself, on an <i>auxiliary LP</i>: relax every constraint by one new variable \\(x_0 \\ge 0\\), " +
+        "\\(\\mathbf A\\mathbf x - x_0\\mathbf 1 + \\mathbf x_s = \\mathbf b\\), and minimize \\(x_0\\). For large \\(x_0\\) the origin satisfies the relaxed constraints; " +
+        "the original LP is feasible iff the minimum is \\(x_0 = 0\\)." +
+        (lp.d === 2 ? " Dashed: every constraint pushed outwards by the current \\(x_0\\) (here still \\(0\\)), and the relaxed region they enclose." : "");
+    case "p1first": return "First pivot, a special one: raise \\(x_0\\) just until every slack is \\(\\ge 0\\), i.e. to \\(x_0 = -\\min_i b_i = " + numT(st.rt.th) + "\\). " +
+      "The slack of the most violated constraint, " + nm(st.leave) + ", reaches \\(0\\) last and leaves the basis; \\(x_0\\) enters. Now the basic solution is feasible for the auxiliary LP" +
+      (lp.d === 2 ? " — the relaxed region has grown just enough to contain the origin." : ".");
+    case "p1out": return "\\(x_0 = 0\\), but it is still in the basis (degenerately). One more pivot of length \\(0\\) takes it out: " + nm(st.e) + " enters in its place.";
+    case "infeasible": return "Phase I is optimal with \\(x_0^* = " + numT(dc.z) + " > 0\\): no point satisfies all constraints, even the best one violates some by " + M(numT(dc.z)) +
+      ". So \\(\\bigcap H = \\emptyset\\): <b>return INFEASIBLE</b>.";
+    case "price": {
+      let s = (ph === "I" ? "Phase I, objective \\(x_0\\). " : "") + "The current vertex is the basic solution: \\(\\mathbf x_{\\overline{J}} = \\mathbf 0\\) and \\(\\mathbf x_J = \\mathbf A_J^{-1}\\mathbf b\\) (the column after “=”). " +
+        "The reduced costs \\(\\tilde c_j\\) (the last row) say how fast the objective changes when the non-basic \\(x_j\\) is raised from \\(0\\). ";
+      if (!st.imp.length) return s + "All of them are \\(\\ge 0\\): no edge improves.";
+      s += "Negative (red): " + listJoin(st.imp.map(nm)) + " — so not optimal yet.";
+      if (st.wait) s += " <b>Your move:</b> click a red entry, or a red arrow.";
+      return s;
+    }
+    case "dir": return "Raise the entering variable " + nm(st.e) + " from \\(0\\) to \\(t\\): the basic variables become \\(\\mathbf x_J - t\\,\\mathbf d\\) with \\(\\mathbf d = \\mathbf A_J^{-1}\\mathbf A_{\\bullet,e}\\) — minus the column of " + nm(st.e) + " in the table. " +
+      (st.rt.th === Infinity ? "No entry of \\(\\mathbf d\\) is positive: no basic variable ever decreases." : "Positive entries \\(d_i\\) are the basic variables that decrease; one of them will hit \\(0\\) first.");
+    case "test": {
+      if (T.full) return "Not optimal, so choose an entering variable among the red ones: " + (T.rule !== "dantzig" ? rules[T.rule] : rules.dantzig) + ": " + nm(st.e) + ". Click another red entry to take that edge instead.";
+      const lead = (ph === "I" ? "Phase I, optimality test for \\(x_0\\). " : "Optimality test. ") +
+        "The last row writes the objective through the non-basic variables, all \\(0\\) right now. Raising \\(x_j\\) by \\(t\\) changes it by \\(\\tilde c_j\\, t\\). ";
+      if (!st.imp.length) return lead + "Here all \\(\\tilde c_j \\ge 0\\): raising any non-basic variable can only make things worse. So \\(\\mathbf x\\) is locally optimal — and for an LP (a convex problem), optimal.";
+      let s = lead + "Negative entries (red) improve: " + listJoin(st.imp.map(nm)) + ". So \\(\\mathbf x\\) is not locally optimal; each red entry is an improving edge (red arrows in the picture). ";
+      if (st.wait) return s + "<b>Your move:</b> click a red entry, or a red arrow.";
+      return s + (T.full && T.rule !== "dantzig" ? rules[T.rule] : rules.dantzig) + ": " + nm(st.e) + ". Click another red entry to take that edge instead.";
+    }
+    case "ratio": {
+      if (st.rt.th === Infinity) return "Raise " + nm(st.e) + " from \\(0\\) and keep the other non-basic variables at \\(0\\): we move along an edge. But no basic variable ever reaches \\(0\\) — none of them decreases (right column).";
+      const L = st.dc.J[st.rt.r];
+      let s = "How far? Raise " + nm(st.e) + " from \\(0\\), the other non-basic variables stay \\(0\\): we move along an edge. Each basic variable changes linearly (right column). " +
+        "The first to reach \\(0\\) is " + nm(L) + ", at " + M(vT(T, st.e) + " = " + numT(st.rt.th)) + ": there we hit " + wallName(T, L) + " — the next vertex.";
+      if (st.rt.th === 0) s += " <b>Degenerate:</b> " + nm(L) + " is \\(0\\) already, so the step has length \\(0\\). The basis will change, the vertex will not.";
+      return s;
+    }
+    case "unbounded": return (T.full ? "\\(\\mathbf d \\le \\mathbf 0\\): " : "") + "The improving edge along " + nm(st.e) + " has no end vertex: it is a ray, and the objective decreases without bound along it. <b>return UNBOUNDED</b>.";
+    case "pivot": return (ph === "I" ? "Phase I pivot: " : "Pivot: ") + nm(st.e) + " enters the basis, " + nm(st.leave) + " leaves it — it is \\(0\\) now: we stand on " + wallName(T, st.leave) + ". " +
+      (st.th === 0 ? "The vertex has not moved (degenerate pivot), but the basis is new. " : "New vertex " + ptOf(T, st.x) + ", " + zT(T, dc.z, ph) + ". ") +
+      "The dictionary is rewritten for the new \\(J\\): solve the row of " + nm(st.leave) + " for " + nm(st.e) + " and substitute — that is \\(\\mathbf A_J^{-1}\\) for the new basis.";
+    case "return": return "<b>return</b> \\(\\mathbf x\\): the optimal vertex " + ptOf(T, st.x) + ", " + zT(T, dc.z, "II") + ".";
+    case "cycle": return "Stopped after 60 pivots — the rule seems to be cycling. (Bland’s rule never cycles.)";
+  }
+  return "";
+}
+/* the LP being solved, in equality form, with all its non-negativity constraints */
+function sxLpBlock(T, st) {
+  const Q = st.Q, cc = st.cc, n = T.P.n, m = T.P.m, aux = Q.N > T.P.N;
+  const rowT = r => { let s = ""; r.forEach((a, j) => { if (a) s += termT(a, vT(T, j), !s); }); return s || "0"; };
+  const sl = m <= 4 ? [...Array(m)].map((_, i) => vT(T, n + i)) : [vT(T, n), "\\ldots", vT(T, n + m - 1)];
+  const nn = T.P.vars.slice(0, n).map(v => v.tex).concat(sl, aux ? ["x_0"] : []);
+  const tex = "\\begin{array}{rrcl}\\min & " + rowT(cc) + " & & \\\\[2pt] \\text{s.t.} & " +
+    Q.A.map((r, i) => rowT(r) + " & = & " + numT(Q.b[i])).join(" \\\\ & ") +
+    " \\\\[2pt] & \\color{#6d180f}{" + nn.join(",\\,") + "} & \\color{#6d180f}{\\ge} & \\color{#6d180f}{0}\\end{array}";
+  return '<div class="gnote">' + (aux ? "the auxiliary LP of Phase I" : "the LP in equality form") + "</div>" + M(tex) +
+         '<div class="gnote">every variable ' + M("\\ge 0") + ": that is what limits each step</div>";
+}
+/* the dictionary, as a table: one row per basic variable, the objective row last */
+function sxDictHtml(T, st) {
+  const dc = st.kind === "p1first" ? st.dc : st.dc, ph = st.phase, NB = dc.NB, J = dc.J;
+  const isR = st.kind === "ratio" || (st.kind === "unbounded" && !T.full) || st.kind === "p1first";
+  const isE = isR || st.kind === "dir" || st.kind === "unbounded" || (st.kind === "test" && T.full);
+  const pickable = ["price", "test", "dir", "ratio"].includes(st.kind) && st.imp && st.imp.length;
+  const lp = T.lp, objT = ph === "I" && st.kind !== "p1orig" ? "\\min\\; x_0" : "\\min\\; " + exprT(T.P.c.slice(0, T.P.n), lp.vars);
+  let h = '<div class="gen">' + M("\\mathbf x_J = \\mathbf A_J^{-1}\\mathbf b - \\mathbf A_J^{-1}\\mathbf A_{\\overline{J}}\\,\\mathbf x_{\\overline{J}}") + "&emsp;" +
+          M("z = \\mathbf c_J^T\\mathbf A_J^{-1}\\mathbf b + \\tilde{\\mathbf c}_{\\overline{J}}^T\\mathbf x_{\\overline{J}}") +
+          (ph !== "I" && T.P.sg < 0 ? '<span class="gnote">&emsp;' + M("\\max\\; " + exprT(lp.c, lp.vars)) + " written as " + M(objT) + "</span>" : "") + "</div>";
+  h += '<div class="sets">' + M("J = \\{" + J.map(j => vT(T, j)).join(",\\,") + "\\}") + "&emsp;" +
+       M("\\overline{J} = \\{" + NB.map(j => vT(T, j)).join(",\\,") + "\\}") + "</div>";
+  h += '<table class="dict"><tbody>';
+  J.forEach((j, i) => {
+    const leave = isR && st.rt && st.rt.r === i && st.rt.th !== Infinity, fresh = st.kind === "pivot" && j === st.e;
+    const v = T.gvars[j], cn = v.kind === "s" ? (lp.cons[v.ci].name || "") : "";
+    h += '<tr class="' + (leave ? "leave" : "") + (fresh ? " fresh" : "") + '"><td class="bv"><span class="sw" style="background:' + v.color + '"></span>' + M(v.tex) +
+         (cn ? '<span class="dname">' + esc(cn) + "</span>" : "") + "</td><td>" + M("=") + '</td><td class="c0' + (dc.xB[i] < -SXTOL ? " neg" : "") + '">' + M(numT(dc.xB[i])) + "</td>";
+    NB.forEach(q => {
+      const cf = -dc.D[i][q], ent = isE && q === st.e, old = st.kind === "pivot" && q === st.leave;
+      h += '<td class="tm' + (ent ? " ent" : "") + (old ? " old" : "") + '">' + (cf ? M(termT(cf, vT(T, q), false)) : "") + "</td>";
+    });
+    if (isR) {
+      const L = st.rt.lim[i];
+      h += '<td class="rt' + (leave ? " min" : "") + '">' + (L === null ? '<span class="dname">never 0</span>' : (st.kind === "p1first" ? M(vT(T, st.e) + " \\ge " + numT(L)) : M("0 \\text{ at } " + vT(T, st.e) + " = " + numT(L)))) + "</td>";
+    }
+    h += "</tr>";
+  });
+  h += '<tr class="objrow"><td class="bv">' + M(ph === "I" && st.kind !== "p1orig" ? "x_0" : "z") + "</td><td>" + M("=") + '</td><td class="c0">' + M(numT(dc.z)) + "</td>";
+  NB.forEach(q => {
+    const c = dc.ct[q], neg = c < -SXTOL, ent = isE && q === st.e, old = st.kind === "pivot" && q === st.leave;
+    const pk = pickable && neg ? ' pick" data-pick="' + q : "";
+    h += '<td class="tm' + (neg ? " neg" : "") + (ent ? " ent" : "") + (old ? " old" : "") + pk + '"' + (pk ? ' title="take this edge: let ' + esc(T.gvars[q].name) + ' enter"' : "") + ">" + (c ? M(termT(c, vT(T, q), false)) : M("+\\,0\\," + vT(T, q))) + "</td>";
+  });
+  if (isR) h += '<td class="rt"></td>';
+  h += "</tr></tbody></table>";
+  return h;
+}
+/* the same, in matrices, as on the slide */
+function sxMatHtml(T, st) {
+  const Q = st.Q, dc = st.dc, J = dc.J, NB = dc.NB, cc = st.cc;
+  const col = (j, s) => J.includes(j) ? "\\color{#902015}{" + s + "}" : s;
+  const pm = rows => "\\begin{pmatrix}" + rows.map(r => r.join(" & ")).join(" \\\\ ") + "\\end{pmatrix}";
+  const names = [...Array(Q.N)].map((_, j) => col(j, vT(T, j)));
+  let h = '<div class="sets">columns ' + M(names.join(",\\;")) + '; <span style="color:#902015">basis</span> ' + M("J") + "</div>";
+  h += '<div class="mrow">' + M("\\mathbf A = " + pm(Q.A.map(r => r.map((x, j) => col(j, numT(x)))))) + "&ensp;" + M("\\mathbf b = " + pm(Q.b.map(x => [numT(x)]))) + "</div>";
+  h += '<div class="mrow">' + M("\\mathbf c^T = (" + cc.map((x, j) => col(j, numT(x))).join(",\\;") + ")") + "</div>";
+  h += '<div class="mrow">' + M("\\mathbf A_J^{-1} = " + pm(dc.Bi.map(r => r.map(numT)))) + "&ensp;" + M("\\mathbf x_J = \\mathbf A_J^{-1}\\mathbf b = " + pm(dc.xB.map(x => [numT(x)]))) + "</div>";
+  const cAA = NB.map(j => clean(cc[j] - dc.ct[j]));
+  h += '<div class="mrow">' + M("\\mathbf c_J^T\\mathbf A_J^{-1}\\mathbf A_{\\overline{J}} = (" + cAA.map(numT).join(",\\;") + ")") + "&ensp;" +
+       M("\\tilde{\\mathbf c}_{\\overline{J}}^T = \\mathbf c_{\\overline{J}}^T - \\mathbf c_J^T\\mathbf A_J^{-1}\\mathbf A_{\\overline{J}} = (" +
+         NB.map(j => (dc.ct[j] < -SXTOL ? "\\color{#cc2f22}{" + numT(dc.ct[j]) + "}" : numT(dc.ct[j]))).join(",\\;") + ")") +
+       ' <span class="gnote">for ' + M(NB.map(j => vT(T, j)).join(",\\,")) + "</span></div>";
+  h += '<div class="gnote">Choosing an edge by clicking works in the dictionary view.</div>';
+  return h;
+}
+
+/* --- the numbers panel: every quantity, with its value ----------------- */
+function sxNumHtml(T, st) {
+  const Q = st.Q, cc = st.cc, full = T.full;
+  const B = st.kind === "pivot" ? st.prev : st.dc;            /* the basis whose quantities we show */
+  const J = B.J, NB = B.NB, m = Q.m;
+  const pm = rows => "\\begin{pmatrix}" + rows.map(r => r.join(" & ")).join(" \\\\ ") + "\\end{pmatrix}";
+  const cv = v => pm(v.map(x => [numT(clean(x))]));
+  const rv = v => "\\bigl(" + v.map(x => numT(clean(x))).join(",\\;") + "\\bigr)";
+  const red = (x, s) => x < -SXTOL ? "{\\color{#cc2f22}{" + s + "}}" : s;
+  const AJ = Q.A.map(r => J.map(j => r[j])), Bi = B.Bi, xJ = B.xB;
+  const knowsE = ["test", "dir", "ratio", "unbounded", "pivot", "p1first"].includes(st.kind) && st.e >= 0;
+  const e = knowsE ? st.e : -1, d = e >= 0 ? B.D.map(r => r[e]) : null;
+  const rt = e >= 0 && st.kind !== "p1first" ? ratioTest(B, e) : st.rt;
+  const lab = (fl, sl) => full ? "line " + fl + " · " : (sl ? sl + " · " : "");
+  /* which sections are "now" */
+  const NOW = { start: ["basis", "vertex", "dict", "price"], check: ["basis", "vertex"], p1orig: ["basis", "vertex"], p1intro: ["basis", "vertex"], price: ["vertex", "dict", "price"],
+                test: full ? ["price"] : ["vertex", "dict", "price"], "return": ["vertex", "price"], dir: ["dir"], unbounded: ["dir"],
+                ratio: full ? ["ratio"] : ["dir", "ratio"], pivot: ["pivot"], p1first: ["dir", "ratio", "pivot"], p1out: ["pivot"], infeasible: ["vertex", "price"], cycle: [] }[st.kind] || [];
+  const sec = (key, title, body, later) => '<div class="nsec' + (NOW.includes(key) ? " now" : "") + (later ? " later" : "") + '"><div class="nlab">' + title + '</div><div class="nval">' + body + "</div></div>";
+  const Jn = J.map(j => vT(T, j)), NBn = NB.map(j => vT(T, j));
+  let h = "";
+  h += sec("basis", lab(2, "") + "basis",
+    M("J = (" + Jn.join(",\\,") + ")") + "&emsp;" + M("\\mathbf A_J = " + pm(AJ.map(r => r.map(x => numT(x))))) + "&ensp;" + M("\\mathbf A_J^{-1} = " + pm(Bi.map(r => r.map(x => numT(x))))) +
+    '<div class="nnote">' + M("\\mathbf A_J") + ": the columns of " + M("\\mathbf A") + " for " + Jn.map(t => M(t)).join(", ") + (st.kind === "pivot" ? " (before this pivot)" : "") + "</div>");
+  h += sec("vertex", lab(5, "") + "basic solution",
+    M("\\mathbf x_J = \\mathbf A_J^{-1}\\mathbf b = " + pm(Bi.map(r => r.map(x => numT(x)))) + cv(Q.b) + " = " + cv(xJ)) + "&emsp;" +
+    M("\\mathbf x_{\\overline{J}} = \\mathbf 0") + "&emsp;" + M("z = \\mathbf c_J^T\\mathbf x_J = " + rv(J.map(j => cc[j])) + cv(xJ) + " = " + numT(B.z)) +
+    '<div class="nnote">' + M("\\mathbf x_J") + " is the column after “=” in the table; " + M("z") + " the number in its last row" +
+    (xJ.some(x => x < -SXTOL) ? '; a negative entry means this basic solution is <i>infeasible</i>' : "") + "</div>");
+  const minus = B.D.map(r => NB.map(j => numT(clean(-r[j]))));
+  h += sec("dict", (full ? "lines 5–6 · " : "") + "the table’s other columns",
+    M("-\\mathbf A_J^{-1}\\mathbf A_{\\overline{J}} = " + pm(minus)) + ' <span class="nnote">columns ' + NBn.map(t => M(t)).join(", ") + "</span>" +
+    '<div class="nnote">row ' + M("i") + ", column " + M("x_j") + ": the coefficient of " + M("x_j") + " in the row of " + M("x_{j_i}") + "</div>");
+  const y = B.y;
+  let pr = M("\\mathbf c_J^T\\mathbf A_J^{-1} = " + rv(J.map(j => cc[j])) + pm(Bi.map(r => r.map(x => numT(x)))) + " = " + rv(y)) + '<div class="nrows">';
+  for (const j of NB) {
+    const Aj = Q.A.map(r => r[j]);
+    pr += "<div>" + M(red(B.ct[j], "\\tilde c_{" + vT(T, j) + "}") + " = c_{" + vT(T, j) + "} - \\mathbf c_J^T\\mathbf A_J^{-1}\\mathbf A_{\\bullet," + vT(T, j) + "} = " + numT(cc[j]) + " - " + rv(y) + cv(Aj) + " = " + red(B.ct[j], numT(B.ct[j]))) + "</div>";
+  }
+  pr += "</div>";
+  h += sec("price", lab(6, "can we improve?") + "reduced costs", pr + '<div class="nnote">the last row of the table; negative (red) = improving</div>');
+  if (d) {
+    const Ae = Q.A.map(r => r[e]);
+    h += sec("dir", lab(9, "how far?") + "direction", M("\\mathbf d = \\mathbf A_J^{-1}\\mathbf A_{\\bullet," + vT(T, e) + "} = " + pm(Bi.map(r => r.map(x => numT(x)))) + cv(Ae) + " = " + cv(d)) +
+      '<div class="nnote">raising ' + M(vT(T, e) + " = t") + " gives " + M("\\mathbf x_J - t\\,\\mathbf d") + "; " + M("-\\mathbf d") + " is the column of " + M(vT(T, e)) + " in the table</div>");
+  } else h += sec("dir", lab(9, "how far?") + "direction", '<span class="nnote">once an entering variable is chosen</span>', true);
+  if (d && rt && st.kind !== "dir") {
+    let r = "";
+    if (st.kind === "p1first") r = "special first pivot of Phase I: " + M(vT(T, e)) + " must become " + M("\\ge -b_i") + " for every " + M("i") + "; the most negative " + M("b_r") + " decides: " + M("\\theta = " + numT(rt.th));
+    else if (rt.th === Infinity) r = M("\\mathbf d \\le \\mathbf 0") + ": no ratio, no end vertex";
+    else r = J.map((j, i) => d[i] > SXTOL ? M((i === rt.r ? "\\boxed{" : "") + "\\tfrac{" + numT(xJ[i]) + "}{" + numT(d[i]) + "} = " + numT(clean(xJ[i] / d[i])) + (i === rt.r ? "}" : "") + "\\;(" + vT(T, j) + ")") : "").filter(x => x).join("&ensp;") +
+             "&emsp;" + M("\\theta = " + numT(rt.th)) + ", " + M("r = " + (rt.r + 1)) + ": " + M(vT(T, J[rt.r])) + " leaves";
+    h += sec("ratio", lab(11, "how far?") + "ratio test", r + '<div class="nnote">' + M("x_{j_i}/d_i") + " for " + M("d_i > 0") + ": when " + M("x_{j_i}") + " would reach " + M("0") + "</div>");
+  } else h += sec("ratio", lab(11, "how far?") + "ratio test", '<span class="nnote">after the direction</span>', true);
+  /* the pivot on the level of the linear algebra: the product form of the inverse */
+  const after = st.kind === "pivot" ? st.dc : st.kind === "p1first" ? st.after : null;
+  if (after && d && rt && rt.r >= 0 && rt.th !== Infinity) {
+    const r = rt.r, eta = d.map((x, i) => i === r ? 1 / d[r] : -x / d[r]);
+    const E = [...Array(m)].map((_, i) => [...Array(m)].map((__, k) => k === r ? numT(clean(eta[i])) : (i === k ? "1" : "0")));
+    const AJn = Q.A.map(row => after.J.map(j => numT(row[j])));
+    h += sec("pivot", lab(12, "") + "new basis",
+      M("J' = (" + after.J.map(j => vT(T, j)).join(",\\,") + ")") + "&emsp;" + M("\\mathbf A_{J'} = " + pm(AJn)) +
+      '<div class="nnote">column ' + M(String(r + 1)) + " of " + M("\\mathbf A_J") + " replaced by " + M("\\mathbf A_{\\bullet," + vT(T, e) + "}") + ". Its inverse needs no new inversion: </div>" +
+      M("\\mathbf A_{J'}^{-1} = \\mathbf E\\,\\mathbf A_J^{-1} = " + pm(E) + pm(Bi.map(rr => rr.map(x => numT(x)))) + " = " + pm(after.Bi.map(rr => rr.map(x => numT(x))))) +
+      '<div class="nnote">' + M("\\mathbf E") + " is the identity with column " + M(String(r + 1)) + " replaced by " + M("(-d_1/d_r, \\ldots, 1/d_r, \\ldots, -d_m/d_r)^T") +
+      ". Multiplying by " + M("\\mathbf E") + " is a row operation: divide row " + M("r") + " by " + M("d_r") + ", subtract " + M("d_i") + " times it from every other row " + M("i") +
+      ". The same row operations turn the old table into the new one.</div>");
+  } else h += sec("pivot", lab(12, "") + "new basis", '<span class="nnote">after the ratio test</span>', true);
+  return h;
+}
+
+/* --- every formula of every step, typeset ahead of time ----------------- */
+function sxPrerender(T) {
+  if (!mjReady() || !T.steps.length || S !== T) return;
+  const gen = T.prepGen = (T.prepGen || 0) + 1, p = T.prefix, items = [], withNum = el(p + "NumBox").open;
+  /* from the current step on (that is where one goes next), then the ones before */
+  const order = T.steps.map((_, i) => i).sort((a, b) => ((a < T.cur) - (b < T.cur)) || a - b);
+  for (const i of order) {
+    const st = T.steps[i];
+    items.push([sxStatus(T, st), el(p + "Status")], [sxDictHtml(T, st), el(p + "Alg")], [sxLpBlock(T, st), el(p + "AlgLP")]);
+    if (withNum) items.push([sxNumHtml(T, st), el(p + "Num")]);
+  }
+  for (const v of T.gvars) mjSvg(v.tex);
+  const box = el(p + "Prep");
+  mjPrepare(items, (d, n) => {
+    if (T.prepGen !== gen) return;
+    box.textContent = n && d < n ? "preparing formulas " + d + " / " + n : (n ? "all steps ready" : "");
+    box.classList.toggle("ready", !n || d >= n);
+  }, () => T.prepGen === gen && S === T);
+}
+
+/* --- the run at the current frame ------------------------------------------------ */
+function sxNow(T) {
+  const st = T.steps[T.cur]; if (!st) return null;
+  let x = st.x;
+  if (st.kind === "ratio" || st.kind === "p1first") {
+    if (st.xTo) x = st.x.map((v, k) => v + (st.xTo[k] - v) * T.frac);
+    else {   /* along a ray: far enough to leave the window */
+      const dn = norm(st.dir.slice(0, T.P.n)), L = T.lp.d <= 3 ? 1.5 * sxViewDiag(T) : 10;
+      const tt = (dn > 1e-12 ? L / dn : 10) * T.frac;
+      x = st.x.map((v, k) => v + st.dir[k] * tt);
+    }
+  }
+  return x;
+}
+function sxViewDiag(T) { const v = T.lp.d === 2 ? (T.E2 || T.view2) : T.view3; return norm(sub(v.hi, v.lo)); }
+function sxWall(T, st) {
+  let L = -1;
+  if ((st.kind === "ratio" || st.kind === "p1first") && st.rt && st.rt.r >= 0 && st.rt.th !== Infinity && T.frac > 0.97) L = st.kind === "p1first" ? st.leave : st.dc.J[st.rt.r];
+  if (st.kind === "pivot") L = st.leave;
+  return L >= 0 && T.gvars[L] && T.gvars[L].ci >= 0 ? T.gvars[L].ci : -1;
+}
+/* picture overlay: path, current point, edges */
+function simplexOverlay(pr) {
+  const T = S, st = T.steps[T.cur], n = T.P.n;
+  let over = "", top = "", hits = "";
+  if (!st) return { over, top, hits };
+  const x = T.curX, cur = x.slice(0, n), a = pr(cur);
+  const ln = (p, q, at) => '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" ' + at + "/>";
+  /* Phase I: the relaxed region for the current x0 */
+  if (st.phase === "I" && st.kind !== "p1orig" && T.lp.d === 2 && T.E2) {
+    const x0 = x[T.P.N] || 0;
+    const Hr = T.P.rows.map(r => ({ a: r.a, b: r.b + x0, ci: r.ci })).concat([{ a: [-1, 0], b: 0, ci: -1 }, { a: [0, -1], b: 0, ci: -1 }]);
+    const V = vertices(Hr.concat(boxH(T.E2.lo, T.E2.hi)), 2), pl = orderPoly(V.map(v => v.p));
+    if (pl.length >= 3) over += '<path d="M' + pl.map(p => pr(p).map(f1).join(",")).join("L") + 'Z" fill="#902015" fill-opacity=".06" stroke="#902015" stroke-width="1.5" stroke-dasharray="6 4"/>';
+    else if (pl.length) { const q = pr(pl[0]); over += '<circle cx="' + f1(q[0]) + '" cy="' + f1(q[1]) + '" r="13" fill="#902015" fill-opacity=".08" stroke="#902015" stroke-width="1.5" stroke-dasharray="4 3"/>'; }
+    /* each constraint, pushed outwards by x0 */
+    if (x0 > 1e-12) for (const r of T.P.rows) {
+      const sg = clipLine(r.a, r.b + x0, boxH(T.E2.lo, T.E2.hi)); if (!sg) continue;
+      over += ln(pr(sg[0]), pr(sg[1]), 'stroke="' + T.lp.cons[r.ci].color + '" stroke-width="1.4" stroke-dasharray="6 4" opacity=".75"');
+    }
+  }
+  /* the path so far */
+  const pts = st.path.map(q => q.p);
+  if (pts.length > 1 || st.kind === "ratio" || st.kind === "p1first") {
+    const all = pts.concat([cur]);
+    for (let i = 0; i + 1 < all.length; i++) {
+      const p = pr(all[i]), q = pr(all[i + 1]), dashed = (st.path[i + 1] || {}).ph === "I" || st.phase === "I";
+      over += ln(p, q, 'stroke="#6d180f" stroke-width="2.6" stroke-linecap="round"' + (dashed ? ' stroke-dasharray="5 4"' : ""));
+    }
+  }
+  for (const p of pts.slice(0, -1)) { const q = pr(p); top += '<circle cx="' + f1(q[0]) + '" cy="' + f1(q[1]) + '" r="3.8" fill="#6d180f"/>'; }
+  /* the edges at the current vertex: improving ones red */
+  const edgeEnd = (dir, th) => {
+    const dn = norm(dir); if (dn < 1e-12) return null;
+    if (th === Infinity) return { p: add(cur, mul(dir, 1.5 * sxViewDiag(T) / dn)), ray: true };
+    return { p: add(cur, mul(dir, th)), ray: false };
+  };
+  if ((st.kind === "test" || st.kind === "price") && st.phase === "II") {
+    for (const j of st.dc.NB) {
+      const dir = edgeDir(st.dc, j, st.Q.N).slice(0, n), th = ratioTest(st.dc, j).th, end = edgeEnd(dir, th);
+      if (!end) continue;
+      const good = st.dc.ct[j] < -SXTOL, ch = j === st.e && st.kind === "test", b = pr(end.p);
+      const dx = b[0] - a[0], dy = b[1] - a[1], dl = Math.hypot(dx, dy);
+      if (!end.ray) over += '<circle cx="' + f1(b[0]) + '" cy="' + f1(b[1]) + '" r="5.5" fill="var(--wi-panel-2)" stroke="' + (good ? "#cc2f22" : "#8b8779") + '" stroke-width="1.6"/>';
+      if (dl < 1) continue;
+      over += ln(a, b, 'stroke="' + (good ? "#cc2f22" : "#8b8779") + '" stroke-width="1.3" stroke-dasharray="2 3" opacity=".8"');
+      const L = Math.min(62, Math.max(40, dl * 0.6)), u = [dx / dl, dy / dl], tip = [a[0] + u[0] * L, a[1] + u[1] * L];
+      over += ln(a, tip, 'stroke="var(--wi-bg)" stroke-width="7" stroke-linecap="round" opacity=".8"');
+      over += ln(a, tip, 'stroke="' + (good ? "#cc2f22" : "#8b8779") + '" stroke-width="' + (ch ? 3.6 : 2.6) + '" marker-end="url(#' + (good ? "aRed" : "aInk") + ')"');
+      top += mathAt(vT(T, j), tip[0] + u[0] * 13, tip[1] + u[1] * 13 + 5, 14, "middle", good ? "#cc2f22" : "#8b8779", T.gvars[j].name).svg;
+      if (good) hits += ln(a, tip, 'stroke="transparent" stroke-width="16" class="hit epick" data-pick="' + j + '"');
+    }
+  }
+  if ((st.kind === "ratio" || st.kind === "unbounded" || st.kind === "dir") && st.phase === "II" || ((st.kind === "ratio") && st.phase === "I")) {
+    const from = st.x.slice(0, n), dir = st.dir.slice(0, n), end = edgeEnd(dir, st.rt.th);
+    if (end) {
+      const p = pr(from), q = pr(end.p);
+      over += ln(p, q, 'stroke="#cc2f22" stroke-width="3.2" opacity=".8"' + (end.ray ? ' stroke-dasharray="9 5"' : ""));
+      if (end.ray) {
+        const dx = q[0] - p[0], dy = q[1] - p[1], dl = Math.hypot(dx, dy) || 1, t1 = [p[0] + dx / dl * 110, p[1] + dy / dl * 110];
+        top += ln(p, t1, 'stroke="#cc2f22" stroke-width="3.6" marker-end="url(#aRed)"');
+        top += '<text class="sv-small" x="' + f1(t1[0] + dx / dl * 22) + '" y="' + f1(t1[1] + dy / dl * 22 + 4) + '" style="fill:#cc2f22">no end vertex</text>';
+      }
+      if (!end.ray) top += '<circle cx="' + f1(q[0]) + '" cy="' + f1(q[1]) + '" r="7" fill="none" stroke="#cc2f22" stroke-width="2"/>';
+    }
+  }
+  /* the current point */
+  top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="7.5" fill="#902015" stroke="var(--wi-panel-2)" stroke-width="2"/>';
+  if (st.kind === "return") top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="12" fill="none" stroke="' + OBJ + '" stroke-width="3"/>';
+  return { over, top, hits };
+}
+/* the gauges: every variable as a bar, the basis shaded */
+function sxGauges(T, st) {
+  const V = T.gvars, x = T.curX, cw = 54, Hh = 150, base = 104, hm = 74, W = 12 + V.length * cw;
+  const B = new Set(st.dc.J), isR = st.kind === "ratio" || st.kind === "p1first";
+  const ent = isR || st.kind === "pivot" || st.kind === "dir" || (st.kind === "test" && T.full) ? st.e : -1;
+  let L = -1;
+  if (isR && st.rt && st.rt.r >= 0 && st.rt.th !== Infinity) L = st.kind === "p1first" ? st.leave : st.dc.J[st.rt.r];
+  if (st.kind === "pivot") L = st.leave;
+  let s = "";
+  V.forEach((v, k) => {
+    const x0 = 6 + k * cw, val = k < x.length ? x[k] : 0, dropped = v.kind === "a" && (st.phase === "II" || st.kind === "p1orig");
+    const inB = B.has(k), h = clamp(val / T.gmax[k], -0.13, 1) * hm, col = k === ent ? "#cc2f22" : v.color;
+    if (inB) s += '<rect x="' + (x0 + 2) + '" y="6" width="' + (cw - 4) + '" height="' + (Hh - 8) + '" rx="4" fill="#efe3cf"/>';
+    if (v.ci >= 0) s += '<rect x="' + (x0 + 2) + '" y="6" width="' + (cw - 4) + '" height="' + (Hh - 8) + '" fill="transparent" class="ghov" data-ci="' + v.ci + '"/>';
+    if (h > 0.5) s += '<rect x="' + (x0 + 15) + '" y="' + f1(base - h) + '" width="' + (cw - 30) + '" height="' + f1(h) + '" rx="2" fill="' + col + '" fill-opacity="' + (dropped ? 0.2 : 0.78) + '" pointer-events="none"/>';
+    else if (h < -0.5) s += '<rect x="' + (x0 + 15) + '" y="' + base + '" width="' + (cw - 30) + '" height="' + f1(-h) + '" rx="2" fill="#cc2f22" fill-opacity=".5" pointer-events="none"/>';
+    s += '<line x1="' + (x0 + 9) + '" x2="' + (x0 + cw - 9) + '" y1="' + base + '" y2="' + base + '" stroke="#8b8779" stroke-width="' + (inB ? 1 : 2.4) + '" pointer-events="none"/>';
+    if (k === L && T.frac > 0.97) s += '<rect x="' + (x0 + 9) + '" y="' + (base - 7) + '" width="' + (cw - 18) + '" height="14" rx="3" fill="none" stroke="#cc2f22" stroke-width="2" pointer-events="none"/>';
+    s += '<text x="' + (x0 + cw / 2) + '" y="' + f1(Math.min(base - 4, base - Math.max(h, 0) - 5)) + '" text-anchor="middle" class="sv-gv' + (val < -SXTOL ? " bad" : "") + '" pointer-events="none">' + esc(dropped ? "" : numP(clean(val))) + "</text>";
+    s += mathAt(v.tex, x0 + cw / 2, base + 22, 14.5, "middle", dropped ? "#b6b1a1" : (v.kind === "s" ? v.color : "#38362e"), v.name).svg;
+    s += '<text x="' + (x0 + cw / 2) + '" y="' + (base + 39) + '" class="sv-small" pointer-events="none">' + (dropped ? (st.kind === "p1orig" ? "not yet" : "dropped") : inB ? "basis" : "= 0") + "</text>";
+  });
+  const g = el(T.prefix + "Gauge");
+  g.setAttribute("width", W); g.setAttribute("height", Hh); g.setAttribute("viewBox", "0 0 " + W + " " + Hh);
+  g.innerHTML = s;
+}
+function sxBuildBar(T) {
+  const bar = el(T.prefix + "Bar"), groups = [];
+  T.seg.forEach((lab, i) => { const g = groups[groups.length - 1]; if (g && g.lab === lab) g.to = i; else groups.push({ lab, from: i, to: i }); });
+  T.groups = groups;
+  bar.innerHTML = groups.map((g, i) => '<button class="phasebtn" data-g="' + i + '" style="flex-grow:' + (g.to - g.from + 1) + '" title="' + esc(g.lab) + '"><span class="fill empty"></span><span class="lab">' + esc(g.lab) + "</span></button>").join("");
+  bar.querySelectorAll(".phasebtn").forEach(b => b.onclick = () => { sxStop(T); sxGoto(T, T.groups[+b.dataset.g].from); });
+  const sc = el(T.prefix + "Scrub"); sc.max = Math.max(0, T.steps.length - 1);
+}
+function sxRender() {
+  const T = S, st = T.steps[T.cur]; if (!st) return;
+  T.curX = sxNow(T);
+  const lp = T.lp, P = T.P;
+  if (lp.d <= 3) {
+    T.noLevel = st.phase === "I";
+    T.z = dot(T.c, T.curX.slice(0, P.n));
+    T.zLabel = "z = " + numP(clean(dot(P.c.slice(0, P.n), T.curX.slice(0, P.n))));
+    T.hl = sxWall(T, st);
+    if (lp.d === 2) render2D(); else render3D();
+  } else {
+    const svg = el(T.cvId), W = Math.max(320, el(T.wrapId).clientWidth), H = 150;
+    svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.innerHTML = '<text class="sv-note" x="' + W / 2 + '" y="66" text-anchor="middle">' + lp.d + " variables: no picture.</text>" +
+                    '<text class="sv-note" x="' + W / 2 + '" y="92" text-anchor="middle">The algebra below works exactly the same — it never needed one.</text>';
+  }
+  sxGauges(T, st);
+  const p = T.prefix;
+  el(p + "Meta").textContent = st.kind === "p1orig" ? "the LP as given · origin infeasible" : st.phase === "I" ? "Phase I · x₀ = " + numP(clean(T.curX[P.N] || 0)) : "z = " + numP(clean(dot(P.c.slice(0, P.n), T.curX.slice(0, P.n))));
+  const key = T.cur + "|" + T.view + "|" + T.steps.length;
+    if (el(p + "NumBox").open && T._numKey !== key) { T._numKey = key; setMath(el(p + "Num"), sxNumHtml(T, st)); }
+  if (T._drawn !== key) {
+    T._drawn = key;
+    setMath(el(p + "Status"), sxStatus(T, st));
+    setMath(el(p + "Alg"), sxDictHtml(T, st));
+    const lk = T.preset + "|" + T.steps.length + "|" + st.Q.N + "|" + (T.lp && T.lp.src);
+    if (T._lpKey !== lk) { T._lpKey = lk; setMath(el(p + "AlgLP"), sxLpBlock(T, st)); }
+    el(p + "Phase").textContent = T.seg[T.cur];
+    el(p + "AlgMeta").textContent = "the dictionary of the current basis";
+    el(p + "Code").querySelectorAll(".cline").forEach(c => {
+      const l = +c.dataset.ln;
+      c.classList.toggle("on", st.lines.includes(l));
+      c.classList.toggle("caller", st.phase === "I" && l === 2 && !st.lines.includes(2) && st.kind !== "infeasible");
+      if (T.full && st.phase === "I" && SX_P1LINES[st.kind] && l === 2 && st.kind !== "infeasible") c.classList.add("caller");
+      c.classList.toggle("dim", !T.full && (l === 2 || l === 7) && !st.lines.includes(l));
+    });
+    if (T.full) {
+      el(p + "P1Box").classList.toggle("hidden", !T.hasP1);
+      el(p + "Code1").querySelectorAll(".cline").forEach(c => {
+        const l = +c.dataset.ln;
+        c.classList.toggle("on", st.p1lines.includes(l));
+        c.classList.toggle("caller", st.p1caller && l === 5);
+      });
+    }
+    el(p + "Scrub").value = T.cur;
+    el(p + "No").textContent = (T.cur + 1) + " / " + T.steps.length;
+    T.groups.forEach((g, i) => {
+      const b = el(p + "Bar").children[i], fr = T.cur > g.to ? 1 : T.cur < g.from ? 0 : (T.cur - g.from + 1) / (g.to - g.from + 1);
+      b.classList.toggle("on", T.cur >= g.from && T.cur <= g.to); b.classList.toggle("past", T.cur > g.to);
+      const f = b.querySelector(".fill"); f.style.width = (100 * fr) + "%"; f.classList.toggle("empty", fr === 0);
+    });
+    writeHash();
+  }
+}
+function sxGoto(T, i, animate) {
+  cancelAnimationFrame(T.anim); T.anim = 0;
+  T.cur = clamp(i, 0, T.steps.length - 1);
+  const st = T.steps[T.cur];
+  if (animate && (st.kind === "ratio" || st.kind === "p1first")) {
+    const dur = st.rt && st.rt.th === 0 ? 350 : 1500, t0 = performance.now();
+    T.frac = 0;
+    const f = now => {
+      const u = clamp((now - t0) / dur, 0, 1); T.frac = u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u);
+      if (S === T) sxRender();
+      if (u < 1) T.anim = requestAnimationFrame(f);
+      else { T.anim = 0; T.frac = 1; if (S === T) sxRender(); const g = T.onEnd; T.onEnd = null; if (g) g(); }
+    };
+    T.anim = requestAnimationFrame(f);
+  } else T.frac = 1;
+  if (S === T) sxRender();
+}
+function sxStep(T, d) { sxGoto(T, T.cur + d, d === 1); }
+function sxStop(T) { T.playing = false; clearTimeout(T.timer); T.onEnd = null; el(T.prefix + "Play").innerHTML = "&#x25B6;&#xFE0E;"; }
+function sxPlay(T) {
+  if (T.playing) { sxStop(T); return; }
+  T.playing = true; el(T.prefix + "Play").innerHTML = "❚❚&#xFE0E;";
+  const tick = () => {
+    if (!T.playing) return;
+    const st = T.steps[T.cur];
+    if (T.cur >= T.steps.length - 1 || st.wait) { sxStop(T); return; }
+    sxStep(T, 1);
+    const next = () => { T.timer = setTimeout(tick, +el(T.prefix + "Speed").value); };
+    if (T.anim) T.onEnd = next; else next();
+  };
+  if (T.cur >= T.steps.length - 1) { sxGoto(T, 0); T.timer = setTimeout(tick, 400); } else tick();
+}
+function sxPick(T, j) {
+  if (!T.steps) return;
+  const st = T.steps[T.cur];
+  if (!st || !["price", "test", "dir", "ratio"].includes(st.kind) || !st.imp || !st.imp.includes(j)) return;
+  sxStop(T);
+  const p = st.piv;
+  Object.keys(T.choices).forEach(k => { if (+k >= p) delete T.choices[k]; });
+  T.choices[p] = j;
+  sxRecord(T);
+  const kind = T.full ? "test" : "ratio";
+  let to = T.steps.findIndex(q => q.piv === p && q.kind === kind);
+  if (to < 0) to = T.steps.length - 1;
+  sxGoto(T, to, true);
+}
+function sxLegend(T) {
+  const dot = (c, r, f) => '<svg width="16" height="16"><circle cx="8" cy="8" r="' + r + '" fill="' + (f || c) + '" stroke="' + c + '" stroke-width="1.6"/></svg>';
+  let h = '<span class="item">' + dot("#902015", 6) + "current vertex " + M("\\mathbf x") + "</span>" +
+          '<span class="item"><svg width="30" height="12"><line x1="2" x2="28" y1="6" y2="6" stroke="#6d180f" stroke-width="2.6"/></svg>path so far</span>' +
+          '<span class="item"><svg width="30" height="12"><line x1="2" x2="24" y1="6" y2="6" stroke="#cc2f22" stroke-width="2.2" marker-end="url(#aRedL)"/><defs><marker id="aRedL" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#cc2f22"/></marker></defs></svg>improving edge (click to take it)</span>' +
+          '<span class="item">' + dot("#8b8779", 5, "var(--wi-panel-2)") + "neighbouring vertex</span>";
+  if (T.full) h += '<span class="item"><svg width="24" height="12"><rect x="1" y="1" width="22" height="10" fill="#902015" fill-opacity=".06" stroke="#902015" stroke-dasharray="4 3"/></svg>Phase I: relaxed region</span>';
+  setMath(el(T.prefix + "Legend"), h);
+}
+function sxBuildDom(T) {
+  const p = T.prefix, full = T.full;
+  const box = el(p + "Box");
+  box.innerHTML =
+    '<p class="subtitle hide-p">' + (full
+      ? "The simplex method with everything a real implementation has to handle: an infeasible start (Phase I, which also detects infeasible LPs), unbounded LPs, degenerate pivots, " +
+        "different pivot rules (Klee–Minty: Dantzig’s rule visits all \\(2^n\\) vertices), the matrices behind the dictionary, and an LP without a picture."
+      : "The cleanest case: the origin is feasible and the LP is bounded. A vertex is a choice of which variables are \\(0\\) (non-basis \\(\\overline{J}\\)); " +
+        "each pivot asks “can we improve?” and “how far?”, and swaps one variable of the basis \\(J\\). The code is the one from the slides; the algebra shows the current basis as a dictionary — the panel below it explains the notation.") + "</p>" +
+    '<div class="controls hide-p"><div class="ctl"><label for="' + p + 'Preset">LP</label><select id="' + p + 'Preset"></select></div>' +
+    (full ? '<div class="ctl"><span class="lbl">Pivot rule</span><span class="seg" id="' + p + 'Rule"><button data-rule="dantzig" class="on" title="most negative reduced cost">Dantzig</button><button data-rule="bland" title="smallest index with negative reduced cost (never cycles)">Bland</button><button data-rule="best" title="largest decrease of the objective, step length included">largest step</button><button data-rule="click" title="you click the entering variable">you choose</button></span></div>' +
+
+            '<label class="chk hidden" id="' + p + 'StretchLab"><input type="checkbox" id="' + p + 'Stretch"> stretch the axes</label>' : "") +
+    "</div>" +
+    '<div class="transport"><div class="transport-row"><span class="ctl" style="gap:6px">' +
+      '<button id="' + p + 'Reset" class="icon hide-p" title="Back to the first step (Home)" aria-label="Back to the first step">&#x21BA;</button>' +
+      '<button id="' + p + 'Back" class="icon" title="One step back (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>' +
+      '<button id="' + p + 'Fwd" class="icon pri" title="One step forward (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>' +
+      '<button id="' + p + 'Play" class="icon" title="Play / pause (space)" aria-label="Play">&#x25B6;&#xFE0E;</button></span>' +
+      '<span class="progress"><input type="range" class="scrub" id="' + p + 'Scrub" min="0" max="1" value="0" step="1" aria-label="Step"><div class="phasebar" id="' + p + 'Bar"></div></span>' +
+      '<span class="stepno" id="' + p + 'No"></span>' +
+      '<span class="prep hide-p" id="' + p + 'Prep" title="All formulas of this run are typeset in the background, so that stepping never waits for MathJax"></span>' +
+      '<span class="ctl hide-p" style="gap:6px"><span class="lbl">Pause</span><input type="range" id="' + p + 'Speed" min="200" max="2500" value="1100" style="width:88px;accent-color:var(--wi-accent)" aria-label="Pause between steps"></span>' +
+    "</div></div>" +
+    '<div class="stage" id="' + p + 'Stage"><div class="col-main">' +
+      '<div class="sim-box"><div class="sim-title"><span>Feasible region</span><span class="rhs" id="' + p + 'Meta"></span></div>' +
+        '<div id="' + p + 'Wrap"><svg id="' + p + 'Cv" class="stagesvg"></svg></div>' +
+        '<div class="vhandle hide-p" id="' + p + 'VH" role="separator" aria-orientation="horizontal" tabindex="0" title="Drag to change the height of the drawing (double-click: back to the default)"></div>' +
+        '<div class="legend hide-p" id="' + p + 'Legend"></div></div>' +
+      '<div class="sim-box"><div class="sim-title"><span>The algebra</span><span class="rhs" id="' + p + 'AlgMeta"></span></div>' +
+        '<div class="algflex"><div class="lpblk" id="' + p + 'AlgLP"></div><div class="alg" id="' + p + 'Alg"></div></div></div>' +
+      '<details class="explain numbers" id="' + p + 'NumBox"' + (full ? " open" : "") + '><summary>The numbers: every quantity of the current step, and how the table comes out of them</summary><div class="num-body" id="' + p + 'Num"></div></details>' +
+      '<details class="explain" id="' + p + 'Explain"><summary>What the algebra means: definitions and explanations</summary><div class="explain-body" id="' + p + 'ExplainBody"></div></details>' +
+    "</div>" +
+    '<div class="splitter" id="' + p + 'Split" role="separator" aria-orientation="vertical" tabindex="0" title="Drag to share the width (double-click: back to the default)"></div>' +
+    '<div class="col-side">' +
+      '<div class="sim-box"><div class="sim-title"><span>What happens</span><span class="rhs" id="' + p + 'Phase"></span></div><div class="status" id="' + p + 'Status"></div></div>' +
+      '<div class="sim-box"><div class="sim-title"><span>All variables</span><span class="rhs">shaded: basis ' + M("J") + "</span></div>" +
+        '<div class="gwrap"><svg id="' + p + 'Gauge"></svg></div></div>' +
+      (full ? '<div class="codebox hidden" id="' + p + 'P1Box"><div class="sim-title"><span>Phase I</span><span class="rhs">called in line 2</span></div><div class="codescroll" id="' + p + 'Code1"></div></div>' : "") +
+      '<div class="codebox"><div class="sim-title"><span>Code</span><span class="rhs">' + (full ? "detailed version" : "as on the slides") + '</span></div><div class="codescroll" id="' + p + 'Code"></div><div class="codenote" id="' + p + 'CodeNote"></div></div>' +
+    "</div></div>";
+  el(p + "Code").innerHTML = (full ? SX_CODE_FULL : SX_CODE).map(([ind, html], i) => '<div class="cline" data-ln="' + (i + 1) + '"><span class="ln">' + (i + 1) + '</span><span class="tx" style="padding-left:' + (ind * 1.3) + 'em">' + html + "</span></div>").join("");
+  if (full) el(p + "Code1").innerHTML = SX_CODE_P1.map(([ind, html], i) => '<div class="cline" data-ln="' + (i + 1) + '"><span class="ln">' + (i + 1) + '</span><span class="tx" style="padding-left:' + (ind * 1.3) + 'em">' + html + "</span></div>").join("");
+  setMath(el(p + "CodeNote"), full
+    ? "The detailed version: one line per step of the linear algebra. Lines 5–7 are the optimality test, 9–11 the ratio test (“is there an end vertex?”), line 12 the pivot. Line 2 calls Phase I (shown above when it is needed), which runs the same loop on an auxiliary LP."
+    : "Here the origin is feasible and the LP bounded, so lines 2 and 7 never fire (dimmed) — they are the topic of the next tab. In the linear-algebra view, line 4 is the test \\(\\tilde{\\mathbf c}_{\\overline{J}} \\ge \\mathbf 0\\), line 6 the ratio test, line 9 the pivot (one variable enters \\(J\\), one leaves).");
+  const opt = k => '<option value="' + k + '">' + esc(SX_NAMES[k] || parseLP(LPTEXT[k]).title) + "</option>";
+  el(p + "Preset").innerHTML = full
+    ? '<optgroup label="as in the tab “Simplex”">' + SX_LISTS.s2.map(opt).join("") + "</optgroup>" +
+      '<optgroup label="corner cases and more">' + SX_LISTS.s3.filter(k => !SX_LISTS.s2.includes(k)).map(opt).join("") + "</optgroup>" +
+      '<option value="custom">custom (from the text box)</option>'
+    : SX_LISTS[p].map(opt).join("") + '<option value="custom">custom (from the text box)</option>';
+  el(p + "Preset").onchange = () => { const v = el(p + "Preset").value; if (v === "custom") return; sxStop(T); sxLoad(T, parseLP(LPTEXT[v]), v); el("inputText").value = LPTEXT[v]; el("parseErr").textContent = ""; sxRender(); };
+  el(p + "Reset").onclick = () => { sxStop(T); sxGoto(T, 0); };
+  el(p + "Back").onclick = () => { sxStop(T); sxStep(T, -1); };
+  el(p + "Fwd").onclick = () => { sxStop(T); sxStep(T, 1); };
+  el(p + "Play").onclick = () => sxPlay(T);
+  el(p + "Scrub").oninput = () => { sxStop(T); sxGoto(T, +el(p + "Scrub").value); };
+  if (full) {
+    el(p + "Rule").querySelectorAll("button").forEach(b => b.onclick = () => {
+      sxStop(T); T.rule = b.dataset.rule; el(p + "Rule").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+      T.choices = {}; const keep = T.cur; sxRecord(T); sxGoto(T, Math.min(keep, T.steps.length - 1)); });
+    el(p + "Stretch").onchange = () => { T.stretch = el(p + "Stretch").checked; sxRender(); };
+  }
+  el(p + "NumBox").addEventListener("toggle", () => { T._numKey = null; if (S === T) { sxRender(); sxPrerender(T); } });
+  el(p + "Alg").addEventListener("click", e => { const t = e.target.closest("[data-pick]"); if (t) sxPick(T, +t.dataset.pick); });
+  const g = el(p + "Gauge");
+  g.addEventListener("pointermove", e => { const t = e.target.closest ? e.target.closest(".ghov") : null, ci = t ? +t.dataset.ci : -1; if (ci !== T.hover) { T.hover = ci; if (S === T) sxRender(); } });
+  g.addEventListener("pointerleave", () => { if (T.hover !== -1) { T.hover = -1; if (S === T) sxRender(); } });
+  sxLegend(T);
+}
+
+/* ==========================================================================
+   Presentation view, splitters, wiring
+   ========================================================================== */
+function setPresent(on) {
+  document.body.classList.toggle("present", on);
+  requestAnimationFrame(render);
+  writeHash();
+}
+function initSplit(T, splitId, stageId, vhId) {
+  const sp = el(splitId), st = el(stageId);
+  T.split = T.split || 0.6;
+  const set = f => { T.split = clamp(f, 0.35, 0.82); st.style.setProperty("--lf", (100 * T.split).toFixed(2) + "fr"); st.style.setProperty("--rf", (100 * (1 - T.split)).toFixed(2) + "fr"); if (S === T) render(); };
+  T.setSplit = set;
+  let drag = false, raf = 0;
+  const moveTo = x => { const r = st.getBoundingClientRect(); cancelAnimationFrame(raf); raf = requestAnimationFrame(() => set((x - r.left) / (r.width || 1))); };
+  sp.addEventListener("pointerdown", e => { drag = true; sp.classList.add("drag"); sp.setPointerCapture(e.pointerId); e.preventDefault(); });
+  sp.addEventListener("pointermove", e => { if (drag) moveTo(e.clientX); });
+  sp.addEventListener("pointerup", () => { drag = false; sp.classList.remove("drag"); });
+  sp.addEventListener("dblclick", () => set(0.6));
+  sp.addEventListener("keydown", e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); e.stopPropagation(); set(T.split + (e.key === "ArrowLeft" ? -0.03 : 0.03)); } });
+  const vh = el(vhId);
+  let vd = null;
+  vh.addEventListener("pointerdown", e => { vd = { y: e.clientY, h: T.H }; vh.classList.add("drag"); vh.setPointerCapture(e.pointerId); e.preventDefault(); });
+  vh.addEventListener("pointermove", e => { if (!vd) return; T.H = clamp(vd.h + e.clientY - vd.y, 220, 1400); T.Huser = true; render(); });
+  vh.addEventListener("pointerup", () => { vd = null; vh.classList.remove("drag"); });
+  vh.addEventListener("dblclick", () => { T.Huser = false; T.H = T.Hdef; render(); });
+  vh.addEventListener("keydown", e => { if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); T.H = clamp(T.H + (e.key === "ArrowDown" ? 30 : -30), 220, 1400); T.Huser = true; render(); } });
+}
+function setMode(m) {
+  if (S.simplex) sxStop(S); else stopSweep();
+  MODE = m; S = m === "geo" ? G : m === "simplex" ? T2 : T3;
+  el("modeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+  const geo = m === "geo";
+  el("stageGeo").classList.toggle("hidden", !geo); el("ctlGeo").classList.toggle("hidden", !geo); el("subGeo").classList.toggle("hidden", !geo);
+  el("s2Box").classList.toggle("hidden", m !== "simplex"); el("s3Box").classList.toggle("hidden", m !== "full");
+  if (!geo) { S._drawn = null; setTimeout(() => sxPrerender(S), 30); el("inputText").value = S.preset === "custom" ? S.lp.src : LPTEXT[S.preset]; }
+  else el("inputText").value = G.preset === "custom" ? G.lp.src : LPTEXT[G.preset];
+  render();
+  writeHash();
+}
+const ABOUT =
+  "<p><b>Why an optimum sits at a vertex</b> All points with the same objective value \\(z\\) lie on one line (in 3D: one plane), perpendicular to the direction of improvement. " +
+  "Push it in that direction: as long as it still meets the feasible region, there are feasible solutions of value \\(z\\). " +
+  "The region is an intersection of half-planes, hence convex and closed; so the line leaves it at its boundary, and the last points it touches form a vertex or a whole edge (or face) — " +
+  "whose corners are vertices again. Hence <i>some vertex is optimal</i>, and it suffices to look at the \\(\\binom mn\\) intersection points of \\(n\\) constraint hyperplanes.</p>" +
+  "<p><b>When there is no optimum</b> Either the line never leaves the region (the LP is <i>unbounded</i>; the region must then be unbounded, but an unbounded region alone is not enough), " +
+  "or there is no region to begin with (the LP is <i>infeasible</i>). Switch constraints off or on to see both.</p>" +
+  "<p><b>Drawing</b> Both axes have the same scale, so the arrow of improvement is perpendicular to the lines of constant \\(z\\). Drag the arrow to turn the objective; it snaps to the directions of the constraints " +
+  "(then a whole edge becomes optimal). Scroll or pinch to zoom, double-click to reset the view. Drag the drawing to move it (in 3D: to rotate it); hover over a vertex for its coordinates.</p>";
+
+function init() {
+  el("presetSel").innerHTML = PRESETS.map(p => '<option value="' + p.key + '">' + esc(parseLP(p.text).title) + "</option>").join("") + '<option value="custom">custom (from the text box)</option>';
+  el("presetSel").onchange = () => { const v = el("presetSel").value; if (v === "custom") return; applyPreset(v); };
+  el("loadBtn").onclick = () => {
+    try {
+      const lp = parseLP(el("inputText").value);
+      if (MODE === "geo") {
+        if (lp.d > 3) throw new Error("this tab draws LPs with two or three variables; more work in the simplex tabs");
+        G.preset = "custom"; el("presetSel").value = "custom"; useLP(lp);
+      } else { sxStop(S); sxLoad(S, lp, "custom"); sxRender(); }
+      el("parseErr").textContent = "";
+    } catch (e) { el("parseErr").textContent = e.message; }
+  };
+  el("curBtn").onclick = () => {
+    if (MODE !== "geo") { el("inputText").value = S.lp.src; return; }
+    const lp = S.lp; el("inputText").value = lpToText(lp, lp.cons.map((k, i) => Object.assign({}, k, { on: S.on[i] })), S.c, S.sense);
+  };
+  el("senseSeg").querySelectorAll("button").forEach(b => b.onclick = () => { if (S.sense === b.dataset.sense) return; S.sense = b.dataset.sense; changed(true); });
+  el("zoomIn").onclick = () => zoom(1 / 1.25); el("zoomOut").onclick = () => zoom(1.25);
+  el("viewFit").onclick = fitView;
+  el("viewReset").onclick = () => { const bv = baseView(S.lp); if (S.lp.d === 2) S.view2 = bv; else { S.view3 = bv; S.yaw = 215; S.pitch = 22; S.zoom3 = 1; } render(); };
+  el("hatchChk").onchange = () => { S.hatch = el("hatchChk").checked; render(); };
+  el("xiChk").onchange = () => { S.xi = el("xiChk").checked; legend(); render(); };
+  el("zRange").oninput = () => { stopSweep(); const [a, b] = zRange(); setZ(a + (b - a) * (+el("zRange").value) / 10000, true); };
+  el("sweepBtn").onclick = sweep;
+  el("optBtn").onclick = () => { stopSweep(); const [, to] = sweepTarget(); setZ(to); };
+  el("allOn").onclick = () => { S.on = S.on.map(() => true); changed(); };
+  el("asGiven").onclick = () => { S.on = S.lp.cons.map(k => k.on); changed(); };
+  el("presBtn").onclick = () => setPresent(true);
+  el("exitPres").onclick = () => setPresent(false);
+  el("modeSeg").querySelectorAll("button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+  document.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("input[type=text], input[type=number], textarea, select")) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "Escape" && document.body.classList.contains("present")) { e.preventDefault(); setPresent(false); return; }
+    if (MODE !== "geo") {
+      const T = S;
+      if (e.key === " " || e.key === "Spacebar") { e.preventDefault(); sxPlay(T); }
+      else if (e.key === "ArrowRight" && e.target.type !== "range") { e.preventDefault(); sxStop(T); sxStep(T, 1); }
+      else if (e.key === "ArrowLeft" && e.target.type !== "range") { e.preventDefault(); sxStop(T); sxStep(T, -1); }
+      else if (e.key === "Home") { e.preventDefault(); sxStop(T); sxGoto(T, 0); }
+      else if (e.key === "End") { e.preventDefault(); sxStop(T); sxGoto(T, T.steps.length - 1); }
+      return;
+    }
+    if (e.key === " " || e.key === "Spacebar") { e.preventDefault(); sweep(); }
+    else if (e.key === "End") { e.preventDefault(); stopSweep(); setZ(sweepTarget()[1]); }
+    else if (e.key === "Home") { e.preventDefault(); stopSweep(); setZ(sweepTarget()[0]); }
+    else if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && e.target !== el("zRange")) {
+      e.preventDefault(); stopSweep(); const [a, b] = zRange(); setZ(S.z + (e.key === "ArrowRight" ? 1 : -1) * (b - a) / 100, true);
+    }
+  });
+  let rz = null;
+  window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(render, 80); });
+  initSplit(G, "splitter", "stageGeo", "vhandle"); initPointer(G);
+  for (const T of [T2, T3]) {
+    sxBuildDom(T);
+    initSplit(T, T.prefix + "Split", T.prefix + "Stage", T.prefix + "VH"); initPointer(T);
+    sxLoad(T, parseLP(LPTEXT.hessy), "hessy");
+  }
+  setMath(el("aboutBox"), ABOUT);
+
+  const present = readHash();
+  el("presetSel").value = G.preset;
+  if (present) document.body.classList.add("present");
+  for (const T of [T2, T3]) if (T.full) {
+    el(T.prefix + "Rule").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.rule === T.rule));
+  }
+  setMode(MODE);
+  const hook = () => {
+    if (!(window.MathJax && MathJax.startup && MathJax.startup.promise)) return;
+    MathJax.startup.promise.then(() => {
+      mjInPlace([el("zLab"), el("formatHint"), el("s2Code"), el("s3Code"), el("s3Code1"), ...document.querySelectorAll("#s2Box .subtitle, #s3Box .subtitle, #s2Box .sim-title .rhs, #s3Box .sim-title .rhs")]);
+      el("lpRows")._sig = null;
+      for (const id of ["statusBox", "aboutBox", "cvLegend", "lpObj", "cvMeta", "s2Status", "s2Alg", "s2AlgLP", "s2Num", "s2Legend", "s2CodeNote", "s2ExplainBody", "s3Status", "s3Alg", "s3AlgLP", "s3Num", "s3Legend", "s3CodeNote", "s3ExplainBody"]) {
+        const nd = el(id); const w = nd._want; nd._shown = null; nd._queued = false; if (w) setMath(nd, w); }
+      render();
+      if (S.simplex) sxPrerender(S);
+    }).catch(() => {});
+  };
+  if (document.readyState === "complete") hook(); else window.addEventListener("load", hook);
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+</script>
+</body>
+</html>

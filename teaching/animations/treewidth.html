@@ -138,7 +138,10 @@
   svg.stagesvg.panning { cursor:grabbing; }
   .zoomctl { position:absolute; right:8px; top:8px; display:flex; gap:4px; }
   .zoomctl button { padding:1px 0; width:1.9em; font-size:.85rem; font-family:var(--wi-font-body); background:rgba(250,246,237,.9); }
-  .zoomctl button[data-z="lock"] { display:inline-flex; align-items:center; justify-content:center; }
+  .zoomctl button[data-z="lock"], .zoomctl button[data-z="move"] { display:inline-flex; align-items:center; justify-content:center; }
+  svg.stagesvg.moving .g-v, svg.stagesvg.moving .t-b { cursor:move; }
+  svg.stagesvg.moving.locked { touch-action:none; }
+  svg.stagesvg.dragging, svg.stagesvg.dragging * { cursor:grabbing !important; }
   .zoomctl button[aria-pressed="true"] { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
   .zoomctl.locked button:disabled { opacity:.35; }
   svg.stagesvg.locked { cursor:default; touch-action:auto; }
@@ -296,6 +299,19 @@
   .bagbox { fill:var(--wi-panel-2); stroke:var(--wi-border); stroke-width:1.6; }
   .t-b { cursor:pointer; }
   .t-b.dim { opacity:.3; }
+  .t-b.pend .bagbox { fill:transparent; stroke-dasharray:5 4; stroke:var(--wi-border-strong); }
+  .t-b.pend.sel .bagbox { stroke:var(--wi-accent-dark); stroke-width:3; fill:var(--p0l); }
+  .pendq { font-family:var(--wi-font-head); font-size:14px; fill:var(--wi-ink-soft); text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  .undoctl { gap:4px; }
+  #rain { position:fixed; inset:0; width:100vw; height:100vh; pointer-events:none; z-index:50; display:none; }
+  #cheer { position:fixed; left:50%; top:22%; transform:translate(-50%,-10px) scale(.96); z-index:51; pointer-events:none;
+           font-family:var(--wi-font-head); letter-spacing:.06em; font-size:1.15rem; color:var(--wi-ink-strong);
+           background:var(--wi-panel-2); border:1px solid var(--wi-border-strong); border-radius:var(--wi-radius-lg);
+           padding:10px 22px; box-shadow:0 6px 24px rgba(0,0,0,.14); opacity:0; transition:opacity .35s, transform .35s; text-align:center; }
+  #cheer .sub { display:block; font-family:var(--wi-font-body); letter-spacing:0; font-size:.78rem; color:var(--wi-ink-soft); margin-top:2px; }
+  #cheer.show { opacity:1; transform:translate(-50%,0) scale(1); }
+  #cheer.gold { color:#6b4a00; font-size:1.4rem; border-color:#d4a017;
+                background:linear-gradient(135deg,#fff8d6,#f7dc6f 45%,#e8b923 70%,#fff3b0); box-shadow:0 6px 30px rgba(212,160,23,.45); }
   .t-b.hid { display:none; }
   .t-b.cur .bagbox { stroke:var(--wi-active); stroke-width:3; fill:#f6e6df; }
   .t-b.sel .bagbox { stroke:var(--wi-accent-dark); stroke-width:3.2; stroke-dasharray:6 3; }
@@ -357,6 +373,7 @@ body { font-family: var(--wi-font-body); }
   exactly what dynamic programming needs: the table at a bag is the complete interface between the part of the
   graph already solved and the rest.
   Hover a vertex to see every bag containing it; hover a bag to see its vertices; click to keep the highlight.
+  The buttons on each drawing zoom, move vertices or bags by dragging, and lock the view.
 </p>
 
 <div class="controls">
@@ -381,31 +398,43 @@ body { font-family: var(--wi-font-body); }
 <div class="opbar" id="opbar">
   <!-- definition -->
   <div class="grp" data-tab="def">
-    <label class="chk"><input type="checkbox" id="editChk"> edit the bags</label>
+    <span class="seg modeseg" id="defModeSeg"><button data-m="watch" class="on">watch</button><button data-m="try">try it yourself</button></span>
     <span class="ctl" id="editBtns" style="display:none">
-      <button class="small" id="addBagBtn" title="new empty bag attached to the selected one">New bag</button>
+      <button class="small pri" id="addBagBtn" title="a new empty bag below the selected one  (Enter)">Next bag ⏎</button>
       <button class="small" id="delBagBtn" title="remove the selected bag; its neighbours move to its parent">Delete bag</button>
-      <button class="small" id="recomputeBtn" title="replace by an optimal decomposition">Recompute</button>
+      <button class="small" id="scratchBtn" title="start again from a single empty bag">Start over</button>
+      <button class="small" id="recomputeBtn" title="replace by an optimal decomposition">Optimal one</button>
+      <span class="ctl undoctl"><button class="small undo" title="Undo (Ctrl+Z)">↶ Undo</button><button class="small redo" title="Redo (Ctrl+Shift+Z)">↷ Redo</button></span>
     </span>
     <span class="opnote" id="defNote">Arrow keys step through the three conditions.</span>
   </div>
   <!-- separators -->
   <div class="grp" data-tab="sep">
-    <span class="ctl"><span class="lbl">Walk starts at</span><select id="walkStart"></select></span>
-    <span class="opnote">Click a tree edge or a bag to jump to its separator.</span>
+    <span class="seg modeseg" id="sepModeSeg"><button data-m="watch" class="on">watch</button><button data-m="try">try it yourself</button></span>
+    <span class="ctl sepwatch"><span class="lbl">Walk starts at</span><select id="walkStart"></select></span>
+    <span class="opnote sepwatch">Click a tree edge or a bag to jump to its separator.</span>
+    <span class="ctl septry" style="display:none">
+      <button class="small pri" id="bagNowBtn" title="make the bag S ∪ N(C) now, even if S does not disconnect the piece; the rest of the piece is decomposed below it  (Enter)">Make the bag now ⏎</button>
+      <button class="small" id="finishPieceBtn" title="put the rest of the current piece into one bag">Finish this piece</button>
+      <button class="small" id="sepRestartBtn">Start over</button>
+      <span class="ctl undoctl"><button class="small undo" title="Undo (Ctrl+Z)">↶ Undo</button><button class="small redo" title="Redo (Ctrl+Shift+Z)">↷ Redo</button></span>
+    </span>
     <button class="small" id="adoptSepBtn" style="display:none" title="make the decomposition built from separators the current one">Use this decomposition</button>
   </div>
   <!-- elimination -->
   <div class="grp" data-tab="elim">
-    <span class="ctl"><span class="lbl">Order</span>
+    <span class="seg modeseg" id="elimModeSeg"><button data-m="watch" class="on">watch</button><button data-m="try">try it yourself</button></span>
+    <span class="ctl" id="elimWatchCtl"><span class="lbl">Order</span>
       <select id="orderSel">
         <option value="exact">optimal (exact)</option>
         <option value="mindeg">minimum degree</option>
         <option value="minfill">minimum fill-in</option>
         <option value="input">0, 1, 2, …</option>
-        <option value="click">click vertices yourself</option>
       </select></span>
-    <button class="small" id="clearOrderBtn" style="display:none">Start over</button>
+    <span class="ctl" id="elimTryCtl" style="display:none">
+      <button class="small" id="clearOrderBtn">Start over</button>
+      <span class="ctl undoctl"><button class="small undo" title="Undo (Ctrl+Z)">↶ Undo</button><button class="small redo" title="Redo (Ctrl+Shift+Z)">↷ Redo</button></span>
+    </span>
     <button class="small" id="adoptElimBtn" title="make this decomposition (with redundant bags merged) the current one">Use this decomposition</button>
     <span class="opnote" id="elimNote"></span>
   </div>
@@ -427,15 +456,11 @@ body { font-family: var(--wi-font-body); }
   </div>
   <!-- cops -->
   <div class="grp" data-tab="cops">
-    <span class="ctl"><span class="lbl">Cops</span>
-      <span class="seg" id="copModeSeg">
-        <button data-m="td" class="on">follow the decomposition</button>
-        <button data-m="play">you place them</button>
-      </span></span>
+    <span class="seg modeseg" id="copModeSeg"><button data-m="watch" class="on">watch</button><button data-m="try">try it yourself</button></span>
     <span class="ctl" id="copPlayCtl" style="display:none">
-      <span class="lbl">Available</span><input type="number" id="copCount" min="1" max="60" value="3" style="width:4em">
-      <button class="small pri" id="flyBtn">Fly</button>
-      <button class="small" id="copResetBtn">Restart</button>
+      <span class="lbl">Cops</span><input type="number" id="copCount" min="1" max="60" value="3" style="width:4em">
+      <button class="small" id="copResetBtn">Start over</button>
+      <span class="ctl undoctl"><button class="small undo" title="Undo (Ctrl+Z)">↶ Undo</button><button class="small redo" title="Redo (Ctrl+Shift+Z)">↷ Redo</button></span>
     </span>
     <span class="opnote" id="copNote"></span>
   </div>
@@ -467,7 +492,7 @@ body { font-family: var(--wi-font-body); }
     <div class="sim-box">
       <div class="sim-title"><span id="gTitle">Graph G</span><span class="rhs" id="gMeta"></span></div>
       <div class="view"><svg id="gSvg" class="stagesvg"></svg>
-        <div class="zoomctl"><button data-z="in" title="zoom in">+</button><button data-z="out" title="zoom out">−</button><button data-z="fit" title="fit (double-click the background)">⤢</button><button data-z="lock" aria-pressed="false"></button></div>
+        <div class="zoomctl"><button data-z="in" title="zoom in">+</button><button data-z="out" title="zoom out">−</button><button data-z="fit" title="fit (double-click the background)">⤢</button><button data-z="move" aria-pressed="false"><svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><path d="M6.5 1v11M1 6.5h11M6.5 1l-2 2M6.5 1l2 2M6.5 12l-2-2M6.5 12l2-2M1 6.5l2-2M1 6.5l2 2M12 6.5l-2-2M12 6.5l-2 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button><button data-z="lock" aria-pressed="false"></button></div>
       </div>
       <div class="legend" id="gLegend"></div>
     </div>
@@ -476,10 +501,10 @@ body { font-family: var(--wi-font-body); }
   <div class="col">
     <div class="sim-box">
       <div class="sim-title"><span id="tTitle">Tree decomposition</span>
-        <span class="seg mini" id="layoutSeg" title="how the bags are placed"><button data-l="tidy">as a tree</button><button data-l="geo">where their vertices are</button></span>
+        <span class="seg mini" id="layoutSeg" title="how the bags are placed"><button data-l="tidy" title="tree growing downwards">tree ↓</button><button data-l="right" title="tree growing to the right">tree →</button><button data-l="geo" title="each bag where its vertices are drawn">where their vertices are</button></span>
         <span class="rhs" id="tMeta"></span></div>
       <div class="view"><svg id="tSvg" class="stagesvg"></svg>
-        <div class="zoomctl"><button data-z="in" title="zoom in">+</button><button data-z="out" title="zoom out">−</button><button data-z="fit" title="fit (double-click the background)">⤢</button><button data-z="lock" aria-pressed="false"></button></div>
+        <div class="zoomctl"><button data-z="in" title="zoom in">+</button><button data-z="out" title="zoom out">−</button><button data-z="fit" title="fit (double-click the background)">⤢</button><button data-z="move" aria-pressed="false"><svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><path d="M6.5 1v11M1 6.5h11M6.5 1l-2 2M6.5 1l2 2M6.5 12l-2-2M6.5 12l2-2M1 6.5l2-2M1 6.5l2 2M12 6.5l-2-2M12 6.5l-2 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button><button data-z="lock" aria-pressed="false"></button></div>
       </div>
       <div class="legend" id="tLegend"></div>
     </div>
@@ -1893,6 +1918,7 @@ class View {
     this.svg = svg; this.s = 1; this.tx = 0; this.ty = 0; this.user = false; this.world = null; this.key = "";
     this.minScale = 0; this.maxScale = 1.3; this.justPanned = false;
     this.lockKey = "wi-tw-lock-" + svg.id;
+    this.moveMode = false; this.dragTarget = null; this.onDrag = null;
     try { this.locked = localStorage.getItem(this.lockKey) === "1"; } catch (e) { this.locked = false; }
     svg.innerHTML = '<g class="vp"></g>';
     this.g = svg.firstChild;
@@ -1914,6 +1940,7 @@ class View {
       const P = [...pts.values()];
       const moved = gest ? gest.moved : false;
       if (P.length === 1) gest = { mode: "pan", x: P[0].x, y: P[0].y, tx: this.tx, ty: this.ty, moved, target: gest && gest.target };
+      else if (P.length >= 2 && this.locked) gest = { mode: "none", moved: true };
       else if (P.length >= 2) {
         const [a, b] = P, [mx, my] = local((a.x + b.x) / 2, (a.y + b.y) / 2);
         gest = { mode: "pinch", d: Math.hypot(a.x - b.x, a.y - b.y) || 1, wx: (mx - this.tx) / this.s, wy: (my - this.ty) / this.s, s: this.s, moved: true };
@@ -1932,19 +1959,33 @@ class View {
       this.zoomAt(mx, my, f);
     }, { passive: false });
     svg.addEventListener("pointerdown", ev => {
-      if (this.locked) return;
       if (ev.pointerType === "mouse" && ev.button !== 0 && ev.button !== 1) return;
+      /* in move mode, a press on a vertex or bag drags it (also when zoom and pan are locked) */
+      const drag = this.moveMode && this.dragTarget && ev.button === 0 ? this.dragTarget(ev.target, ev) : null;
+      if (this.locked && !drag) return;
       if (ev.isPrimary) { pts.clear(); gest = null; }        /* a new touch sequence or mouse press starts afresh */
       if (!pts.size) { this.justPanned = false; gest = null; }
       pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
       begin();
-      if (gest && pts.size === 1) { gest.target = ev.target; gest.type = ev.pointerType; }
+      if (gest && pts.size === 1) {
+        gest.target = ev.target; gest.type = ev.pointerType;
+        if (drag) { gest.mode = "drag"; gest.info = drag; }
+      }
       if (pts.size >= 2) ev.preventDefault();
     });
     svg.addEventListener("pointermove", ev => {
       if (!pts.has(ev.pointerId) || !gest) return;
       pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-      if (gest.mode === "pan") {
+      if (gest.mode === "drag") {
+        const dx = ev.clientX - gest.x, dy = ev.clientY - gest.y;
+        if (!gest.moved && Math.abs(dx) + Math.abs(dy) > 4) {
+          gest.moved = true; this.user = true; S.dragging = true;
+          try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
+          svg.classList.add("dragging");
+        }
+        if (gest.moved && this.onDrag) this.onDrag(gest.info, dx / this.s, dy / this.s);
+      } else if (gest.mode === "none") {
+      } else if (gest.mode === "pan") {
         const dx = ev.clientX - gest.x, dy = ev.clientY - gest.y;
         if (!gest.moved && Math.abs(dx) + Math.abs(dy) > 4) {
           gest.moved = true;
@@ -1962,14 +2003,14 @@ class View {
     const up = ev => {
       if (!pts.has(ev.pointerId)) return;
       /* a touch that did not move is a tap: handled here, because browsers do not always follow it with a click */
-      if (ev.type === "pointerup" && gest && gest.mode === "pan" && !gest.moved && pts.size === 1 && gest.type !== "mouse" && gest.target) {
+      if (ev.type === "pointerup" && gest && (gest.mode === "pan" || gest.mode === "drag") && !gest.moved && pts.size === 1 && gest.type !== "mouse" && gest.target) {
         this.lastTap = performance.now();
         svg.dispatchEvent(new CustomEvent("vtap", { detail: { target: gest.target } }));
       }
       pts.delete(ev.pointerId);
       if (gest && gest.moved) this.justPanned = true;
       if (pts.size) begin();                            /* one finger left: continue panning from here, no jump */
-      else { gest = null; svg.classList.remove("panning"); }
+      else { gest = null; svg.classList.remove("panning"); svg.classList.remove("dragging"); S.dragging = false; }
     };
     /* on the window: a release outside the drawing must not leave a pointer behind */
     window.addEventListener("pointerup", up); window.addEventListener("pointercancel", up);
@@ -1994,11 +2035,22 @@ class View {
     if (ctl) ctl.addEventListener("click", ev => {
       const btn = ev.target.closest("[data-z]"), z = btn && btn.dataset.z; if (!z) return;
       if (z === "lock") { this.setLocked(!this.locked); return; }
+      if (z === "move") { this.setMove(!this.moveMode); return; }
       if (this.locked) return;
       const r = svg.getBoundingClientRect();
       if (z === "fit") { this.user = false; this.fit(); }
       else this.zoomAt(r.width / 2, r.height / 2, z === "in" ? 1.25 : 0.8);
     });
+  }
+  setMove(on) {
+    this.moveMode = on;
+    this.svg.classList.toggle("moving", on);
+    const b = this.svg.parentNode.querySelector('.zoomctl [data-z="move"]');
+    if (b) {
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+      b.title = on ? "Moving is on: drag " + (this.svg.id === "gSvg" ? "vertices" : "bags (Shift: with everything below)") + "; click to turn off"
+                   : "Move " + (this.svg.id === "gSvg" ? "vertices" : "bags") + " by dragging";
+    }
   }
   setLocked(on) {
     this.locked = on;
@@ -2108,14 +2160,65 @@ function layoutForest(nodes, parent, opts) {
   return { nodes: out, edges, byId: new Map(out.map(n => [n.id, n])), world: { x0: x0 - 8, y0: y0 - 8, x1: x1 + 8, y1: y1 + 8 } };
 }
 
+/* the same tree growing to the right: depth along x (pills left-aligned per column), siblings stacked */
+function layoutRight(nodes, parent, opts) {
+  opts = opts || {};
+  const gapX = opts.gapX || 22, rowH = opts.rowH || (BAG_H + 18);
+  const byId = new Map(nodes.map(n => [n.id, n])), ch = new Map(nodes.map(n => [n.id, []]));
+  const roots = [];
+  for (const n of nodes) { const p = parent[n.id]; if (p >= 0 && ch.has(p)) ch.get(p).push(n.id); else roots.push(n.id); }
+  const depth = new Map(), maxW = [];
+  const setD = (x, d) => { depth.set(x, d); maxW[d] = Math.max(maxW[d] || 0, bagWidth(byId.get(x).bag.length)); ch.get(x).forEach(c => setD(c, d + 1)); };
+  roots.forEach(r => setD(r, 0));
+  const colL = [0];
+  for (let d = 1; d < maxW.length; d++) colL[d] = colL[d - 1] + maxW[d - 1] + gapX;
+  const pos = new Map();
+  let row = 0;
+  const place = x => {
+    const cs = ch.get(x), d = depth.get(x), p = { x: colL[d] + bagWidth(byId.get(x).bag.length) / 2 };
+    pos.set(x, p);
+    if (!cs.length) { p.y = row * rowH; row++; return; }
+    cs.forEach(place);
+    p.y = (pos.get(cs[0]).y + pos.get(cs[cs.length - 1]).y) / 2;
+  };
+  for (const r of roots) { place(r); row += 0.5; }
+  const out = nodes.map(n => Object.assign({}, n, pos.get(n.id)));
+  const edges = [];
+  for (const n of nodes) if (parent[n.id] >= 0 && byId.has(parent[n.id])) edges.push([parent[n.id], n.id]);
+  const T = { nodes: out, edges, byId: new Map(out.map(n => [n.id, n])), right: true };
+  T.world = treeWorld(T);
+  return T;
+}
+/* of the given layouts, the one whose whole drawing fits into the tree panel at the largest scale */
+function bestLayout(cands, make) {
+  const [W, H] = TV.dims();
+  let best = cands[0], bs = -1;
+  for (const c of cands) {
+    const w = make(c).world, sc = Math.min(W / Math.max(1, w.x1 - w.x0), H / Math.max(1, w.y1 - w.y0));
+    if (sc > bs * 1.05) { bs = sc; best = c; }        /* ties go to the earlier one (growing down) */
+  }
+  return best;
+}
+/* bounding box of a laid-out tree (also after nodes were moved by hand) */
+function treeWorld(T) {
+  let x0 = INF, x1 = -INF, y0 = INF, y1 = -INF;
+  for (const n of T.nodes) {
+    const hw = bagWidth(n.bag.length) / 2, tag = n.tag && !T.right && !T.geo ? 36 : 0;
+    x0 = Math.min(x0, n.x - hw - tag); x1 = Math.max(x1, n.x + hw); y0 = Math.min(y0, n.y - 26); y1 = Math.max(y1, n.y + 20);
+  }
+  if (!Number.isFinite(x0)) return { x0: 0, y0: 0, x1: 100, y1: 100 };
+  return { x0: x0 - 8, y0: y0 - 8, x1: x1 + 8, y1: y1 + 8 };
+}
+
 /* bags placed where their vertices are drawn in G, then pushed apart until no two pills overlap */
 function layoutGeo(nodes, parent) {
   const G = S.G, P = G.pos, SC = 1.05;
   let cx = 0, cy = 0; for (const p of P) { cx += p.x; cy += p.y; } cx /= P.length; cy /= P.length;
   const X = nodes.map(n => {
-    if (!n.bag.length) return null;
-    let x = 0, y = 0; for (const v of n.bag) { x += P[v].x; y += P[v].y; }
-    return { x: x / n.bag.length * SC, y: y / n.bag.length * SC };
+    const at = n.at || n.bag;                       /* placeholders sit where their piece is */
+    if (!at.length) return null;
+    let x = 0, y = 0; for (const v of at) { x += P[v].x; y += P[v].y; }
+    return { x: x / at.length * SC, y: y / at.length * SC };
   });
   const idx = new Map(nodes.map((n, i) => [n.id, i]));
   /* empty bags: at their neighbours' average, else the centre */
@@ -2149,8 +2252,9 @@ function layoutGeo(nodes, parent) {
   return { nodes: out, edges, byId, geo: true, world: { x0: x0 - 8, y0: y0 - 8, x1: x1 + 8, y1: y1 + 8 } };
 }
 /* the drawing of a decomposition: tidy tree, or bags where their vertices are */
-function layoutTD(nodes, parent, opts) {
-  return S.layout === "geo" ? layoutGeo(nodes, parent) : layoutForest(nodes, parent, opts);
+function layoutTD(nodes, parent, opts, which) {
+  which = which || S.layout;
+  return which === "geo" ? layoutGeo(nodes, parent) : which === "right" ? layoutRight(nodes, parent, opts) : layoutForest(nodes, parent, opts);
 }
 
 function tdTree(td) {
@@ -2158,7 +2262,15 @@ function tdTree(td) {
   const nodes = R.order.map(t => ({ id: t, bag: td.bags[t], label: "t" + t }));
   nodes.sort((a, b) => a.id - b.id);
   const key = S.tdVersion + ":" + S.layout + ":" + S.presetKey;
-  if (S._tdTreeKey !== key) { S._tdTree = layoutTD(nodes, R.parent); S._tdTreeKey = key; }
+  if (S._tdTreeKey !== key) {
+    const old = S._tdTree, sameKind = old && S._tdTreeBase === S.layout + ":" + S.presetKey;
+    S._tdTree = layoutTD(nodes, R.parent); S._tdTreeKey = key; S._tdTreeBase = S.layout + ":" + S.presetKey;
+    /* after an edit of the bags, bags placed by hand stay where they were put */
+    if (sameKind) {
+      for (const n of S._tdTree.nodes) { const o = old.byId.get(n.id); if (o && o.moved) { n.x = o.x; n.y = o.y; n.moved = true; } }
+      S._tdTree.world = treeWorld(S._tdTree);
+    }
+  }
   return S._tdTree;
 }
 
@@ -2169,6 +2281,7 @@ function tdTree(td) {
 function drawGraph(spec) {
   const G = S.G, P = G.pos, out = [];
   spec = spec || {};
+  S.lastGSpec = spec;
   const ecls = spec.ecls || new Map();
   if (spec.halo) spec.halo.forEach((c, v) => { if (c) out.push('<circle class="region" cx="' + P[v].x + '" cy="' + P[v].y + '" r="27" style="fill:' + c + ';opacity:1"></circle>'); });
   if (spec.flights) for (const [a, b] of spec.flights)
@@ -2232,22 +2345,31 @@ function graphWorld() {
 function drawTree(spec) {
   const T = S.tree, out = [];
   spec = spec || {};
+  S.lastTSpec = spec;
   const ncls = spec.ncls || new Map(), ecls = spec.ecls || new Map();
   for (const [p, c] of T.edges) {
     const a = T.byId.get(p), b = T.byId.get(c);
     const k = ecls.get(p + "-" + c) || ecls.get(c + "-" + p) || "";
     const hide = (ncls.get(p) || "").includes("hid") || (ncls.get(c) || "").includes("hid");
     if (hide) continue;
-    const ya = T.geo ? a.y : a.y + BAG_H / 2, yb = T.geo ? b.y : b.y - BAG_H / 2;
-    out.push('<line class="te ' + k + '" x1="' + a.x + '" y1="' + ya + '" x2="' + b.x + '" y2="' + yb + '"></line>');
-    if (spec.edgeHit) out.push('<line class="te-hit" data-te="' + p + "-" + c + '" x1="' + a.x + '" y1="' + ya + '" x2="' + b.x + '" y2="' + yb + '"></line>');
+    let d;
+    if (T.right) {                                   /* from the parent's right end to the child's left end */
+      const xa = a.x + bagWidth(a.bag.length) / 2, xb = b.x - bagWidth(b.bag.length) / 2, xm = (xa + xb) / 2;
+      d = "M" + xa + " " + a.y + " C" + xm + " " + a.y + " " + xm + " " + b.y + " " + xb + " " + b.y;
+    } else {
+      const ya = T.geo ? a.y : a.y + BAG_H / 2, yb = T.geo ? b.y : b.y - BAG_H / 2;
+      d = "M" + a.x + " " + ya + " L" + b.x + " " + yb;
+    }
+    out.push('<path class="te ' + k + '" d="' + d + '"></path>');
+    if (spec.edgeHit) out.push('<path class="te-hit" data-te="' + p + "-" + c + '" d="' + d + '"></path>');
   }
   for (const n of T.nodes) {
     const c = ncls.get(n.id) || "", W = bagWidth(n.bag.length), x0 = n.x - W / 2, y0 = n.y - BAG_H / 2;
     const bf = spec.boxFill && spec.boxFill.get(n.id);
     out.push('<g class="t-b ' + c + ((spec.fresh && spec.fresh.has(n.id)) ? " pop" : "") + '" data-b="' + n.id + '" data-bag="' + n.bag.join(" ") + '">');
     out.push('<rect class="bagbox" x="' + x0 + '" y="' + y0 + '" width="' + W + '" height="' + BAG_H + '" rx="15"' + (bf ? ' style="fill:' + bf + '"' : "") + "></rect>");
-    if (!n.bag.length) out.push('<text class="emptybag" x="' + n.x + '" y="' + n.y + '">∅</text>');
+    if (n.text) out.push('<text class="pendq" x="' + n.x + '" y="' + n.y + '">' + n.text + "</text>");
+    else if (!n.bag.length) out.push('<text class="emptybag" x="' + n.x + '" y="' + n.y + '">∅</text>');
     n.bag.forEach((v, i) => {
       const cx = n.x - (n.bag.length - 1) * MD / 2 + i * MD;
       const f = spec.mfill ? spec.mfill(n.id, v) : null;
@@ -2256,7 +2378,9 @@ function drawTree(spec) {
         '<text class="ml' + (f && f.inv ? " inv" : "") + '" x="' + cx + '" y="' + n.y + '">' + v + "</text></g>");
     });
     if (n.label) out.push('<text class="bagid" x="' + (x0 + 4) + '" y="' + (y0 - 5) + '">' + n.label + "</text>");
-    if (n.tag) out.push('<text class="bagtag ' + (n.tagCls || "") + '" x="' + (x0 - 6) + '" y="' + (n.y + 4) + '" text-anchor="end">' + n.tag + "</text>");
+    if (n.tag) out.push(T.right
+      ? '<text class="bagtag ' + (n.tagCls || "") + '" x="' + (x0 + 4) + '" y="' + (y0 - 5) + '">' + n.tag + "</text>"
+      : '<text class="bagtag ' + (n.tagCls || "") + '" x="' + (x0 - 6) + '" y="' + (n.y + 4) + '" text-anchor="end">' + n.tag + "</text>");
     out.push("</g>");
   }
   if (spec.note) out.push('<text class="treenote" x="' + T.world.x0 + '" y="' + (T.world.y1 + 18) + '">' + esc(spec.note) + "</text>");
@@ -2264,8 +2388,8 @@ function drawTree(spec) {
   let fid = spec.focus;
   if (fid === undefined || fid < 0) for (const [id, c] of ncls) if (/\bcur\b/.test(c)) { fid = id; break; }
   const focus = fid !== undefined && fid >= 0 ? T.byId.get(fid) : null;
-  TV.setWorld(T.world, S.treeKey + (T.geo ? "|geo" : "|tidy"), { minScale: T.geo ? 0 : 0.95, maxScale: T.geo ? 1.2 : 1.3, focus });
-  if (focus && (S.tab === "dp" ? el("followChk").checked : !TV.user)) TV.show(focus);
+  TV.setWorld(T.world, S.treeKey + (T.geo ? "|geo" : T.right ? "|right" : "|tidy"), { minScale: T.geo ? 0 : 0.95, maxScale: T.geo ? 1.2 : 1.3, focus });
+  if (focus && !S.dragging && (S.tab === "dp" ? el("followChk").checked : !TV.user)) TV.show(focus);
   applyHover();
 }
 
@@ -2502,11 +2626,53 @@ const DEF_CODE = [
   ] }
 ];
 
+/* ---- try it yourself (Definition): the history of edits is the step list ---- */
+const cloneTD = td => ({ bags: td.bags.map(b => b.slice()), tadj: td.tadj.map(a => a.slice()) });
+function defStartHistory(scratch) {
+  const H = S.defHist = { states: [{ td: cloneTD(S.TD), sel: S.selBag >= 0 ? S.selBag : 0, label: "the given decomposition", ph: "given" }] };
+  if (scratch) H.states.push({ td: { bags: [[]], tadj: [[]] }, sel: 0, label: "start from scratch: one empty bag t0", ph: "t0" });
+  const h = H.states[H.states.length - 1];
+  S.TD = cloneTD(h.td); S.selBag = h.sel; H.td = S.TD; H.idx = H.states.length - 1;
+}
+/* mut(td, sel) changes a copy of the decomposition; it returns false (nothing to do), or {td, sel} */
+function defEdit(mut, label, ph, quiet) {
+  const was = S.valid && S.valid.ok, wasW = S.valid ? S.valid.width : INF;
+  const td = cloneTD(S.TD), r = mut(td, S.selBag);
+  if (r === false) return false;
+  const nt = r && r.td ? r.td : td, sel = r && r.sel !== undefined ? r.sel : S.selBag, H = S.defHist;
+  H.states.length = S.cur + 1;
+  H.states.push({ td: cloneTD(nt), sel, label, ph: ph || ("t" + sel) });
+  S.TD = nt; S.selBag = sel; H.td = S.TD; H.idx = H.states.length - 1;
+  tdChanged(true);
+  /* valid now, and it was not, or it got narrower */
+  if (!quiet && S.valid.ok && (!was || S.valid.width < wasW)) celebrate(S.valid.width);
+  return true;
+}
+function defRestore(i) {
+  const H = S.defHist, h = H.states[i];
+  if (H.idx === i && H.td === S.TD) return;
+  S.TD = cloneTD(h.td); S.selBag = h.sel; H.td = S.TD; H.idx = i;
+  S.valid = validity(S.G, S.TD); S.tdVersion++; S.cache = {};
+  fillWalkStart(); updateReadout();
+}
+
 MODES.def = {
   title: "Definition",
+  canUndo() { return S.edit && S.cur > 0; },
+  canRedo() { return S.edit && S.cur < S.steps.length - 1; },
+  undo() { S.cur--; render(); },
+  redo() { S.cur++; render(); },
   build() {
     const G = S.G, V = S.valid;
     S.steps = []; S.phases = [];
+    if (S.edit) {
+      if (!S.defHist || S.defHist.td !== S.TD) defStartHistory(!S.defHist); /* new graph: from scratch; changed elsewhere: from there */
+      let last = null;
+      S.defHist.states.forEach((h, i) => { if (h.ph !== last) { mkPhase(h.ph, true); last = h.ph; } add({ k: "hist", i }); });
+      compactPhases();
+      S.tree = tdTree(S.TD); S.treeKey = "td" + S.layout + S.tdVersion;
+      return;
+    }
     S.tree = tdTree(S.TD); S.treeKey = "td" + S.layout + S.tdVersion;
     mkPhase("Bags"); add({ k: "intro" });
     mkPhase("(T1) vertices"); for (let v = 0; v < G.n; v++) add({ k: "T1", v });
@@ -2515,6 +2681,7 @@ MODES.def = {
     mkPhase("Width"); add({ k: "width" });
   },
   frame(st) {
+    if (st.k === "hist") { defRestore(st.i); S.tree = tdTree(S.TD); }
     const G = S.G, td = S.TD, V = S.valid, gs = { rings: [], ecls: new Map(), vfill: [], halo: [] };
     const ts = { ncls: new Map(), boxFill: new Map(), ecls: new Map() };
     const mf = new Map();                 /* "bag,v" -> fill of the mini disc */
@@ -2556,6 +2723,22 @@ MODES.def = {
       else if (P.length === 1) txt = "The bags containing <b>" + st.v + "</b> (" + P[0].map(t => "t" + t).join(", ") + ") form a connected subtree of <i>T</i>. " + '<span class="ok">✓</span>';
       else txt = "The bags containing <b>" + st.v + "</b> fall apart into " + P.length + " pieces: " +
         P.map(p => "{" + p.map(t => "t" + t).join(", ") + "}").join(" and ") + '. <span class="bad">(T3) fails</span>: some bag on the path between the pieces must also contain ' + st.v + ".";
+    } else if (st.k === "hist") {
+      const h = S.defHist.states[st.i];
+      V.T1.forEach(v => gs.rings.push({ v, cls: "bad" }));
+      V.T2.forEach(i => gs.ecls.set(i, "bad"));
+      V.T3.forEach(v => { gs.rings.push({ v, cls: "bad" }); V.where[v].forEach(t => ts.ncls.set(t, "bad")); });
+      if (V.T1.length) act.add("T1"); if (V.T2.length) act.add("T2"); if (V.T3.length) act.add("T3");
+      const k = V.width, parts = [];
+      if (V.T1.length) parts.push("(T1) " + V.T1.length + " vert" + (V.T1.length === 1 ? "ex" : "ices") + " in no bag");
+      if (V.T2.length) parts.push("(T2) " + V.T2.length + " edge" + (V.T2.length === 1 ? "" : "s") + " not inside a bag (dashed)");
+      if (V.T3.length) parts.push("(T3) the bags of " + vs(V.T3) + " are not connected (dashed bags)");
+      txt = "<b>" + h.label.charAt(0).toUpperCase() + h.label.slice(1) + ".</b> " +
+        (S.hint ? '<span class="bad">' + S.hint + "</span> " : "") +
+        (V.ok ? '<span class="ok">All three conditions hold</span>: a tree decomposition of width <b>' + k + "</b>." +
+                '<span class="ans">' + (twValue() != null ? (twValue() === k ? "Optimal: " : "Compare: ") + twText() + "." : "The treewidth of G is at most " + S.bestKnown + ".") + "</span>"
+              : "Still violated: " + parts.join(" · ") + ".");
+      if (V.ok) { act.add("width"); act.add("tw"); }
     } else if (st.k === "width") {
       act.add("width"); act.add("tw");
       const k = V.width;
@@ -2574,29 +2757,33 @@ MODES.def = {
         ts.ncls.set(S.selBag, ((ts.ncls.get(S.selBag) || "") + " sel").trim());
         for (const v of td.bags[S.selBag]) gs.vfill[v] = { fill: LIGHT_SEL, stroke: "var(--wi-accent-dark)" };
       }
-      txt += '<br><span style="font-size:.84em;color:var(--wi-ink-soft)">Editing: click a bag to select it, then click vertices of <i>G</i> to put them into it or take them out. ' +
-        "Shift-click another bag to hang the selected bag (with everything below it) there.</span>";
+      txt += '<br><span style="font-size:.84em;color:var(--wi-ink-soft)">Click vertices of <i>G</i> to put them into the selected bag (dashed) or take them out; ' +
+        "<i>Next bag</i> (Enter) starts a new bag below it. Click a bag to select it; Shift-click another bag to hang the selected one there. " +
+        "Undo: Ctrl+Z, or step back.</span>";
     }
     ts.mfill = (t, v) => mf.get(t + "," + v) || null;
     drawGraph(gs); drawTree(ts);
-    el("tMeta").textContent = td.bags.length + " bags, width " + V.width;
+    el("tMeta").textContent = td.bags.length + " bag" + (td.bags.length === 1 ? "" : "s") + ", width " + (V.width < 0 ? "—" : V.width);
     setStatus(txt, S.phases[st.ph] ? S.phases[st.ph].name : "");
+    S.hint = "";
     const row = (key, ok, nm, good, bad) => '<li class="' + (act.has(key) ? "on" : "") + '"><span class="mark ' + (ok ? "ok" : "bad") + '">' + (ok ? "✓" : "✗") + '</span><span class="nm">' + nm + "</span><span>" + (ok ? good : bad) + "</span></li>";
     setInfo("The three conditions",
       '<ul class="checks">' +
       row("T1", !V.T1.length, "(T1)", "every vertex lies in a bag", "in no bag: " + vs(V.T1)) +
       row("T2", !V.T2.length, "(T2)", "every edge lies inside a bag", "not covered: " + V.T2.map(i => G.E[i].join("–")).join(", ")) +
       row("T3", !V.T3.length, "(T3)", "every vertex's bags form a subtree", "disconnected for " + vs(V.T3)) +
-      '<li class="' + (act.has("width") ? "on" : "") + '"><span class="mark"></span><span class="nm">width</span><span>' + V.width +
+      '<li class="' + (act.has("width") ? "on" : "") + '"><span class="mark"></span><span class="nm">width</span><span>' + (V.width < 0 ? "—" : V.width) +
       " &nbsp;(" + twText() + ")</span></li></ul>", td.bags.length + " bags");
     renderCode("Definition", DEF_CODE, act, "Hover a vertex: all bags containing it light up, and by (T3) they are always a connected piece of the tree. " +
       "Hover a bag: its vertices light up in <i>G</i>.");
   },
   vertexClick(v) {
-    if (!S.edit || S.selBag < 0) return false;
-    const b = S.TD.bags[S.selBag];
-    S.TD.bags[S.selBag] = b.includes(v) ? b.filter(x => x !== v) : sortU([...b, v]);
-    tdChanged(true);
+    if (!S.edit) return false;
+    const sel = S.selBag;
+    if (sel < 0 || sel >= S.TD.bags.length) { S.hint = "Select a bag first (click it in the tree)."; render(); return true; }
+    const had = S.TD.bags[sel].includes(v);
+    defEdit(td => { const b = td.bags[sel]; td.bags[sel] = had ? b.filter(x => x !== v) : sortU([...b, v]); },
+      (had ? "take " + v + " out of t" : "put " + v + " into t") + sel);
     return true;
   },
   bagClick(t, ev) {
@@ -2604,15 +2791,48 @@ MODES.def = {
     if (ev.shiftKey && S.selBag >= 0 && S.selBag !== t) {
       const R = rootTree(S.TD.tadj, 0), s = S.selBag;
       let x = t; while (x >= 0 && x !== s) x = R.parent[x];
-      if (x === s || R.parent[s] < 0) return;          /* t below s, or s is the root */
-      const p = R.parent[s], A = S.TD.tadj;
-      A[s] = A[s].filter(y => y !== p); A[p] = A[p].filter(y => y !== s);
-      A[s].push(t); A[t].push(s);
-      tdChanged(true); return true;
+      if (x === s || R.parent[s] < 0) { S.hint = x === s ? "A bag cannot hang below its own subtree." : "The root stays the root."; render(); return true; }
+      const p = R.parent[s];
+      defEdit(td => {
+        const A = td.tadj;
+        A[s] = A[s].filter(y => y !== p); A[p] = A[p].filter(y => y !== s);
+        A[s].push(t); A[t].push(s);
+      }, "hang t" + s + " below t" + t);
+      return true;
     }
-    S.selBag = S.selBag === t ? -1 : t;
+    const s0 = S.selBag, td = S.TD, last = td.bags.length - 1;
+    if (s0 === last && s0 > 0 && t !== s0 && !td.bags[s0].length && td.tadj[s0].length === 1 && S.defHist) {
+      const p = td.tadj[s0][0];
+      td.bags.pop(); td.tadj.pop(); td.tadj[p] = td.tadj[p].filter(y => y !== s0);
+      S.defHist.states[S.cur].td = cloneTD(td);
+      S.valid = validity(S.G, S.TD); S.tdVersion++; S.cache = {}; fillWalkStart(); updateReadout();
+      MODES.def.build();
+    }
+    S.selBag = t;
+    if (S.defHist && S.defHist.states[S.cur]) S.defHist.states[S.cur].sel = t;
     render();
     return true;
+  },
+  nextBag() {
+    const sel = S.selBag;
+    if (sel < 0 || sel >= S.TD.bags.length) { S.hint = "Select a bag first: the new one hangs below it."; render(); return; }
+    if (!S.TD.bags[sel].length) { S.hint = "The selected bag is still empty: click vertices of G to fill it."; render(); return; }
+    const t = S.TD.bags.length;
+    defEdit(td => { td.bags.push([]); td.tadj.push([sel]); td.tadj[sel].push(t); return { sel: t }; }, "new bag t" + t + " below t" + sel, "t" + t);
+  },
+  deleteBag() {
+    const s = S.selBag;
+    if (s < 0 || S.TD.bags.length < 2) { S.hint = S.TD.bags.length < 2 ? "The last bag stays." : "Select a bag first."; render(); return; }
+    defEdit(td => {
+      const R = rootTree(td.tadj, 0), keep = R.parent[s] >= 0 ? R.parent[s] : R.children[s][0];
+      for (const y of td.tadj[s]) if (y !== keep) { td.tadj[y] = td.tadj[y].filter(z => z !== s); td.tadj[y].push(keep); td.tadj[keep].push(y); }
+      td.tadj[keep] = td.tadj[keep].filter(z => z !== s);
+      td.tadj[s] = [];
+      const map = td.bags.map((_, i) => i < s ? i : i - 1);
+      let nt = { bags: td.bags.filter((_, i) => i !== s), tadj: td.tadj.filter((_, i) => i !== s).map(a => a.map(z => map[z])) };
+      if (s === 0) nt = renumber(nt, map[keep]);
+      return { td: nt, sel: s === 0 ? 0 : map[keep] };
+    }, "delete bag t" + s);
   }
 };
 
@@ -2639,10 +2859,187 @@ const SEP_CODE = [
     { k: "rrec", t: K("for each") + " component D of G[C] − S: hang decompose(D) below it" }] }
 ];
 
+/* ---- try it yourself (Separators) ----
+   state: bags made so far (with their parent bag), pending pieces {C, N = N(C), par, S = separator picked so far}, cur = the piece worked on */
+function sepTryResolve(st, force) {
+  const G = S.G, P = st.pending[st.cur], comps = components(G, P.S, P.C);
+  if (comps.length === 1 && !force) return { k: "pick" };
+  const id = st.bags.length;
+  st.bags.push(sortU([...P.S, ...P.N])); st.par.push(P.par);
+  st.pending.splice(st.cur, 1);
+  let ev;
+  if (!comps.length) ev = { k: "leaf", id, C: P.C, S: P.S, N: P.N };
+  else {
+    const auto = [], fresh = [];
+    for (const D of comps) {
+      const N = neighbourhoodOf(G, D);
+      if (D.length === 1) { auto.push(st.bags.length); st.bags.push(sortU([...D, ...N])); st.par.push(id); }
+      else { fresh.push(st.pending.length); st.pending.push({ C: D, N, par: id, S: [] }); }
+    }
+    ev = { k: "split", id, C: P.C, S: P.S, N: P.N, parts: comps, auto };
+    if (fresh.length) { st.cur = fresh.reduce((a, j) => st.pending[j].C.length > st.pending[a].C.length ? j : a, fresh[0]); return ev; }
+  }
+  st.cur = st.pending.length ? st.pending.reduce((a, Q, j) => Q.C.length > st.pending[a].C.length ? j : a, 0) : -1;
+  return ev;
+}
+function sepTryInit() {
+  const st = { bags: [], par: [], pending: [{ C: [...Array(S.G.n).keys()], N: [], par: -1, S: [] }], cur: 0 };
+  let ev = { k: "start" };
+  if (components(S.G, [], null).length > 1) { ev = sepTryResolve(st); ev.start = true; }
+  return { states: [{ st, ev, label: "start" }] };
+}
+function sepTryTD(st) {
+  const tadj = st.bags.map(() => []);
+  st.par.forEach((p, i) => { if (p >= 0) { tadj[i].push(p); tadj[p].push(i); } });
+  return { bags: st.bags.map(b => b.slice()), tadj };
+}
+function sepTryPush(st, ev, label) {
+  const H = S.sepHist;
+  H.states.length = S.cur + 1;
+  const wasDone = H.states.length && H.states[H.states.length - 1].st.cur < 0;
+  H.states.push({ st, ev, label });
+  MODES.sep.build(); S.cur = S.steps.length - 1; render();
+  if (st.cur < 0 && !wasDone) celebrate(tdWidth(sepTryTD(st)));
+}
+
 MODES.sep = {
   title: "Separators",
+  canUndo() { return S.sepMode === "try" && S.cur > 0; },
+  canRedo() { return S.sepMode === "try" && S.cur < S.steps.length - 1; },
+  undo() { S.cur--; render(); },
+  redo() { S.cur++; render(); },
+  buildTry() {
+    if (!S.sepHist) S.sepHist = sepTryInit();
+    S.steps = []; S.phases = [];
+    let last = null;
+    S.sepHist.states.forEach((h, i) => {
+      const ph = h.ev.k === "split" || h.ev.k === "leaf" ? "s" + h.ev.id : "s" + h.st.bags.length;
+      if (ph !== last) { mkPhase(ph, true); last = ph; }
+      add({ k: "try", i });
+    });
+    compactPhases();
+  },
+  frameTry(st) {
+    const G = S.G, n = G.n, h = S.sepHist.states[st.i], T = h.st, ev = h.ev;
+    S.sepHist.pos = st.i;
+    const gs = { vfill: [], halo: [], rings: [], ecls: new Map(), vcls: [] };
+    const ts = { ncls: new Map(), fresh: new Set() };
+    const mf = new Map(), act = new Set();
+    /* the tree: bags made so far, and a placeholder "?" for every pending piece */
+    const nodes = T.bags.map((b, i) => ({ id: i, bag: b, label: "s" + i })), parent = {};
+    T.par.forEach((p, i) => parent[i] = p);
+    T.pending.forEach((Q, j) => { nodes.push({ id: 1000 + j, bag: [], at: Q.C, text: "?", label: "|C|=" + Q.C.length }); parent[1000 + j] = Q.par; });
+    S.tree = layoutTD(nodes, parent); S.treeKey = "septry" + S.layout + S.presetKey;
+    T.pending.forEach((Q, j) => ts.ncls.set(1000 + j, "pend" + (j === T.cur ? " sel" : "")));
+    if (ev.k === "split" || ev.k === "leaf") { ts.ncls.set(ev.id, "cur"); ts.fresh.add(ev.id); (ev.auto || []).forEach(i => ts.fresh.add(i)); }
+    if (ev.S) ev.S.forEach(v => { if (ev.id !== undefined) mf.set(ev.id + "," + v, { fill: SEP_FILL, inv: true }); });
+    /* the graph: the current piece in front, everything else faded */
+    const P = T.cur >= 0 ? T.pending[T.cur] : null;
+    const pieceOf = new Map(); T.pending.forEach((Q, j) => Q.C.forEach(v => pieceOf.set(v, j)));
+    if (P) {
+      const inC = new Set(P.C), inN = new Set(P.N);
+      for (let v = 0; v < n; v++) {
+        if (inC.has(v)) gs.halo[v] = pieceFill(0);
+        else if (inN.has(v)) gs.rings.push({ v, cls: "bnd" });
+        else { gs.vcls[v] = "dim"; if (pieceOf.has(v)) gs.halo[v] = pieceFill(pieceOf.get(v) % 4 + 2); }
+      }
+      P.S.forEach(v => gs.vfill[v] = fillSep);
+      G.E.forEach(([u, v], i) => { if (!((inC.has(u) || inN.has(u)) && (inC.has(v) || inN.has(v)))) gs.ecls.set(i, "faint"); });
+    }
+    if (ev.k === "split" && !ev.start) ev.S.forEach(v => { if (!gs.vfill[v]) gs.vfill[v] = fillSep; });
+    const C0 = P ? P.C : [], Sx = P ? P.S : [];
+    let txt = "";
+    const curTxt = P ? " Now working on the piece C = " + vs(P.C) + " (teal, " + P.C.length + " vertices)" +
+      (T.pending.length > 1 ? "; click a vertex of another piece (faded) or its “?” in the tree to work there instead." : ".") : "";
+    if (ev.k === "start") {
+      act.add("r0"); act.add("rsep");
+      txt = "Pick a separator: click vertices of <i>G</i>. As soon as removing them disconnects the piece, the recursion starts: " +
+        "separator ∪ N(C) becomes a bag, and every part is decomposed on its own below it. " +
+        "<i>Make the bag now</i> (Enter) makes the bag before the piece falls apart; the rest of the piece then hangs below it as one part.";
+    } else if (ev.k === "pick") {
+      act.add("rsep");
+      txt = (Sx.length ? "S = " + vs(Sx) + ": " : "") + "<i>G</i>[C] − S is still connected. Keep picking (click a red vertex to take it back).";
+    } else if (ev.k === "split" && ev.parts.length === 1) {
+      act.add("rbag"); act.add("rrec");
+      txt = "S = " + vs(ev.S) + " leaves the piece connected, but the bag is made now: s" + ev.id + " = S ∪ N(C) = " + vs(T.bags[ev.id]) +
+        ", and the rest C − S (" + ev.parts[0].length + " vertices) is decomposed below it. Moving a small separator step by step like this is how a path-like decomposition arises." + curTxt;
+    } else if (ev.k === "split") {
+      act.add("rsep"); act.add("rbag"); act.add("rrec");
+      const half = ev.C.length / 2, big = Math.max(...ev.parts.map(D => D.length));
+      txt = ev.start ? "<i>G</i> is disconnected already: the empty separator splits it, the root bag is empty, and every component is decomposed on its own."
+        : "S = " + vs(ev.S) + " disconnects the piece of " + ev.C.length + " vertices into " + ev.parts.length + " parts of sizes " +
+          ev.parts.map(D => D.length).join(", ") + " (" + (big <= half ? '<span class="ok">balanced</span>: all ≤ |C|/2' : "not balanced: |C|/2 = " + half) + "). " +
+          "New bag s" + ev.id + " = S ∪ N(C) = " + vs(T.bags[ev.id]) + ".";
+      if (ev.auto.length) txt += " Single vertices get their bag {v} ∪ N(v) right away.";
+      txt += curTxt;
+    } else if (ev.k === "leaf") {
+      act.add("rleaf");
+      txt = "The whole piece " + vs(ev.C) + " went into one bag s" + ev.id + " = C ∪ N(C) = " + vs(T.bags[ev.id]) + "." + curTxt;
+    }
+    if (ev.k === "pick" || ev.k === "start") txt += curTxt && T.pending.length > 1 ? curTxt : "";
+    const done = !P, td = sepTryTD(T), w = tdWidth(td);
+    if (done) {
+      T.bags.forEach((b, i) => { if (b.length === w + 1) ts.ncls.set(i, ((ts.ncls.get(i) || "") + " cur").trim()); });
+      txt += (txt ? "<br>" : "") + "Done: a tree decomposition of width <b>" + w + "</b>, built from your separators." +
+        '<span class="ans">' + twText() + (twValue() != null && twValue() === w ? ": as good as it gets." : ".") + "</span>" +
+        (twValue() != null && w > twValue() ? '<span style="font-size:.86em;color:var(--wi-ink-soft)">Splitting only when a piece falls apart cannot always reach tw(G): ' +
+          "every bag also carries the whole boundary N(C). Try <i>Make the bag now</i> with small sets S, moving the separator through the graph step by step.</span>" : "");
+    }
+    if (S.hint) { txt = '<span class="bad">' + S.hint + "</span> " + txt; S.hint = ""; }
+    ts.mfill = (t, v) => mf.get(t + "," + v) || null;
+    drawGraph(gs); drawTree(ts);
+    el("tTitle").textContent = "From your separators";
+    S.shown = { label: "your separator decomposition", unfinished: !!T.pending.length, width: w, td: () => renumber(td, 0) };
+    el("tMeta").textContent = T.bags.length + " bag" + (T.bags.length === 1 ? "" : "s") + (T.pending.length ? " · " + T.pending.length + " to go" : "") + " · width " + (w < 0 ? "—" : w);
+    el("adoptSepBtn").style.display = done ? "" : "none";
+    el("finishPieceBtn").disabled = done;
+    el("bagNowBtn").disabled = done || !P || !P.S.length;
+    setStatus(txt, S.phases[st.ph] ? S.phases[st.ph].name : "");
+    setInfo("Pieces still to decompose", T.pending.length
+      ? '<table class="mini"><tr><th>piece C</th><th>size</th><th>N(C)</th><th>S so far</th></tr>' +
+        T.pending.map((Q, j) => '<tr' + (j === T.cur ? ' style="font-weight:bold"' : "") + "><td>" + vs(Q.C) + "</td><td>" + Q.C.length + "</td><td>" +
+          (Q.N.length ? vs(Q.N) : "∅") + "</td><td>" + (Q.S.length ? vs(Q.S) : "—") + "</td></tr>").join("") + "</table>" +
+        '<div class="dpnote">Every bag is S ∪ N(C): the boundary N(C) has to come along, so that the edges leaving C are inside a bag. ' +
+        "Small separators keep both small.</div>"
+      : '<div class="placeholder">Nothing left: every piece has its bag.</div>', "width so far " + (w < 0 ? "—" : w));
+    renderCode("Bags are separators", SEP_CODE, act,
+      "Your choices are the sets S; the page only does the bookkeeping. With <i>Make the bag now</i>, S need not separate: then C − S is one part. " +
+      "With that, every tree decomposition can be built this way (an elimination ordering, read from the end, picks one vertex at a time). " +
+      "Splitting only at real separators is the black-box converse, which loses a constant factor: on the 2×6 ladder it cannot get below width 3.");
+  },
+  vertexClick(v) {
+    if (S.sepMode !== "try") return false;
+    const H = S.sepHist, cur = H.states[S.cur].st;
+    if (cur.cur < 0) { S.hint = "Everything is decomposed; Undo or Start over to try again."; render(); return true; }
+    if (cur.pending[cur.cur].C.includes(v)) {
+      const st = JSON.parse(JSON.stringify(cur)), P = st.pending[st.cur], had = P.S.includes(v);
+      P.S = had ? P.S.filter(x => x !== v) : sortU([...P.S, v]);
+      const ev = sepTryResolve(st);
+      sepTryPush(st, ev, (had ? "−" : "+") + v);
+      return true;
+    }
+    const j = cur.pending.findIndex(Q => Q.C.includes(v));
+    if (j >= 0) { cur.cur = j; render(); return true; }               /* switching pieces is not an edit */
+    S.hint = "Vertex " + v + " is not in the piece being worked on" + (cur.pending[cur.cur].N.includes(v) ? " (it is on its boundary N(C))." : " (it is done already).");
+    render(); return true;
+  },
+  bagNow() {
+    if (S.sepMode !== "try") return;
+    const cur = S.sepHist.states[S.cur].st; if (cur.cur < 0) return;
+    if (!cur.pending[cur.cur].S.length) { S.hint = "Pick at least one vertex of the piece first."; render(); return; }
+    const st = JSON.parse(JSON.stringify(cur));
+    sepTryPush(st, sepTryResolve(st, true), "bag now");
+  },
+  finishPiece() {
+    if (S.sepMode !== "try") return;
+    const cur = S.sepHist.states[S.cur].st; if (cur.cur < 0) return;
+    const st = JSON.parse(JSON.stringify(cur)), P = st.pending[st.cur];
+    P.S = P.C.slice();
+    sepTryPush(st, sepTryResolve(st), "finish piece");
+  },
   build() {
     const G = S.G, td = S.TD;
+    if (S.sepMode === "try") return this.buildTry();
     if (!S.valid.ok) return needValid("Separators");
     S.steps = []; S.phases = [];
     S.tree = tdTree(td); S.treeKey = "td" + S.layout + S.tdVersion;
@@ -2679,6 +3076,8 @@ MODES.sep = {
   },
   frame(st) {
     if (st.k === "invalid") return invalidFrame();
+    if (st.k === "try") return this.frameTry(st);
+    el("finishPieceBtn").disabled = false;
     const G = S.G, td = S.TD, n = G.n;
     const gs = { vfill: [], halo: [], rings: [], ecls: new Map(), vcls: [] };
     const ts = { ncls: new Map(), boxFill: new Map(), ecls: new Map(), edgeHit: true };
@@ -2793,6 +3192,7 @@ MODES.sep = {
     }
     ts.mfill = (t, v) => mf.get(t + "," + v) || null;
     drawGraph(gs); drawTree(ts);
+    if (S.tree === S.convTree) S.shown = { label: "decomposition from separators", width: tdWidth(S.conv.td), td: () => renumber(S.conv.td, 0) };
     el("tMeta").textContent = S.tree === S.convTree ? S.conv.td.bags.length + " bags, width " + tdWidth(S.conv.td) : td.bags.length + " bags, width " + S.valid.width;
     el("tTitle").textContent = S.tree === S.convTree ? "Decomposition built from separators" : "Tree decomposition";
     setStatus(txt, S.phases[st.ph] ? S.phases[st.ph].name : "");
@@ -2801,6 +3201,12 @@ MODES.sep = {
       "The intersection of two adjacent bags is called their <b>adhesion</b>. Small width therefore means: small separators everywhere, arranged in a tree.");
   },
   bagClick(t) {
+    if (S.sepMode === "try") {
+      if (t < 1000) return false;
+      const cur = S.sepHist.states[S.cur].st;
+      if (cur.pending[t - 1000]) { cur.cur = t - 1000; render(); }
+      return true;
+    }
     if (S.steps[S.cur] && /^rec/.test(S.steps[S.cur].k)) return;
     const j = S.steps.findIndex(s => s.k === "bag" && s.t === t);
     if (j >= 0) { stopPlay(); S.cur = j; render(); }
@@ -2826,7 +3232,7 @@ const ELIM_CODE = [
 MODES.elim = {
   title: "Elimination",
   build() {
-    const G = S.G, kind = el("orderSel").value;
+    const G = S.G, kind = S.elimTry ? "click" : el("orderSel").value;
     let order, note = "";
     if (kind === "exact") {
       if (S.exact) order = S.exact.order;
@@ -2834,7 +3240,6 @@ MODES.elim = {
     } else if (kind === "mindeg" || kind === "minfill") order = orderHeuristic(G, kind);
     else if (kind === "input") order = [...Array(G.n).keys()];
     else order = S.clickOrder.slice();
-    el("clearOrderBtn").style.display = kind === "click" ? "" : "none";
     el("adoptElimBtn").disabled = order.length !== G.n;
     el("elimNote").textContent = note || (kind === "click" ? (order.length < G.n ? "Click a vertex to eliminate it next." : "") :
       kind === "mindeg" ? "Always eliminate a vertex of smallest current degree." :
@@ -2908,6 +3313,8 @@ MODES.elim = {
     }
     drawGraph(gs); drawTree(ts);
     el("tMeta").textContent = i + " of " + rec.length + " bags, width " + (w < 0 ? "—" : w);
+    S.shown = { label: "decomposition from the ordering", unfinished: S.elimOrder.length < G.n || i < G.n, width: Math.max(0, ...rec.map(r => r.N.length)),
+                td: () => (S.elimTDKey === S.elimOrder.join(",") ? S.elimTD : (S.elimTDKey = S.elimOrder.join(","), S.elimTD = tdFromOrder(G, S.elimOrder, true))) };
     setStatus(txt, S.phases[st.ph] ? S.phases[st.ph].name : "");
     const done = rec.slice(0, i);
     setInfo("Eliminated so far", done.length ? '<table class="mini"><tr><th>v</th><th>N at elimination</th><th>fill-in</th></tr>' +
@@ -2918,11 +3325,21 @@ MODES.elim = {
       "Try the star K<sub>1,6</sub>: eliminating the leaves first costs nothing (width 1); eliminating the centre first turns the six leaves into a clique (width 6). " +
       "Many redundant bags appear (contained in their parent); <i>Use this decomposition</i> merges them away.");
   },
+  canUndo() { return S.elimTry && S.clickOrder.length > 0; },
+  canRedo() { return S.elimTry && S.elimRedo.length > 0; },
+  undo() { S.elimRedo.push(S.clickOrder.pop()); this.build(); S.cur = S.steps.length - 1; render(); },
+  redo() { S.clickOrder.push(S.elimRedo.pop()); this.build(); S.cur = S.steps.length - 1; render(); },
   vertexClick(v) {
-    if (el("orderSel").value !== "click") return false;
-    if (S.clickOrder.includes(v)) return true;
+    if (!S.elimTry) return false;
+    /* clicking while looking at an earlier step continues from there */
+    const st = S.steps[S.cur] || {};
+    const done = st.k === "look" ? st.i : st.k === "elim" ? st.i + 1 : st.k === "start" ? 0 : S.clickOrder.length;
+    if (done < S.clickOrder.length) S.clickOrder = S.clickOrder.slice(0, done);
+    if (S.clickOrder.includes(v)) { this.build(); S.cur = S.steps.length - 1; render(); return true; }
+    S.elimRedo = [];
     S.clickOrder.push(v);
     this.build(); S.cur = S.steps.length - 1; render();
+    if (S.clickOrder.length === S.G.n) celebrate(Math.max(0, ...S.elimRec.map(r => r.N.length)));
     return true;
   }
 };
@@ -3019,12 +3436,14 @@ MODES.dp = {
       const nodes = nice.nodes.map(o => { const [tag, cls] = tagOf(o); return { id: o.id, bag: o.bag, tag, tagCls: cls }; });
       /* depth-first order so that children keep their left-to-right order */
       const ord = [], walk = x => { ord.push(nodes[x]); nice.nodes[x].ch.forEach(walk); }; walk(nice.root);
-      const tree = layoutForest(ord, nice.parent, { dy: 58, tagW: 34, gap: 14 });
       const total = nice.nodes.reduce((s, o) => s + Math.pow(P.q, o.bag.length), 0);
-      S.cache.dp = { key, nice, T, VE, tb, tree, total };
+      S.cache.dp = { key, nice, T, VE, tb, total, ord, trees: {} };
     }
     const D = S.cache.dp, nice = D.nice;
-    S.tree = D.tree; S.treeKey = "dp" + key;
+    const mk = c => D.trees[c] || (D.trees[c] = layoutTD(D.ord, nice.parent, { dy: 58, tagW: 34, gap: 14, gapX: 26 }, c));
+    if (!S.dpChosen) { S.dpLayout = bestLayout(["tidy", "right"], mk); syncLayoutSeg(); }
+    if (!D.trees[S.dpLayout]) D.trees[S.dpLayout] = layoutTD(D.ord, nice.parent, { dy: 58, tagW: 34, gap: 14, gapX: 26 }, S.dpLayout);
+    S.tree = D.trees[S.dpLayout]; S.treeKey = "dp" + S.dpLayout + key;
     const fineOK = D.total <= 6000;
     el("granSeg").querySelector('[data-g="1"]').disabled = !fineOK;
     const fine = S.gran === 1 && fineOK;
@@ -3309,6 +3728,10 @@ const COP_CODE = [
 
 MODES.cops = {
   title: "Cops and robber",
+  canUndo() { return S.copMode === "play" && S.cur > 0; },
+  canRedo() { return S.copMode === "play" && S.cur < S.steps.length - 1; },
+  undo() { S.copSel = {}; S.cur--; render(); },
+  redo() { S.copSel = {}; S.cur++; render(); },
   build() {
     const G = S.G;
     const play = S.copMode === "play";
@@ -3324,7 +3747,7 @@ MODES.cops = {
       rounds.forEach((r, i) => { mkPhase(String(i + 1), true); add({ k: "announce", i }); add({ k: "land", i }); });
       compactPhases();
     } else {
-      el("copNote").innerHTML = "Click vertices to choose where the cops land, then <b>Fly</b>.";
+      el("copNote").innerHTML = "Click a vertex to fly a cop there; to move one, click it and its target (either order).";
       mkPhase("Start");
       S.copHist.forEach((h, i) => { if (i === 1) mkPhase("Rounds"); add({ k: "hist", i }); });
     }
@@ -3376,25 +3799,34 @@ MODES.cops = {
       info = '<table class="mini"><tr><th>round</th><th>bag</th><th>cops</th><th>robber</th></tr>' +
         R.slice(0, st.i + 1).map((q, j) => "<tr><td>" + (j + 1) + "</td><td>t" + q.to + "</td><td>" + vs(q.X2) + "</td><td>" + (q.caught ? "caught" : q.r2) + "</td></tr>").join("") + "</table>";
     } else if (st.k === "hist") {
-      const h = S.copHist[st.i], last = st.i === S.copHist.length - 1;
-      gs.cops.at = h.X;
+      const h = S.copHist[st.i], last = st.i === S.copHist.length - 1, sel = last ? (S.copSel || {}) : {};
+      gs.cops.at = h.X.filter(v => v !== sel.cop);
+      if (sel.cop != null) gs.cops.air = [sel.cop];                      /* selected: about to take off */
+      if (sel.target != null) gs.cops.plan = [sel.target];
+      if (h.move) gs.flights = h.move.from != null ? [[h.move.from, h.move.to]] : [];
       if (h.r !== null) gs.cops.robber = h.r;
       if (h.caught) { gs.cops.robber = h.prevR; gs.cops.caught = true; }
       if (h.run && h.run[0] !== null && h.run[0] !== h.run[1]) gs.run = h.run;
-      if (last && !h.caught) {
-        gs.cops.plan = S.copPlan.slice();
-        const stay = h.X.filter(v => S.copPlan.includes(v));
-        if (h.r !== null) shade(components(G, stay, null).find(K => K.includes(h.r)) || [], "#f3cfc6");
-        else shade([...Array(n).keys()].filter(v => !stay.includes(v)), "#f3cfc6");
-      } else if (!h.caught && h.r !== null) shade(components(G, h.X, null).find(K => K.includes(h.r)) || [], "#f3cfc6");
+      /* red: where the robber can get to — if the selected cop takes off, or else right now */
+      if (!h.caught) {
+        const ground = sel.cop != null ? h.X.filter(v => v !== sel.cop) : h.X;
+        if (h.r !== null) shade(components(G, ground, null).find(K => K.includes(h.r)) || [], "#f3cfc6");
+        else if (last) shade([...Array(n).keys()].filter(v => !ground.includes(v)), "#f3cfc6");
+      }
       if (h.X.length) S.TD.bags.forEach((b, t) => { if (h.X.every(v => b.includes(v))) ts.ncls.set(t, "cur"); });
       act.add(st.i === 0 ? "g0" : "g4");
       const lim = Number(el("copCount").value) || 1;
-      if (st.i === 0) txt = "You have <b>" + lim + "</b> cop" + (lim > 1 ? "s" : "") + ". Click the vertices where they should land (" + S.copPlan.length + "/" + lim + " chosen), then press <b>Fly</b>. " +
-        "The red region is where the robber can get to while you are in the air.";
-      else if (h.caught) txt = '<span class="ok">Caught</span> in round ' + st.i + ".";
-      else txt = "Round " + st.i + ": the robber " + (h.run && h.run[0] !== h.r ? "ran to" : "is on") + " <b>" + h.r + "</b>. " +
-        (last ? "Choose the next landing set (" + S.copPlan.length + "/" + lim + "), then <b>Fly</b>. Cops on vertices you keep selected stay on the ground and block the robber's paths." : "");
+      const left = lim - h.X.length, cops = k => k + " cop" + (k === 1 ? "" : "s");
+      const what = !h.move ? "" : h.move.from == null ? "A new cop landed on <b>" + h.move.to + "</b>" : "The cop from " + h.move.from + " flew to <b>" + h.move.to + "</b>";
+      if (st.i === 0) txt = "You have <b>" + cops(lim) + "</b>. Click a vertex: a cop flies there. With all cops on the ground, click a cop and then a vertex " +
+        "(or the other way round) to fly it there. While a cop is in the air, the robber may run anywhere he can reach without passing a cop on the ground.";
+      else if (h.caught) txt = what + ': <span class="ok">caught</span> in round ' + st.i + ".";
+      else txt = what + "; the robber " + (h.run && h.run[0] !== h.r ? "ran to" : "stays on") + " <b>" + h.r + "</b>, and red is where he can get to.";
+      if (S.hint) { txt = '<span class="bad">' + S.hint + "</span> " + txt; S.hint = ""; }
+      if (last && !h.caught && st.i > 0) txt += "<br>" + (sel.cop != null ? "Cop on " + sel.cop + " selected: the red region shows where the robber can get while it is in the air. Click a vertex to fly it there (or the cop again to keep it)."
+        : sel.target != null ? "Target " + sel.target + " chosen: click the cop that should fly there."
+        : left > 0 ? cops(left) + " left: click a vertex to fly one in, or move a cop (click it, then its target)."
+        : "Click a cop, then where it should go — or the other way round.");
       info = '<div class="placeholder">A robber who can always escape to a big region proves a lower bound: with at most tw(G) cops he wins. ' +
         "Try the 4×4 grid with 4 cops, then with 5." + (twValue() != null ? " Here " + twText() + ", so " + (twValue() + 1) + " cops suffice and " + twValue() + " do not." : "") + "</div>";
     }
@@ -3408,24 +3840,40 @@ MODES.cops = {
   },
   vertexClick(v) {
     if (S.copMode !== "play") return false;
-    const last = S.copHist[S.copHist.length - 1];
-    if (last.caught) return true;
-    if (S.cur !== S.steps.length - 1) { S.copHist = S.copHist.slice(0, S.cur + 1); }
+    if (S.cur !== S.steps.length - 1) { S.copHist = S.copHist.slice(0, S.cur + 1); S.copSel = {}; }   /* continue from the round shown */
+    const h = S.copHist[S.copHist.length - 1], sel = S.copSel || (S.copSel = {});
+    if (h.caught) { S.hint = "The robber is caught. Undo or Start over to play again."; render(); return true; }
     const lim = Number(el("copCount").value) || 1;
-    if (S.copPlan.includes(v)) S.copPlan = S.copPlan.filter(x => x !== v);
-    else if (S.copPlan.length < lim) S.copPlan.push(v);
-    this.build(); S.cur = S.steps.length - 1; render();
+    if (h.X.includes(v)) {                                   /* a cop */
+      if (sel.target != null) this.fly(v, sel.target);
+      else { sel.cop = sel.cop === v ? null : v; render(); }
+    } else {                                                  /* an empty vertex */
+      if (sel.cop != null) this.fly(sel.cop, v);
+      else if (h.X.length < lim) this.fly(null, v);           /* a new cop from the reserve */
+      else { sel.target = sel.target === v ? null : v; render(); }
+    }
     return true;
   },
-  fly() {
-    if (S.cur !== S.steps.length - 1) S.copHist = S.copHist.slice(0, S.cur + 1);
+  /* one round: the cop on u (or a new one, u = null) flies to w */
+  fly(u, w) {
     const h = S.copHist[S.copHist.length - 1];
-    if (h.caught || !S.copPlan.length) return;
-    const run = robberRun(S.G, h.r, h.X, S.copPlan);
-    S.copHist.push({ X: S.copPlan.slice(), r: run.caught ? null : run.r, prevR: h.r, caught: run.caught, run: run.caught ? null : [h.r, run.r] });
+    const X2 = sortU([...h.X.filter(x => x !== u), w]);
+    const run = robberRun(S.G, h.r, h.X, X2);
+    S.copSel = {};
+    S.copHist.push({ X: X2, r: run.caught ? null : run.r, prevR: h.r, caught: run.caught, run: run.caught ? null : [h.r, run.r], move: { from: u, to: w } });
     this.build(); S.cur = S.steps.length - 1; render();
+    if (run.caught) {
+      const k = Math.max(...S.copHist.map(q => q.X.length)), rounds = S.copHist.length - 1, tw = twValue();
+      const need = tw != null ? tw + 1 : null, cops = n => n + " cop" + (n === 1 ? "" : "s");
+      const sub = t => '<span class="sub">' + t + "</span>";
+      let gold = false, html = "Caught with " + cops(k) + " in " + rounds + " round" + (rounds === 1 ? "" : "s");
+      if (need != null && k === need) { gold = true; html = "★ Caught with " + cops(k) + " — the minimum! ★" + sub("tw(G) + 1 = " + need + "; with fewer, a clever robber escapes"); }
+      else if (need != null && k < need) html += sub("lucky: tw(G) = " + tw + ", so a clever robber escapes from " + cops(k));
+      else if (need != null) html += sub("tw(G) + 1 = " + need + " cops would do — can you?");
+      celebrate(null, { gold, html, info: { cops: k, rounds } });
+    }
   },
-  reset() { S.copHist = [{ X: [], r: null, caught: false }]; S.copPlan = []; this.build(); S.cur = 0; render(); }
+  reset() { S.copHist = [{ X: [], r: null, caught: false }]; S.copSel = {}; this.build(); S.cur = 0; render(); }
 };
 
 /* ==========================================================================
@@ -3433,6 +3881,7 @@ MODES.cops = {
    ========================================================================== */
 
 function render() {
+  S.shown = null;
   if (S.pinRow && (S.pinRow.cur !== S.cur || S.tab !== "dp")) { S.pinRow = null; S.hoverRow = null; }
   const st = S.steps[S.cur] || {};
   MODES[S.tab].frame(st);
@@ -3442,6 +3891,10 @@ function render() {
   el("stepNo").textContent = S.steps.length ? (S.cur + 1) + " / " + S.steps.length : "— / —";
   el("backBtn").disabled = S.cur <= 0;
   el("stepBtn").disabled = S.cur >= S.steps.length - 1;
+  updateReadout();
+  const M = MODES[S.tab];
+  document.querySelectorAll('#opbar .grp[data-tab="' + S.tab + '"] .undo').forEach(b => b.disabled = !(M.canUndo && M.canUndo()));
+  document.querySelectorAll('#opbar .grp[data-tab="' + S.tab + '"] .redo').forEach(b => b.disabled = !(M.canRedo && M.canRedo()));
   renderLegends();
 }
 
@@ -3459,7 +3912,11 @@ function renderLegends() {
     if (st.k === "walk") g = it(sw(SEP_FILL, "var(--wi-accent-dark)"), "current bag") + it(sw("#f3cfc6", "#f3cfc6"), "component > n/2");
     t = it(ln("var(--wi-active)", true), "cut tree edge") + it(sw(LIGHT_CUR, "var(--wi-active)"), "current bag");
     if (st.k === "walk") t = it(sw(LIGHT_CUR, "var(--wi-active)"), "current bag") + it(ln("var(--wi-active)"), "the walk");
-    if (/^rec/.test(st.k || "")) {
+    if (st.k === "try") {
+      g = it(sw("var(--p0l)", "var(--p0l)"), "current piece C") + it(sw("transparent", "var(--wi-examine)", ";border-style:dashed;border-width:2px"), "N(C)") +
+          it(sw(SEP_FILL, "var(--wi-accent-dark)"), "separator S") + it(sw("var(--p2l)", "var(--p2l)", ";opacity:.6"), "other pieces (click to switch)");
+      t = it(sw(LIGHT_CUR, "var(--wi-active)"), "newest bag") + it(sw("transparent", "var(--wi-border-strong)", ";border-style:dashed"), "a piece still to decompose");
+    } else if (/^rec/.test(st.k || "")) {
       g = it(sw("var(--p0l)", "var(--p0l)"), "piece C") + it(sw("transparent", "var(--wi-examine)", ";border-style:dashed;border-width:2px"), "N(C)") +
           it(sw(SEP_FILL, "var(--wi-accent-dark)"), "separator S") + it(sw("var(--p2l)", "var(--p2l)"), "") + it(sw("var(--p3l)", "var(--p3l)"), "parts of C − S");
       t = it(sw(LIGHT_CUR, "var(--wi-active)"), "new bag S ∪ N(C)") + it(sw("var(--wi-panel-2)", "var(--wi-accent-dark)", ";border-style:dashed"), "bag of the caller");
@@ -3498,12 +3955,17 @@ function switchTab(tab, keepCur) {
   syncLayoutSeg();
   MODES[tab].build();
   S.cur = keepCur ? Math.min(S.cur, S.steps.length - 1) : 0;
+  if (tab === "def" && S.edit && S.defHist) S.cur = Math.min(S.defHist.idx, S.steps.length - 1);
+  if (tab === "sep" && S.sepMode === "try" && S.sepHist) S.cur = Math.min(S.sepHist.pos != null ? S.sepHist.pos : S.steps.length - 1, S.steps.length - 1);
+  if (tab === "elim" && S.elimTry) S.cur = S.steps.length - 1;
+  if (tab === "cops" && S.copMode === "play") S.cur = S.steps.length - 1;
   render();
 }
 
 function syncLayoutSeg() {
-  el("layoutSeg").querySelectorAll("button").forEach(x => { x.classList.toggle("on", x.dataset.l === S.layout); x.disabled = S.tab === "dp"; });
-  el("layoutSeg").title = S.tab === "dp" ? "the nice decomposition is always drawn as a tree" : "how the bags are placed";
+  const cur = S.tab === "dp" ? S.dpLayout : S.layout;
+  el("layoutSeg").querySelectorAll("button").forEach(x => { x.classList.toggle("on", x.dataset.l === cur); x.disabled = S.tab === "dp" && x.dataset.l === "geo"; });
+  el("layoutSeg").title = "how the bags are placed";
 }
 function tdChanged(stayAtEnd) {
   S.valid = validity(S.G, S.TD);
@@ -3517,14 +3979,25 @@ function tdChanged(stayAtEnd) {
   render();
 }
 
+/* the same decomposition, whatever the numbering of its bags */
+function tdSig(td) {
+  const key = b => b.join(",");
+  const E = [];
+  td.tadj.forEach((a, i) => a.forEach(j => { if (i < j) E.push([key(td.bags[i]), key(td.bags[j])].sort().join("|")); }));
+  return td.bags.map(key).sort().join(";") + "#" + E.sort().join(";");
+}
 function updateReadout() {
   const G = S.G, V = S.valid;
   const parts = ["n = " + G.n, "m = " + G.E.length];
   parts.push(S.exact ? "tw(G) = <b>" + S.exact.tw + "</b>" : S.twKnown !== null && S.twKnown !== undefined ? "tw(G) = <b>" + S.twKnown + "</b>" : "tw(G) ≤ <b>" + S.bestKnown + "</b>");
-  parts.push("this decomposition: " + (V.ok ? "width " + V.width : '<span style="color:var(--wi-active)">invalid</span>'));
+  const sh = S.shown, bad = t => '<span style="color:var(--wi-active)">' + t + "</span>";
+  const inUse = sh && !sh.unfinished && sh.td && (() => { const t = typeof sh.td === "function" ? sh.td() : sh.td; return t && tdSig(t) === tdSig(S.TD); })();
+  if (inUse) parts.push("this decomposition: width " + sh.width);
+  else if (sh) parts.push(sh.label + ": " + (sh.unfinished ? bad("unfinished") : "width " + sh.width) +
+                     '<span style="color:var(--wi-ink-faint)"> (not in use)</span>');
+  else parts.push("this decomposition: " + (V.ok ? "width " + (V.width < 0 ? "—" : V.width) : bad("invalid")));
   el("twReadout").innerHTML = parts.join(" · ");
   el("gMeta").textContent = G.n + " vertices, " + G.E.length + " edges";
-  el("tMeta").textContent = S.TD.bags.length + " bags, width " + V.width;
 }
 
 function fillWalkStart() {
@@ -3537,13 +4010,20 @@ function fillWalkStart() {
 
 function loadGraph(G, td, key) {
   S.G = G;
-  if (!S.layoutChosen) S.layout = G.n > 24 ? "geo" : "tidy";
   S.exact = exactTreewidth(G);
   S.TD = td ? renumber(td, 0) : defaultTD(G);
+  if (!S.layoutChosen) {
+    if (G.n > 24) S.layout = "geo";
+    else {
+      const R0 = rootTree(S.TD.tadj, 0), nodes = S.TD.bags.map((b, t) => ({ id: t, bag: b, label: "t" + t }));
+      S.layout = bestLayout(["tidy", "right"], c => layoutTD(nodes, R0.parent, {}, c));
+    }
+  }
   S.bestKnown = S.exact ? S.exact.tw : Math.min(tdWidth(S.TD) >= 0 && validity(G, S.TD).ok ? tdWidth(S.TD) : 99, tdWidth(defaultTD(G)));
   S.presetKey = key + ":" + Date.now();
   S.walkStart = undefined; S.selBag = -1; S.pin = null; S.pinRow = null;
-  S.clickOrder = []; S.copHist = [{ X: [], r: null, caught: false }]; S.copPlan = [];
+  S.clickOrder = []; S.elimRedo = []; S.copHist = [{ X: [], r: null, caught: false }]; S.copSel = {};
+  S.sepHist = null; S.defHist = null;
   const m = /^(\d+)×\1$/.exec(""); S.gridK = null;
   if (/^grid(\d)$/.test(key)) S.gridK = Number(key.slice(4));
   S.tdVersion = (S.tdVersion || 0) + 1; S.cache = {};
@@ -3566,10 +4046,49 @@ function loadText(text, key) {
 }
 
 function init() {
+  S.dpLayout = "right";
+  try {
+    const L = JSON.parse(localStorage.getItem("wi-tw-layout") || "{}");
+    if (L.layout) { S.layout = L.layout; S.layoutChosen = true; }
+    if (L.dp) { S.dpLayout = L.dp; S.dpChosen = true; }
+  } catch (e) {}
   GV = new View(el("gSvg")); TV = new View(el("tSvg"));
   GV.setLocked(GV.locked); TV.setLocked(TV.locked);
+  GV.setMove(false); TV.setMove(false);
+  let redrawG = false, redrawT = false;
+  const redraw = () => requestAnimationFrame(() => {
+    if (redrawG) { redrawG = false; drawGraph(S.lastGSpec); }
+    if (redrawT) { redrawT = false; drawTree(S.lastTSpec); }
+  });
+  GV.dragTarget = t => {
+    const g = t.closest(".g-v[data-v]"); if (!g) return null;
+    const v = Number(g.dataset.v);
+    return { v, x: S.G.pos[v].x, y: S.G.pos[v].y };
+  };
+  GV.onDrag = (d, dx, dy) => {
+    hideTip();
+    S.G.pos[d.v].x = d.x + dx; S.G.pos[d.v].y = d.y + dy;
+    if (!redrawG) { redrawG = true; redraw(); }
+  };
+  TV.dragTarget = (t, ev) => {
+    const g = t.closest(".t-b[data-b]"); if (!g || !S.tree) return null;
+    const id = Number(g.dataset.b), T = S.tree, ids = [id];
+    if (ev.shiftKey) for (let i = 0; i < ids.length; i++) for (const [p, c] of T.edges) if (p === ids[i]) ids.push(c);
+    return { T, ids, start: ids.map(i => ({ x: T.byId.get(i).x, y: T.byId.get(i).y })) };
+  };
+  TV.onDrag = (d, dx, dy) => {
+    hideTip();
+    if (d.T !== S.tree) return;
+    d.ids.forEach((i, k) => {
+      const nn = d.T.byId.get(i), j = d.T.nodes.indexOf(nn);
+      nn.x = d.start[k].x + dx; nn.y = d.start[k].y + dy; nn.moved = true;
+      if (j >= 0) d.T.nodes[j] = nn;
+    });
+    d.T.world = treeWorld(d.T);
+    if (!redrawT) { redrawT = true; redraw(); }
+  };
   S.hoverE = -1;
-  S.prob = "mwis"; S.gran = 0; S.copMode = "td"; S.edit = false; S.tdVersion = 0;
+  S.prob = "mwis"; S.gran = 0; S.sepMode = "watch"; S.elimTry = false; S.elimRedo = []; S.hint = ""; S.copMode = "td"; S.edit = false; S.tdVersion = 0;
   const sel = el("presetSel");
   sel.innerHTML = PRESETS.map(p => '<option value="' + p.id + '">' + esc(p.name) + "</option>").join("");
   sel.addEventListener("change", () => {
@@ -3581,41 +4100,67 @@ function init() {
 
   el("layoutSeg").addEventListener("click", ev => {
     const b = ev.target.closest("button"); if (!b || b.disabled) return;
-    S.layout = b.dataset.l; S.layoutChosen = true; syncLayoutSeg();
+    if (S.tab === "dp") { S.dpLayout = b.dataset.l; S.dpChosen = true; } else { S.layout = b.dataset.l; S.layoutChosen = true; }
+    try { localStorage.setItem("wi-tw-layout", JSON.stringify({ layout: S.layoutChosen ? S.layout : null, dp: S.dpChosen ? S.dpLayout : null })); } catch (e) {}
+    syncLayoutSeg();
     MODES[S.tab].build(); S.cur = Math.min(S.cur, S.steps.length - 1); render();
   });
   el("tabSeg").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b) switchTab(b.dataset.tab); });
-  el("editChk").addEventListener("change", e => {
-    S.edit = e.target.checked; el("editBtns").style.display = S.edit ? "" : "none";
-    el("defNote").style.display = S.edit ? "none" : "";
-    if (S.edit) { if (S.selBag < 0) S.selBag = 0; S.cur = S.steps.length - 1; }
-    render();
+  /* every tab with a "watch | try it yourself" switch */
+  const modeSeg = (id, f) => el(id).addEventListener("click", ev => {
+    const b = ev.target.closest("button"); if (!b || b.classList.contains("on")) return;
+    stopPlay();
+    el(id).querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    f(b.dataset.m === "try");
   });
-  el("addBagBtn").addEventListener("click", () => {
-    const t = S.TD.bags.length, p = S.selBag >= 0 ? S.selBag : 0;
-    S.TD.bags.push([]); S.TD.tadj.push([p]); S.TD.tadj[p].push(t); S.selBag = t; tdChanged(true);
+  modeSeg("defModeSeg", on => {
+    S.edit = on; el("editBtns").style.display = on ? "" : "none";
+    el("defNote").style.display = on ? "none" : "";
+    if (on) defStartHistory(true);                    /* start from scratch; Undo brings back the given decomposition */
+    tdChanged(true);
   });
-  el("delBagBtn").addEventListener("click", () => {
-    const td = S.TD, s = S.selBag;
-    if (s < 0 || td.bags.length < 2) return;
-    const R = rootTree(td.tadj, 0), keep = R.parent[s] >= 0 ? R.parent[s] : R.children[s][0];
-    for (const y of td.tadj[s]) if (y !== keep) { td.tadj[y] = td.tadj[y].filter(z => z !== s); td.tadj[y].push(keep); td.tadj[keep].push(y); }
-    td.tadj[keep] = td.tadj[keep].filter(z => z !== s);
-    td.tadj[s] = [];
-    const map = td.bags.map((_, i) => i < s ? i : i - 1);
-    S.TD = { bags: td.bags.filter((_, i) => i !== s), tadj: td.tadj.filter((_, i) => i !== s).map(a => a.map(z => map[z])) };
-    if (s === 0) S.TD = renumber(S.TD, map[keep]);
-    S.selBag = -1; tdChanged(true);
+  el("addBagBtn").addEventListener("click", () => { stopPlay(); MODES.def.nextBag(); });
+  el("delBagBtn").addEventListener("click", () => { stopPlay(); MODES.def.deleteBag(); });
+  el("scratchBtn").addEventListener("click", () => { stopPlay(); defEdit(() => ({ td: { bags: [[]], tadj: [[]] }, sel: 0 }), "start from scratch: one empty bag t0", "t0"); });
+  el("recomputeBtn").addEventListener("click", () => { stopPlay(); defEdit(() => ({ td: defaultTD(S.G), sel: 0 }), "an optimal decomposition", "optimal", true); });
+
+  /* undo / redo (all tabs that have a history) */
+  const doUndo = () => { const M = MODES[S.tab]; if (M.canUndo && M.canUndo()) { stopPlay(); M.undo(); } };
+  const doRedo = () => { const M = MODES[S.tab]; if (M.canRedo && M.canRedo()) { stopPlay(); M.redo(); } };
+  el("opbar").addEventListener("click", ev => {
+    if (ev.target.closest(".undo")) doUndo(); else if (ev.target.closest(".redo")) doRedo();
   });
-  el("recomputeBtn").addEventListener("click", () => { S.TD = defaultTD(S.G); S.selBag = -1; tdChanged(true); });
+  S.doUndo = doUndo; S.doRedo = doRedo;
+  modeSeg("sepModeSeg", on => {
+    S.sepMode = on ? "try" : "watch";
+    document.querySelectorAll("#opbar .sepwatch").forEach(x => x.style.display = S.sepMode === "try" ? "none" : "");
+    document.querySelectorAll("#opbar .septry").forEach(x => x.style.display = S.sepMode === "try" ? "" : "none");
+    MODES.sep.build(); S.cur = S.sepMode === "try" ? S.steps.length - 1 : 0; render();
+  });
+  el("finishPieceBtn").addEventListener("click", () => { stopPlay(); MODES.sep.finishPiece(); });
+  el("bagNowBtn").addEventListener("click", () => { stopPlay(); MODES.sep.bagNow(); });
+  el("sepRestartBtn").addEventListener("click", () => { stopPlay(); S.sepHist = null; MODES.sep.build(); S.cur = S.steps.length - 1; render(); });
 
   el("walkStart").addEventListener("change", e => {
     S.walkStart = Number(e.target.value); MODES.sep.build();
     S.cur = S.phases.find(p => p.name === "Balanced separator").from; render();
   });
-  el("adoptSepBtn").addEventListener("click", () => { S.TD = renumber(S.conv.td, 0); tdChanged(false); });
-  el("orderSel").addEventListener("change", () => { S.clickOrder = []; MODES.elim.build(); S.cur = 0; render(); });
-  el("clearOrderBtn").addEventListener("click", () => { S.clickOrder = []; MODES.elim.build(); S.cur = 0; render(); });
+  el("adoptSepBtn").addEventListener("click", () => {
+    S.TD = renumber(S.sepMode === "try" ? sepTryTD(S.sepHist.states[S.cur].st) : S.conv.td, 0);
+    const keep = S.sepMode === "try";
+    tdChanged(keep);
+  });
+  el("orderSel").addEventListener("change", () => { MODES.elim.build(); S.cur = 0; render(); });
+  modeSeg("elimModeSeg", on => {
+    S.elimTry = on;
+    el("elimWatchCtl").style.display = on ? "none" : ""; el("elimTryCtl").style.display = on ? "" : "none";
+    MODES.elim.build(); S.cur = on ? S.steps.length - 1 : 0; render();
+  });
+  el("clearOrderBtn").addEventListener("click", () => {
+    if (!S.clickOrder.length) return;
+    S.elimRedo = S.clickOrder.slice().reverse(); S.clickOrder = [];          /* Redo replays them */
+    MODES.elim.build(); S.cur = 0; render();
+  });
   el("adoptElimBtn").addEventListener("click", () => {
     if (S.elimOrder.length !== S.G.n) return;
     S.TD = tdFromOrder(S.G, S.elimOrder, true); tdChanged(false);
@@ -3639,17 +4184,12 @@ function init() {
   });
   el("hideInfChk").addEventListener("change", () => render());
   el("followChk").addEventListener("change", () => render());
-  el("copModeSeg").addEventListener("click", ev => {
-    const b = ev.target.closest("button"); if (!b) return;
-    S.copMode = b.dataset.m;
-    el("copModeSeg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  modeSeg("copModeSeg", on => {
+    S.copMode = on ? "play" : "td";
     MODES.cops.build(); S.cur = S.copMode === "play" ? S.steps.length - 1 : 0; render();
   });
-  el("flyBtn").addEventListener("click", () => MODES.cops.fly());
   el("copResetBtn").addEventListener("click", () => MODES.cops.reset());
   el("copCount").addEventListener("input", () => {
-    const lim = Number(el("copCount").value) || 1;
-    if (S.copPlan.length > lim) S.copPlan = S.copPlan.slice(0, lim);
     render();
   });
 
@@ -3664,7 +4204,12 @@ function init() {
     if (S.timer) { stopPlay(); togglePlay(); }
   });
   document.addEventListener("keydown", ev => {
-    if (/^(TEXTAREA|INPUT|SELECT)$/.test(ev.target.tagName)) return;
+    if (/^(TEXTAREA|SELECT)$/.test(ev.target.tagName) || (ev.target.tagName === "INPUT" && /^(text|number|search)$/.test(ev.target.type))) return;
+    const mod = ev.ctrlKey || ev.metaKey, key = ev.key.toLowerCase();
+    if (mod && key === "z") { if (ev.shiftKey) S.doRedo(); else S.doUndo(); ev.preventDefault(); return; }
+    if (mod && key === "y") { S.doRedo(); ev.preventDefault(); return; }
+    if (ev.key === "Enter" && S.tab === "def" && S.edit && !/^(BUTTON|A)$/.test(ev.target.tagName)) { stopPlay(); MODES.def.nextBag(); ev.preventDefault(); return; }
+    if (ev.key === "Enter" && S.tab === "sep" && S.sepMode === "try" && !/^(BUTTON|A)$/.test(ev.target.tagName)) { stopPlay(); MODES.sep.bagNow(); ev.preventDefault(); return; }
     if (ev.target.classList && (ev.target.classList.contains("splitter") || ev.target.classList.contains("hsplit"))) return;
     if (ev.key === "ArrowRight") { stopPlay(); stepFwd(); ev.preventDefault(); }
     if (ev.key === "ArrowLeft") { stopPlay(); stepBack(); ev.preventDefault(); }
@@ -3739,6 +4284,92 @@ function init() {
   loadText(p0.text, p0.id);
 }
 
+/* ---------------------------------------------------------------- a finished decomposition: tree parts rain down
+   gold (with sparkles) when the width equals the proven treewidth */
+function celebrate(width, custom) {
+  const tw = twValue(), gold = custom ? custom.gold : tw != null && width === tw;
+  S.lastCelebration = custom ? Object.assign({ gold }, custom.info || {}) : { width, gold };
+  /* the note */
+  let note = el("cheer");
+  if (!note) { note = document.createElement("div"); note.id = "cheer"; document.body.appendChild(note); }
+  note.className = gold ? "gold" : "";
+  note.innerHTML = custom ? custom.html : gold ? "★ width " + width + " — optimal! ★" : "A tree decomposition of width " + width +
+    (tw != null ? '<span class="sub">tw(G) = ' + tw + " — can you get there?</span>" : "");
+  note.classList.remove("show"); void note.offsetWidth; note.classList.add("show");
+  clearTimeout(celebrate.nt); celebrate.nt = setTimeout(() => note.classList.remove("show"), gold ? 3600 : 2600);
+  if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  /* the rain */
+  let cv = el("rain");
+  if (!cv) { cv = document.createElement("canvas"); cv.id = "rain"; document.body.appendChild(cv); }
+  const dpr = window.devicePixelRatio || 1, W = innerWidth, H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.display = "block";
+  const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const R = (a, b) => a + Math.random() * (b - a);
+  const LEAF = ["#5f7d3a", "#7a9a45", "#4a6b2f", "#9aa63f", "#b5862e", "#a5562b", "#c27a2c"];
+  const GOLD = [["#fff3b0", "#e8b923", "#9c6d0a"], ["#ffe680", "#d4a017", "#8a5c07"], ["#fff8d6", "#f0c040", "#a87a12"]];
+  const parts = [], N = Math.round(Math.min(160, W * H / 9000) * (gold ? 1.4 : 1));
+  for (let i = 0; i < N; i++) {
+    const twig = Math.random() < (gold ? 0.12 : 0.22);
+    parts.push({
+      twig, x: R(-20, W + 20), y: R(-H * 0.9, -20), vy: R(70, 150), sway: R(18, 55), sp: R(0.8, 2.2), ph: R(0, 6.3),
+      rot: R(0, 6.3), vr: R(-2.5, 2.5), flip: R(1.5, 4), size: twig ? R(16, 30) : R(9, 17),
+      col: gold ? GOLD[i % GOLD.length] : LEAF[i % LEAF.length], delay: R(0, 900), fork: R(0.3, 0.7)
+    });
+  }
+  const sparks = gold ? Array.from({ length: 46 }, () => ({ x: R(0, W), y: R(0, H * 0.85), t0: R(0, 2600), life: R(500, 1000), r: R(3, 7) })) : [];
+  const leaf = (p, t) => {
+    const k = p.size, sx = Math.cos(t * p.flip + p.ph);               /* tumbling: the leaf turns over */
+    ctx.scale(Math.max(0.15, Math.abs(sx)), 1);
+    if (gold) {
+      const g = ctx.createLinearGradient(-k, -k, k, k);
+      g.addColorStop(0, p.col[0]); g.addColorStop(0.5, p.col[1]); g.addColorStop(1, p.col[2]);
+      ctx.fillStyle = g;
+    } else ctx.fillStyle = p.col;
+    ctx.beginPath();
+    ctx.moveTo(0, -k); ctx.bezierCurveTo(k * 0.75, -k * 0.5, k * 0.65, k * 0.5, 0, k);
+    ctx.bezierCurveTo(-k * 0.65, k * 0.5, -k * 0.75, -k * 0.5, 0, -k); ctx.fill();
+    ctx.strokeStyle = gold ? "rgba(120,80,0,.55)" : "rgba(40,50,20,.45)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, -k * 0.9); ctx.lineTo(0, k * 1.25); ctx.stroke();      /* midrib and stalk */
+    if (sx < 0 && gold) { ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.beginPath(); ctx.ellipse(-k * 0.2, -k * 0.3, k * 0.18, k * 0.4, 0.4, 0, 6.3); ctx.fill(); }
+  };
+  const twig = p => {
+    const k = p.size;
+    ctx.strokeStyle = gold ? "#b8860b" : "#6b4a2b"; ctx.lineCap = "round";
+    ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(0, -k); ctx.lineTo(0, k); ctx.stroke();
+    ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(0, k * (p.fork - 0.5) * 2 - k * 0.1); ctx.lineTo(k * 0.55, k * (p.fork - 0.5) * 2 - k * 0.65); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -k * 0.35); ctx.lineTo(-k * 0.45, -k * 0.85); ctx.stroke();
+    ctx.fillStyle = gold ? "#e8b923" : "#7a9a45";                                       /* a leaf at the end of the fork */
+    ctx.beginPath(); ctx.ellipse(k * 0.62, k * (p.fork - 0.5) * 2 - k * 0.78, 3.2, 6, 0.6, 0, 6.3); ctx.fill();
+  };
+  const t0 = performance.now(), DUR = gold ? 5200 : 4200;
+  cancelAnimationFrame(celebrate.raf);
+  const frame = now => {
+    const ms = now - t0, fade = Math.min(1, Math.max(0, (DUR - ms) / 700));
+    ctx.clearRect(0, 0, W, H);
+    ctx.globalAlpha = fade;
+    for (const p of parts) {
+      const t = (ms - p.delay) / 1000; if (t < 0) continue;
+      const y = p.y + p.vy * t, x = p.x + p.sway * Math.sin(p.sp * t + p.ph);
+      if (y > H + 40) continue;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(p.rot + p.vr * t + 0.35 * Math.sin(p.sp * t));
+      if (p.twig) twig(p); else leaf(p, t);
+      ctx.restore();
+    }
+    for (const sp of sparks) {                                                          /* golden sparkles */
+      const a = (ms - sp.t0) / sp.life; if (a < 0 || a > 1) continue;
+      const r = sp.r * Math.sin(Math.PI * a);
+      ctx.save(); ctx.translate(sp.x, sp.y); ctx.rotate(a * 1.5);
+      ctx.fillStyle = "rgba(255,236,150," + (0.95 * Math.sin(Math.PI * a)) + ")";
+      ctx.beginPath();
+      for (let j = 0; j < 8; j++) { const rr = j % 2 ? r * 0.28 : r * 1.6, an = j * Math.PI / 4; ctx.lineTo(rr * Math.cos(an), rr * Math.sin(an)); }
+      ctx.fill(); ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+    if (ms < DUR) celebrate.raf = requestAnimationFrame(frame); else cv.style.display = "none";
+  };
+  celebrate.raf = requestAnimationFrame(frame);
+}
+
 function setPin(p) {
   S.pin = p;
   document.querySelectorAll(".t-b.pin").forEach(x => x.classList.remove("pin"));
@@ -3763,6 +4394,8 @@ function bagTip(t) {
   if (S.tab === "elim") { const r = S.elimRec[t]; return '<span class="tt-h">bag of vertex ' + r.v + "</span><br>{" + r.v + "} ∪ N = " + setStr(r.bag); }
   const steps = S.steps[S.cur] || {};
   if (S.tab === "sep" && /^rec/.test(steps.k || "")) return '<span class="tt-h">bag s' + t + "</span><br>" + setStr(node.bag);
+  if (S.tab === "sep" && steps.k === "try") return node.text ? '<span class="tt-h">a piece with ' + node.label.slice(4) + ' vertices</span><br><span class="tt-s">click to work on it</span>'
+    : '<span class="tt-h">bag s' + t + "</span><br>" + setStr(node.bag) + ", size " + node.bag.length;
   const td = S.TD;
   return '<span class="tt-h">bag t' + t + "</span><br>X<sub>t</sub> = " + setStr(td.bags[t]) + ", size " + td.bags[t].length +
     "<br>tree neighbours " + td.tadj[t].map(y => "t" + y).join(", ") +
@@ -3779,7 +4412,7 @@ function graphEdgeTip(i) {
   let where;
   if (S.tab === "dp") where = hit.length + " node" + (hit.length === 1 ? "" : "s") + " of the nice decomposition";
   else if (S.tab === "elim") where = hit.length ? "the bags of " + hit.map(j => S.elimRec[j].v).join(", ") : "no bag yet";
-  else if (S.tab === "sep" && S.tree === S.convTree) where = hit.length ? hit.map(t => "s" + t).join(", ") : "no bag yet";
+  else if (S.tab === "sep" && (S.tree === S.convTree || (S.steps[S.cur] || {}).k === "try")) where = hit.length ? hit.map(t => "s" + t).join(", ") : "no bag yet";
   else where = hit.length ? hit.map(t => "t" + t).join(", ") : "no bag";
   return '<span class="tt-h">edge ' + p + "–" + q + "</span><br>both ends in " + where +
     (!hit.length && S.tab === "def" ? '<br><span class="tt-s">(T2) fails for this edge</span>' : "");

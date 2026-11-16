@@ -1,0 +1,2880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integer programs · LP relaxations, bounds, branch and bound</title>
+<script>
+  /* MathJax: TeX in \( \), Euler letters, SVG output (also used for the labels inside the drawings) */
+  window.MathJax = {
+    tex: { inlineMath: [["\\(", "\\)"]] },
+    svg: { fontCache: "none", mtextInheritFont: true },
+    output: { linebreaks: { inline: false } },
+    options: { enableMenu: false },
+    startup: { typeset: false }
+  };
+</script>
+<script src="/assets/mathjax/wi-mathjax.js" data-output="svg"></script>
+<script defer src="/assets/mathjax/v4/tex-svg.js"></script>
+<style>
+  /* Same token values as /css/animations.css, repeated so the page also works when opened directly. */
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#9c866d;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, "TeX Gyre Pagella", Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-font-mono:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    /* page tints: the feasible region purple as on the slides (purple!20, border purple!50), the objective orange */
+    --t-region:#e6d3e3; --t-region-line:#9a6a96; --t-obj:#e07b10; --t-obj-dark:#a85808;
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .wi-topbar { display:flex; align-items:baseline; justify-content:space-between; gap:1em; flex-wrap:wrap;
+               margin:0 0 1.1em; padding-bottom:.5em; border-bottom:1px solid var(--wi-border);
+               font-family:var(--wi-font-head); letter-spacing:.03em; }
+  .wi-topbar .wi-home { color:var(--wi-ink-strong); font-size:1.05em; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:14px 22px; flex-wrap:wrap; margin:0 0 6px; }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 14px; max-width:100ch; line-height:1.5; }
+
+  /* --- chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:11px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .lbl, .ctl > label:not(.chk) { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer; line-height:1.35;
+           transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text; font-size:1.02rem; line-height:1.1;
+                padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  .seg { display:inline-flex; flex-wrap:wrap; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  .seg button.on:hover:not(:disabled) { background:var(--wi-accent-dark); color:var(--wi-panel-2); }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+  .hidden { display:none !important; }
+
+  /* --- stage --- */
+  .stage { display:grid; grid-template-columns:minmax(0, var(--lf, 60fr)) 18px minmax(330px, var(--rf, 40fr)); gap:0; align-items:start; }
+  @media (max-width:980px) { .stage { grid-template-columns:1fr; gap:16px; } .splitter { display:none !important; } }
+  .splitter { align-self:stretch; min-height:200px; cursor:col-resize; touch-action:none; display:flex; justify-content:center; }
+  .splitter::before { content:""; width:4px; margin:30px 0; border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .splitter:hover::before, .splitter.drag::before, .splitter:focus-visible::before { background:var(--wi-accent-soft); }
+  .splitter:focus-visible { outline:none; }
+  .col-main, .col-side { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  @media (min-width:981px) { .col-side { position:sticky; top:10px; } }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); padding:11px 13px; min-width:0; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--wi-ink-faint);
+               margin:0 0 8px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--wi-font-body); font-size:1.15em; color:var(--wi-ink-soft); }
+  svg.stagesvg { display:block; background:var(--wi-bg); border-radius:var(--wi-radius); touch-action:none; user-select:none; -webkit-user-select:none; }
+  #cvWrap { position:relative; }
+  /* the canvas height: drag the handle under the drawing */
+  .vhandle { height:14px; cursor:row-resize; touch-action:none; display:flex; align-items:center; justify-content:center; }
+  .vhandle::before { content:""; height:4px; width:64px; border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .vhandle:hover::before, .vhandle.drag::before, .vhandle:focus-visible::before { background:var(--wi-accent-soft); }
+  .vhandle:focus-visible { outline:none; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:4px; font-size:.74rem; color:var(--wi-ink-soft); align-items:center; min-height:2.4em; }
+  .legend .item { display:inline-flex; align-items:center; gap:6px; }
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius);
+            padding:9px 13px; font-size:.88rem; color:var(--wi-ink-strong); height:10.4em; overflow-y:auto; line-height:1.5; }
+  .status b { font-family:var(--wi-font-head); font-weight:normal; letter-spacing:.04em; color:var(--wi-accent); }
+  .status .good { color:var(--wi-relax); }
+  .about { font-size:.82rem; line-height:1.55; color:var(--wi-ink-soft); }
+  .about p { margin:0 0 6px; }
+  .about b { color:var(--wi-ink-strong); font-family:var(--wi-font-head); font-weight:normal; letter-spacing:.04em; font-size:.92em; }
+  mjx-container[jax="SVG"] { color:inherit; }
+  .mj-buf  { position:absolute; left:-10000px; top:0; visibility:hidden; }
+
+  /* the objective-value slider under the drawing */
+  .zrow { display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; margin-top:4px; padding:8px 4px 2px; border-top:1px solid var(--wi-border-soft); }
+  .zrow .zlab { font-size:.95rem; white-space:nowrap; }
+  .zslide { flex:1 1 260px; display:flex; flex-direction:column; min-width:200px; }
+  .zslide .ends { display:flex; justify-content:space-between; font-size:.7rem; color:var(--wi-ink-faint); font-family:var(--wi-font-head); letter-spacing:.05em; height:1.1em; }
+  .zslide .ends .bt { color:var(--t-obj-dark); }
+  input.zr { -webkit-appearance:none; appearance:none; width:100%; height:18px; margin:0; background:transparent; cursor:pointer; }
+  input.zr::-webkit-slider-runnable-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.zr::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; box-sizing:border-box; width:16px; height:16px; margin-top:-6px;
+                border-radius:50%; background:var(--t-obj); border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--t-obj-dark); }
+  input.zr::-moz-range-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.zr::-moz-range-thumb { box-sizing:border-box; width:16px; height:16px; border-radius:50%; background:var(--t-obj);
+                border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--t-obj-dark); }
+  .zval { font-variant-numeric:tabular-nums; min-width:8.5em; text-align:left; color:var(--t-obj-dark); font-size:.95rem; white-space:nowrap; }
+
+  /* the LP and its constraints */
+  .lp-obj { font-size:.95rem; padding:0 2px 6px; border-bottom:1px solid var(--wi-border-soft); margin-bottom:4px; min-height:2em; }
+  .lp-obj .st { color:var(--wi-ink-faint); font-size:.85em; margin-left:2px; }
+  .crow { display:grid; grid-template-columns:20px 14px minmax(0,1fr) 8.6em; gap:6px; align-items:center; padding:2px 4px;
+          border-radius:3px; font-size:.9rem; cursor:pointer; border-left:3px solid transparent; }
+  .crow:hover, .crow.hot { background:#f3ebdd; }
+  .crow.off .tx { opacity:.42; text-decoration:line-through; text-decoration-color:var(--wi-ink-faint); }
+  .crow.iis { border-left-color:var(--wi-active); background:#f6e6df; }
+  .crow input { margin:0; cursor:pointer; accent-color:var(--wi-accent); }
+  .crow .sw { width:12px; height:12px; border-radius:2px; display:inline-block; }
+  .crow .tx { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .crow .nm { color:var(--wi-ink-faint); font-size:.85em; margin-left:.6em; }
+  .crow .tag { font-size:.74rem; text-align:right; color:var(--wi-ink-faint); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .crow .tag.tight { color:var(--wi-accent); font-family:var(--wi-font-head); letter-spacing:.05em; }
+  .crow .tag.bad { color:var(--wi-active); font-family:var(--wi-font-head); letter-spacing:.05em; }
+  .lp-foot { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:8px; font-size:.74rem; color:var(--wi-ink-faint); flex-wrap:wrap; }
+  .lp-foot button { padding:3px 9px; font-size:.74rem; }
+
+  /* transport: step buttons, step slider with phase bar (as on the other animation pages) */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:16px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; }
+  input.scrub { -webkit-appearance:none; appearance:none; display:block; width:100%; height:16px; margin:2px 0 0; background:transparent; cursor:pointer; }
+  input.scrub::-webkit-slider-runnable-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; box-sizing:border-box; width:16px; height:16px; margin-top:-6px; border-radius:50%; background:var(--wi-accent); border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  input.scrub::-moz-range-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-moz-range-thumb { box-sizing:border-box; width:16px; height:16px; border-radius:50%; background:var(--wi-accent); border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  .prep { font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.05em; color:var(--wi-ink-faint); white-space:nowrap; padding-top:3px; min-width:12em; }
+  .prep.ready { color:var(--wi-relax); }
+  .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint); white-space:nowrap; text-align:right; padding-top:2px; min-width:6ch; }
+  .phasebar { display:flex; margin:6px 8px 0; height:1.55rem; }
+  .phasebtn { flex:1 1 0; position:relative; overflow:hidden; padding:0; min-width:0; height:100%; font-size:.68rem; line-height:1.55rem; font-family:var(--wi-font-head);
+              letter-spacing:.02em; text-align:center; background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-left-width:0; border-radius:0;
+              color:var(--wi-ink-faint); cursor:pointer; white-space:nowrap; text-overflow:ellipsis; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3; border-right:1px solid var(--wi-accent-soft); }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+  /* code panel: the pseudocode of the slides */
+  .codebox { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  .codebox > .sim-title { padding:10px 15px 0; }
+  .codescroll { position:relative; overflow:auto; padding:0 6px 6px; }
+  .cline { display:flex; gap:10px; padding:1px 9px; font-size:.84rem; line-height:1.7; color:var(--wi-ink-strong); border-left:3px solid transparent; align-items:center; transition:opacity .2s; }
+  .cline .ln { color:var(--wi-ink-faint); min-width:1.3em; text-align:right; user-select:none; flex:none; font-size:.8em; align-self:flex-start; padding-top:.2em; }
+  .cline .tx { white-space:nowrap; }
+  .cline .cm { color:var(--wi-ink-faint); font-style:italic; }
+  .cline .tt { font-family:var(--wi-font-mono); font-size:.86em; }
+  .cline.caller { background:#f3ebdd; border-left-color:var(--wi-accent-soft); }
+  .cline.on { background:#f6e6df; border-left-color:var(--wi-active); }
+  .cline.dim { opacity:.4; }
+  .codenote { font-size:.74rem; color:var(--wi-ink-faint); padding:2px 15px 12px; line-height:1.45; }
+  /* the algebra: the dictionary of the current basis */
+  .alg { font-size:.95rem; overflow-x:auto; }
+  .alg .gen { font-size:.82rem; color:var(--wi-ink-soft); margin:0 0 4px; }
+  .alg .sets { font-size:.88rem; margin:0 0 8px; color:var(--wi-ink-strong); }
+  .alg .gnote { font-size:.78rem; color:var(--wi-ink-faint); }
+  .alg .mrow { margin:6px 0; }
+  .algflex { display:flex; flex-wrap:wrap; gap:10px 26px; align-items:flex-start; }
+  .algflex > .alg { flex:1 1 360px; min-width:0; }
+  .lpblk { flex:none; font-size:.86rem; padding:2px 16px 4px 0; border-right:1px solid var(--wi-border-soft); max-width:100%; overflow-x:auto; }
+  .lpblk .gnote { margin:0 0 3px; }
+  table.dict { border-collapse:collapse; }
+  table.dict td { padding:2px 8px; white-space:nowrap; text-align:left; border-radius:3px; }
+  table.dict td.c0 { text-align:right; }
+  table.dict td.bv { padding-left:2px; }
+  table.dict td.bv .sw { width:9px; height:9px; border-radius:2px; display:inline-block; margin-right:7px; vertical-align:1px; }
+  table.dict .dname { font-size:.72rem; color:var(--wi-ink-faint); margin-left:.5em; }
+  table.dict tr.objrow td { border-top:1.5px solid var(--wi-border); padding-top:5px; border-radius:0; }
+  table.dict td.neg { color:var(--wi-active); }
+  table.dict td.pick { cursor:pointer; box-shadow:inset 0 0 0 1px var(--wi-accent-soft); }
+  table.dict td.pick:hover { background:#f6e6df; box-shadow:inset 0 0 0 1.5px var(--wi-active); }
+  table.dict td.ent { background:#f3e6d6; }
+  table.dict td.old { background:#eee6da; }
+  table.dict tr.leave td { background:#f6e0d8; }
+  table.dict tr.leave td.rt.min { color:var(--wi-accent); font-weight:bold; }
+  table.dict tr.fresh td.bv { background:#f3e6d6; }
+  table.dict td.rt { padding-left:16px; color:var(--wi-ink-soft); font-size:.9em; }
+  .gwrap { overflow-x:auto; }
+  .sv-gv { font-family:var(--wi-font-body); font-size:12px; fill:var(--wi-ink-soft); }
+  .sv-gv.bad { fill:var(--wi-active); }
+
+  /* the collapsed explanation under the algebra */
+  details.explain { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.explain > summary { cursor:pointer; padding:10px 14px; font-family:var(--wi-font-head); font-size:.76rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  details.explain[open] > summary { border-bottom:1px solid var(--wi-border-soft); color:var(--wi-accent); }
+  .num-body { padding:6px 10px 10px; font-size:.86rem; overflow-x:auto; }
+  .nsec { display:grid; grid-template-columns:9.5em minmax(0,1fr); gap:4px 14px; padding:7px 8px; border-left:3px solid transparent; border-radius:3px; }
+  .nsec + .nsec { border-top:1px solid var(--wi-border-soft); }
+  .nsec.now { background:#f6e6df; border-left-color:var(--wi-active); }
+  .nsec.later .nval { color:var(--wi-ink-faint); }
+  .nlab { font-family:var(--wi-font-head); font-size:.7rem; letter-spacing:.06em; color:var(--wi-ink-soft); padding-top:.35em; }
+  .nsec.now .nlab { color:var(--wi-accent); }
+  .nval { min-width:0; overflow-x:auto; line-height:1.9; }
+  .nnote { font-size:.76rem; color:var(--wi-ink-faint); line-height:1.4; }
+  .nrows > div { margin:2px 0; }
+  .explain-body { padding:4px 16px 12px; font-size:.86rem; line-height:1.55; color:var(--wi-ink); max-width:92ch; }
+  .explain-body h4 { font-family:var(--wi-font-head); font-weight:normal; font-size:.8rem; letter-spacing:.06em; color:var(--wi-accent); margin:12px 0 3px; }
+  .explain-body p { margin:0 0 5px; }
+  .explain-body p.disp { text-align:center; margin:6px 0 8px; overflow-x:auto; }
+  .explain-body .here { color:var(--wi-ink-soft); font-style:italic; }
+
+  /* input editor */
+  details.editor { margin-top:16px; background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:11px 16px; font-family:var(--wi-font-head); font-size:.78rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,430px) 1fr; gap:16px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  textarea { width:100%; height:250px; font-family:var(--wi-font-mono); font-size:.76rem; background:var(--wi-panel-2);
+             color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.78rem; color:var(--wi-ink-soft); line-height:1.55; }
+  .hint code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; font-family:var(--wi-font-mono); }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+
+  .tooltip { position:fixed; z-index:40; pointer-events:none; background:var(--wi-panel-2);
+             border:1px solid var(--wi-border-strong); border-radius:var(--wi-radius);
+             padding:6px 9px; font-size:.78rem; color:var(--wi-ink-strong);
+             box-shadow:0 3px 10px rgba(0,0,0,.12); max-width:290px; display:none; line-height:1.45; }
+  .tooltip .tt-h { font-family:var(--wi-font-head); letter-spacing:.04em; color:var(--wi-accent); }
+  .tooltip .tt-s { color:var(--wi-ink-faint); }
+
+  .placeholder { font-size:.9rem; color:var(--wi-ink-soft); line-height:1.6; max-width:80ch; }
+
+  /* SVG text */
+  .sv-tick { font-family:var(--wi-font-body); font-size:12.5px; fill:var(--wi-ink-soft); }
+  .sv-lab  { font-family:var(--wi-font-body); font-size:14px; fill:var(--wi-ink-strong); }
+  .sv-name { font-family:var(--wi-font-body); font-size:13.5px; paint-order:stroke; stroke:var(--wi-bg); stroke-width:4px; stroke-linejoin:round; }
+  .sv-z    { font-family:var(--wi-font-body); font-size:13.5px; fill:var(--t-obj-dark); paint-order:stroke; stroke:var(--wi-bg); stroke-width:4px; stroke-linejoin:round; }
+  .sv-note { font-family:var(--wi-font-body); font-size:14px; fill:var(--wi-ink-faint); font-style:italic; }
+  .sv-small{ font-family:var(--wi-font-head); font-size:10.5px; letter-spacing:.06em; fill:var(--wi-ink-faint); text-anchor:middle; }
+  .sv-small.halo { fill:var(--t-obj-dark); font-size:11px; paint-order:stroke; stroke:var(--wi-bg); stroke-width:3.5px; stroke-linejoin:round; }
+  .hit { cursor:pointer; }
+  .grab { cursor:grab; }
+
+  /* presentation view */
+  .only-p { display:none !important; }
+  body.present .only-p { display:inline-flex !important; }
+  body.present .hide-p { display:none !important; }
+  body.present h1 { font-size:1.9rem; }
+  .exitp { position:fixed; bottom:10px; right:12px; z-index:20; font-size:.75rem; opacity:.5; }
+  .exitp:hover, .exitp:focus-visible { opacity:1; }
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls { gap:8px 12px; padding:10px 12px; }
+    .seg button { padding:5px 9px; font-size:.74rem; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { animation-duration:.001ms !important; transition-duration:.001ms !important; } }
+  /* ---- this page ---- */
+  .stagestrip { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+                overflow:hidden; margin:0 0 10px; }
+  .stagestrip button { border:0; border-radius:0; padding:5px 3px 6px; font-size:.78rem; line-height:1.25; background:var(--wi-panel); color:var(--wi-ink-faint); }
+  .stagestrip button + button { border-left:1px solid var(--wi-border); }
+  .stagestrip button.reached { color:var(--wi-ink-strong); }
+  .stagestrip button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  .stagestrip button.on:hover:not(:disabled) { background:var(--wi-accent-dark); }
+  .stagestrip .no { display:block; font-size:.68rem; opacity:.7; }
+  #pStatus { height:13.2em; }
+  .actions { display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center; min-height:2.6em; margin-top:10px; }
+  .actions .count { font-variant-numeric:tabular-nums; font-size:.84rem; color:var(--wi-ink-soft); }
+  .form { font-size:.92rem; }
+  .form .cols { display:flex; flex-wrap:wrap; gap:4px 30px; align-items:flex-start; }
+  .form .lab { font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; color:var(--wi-ink-faint); margin-bottom:2px; }
+  .form .here { font-size:.8rem; color:var(--wi-ink-soft); margin-top:6px; }
+  .form .cur { margin-top:8px; padding-top:7px; border-top:1px solid var(--wi-border-soft); font-size:.86rem; min-height:4.2em; line-height:1.75; overflow-x:auto; white-space:nowrap; }
+  .form .cur .int { color:#2c5aa0; }
+  .form .cur .lp { color:#c62f22; }
+  #barWrap svg, #gWrap svg { display:block; }
+  .sv-vno { font-family:var(--wi-font-body); font-size:14.5px; text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  .sv-bar { font-family:var(--wi-font-body); font-size:12.5px; }
+  .sv-reg { font-family:var(--wi-font-head); font-size:10.5px; letter-spacing:.05em; fill:var(--wi-ink-soft); text-anchor:middle; }
+  .placeholder { font-size:.95rem; color:var(--wi-ink-soft); padding:30px 24px; text-align:center; }
+  #gSvg .hit { cursor:pointer; }
+  #gSvg { cursor:grab; }
+  @media (max-width:760px) { .stagestrip button { font-size:.7rem; } #pStatus { height:15em; } }
+  #lStatus { height:11.5em; }
+  #lWrap svg, #barWrap2 svg, #lGraphWrap svg { display:block; }
+  #lSvg { cursor:grab; } #lSvg .hit { cursor:pointer; } #lSvg #lHandle { cursor:grab; } #lGraph .hit { cursor:pointer; }
+  .readout { font-size:.88rem; height:12.8em; overflow-y:auto; }
+  .rrow { display:grid; grid-template-columns:8.6em minmax(0,1fr); gap:8px; padding:3px 2px; border-bottom:1px solid var(--wi-border-soft); line-height:1.55; }
+  .rrow:last-child { border-bottom:0; }
+  .rrow .rk { font-family:var(--wi-font-head); font-size:.68rem; letter-spacing:.07em; text-transform:uppercase; color:var(--wi-ink-faint); padding-top:3px; }
+  .rrow.lp { color:#c62f22; } .rrow.int { color:#2c5aa0; }
+  .crow.fixed { opacity:.75; } .crow.fixed input { cursor:default; }
+  .crow-note { font-size:.82rem; color:var(--wi-ink-soft); padding:5px 4px 2px; }
+  .cuts-h { font-family:var(--wi-font-head); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--wi-ink-faint); margin:10px 0 3px; padding-top:6px; border-top:1px solid var(--wi-border-soft); }
+  .sv-gap { font-family:var(--wi-font-head); font-size:12px; letter-spacing:.1em; text-transform:uppercase; fill:#a85808; text-anchor:middle; paint-order:stroke; stroke:var(--wi-bg); stroke-width:3.5px; }
+  @media (max-width:760px) { #lStatus { height:14em; } .readout { height:17em; } .rrow { grid-template-columns:6.8em minmax(0,1fr); } }
+  .readout .wait { color:var(--wi-ink-faint); font-style:italic; }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption { font-family: var(--wi-font-head); letter-spacing: .05em; }
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar hide-p">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1>Integer programs and LP relaxations</h1>
+  <span class="ctl" style="gap:14px">
+    <span class="seg" id="modeSeg" role="tablist">
+      <button data-mode="prove" class="on" role="tab" title="Find a solution, then prove that it cannot be beaten">Prove it optimal</button>
+      <button data-mode="lattice" role="tab" title="The feasible region, its grid points, and the gap between the two optima">Lattice and gap</button>
+      <button data-mode="bb" role="tab" title="Branch and bound: closing the gap by splitting the region">Branch and bound</button>
+    </span>
+  </span>
+  <span class="ctl hide-p"><button id="presBtn" title="A clutter-free view for the lecture (Esc to leave)">Presentation view</button></span>
+</div>
+<button id="exitPres" class="only-p exitp" title="Leave the presentation view (Esc)">✕ leave presentation</button>
+
+<div id="tabProve">
+  <p class="subtitle hide-p">Finding a solution and checking it is easy. Proving that it cannot be beaten is the hard part: it is a statement about all solutions.
+    Choose a vertex cover (or an independent set), try to prove that it is optimal by brute force, then let the LP relaxation do it with a single number.</p>
+  <div class="controls hide-p">
+    <div class="ctl"><label for="gPreset">Graph</label><select id="gPreset"></select></div>
+    <div class="ctl hidden" id="knCtl"><input type="range" id="knN" min="3" max="10" value="6" style="width:110px;accent-color:var(--wi-accent)" aria-label="n">
+      <span class="stepno" id="knVal" style="min-width:3.6em">n = 6</span></div>
+    <div class="ctl"><span class="lbl">Problem</span>
+      <span class="seg" id="probSeg">
+        <button data-p="vc" class="on" title="Choose as few vertices as possible such that every edge has a chosen endpoint">Vertex Cover</button>
+        <button data-p="is" title="Choose as many vertices as possible such that no edge has both endpoints chosen">Independent Set</button>
+      </span></div>
+  </div>
+  <div class="stage" id="stageProve">
+    <div class="col-main">
+      <div class="sim-box">
+        <div class="sim-title"><span>Graph</span><span class="rhs" id="gMeta"></span></div>
+        <div id="gWrap"><svg id="gSvg" class="stagesvg"></svg></div>
+        <div class="vhandle hide-p" id="gVH" role="separator" aria-orientation="horizontal" tabindex="0"
+             title="Drag to change the height of the drawing (double-click: back to the default)"></div>
+        <div class="legend hide-p" id="gLegend"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>What we know about the optimum</span><span class="rhs" id="barMeta"></span></div>
+        <div id="barWrap"><svg id="barSvg"></svg></div>
+      </div>
+    </div>
+    <div class="splitter" id="proveSplit" role="separator" aria-orientation="vertical" tabindex="0"
+         title="Drag to share the width between drawing and side panel (double-click: back to the default)"></div>
+    <div class="col-side">
+      <div class="sim-box">
+        <div class="stagestrip" id="stageStrip">
+          <button data-s="1" class="on" title="Key 1"><span class="no">1</span>A solution</button>
+          <button data-s="2" title="Key 2"><span class="no">2</span>Can it be beaten?</button>
+          <button data-s="3" title="Key 3"><span class="no">3</span>Relax</button>
+          <button data-s="4" title="Key 4"><span class="no">4</span>Verdict</button>
+        </div>
+        <div class="status" id="pStatus"></div>
+        <div class="actions" id="pActions"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>As an integer program</span></div>
+        <div class="form" id="pForm"></div>
+      </div>
+      <details class="explain hide-p"><summary>Why the relaxation gives a bound</summary><div class="explain-body" id="pExplain"></div></details>
+    </div>
+  </div>
+</div>
+
+<div id="tabLattice" class="hidden">
+  <p class="subtitle hide-p">An integer program asks for the best <i>grid point</i> of a region; its LP relaxation allows every point of the region.
+    Push the line (in 3D the plane) of equal objective value in the better direction: it stops at the best grid point first, and leaves the region only later, at the LP optimum.
+    The band in between is the gap. Click a grid point to take it as your solution.</p>
+  <div class="controls hide-p">
+    <div class="ctl"><label for="lPreset">LP</label><select id="lPreset"></select></div>
+    <div class="ctl hidden" id="kCtl"><input type="range" id="kN" min="1" max="10" value="4" style="width:110px;accent-color:var(--wi-accent)" aria-label="k">
+      <span class="stepno" id="kVal" style="min-width:3.6em">k = 4</span></div>
+    <div class="ctl">
+      <span class="lbl">View</span>
+      <button id="zoomOut2" class="icon" title="Zoom out" aria-label="Zoom out">−</button>
+      <button id="zoomIn2" class="icon" title="Zoom in" aria-label="Zoom in">+</button>
+      <button id="fit2" title="Fit the view to the feasible region">fit</button>
+      <button id="reset2" title="Back to the view of the input (and, in 3D, the initial rotation)">reset</button>
+    </div>
+    <div class="ctl" id="lToggles">
+      <label class="chk"><input type="checkbox" data-k="showGrid" checked> grid points</label>
+      <label class="chk"><input type="checkbox" data-k="showGap" checked> gap</label>
+      <label class="chk"><input type="checkbox" data-k="showRound"> rounding</label>
+      <label class="chk"><input type="checkbox" data-k="showHull"> integer hull</label>
+    </div>
+  </div>
+  <div class="stage" id="stageLat">
+    <div class="col-main">
+      <div class="sim-box">
+        <div class="sim-title"><span>Region and grid points</span><span class="rhs" id="lMeta"></span></div>
+        <div id="lWrap"><svg id="lSvg" class="stagesvg"></svg></div>
+        <div class="vhandle hide-p" id="lVH" role="separator" aria-orientation="horizontal" tabindex="0"
+             title="Drag to change the height of the drawing (double-click: back to the default)"></div>
+        <div class="zrow">
+          <span class="zlab">\(z\;=\)</span>
+          <span class="zval" id="zV2"></span>
+          <span class="zslide">
+            <input type="range" class="zr" id="zR2" min="0" max="10000" value="0" step="1" aria-label="Objective value z">
+            <span class="ends"><span id="endL2"></span><span id="endR2"></span></span>
+          </span>
+          <span class="ctl" style="gap:6px">
+            <button id="sweep2" class="pri" title="Push the line (plane) towards better values: it stops at the best grid point, then at the LP optimum">▶&#xFE0E; push</button>
+            <button id="best2" title="Jump to the LP optimum">LP optimum</button>
+          </span>
+        </div>
+        <div class="legend hide-p" id="lLegend"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>What we know about the optimum</span></div>
+        <div id="barWrap2"><svg id="barSvg2"></svg></div>
+      </div>
+    </div>
+    <div class="splitter" id="latSplit" role="separator" aria-orientation="vertical" tabindex="0"
+         title="Drag to share the width between drawing and side panel (double-click: back to the default)"></div>
+    <div class="col-side">
+      <div class="sim-box">
+        <div class="sim-title"><span>What you see</span><span class="rhs" id="lState"></span></div>
+        <div class="status" id="lStatus"></div>
+      </div>
+      <div class="sim-box hidden" id="lGraphBox">
+        <div class="sim-title"><span>The graph</span></div>
+        <div id="lGraphWrap"><svg id="lGraph"></svg></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>The two optima</span></div>
+        <div class="readout" id="lReadout"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>The integer program</span></div>
+        <div id="lCons"></div>
+      </div>
+      <details class="explain hide-p"><summary>Grid points, bounds, rounding, the integer hull</summary><div class="explain-body" id="lExplain"></div></details>
+    </div>
+  </div>
+</div>
+<div id="tabBB" class="hidden">
+  <div class="sim-box placeholder">The branch-and-bound view is being built: it will settle open cases like the one on \(K_4\) by splitting the problem.</div>
+</div>
+
+<details class="editor hide-p" id="editorBox">
+  <summary>Input as text</summary>
+  <div class="editor-body">
+    <div>
+      <textarea id="inputText" spellcheck="false"></textarea>
+      <div style="margin-top:8px; display:flex; gap:8px"><button class="pri" id="loadBtn">Load</button><button id="curBtn" title="Put the input currently shown into the text box">current input</button></div>
+      <div class="err" id="parseErr"></div>
+    </div>
+    <div class="hint" id="formatHint"></div>
+  </div>
+</details>
+<div class="tooltip" id="tip"></div>
+
+<script>
+"use strict";
+/* ==========================================================================
+   ENGINE (exact arithmetic).  Pure functions, no DOM; tested against the
+   Python reference implementation line by line.
+
+     Frac                       rational numbers on BigInt
+     lpMin(c, A, b)             min cᵀx  s.t.  Ax ≤ b, x ≥ 0   (tableau simplex, Bland's rule, Phase I)
+     ilpBrute(c, A, b, box)     the same over the grid points of a box
+     branchAndBound(c, A, b, o) the procedure of the branch-and-bound tab, recording every node
+     graphLP(kind, n, edges)    Vertex Cover / Independent Set as (c, A, b), always in min form
+
+   Everything is in MIN form; a max problem is passed as min of −c and the caller negates.
+   ========================================================================== */
+const babs = a => a < 0n ? -a : a;
+function bgcd(a, b) { a = babs(a); b = babs(b); while (b) { const t = a % b; a = b; b = t; } return a; }
+class Frac {
+  constructor(p, q) {
+    if (q === undefined) q = 1n;
+    if (q === 0n) throw new Error("division by zero");
+    if (q < 0n) { p = -p; q = -q; }
+    const g = bgcd(p, q);
+    if (g > 1n) { p /= g; q /= g; }
+    this.p = p; this.q = q;
+  }
+  static of(x) {
+    if (x instanceof Frac) return x;
+    if (typeof x === "bigint") return new Frac(x, 1n);
+    if (typeof x === "number") {
+      if (!isFinite(x)) throw new Error("not a finite number");
+      return Number.isInteger(x) ? new Frac(BigInt(x), 1n) : Frac.parse(String(x));
+    }
+    return Frac.parse(String(x));
+  }
+  /* exact decimal, also "3/20", "-1.5e2" */
+  static parse(s) {
+    s = s.trim();
+    const sl = s.indexOf("/");
+    if (sl >= 0) return Frac.parse(s.slice(0, sl)).div(Frac.parse(s.slice(sl + 1)));
+    const m = /^([+-]?)(\d*)(?:\.(\d*))?(?:e([+-]?\d+))?$/i.exec(s);
+    if (!m || (!m[2] && !m[3])) throw new Error("not a number: “" + s + "”");
+    const fr = m[3] || "";
+    let p = BigInt((m[2] || "0") + fr), q = 10n ** BigInt(fr.length);
+    const e = m[4] ? parseInt(m[4], 10) : 0;
+    if (e > 0) p *= 10n ** BigInt(e); else if (e < 0) q *= 10n ** BigInt(-e);
+    return new Frac(m[1] === "-" ? -p : p, q);
+  }
+  add(o) { o = Frac.of(o); return new Frac(this.p * o.q + o.p * this.q, this.q * o.q); }
+  sub(o) { o = Frac.of(o); return new Frac(this.p * o.q - o.p * this.q, this.q * o.q); }
+  mul(o) { o = Frac.of(o); return new Frac(this.p * o.p, this.q * o.q); }
+  div(o) { o = Frac.of(o); return new Frac(this.p * o.q, this.q * o.p); }
+  neg() { return new Frac(-this.p, this.q); }
+  abs() { return this.p < 0n ? this.neg() : this; }
+  get sign() { return this.p > 0n ? 1 : this.p < 0n ? -1 : 0; }
+  cmp(o) { o = Frac.of(o); const d = this.p * o.q - o.p * this.q; return d > 0n ? 1 : d < 0n ? -1 : 0; }
+  eq(o) { return this.cmp(o) === 0; }
+  lt(o) { return this.cmp(o) < 0; }
+  le(o) { return this.cmp(o) <= 0; }
+  gt(o) { return this.cmp(o) > 0; }
+  ge(o) { return this.cmp(o) >= 0; }
+  isZero() { return this.p === 0n; }
+  isInt() { return this.q === 1n; }
+  floor() { let f = this.p / this.q; if (this.p < 0n && f * this.q !== this.p) f -= 1n; return new Frac(f, 1n); }
+  ceil() { const f = this.floor(); return f.eq(this) ? f : new Frac(f.p + 1n, 1n); }
+  toNumber() { return Number(this.p) / Number(this.q); }
+  toString() { return this.q === 1n ? String(this.p) : this.p + "/" + this.q; }
+}
+const F0 = new Frac(0n), F1 = new Frac(1n), FM1 = new Frac(-1n);
+const fsum = xs => xs.reduce((s, x) => s.add(x), F0);
+const fdot = (a, x) => { let s = F0; for (let i = 0; i < a.length; i++) if (!a[i].isZero() && !x[i].isZero()) s = s.add(a[i].mul(x[i])); return s; };
+
+/* min cᵀx  s.t.  Ax ≤ b, x ≥ 0.   Returns { status: "optimal"|"infeasible"|"unbounded", z, x }.
+   A literal port of lp_min in ilp_reference.py: the columns are the variables, the slacks and one
+   artificial variable x0 (in this order); the entering variable is the one of smallest index with
+   negative reduced cost, the leaving one has the smallest ratio, ties broken by the smallest basis index. */
+function lpMin(c, A, b) {
+  c = c.map(Frac.of); b = b.map(Frac.of);
+  const m = A.length, n = c.length, N = n + m + 1;
+  const T = [];
+  for (let i = 0; i < m; i++) {
+    const r = new Array(N + 1);
+    for (let j = 0; j < n; j++) r[j] = Frac.of(A[i][j]);
+    for (let k = 0; k < m; k++) r[n + k] = i === k ? F1 : F0;
+    r[n + m] = FM1; r[N] = b[i];
+    T.push(r);
+  }
+  const basis = [], inB = new Array(N).fill(false);
+  for (let i = 0; i < m; i++) { basis.push(n + i); inB[n + i] = true; }
+  const pivot = (r, col) => {
+    const p = T[r][col], row = T[r].map(v => v.div(p));
+    T[r] = row;
+    for (let i = 0; i < m; i++) {
+      if (i === r) continue;
+      const f = T[i][col];
+      if (f.isZero()) continue;
+      T[i] = T[i].map((v, j) => row[j].isZero() ? v : v.sub(f.mul(row[j])));
+    }
+    inB[basis[r]] = false; basis[r] = col; inB[col] = true;
+  };
+  const run = (cost, ncols) => {
+    for (let guard = 0; guard < 100000; guard++) {
+      let e = -1;
+      for (let j = 0; j < ncols && e < 0; j++) {
+        if (inB[j]) continue;
+        let red = cost[j];
+        for (let i = 0; i < m; i++) { const cb = cost[basis[i]]; if (!cb.isZero() && !T[i][j].isZero()) red = red.sub(cb.mul(T[i][j])); }
+        if (red.sign < 0) e = j;
+      }
+      if (e < 0) return "optimal";
+      let r = -1, rat = null;
+      for (let i = 0; i < m; i++) {
+        if (T[i][e].sign <= 0) continue;
+        const q = T[i][N].div(T[i][e]);
+        if (r < 0) { r = i; rat = q; continue; }
+        const cm = q.cmp(rat);
+        if (cm < 0 || (cm === 0 && (basis[i] < basis[r] || (basis[i] === basis[r] && i < r)))) { r = i; rat = q; }
+      }
+      if (r < 0) return "unbounded";
+      pivot(r, e);
+    }
+    throw new Error("simplex did not terminate");
+  };
+  if (m && b.some(v => v.sign < 0)) {
+    let r = 0;
+    for (let i = 1; i < m; i++) if (b[i].lt(b[r])) r = i;
+    pivot(r, n + m);
+    const cost1 = new Array(N).fill(F0); cost1[n + m] = F1;
+    run(cost1, N);
+    if (inB[n + m]) {
+      const i = basis.indexOf(n + m);
+      if (T[i][N].sign > 0) return { status: "infeasible", z: null, x: null };
+      for (let j = 0; j < n + m; j++) if (!T[i][j].isZero() && !inB[j]) { pivot(i, j); break; }
+    }
+  }
+  const cost = c.concat(new Array(m + 1).fill(F0));
+  if (run(cost, n + m) === "unbounded") return { status: "unbounded", z: null, x: null };
+  const x = new Array(n).fill(F0);
+  basis.forEach((j, i) => { if (j < n) x[j] = T[i][N]; });
+  return { status: "optimal", z: fdot(c, x), x };
+}
+
+function feasibleAt(A, b, x) {
+  x = x.map(Frac.of);
+  if (x.some(v => v.sign < 0)) return false;
+  for (let i = 0; i < A.length; i++) if (fdot(A[i].map(Frac.of), x).gt(Frac.of(b[i]))) return false;
+  return true;
+}
+
+/* all grid points of box = [[lo, hi], …] (first coordinate outermost, as itertools.product) */
+function ilpBrute(c, A, b, box, cap) {
+  c = c.map(Frac.of); b = b.map(Frac.of); A = A.map(r => r.map(Frac.of));
+  const n = c.length, total = box.reduce((s, [lo, hi]) => s * Math.max(0, hi - lo + 1), 1);
+  if (total > (cap || 1e6)) return { tooMany: true, total };
+  let best = null, arg = [], cnt = 0;
+  const x = box.map(([lo]) => lo);
+  const rec = d => {
+    if (d === n) {
+      const xf = x.map(v => new Frac(BigInt(v)));
+      for (let i = 0; i < A.length; i++) if (fdot(A[i], xf).gt(b[i])) return;
+      cnt++;
+      const z = fdot(c, xf);
+      if (best === null || z.lt(best)) { best = z; arg = [x.slice()]; }
+      else if (z.eq(best)) arg.push(x.slice());
+      return;
+    }
+    for (let v = box[d][0]; v <= box[d][1]; v++) { x[d] = v; rec(d + 1); }
+  };
+  rec(0);
+  return { z: best, arg, cnt, total };
+}
+
+/* Branch and bound, MIN form.  o = { order: "dfs"|"best", varRule: "first"|"most", roundBound, first: "down"|"up",
+   isInt: [bool] (default all), maxNodes }.  Returns { zBest, xBest, nodes, stopped }.  A literal port of
+   branch_and_bound in ilp_reference.py: nodes are processed in this order; each node holds its LP result and verdict. */
+function branchAndBound(c, A, b, o) {
+  o = Object.assign({ order: "dfs", varRule: "first", roundBound: false, first: "down", maxNodes: 200 }, o || {});
+  c = c.map(Frac.of); b = b.map(Frac.of); A = A.map(r => r.map(Frac.of));
+  const n = c.length, isInt = o.isInt || new Array(n).fill(true);
+  const lpOf = N => lpMin(c, A.concat(N.extra.map(e => e.a)), b.concat(N.extra.map(e => e.b)));
+  const nodes = []; let zBest = null, xBest = null, nid = 1, stopped = null;
+  const open = [{ id: 0, parent: null, extra: [], bnd: null, depth: 0 }];
+  while (open.length) {
+    if (nodes.length >= o.maxNodes) { stopped = "maxNodes"; break; }
+    let N;
+    if (o.order === "dfs") N = open.pop();
+    else {
+      for (const nd of open) if (!nd.lp) nd.lp = lpOf(nd);
+      const cand = open.filter(nd => nd.lp.status === "optimal");
+      N = cand.length ? cand.reduce((a, q) => (q.lp.z.lt(a.lp.z) || (q.lp.z.eq(a.lp.z) && q.id < a.id)) ? q : a) : open[0];
+      open.splice(open.indexOf(N), 1);
+    }
+    const r = N.lp || lpOf(N);
+    N.lp = r; N.status = r.status; N.z = r.z; N.x = r.x;
+    N.openAfter = null;
+    nodes.push(N);
+    if (r.status === "infeasible") { N.verdict = "infeasible"; continue; }
+    if (r.status === "unbounded") { N.verdict = "unbounded"; stopped = "unbounded"; break; }
+    const zb = o.roundBound ? r.z.ceil() : r.z;
+    if (zBest !== null && zb.ge(zBest)) { N.verdict = "bound"; continue; }
+    const frac = [];
+    for (let i = 0; i < n; i++) if (isInt[i] && !r.x[i].isInt()) frac.push(i);
+    if (!frac.length) { zBest = r.z; xBest = r.x; N.verdict = "incumbent"; continue; }
+    let i = frac[0];
+    if (o.varRule === "most") {
+      const half = new Frac(1n, 2n), d = k => r.x[k].sub(r.x[k].floor()).sub(half).abs();
+      for (const k of frac) if (d(k).lt(d(i))) i = k;
+    }
+    if (o.pick && o.pick[N.id] !== undefined && frac.includes(o.pick[N.id])) i = o.pick[N.id];
+    N.verdict = "branch"; N.bvar = i; N.frac = frac;
+    const lo = r.x[i].floor(), hi = r.x[i].ceil();
+    const e = new Array(n).fill(F0); e[i] = F1;
+    const down = { id: nid, parent: N.id, extra: N.extra.concat([{ a: e, b: lo }]), bnd: { i, dir: "<=", k: lo }, depth: N.depth + 1 };
+    const up = { id: nid + 1, parent: N.id, extra: N.extra.concat([{ a: e.map(v => v.neg()), b: hi.neg() }]), bnd: { i, dir: ">=", k: hi }, depth: N.depth + 1 };
+    nid += 2;
+    const kids = o.first === "down" ? [down, up] : [up, down];
+    if (o.order === "dfs") open.push(kids[1], kids[0]); else open.push(kids[0], kids[1]);
+  }
+  return { zBest, xBest, nodes, stopped };
+}
+
+/* The grid points of a box, column by column: for every integer prefix (x_1, …, x_{n−1}) the integer
+   interval of x_n, computed exactly from the rows.  Same results as ilpBrute (z, all optimal points, count),
+   but fast enough for boxes with hundreds of thousands of points; the columns are kept for drawing. */
+function ilpColumns(c, A, b, box, cap) {
+  c = c.map(Frac.of); b = b.map(Frac.of); A = A.map(r => r.map(Frac.of));
+  const n = c.length, last = n - 1;
+  let prefixes = 1; for (let i = 0; i < last; i++) prefixes *= Math.max(0, box[i][1] - box[i][0] + 1);
+  if (prefixes > (cap || 2e5) || box.some(([lo, hi]) => hi < lo)) return { tooMany: prefixes > (cap || 2e5), z: null, arg: [], cnt: 0, cols: [] };
+  const cols = []; let best = null, arg = [], cnt = 0;
+  const pre = box.slice(0, last).map(([lo]) => lo);
+  const lo0 = new Frac(BigInt(box[last][0])), hi0 = new Frac(BigInt(box[last][1]));
+  const column = () => {
+    let lo = lo0, hi = hi0;
+    for (let i = 0; i < A.length; i++) {
+      let rest = b[i];
+      for (let j = 0; j < last; j++) if (!A[i][j].isZero() && pre[j]) rest = rest.sub(A[i][j].mul(pre[j]));
+      const a = A[i][last];
+      if (a.sign > 0) { const t = rest.div(a); if (t.lt(hi)) hi = t; }
+      else if (a.sign < 0) { const t = rest.div(a); if (t.gt(lo)) lo = t; }
+      else if (rest.sign < 0) return;
+    }
+    const t0 = lo.ceil(), t1 = hi.floor();
+    if (t0.gt(t1)) return;
+    const a0 = Number(t0.p), a1 = Number(t1.p);
+    cols.push({ pre: pre.slice(), lo: a0, hi: a1 });
+    cnt += a1 - a0 + 1;
+    let base = F0; for (let j = 0; j < last; j++) if (pre[j]) base = base.add(c[j].mul(pre[j]));
+    const cl = c[last], ts = cl.sign > 0 ? [a0] : cl.sign < 0 ? [a1] : null;
+    const val = t => base.add(cl.mul(t));
+    const consider = t => {
+      const z = val(t);
+      if (best === null || z.lt(best)) { best = z; arg = [pre.concat([t])]; }
+      else if (z.eq(best) && arg.length < 5000) arg.push(pre.concat([t]));
+    };
+    if (ts) consider(ts[0]);
+    else { const z = val(a0); if (best === null || z.le(best)) for (let t = a0; t <= a1; t++) consider(t); }
+  };
+  const rec = d => {
+    if (d === last) { column(); return; }
+    for (let v = box[d][0]; v <= box[d][1]; v++) { pre[d] = v; rec(d + 1); }
+  };
+  rec(0);
+  return { z: best, arg, cnt, cols };
+}
+
+/* Vertex Cover: min Σx, x_u + x_v ≥ 1 (one row per edge, in input order), x_v ≤ 1.
+   Independent Set: max Σx (returned as min −Σx), x_u + x_v ≤ 1, x_v ≤ 1. */
+function graphLP(kind, n, edges) {
+  const A = [], b = [];
+  for (const [u, v] of edges) {
+    const row = new Array(n).fill(F0);
+    if (kind === "vc") { row[u] = FM1; row[v] = FM1; A.push(row); b.push(FM1); }
+    else { row[u] = F1; row[v] = F1; A.push(row); b.push(F1); }
+  }
+  for (let v = 0; v < n; v++) { const row = new Array(n).fill(F0); row[v] = F1; A.push(row); b.push(F1); }
+  return { c: new Array(n).fill(kind === "vc" ? F1 : FM1), A, b };
+}
+/* ===== ENGINE END ===== */
+
+/* ==========================================================================
+   Small helpers, numbers, input formats
+   ========================================================================== */
+const el  = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const M = s => "\\(" + s + "\\)";
+const f1 = x => x.toFixed(1);
+const PALETTE = { red: "#c62f22", blue: "#2c5aa0", green: "#3d7b2c", teal: "#2a6a63", purple: "#7d3f8f",
+                  brown: "#8b5a2b", pink: "#b0446e", olive: "#6f7a1f", gray: "#7d786b", grey: "#7d786b", orange: "#e07b10" };
+const AUTO = ["red", "blue", "green", "teal", "purple", "brown", "pink", "olive"];
+/* the colours of the drawings: integer solutions blue (the grid points of the slides), the LP red, the optimum green */
+const C_INT = "#2c5aa0", C_INT_SOFT = "#d4e0f1", C_LP = "#c62f22", C_OPT = "#3d7b2c", C_ERR = "#cc2f22", C_OBJ = "#e07b10";
+
+/* ---------- numbers: exact where the value is a small fraction ---------- */
+function ratApprox(x, maxQ) {
+  let h0 = 0, h1 = 1, k0 = 1, k1 = 0, b = x;
+  const tol = 1e-9 * Math.max(1, Math.abs(x));
+  for (let it = 0; it < 30; it++) {
+    const a = Math.floor(b), h2 = a * h1 + h0, k2 = a * k1 + k0;
+    if (k2 > maxQ) break;
+    h0 = h1; h1 = h2; k0 = k1; k1 = k2;
+    if (Math.abs(x - h1 / k1) <= tol) return [h1, k1];
+    const fr = b - a; if (fr < 1e-13) break; b = 1 / fr;
+  }
+  return null;
+}
+function groupInt(s, tex) {
+  if (s.length < 5) return s;
+  const sep = tex ? "\\," : " ";
+  let out = ""; for (let i = 0; i < s.length; i++) { if (i && (s.length - i) % 3 === 0) out += sep; out += s[i]; }
+  return out;
+}
+/* { tex, plain, exact } for a number or a Frac; repeating decimals with an overline (533.\overline3) */
+function num(x) {
+  let neg, ax, r;
+  if (x instanceof Frac) {
+    neg = x.sign < 0; const a = x.abs();
+    if (a.q <= 1000000n && a.p < 1000000000000000n) { r = [Number(a.p), Number(a.q)]; ax = r[0] / r[1]; }
+    else { ax = a.toNumber(); r = ratApprox(ax, 1000); }
+  } else {
+    if (!isFinite(x)) return { tex: x > 0 ? "\\infty" : "-\\infty", plain: x > 0 ? "∞" : "−∞", exact: true };
+    if (Math.abs(x) < 1e-9) x = 0;
+    neg = x < 0; ax = Math.abs(x); r = ratApprox(ax, 1000);
+  }
+  const sg = s => (neg ? "-" : "") + s, sgp = s => (neg ? "−" : "") + s;
+  if (r) {
+    const [p, q] = r, I = Math.floor(p / q); let rem = p - I * q;
+    const intS = String(I);
+    if (rem === 0) return { tex: sg(groupInt(intS, true)), plain: sgp(groupInt(intS, false)), exact: true };
+    const digits = [], seen = new Map();
+    let start = -1;
+    while (rem && digits.length < 12) {
+      if (seen.has(rem)) { start = seen.get(rem); break; }
+      seen.set(rem, digits.length); rem *= 10; digits.push(Math.floor(rem / q)); rem %= q;
+    }
+    if (!rem && digits.length <= 4) { const d = digits.join(""); return { tex: sg(groupInt(intS, true) + "." + d), plain: sgp(groupInt(intS, false) + "." + d), exact: true }; }
+    if (start >= 0 && digits.length <= 5) {
+      const pre = digits.slice(0, start).join(""), per = digits.slice(start).join("");
+      const VF = { "1/2": "½", "1/3": "⅓", "2/3": "⅔", "1/4": "¼", "3/4": "¾", "1/6": "⅙", "5/6": "⅚", "1/7": "⅐", "1/9": "⅑" };
+      const fr = VF[(p - I * q) + "/" + q];
+      return { tex: sg(groupInt(intS, true) + "." + pre + "\\overline{" + per + "}"),
+               plain: sgp(fr ? (I ? groupInt(intS, false) : "") + fr : groupInt(intS, false) + "." + pre + per + "…"), exact: true };
+    }
+  }
+  let s = ax >= 100 ? ax.toFixed(1) : ax >= 1 ? ax.toFixed(2) : ax.toPrecision(3);
+  if (s.includes(".")) s = s.replace(/0+$/, "").replace(/\.$/, "");
+  const [ip, fp] = s.split(".");
+  const t = groupInt(ip, true) + (fp ? "." + fp : ""), pl = groupInt(ip, false) + (fp ? "." + fp : "");
+  return { tex: sg(t), plain: sgp(pl), exact: false };
+}
+const numT = x => num(x).tex, numP = x => num(x).plain;
+/* a Frac as a TeX fraction: 1/2 -> \tfrac12 (for the entries of a solution vector) */
+function fracT(f) {
+  f = Frac.of(f);
+  if (f.isInt()) return String(f.p).replace("-", "-");
+  return (f.sign < 0 ? "-" : "") + "\\tfrac{" + babs(f.p) + "}{" + f.q + "}";
+}
+function fracP(f) {
+  f = Frac.of(f);
+  if (f.isInt()) return String(f.p).replace("-", "−");
+  const VF = { "1/2": "½", "1/3": "⅓", "2/3": "⅔", "1/4": "¼", "3/4": "¾" }, a = babs(f.p) + "/" + f.q;
+  return (f.sign < 0 ? "−" : "") + (VF[a] || a);
+}
+const binom = (n, k) => { if (k < 0 || k > n) return 0; let r = 1; for (let i = 1; i <= k; i++) r = r * (n - k + i) / i; return Math.round(r); };
+
+/* ---------- the LP text format (as on the page with the simplex method), exact ---------- */
+const OPS = /(<=|>=|=<|=>|≤|≥|==|=|<|>)/;
+const opNorm = o => (o === "<=" || o === "=<" || o === "≤" || o === "<") ? "<=" : (o === ">=" || o === "=>" || o === "≥" || o === ">") ? ">=" : "=";
+function parseLin(str, vars, lineNo) {
+  const s = str.replace(/\s+/g, "").replace(/−/g, "-").replace(/·|×/g, "*");
+  const co = vars.map(() => F0); let k = F0, first = null;
+  if (!s.length) throw new Error("line " + lineNo + ": an empty side");
+  const terms = s.replace(/([^eE*\/])-/g, "$1+-").replace(/^\+/, "").split("+").filter(t => t.length);
+  for (let t of terms) {
+    let sign = 1;
+    while (t[0] === "-" || t[0] === "+") { if (t[0] === "-") sign = -sign; t = t.slice(1); }
+    const m = /^((?:\d+\.?\d*|\.\d+)(?:\/(?:\d+\.?\d*))?)?\*?([A-Za-z_][A-Za-z0-9_]*)?$/.exec(t);
+    if (!m || (!m[1] && !m[2])) throw new Error("line " + lineNo + ": cannot read the term “" + t + "”");
+    let cf = m[1] ? Frac.parse(m[1]) : F1;
+    if (sign < 0) cf = cf.neg();
+    if (m[2]) {
+      const vi = vars.indexOf(m[2]);
+      if (vi < 0) throw new Error("line " + lineNo + ": unknown variable “" + m[2] + "” (declared: " + vars.join(", ") + ")");
+      co[vi] = co[vi].add(cf); if (first === null) first = "v";
+    } else { k = k.add(cf); if (first === null) first = "k"; }
+  }
+  return { co, k, kFirst: first === "k" };
+}
+/* LP text.  Besides the format of the simplex page: “int x y” (integer variables; default all),
+   the flag “cut” after “|” (a cutting plane, starts switched off), “explore down|up|best”.
+   All variables are ≥ 0; lines like “x, y >= 0” are accepted and need not be given. */
+function parseLP(text) {
+  const lp = { kind: "lp", title: "", vars: null, labels: {}, unit: "", sense: "max", c: null, cons: [], view: null, int: null, explore: "down", src: text };
+  const pend = [];
+  text.split(/\r?\n/).forEach((raw, i) => {
+    const line = raw.trim(), no = i + 1;
+    if (!line || line.startsWith("#") || line.startsWith("//")) return;
+    const m = /^(\w+)\b\s*(.*)$/.exec(line), kw = m ? m[1].toLowerCase() : "", rest = m ? m[2] : "";
+    if (kw === "title") { lp.title = rest; return; }
+    if (kw === "vars" || kw === "variables") {
+      lp.vars = rest.split(/[\s,]+/).filter(x => x);
+      if (lp.vars.length < 1 || lp.vars.length > 8) throw new Error("line " + no + ": between one and eight variables, please");
+      lp.vars.forEach(v => { if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(v)) throw new Error("line " + no + ": “" + v + "” is not a variable name"); });
+      if (new Set(lp.vars).size !== lp.vars.length) throw new Error("line " + no + ": a variable twice");
+      return;
+    }
+    if (kw === "label") { const mm = /^(\w+)\s+(.*)$/.exec(rest); if (!mm) throw new Error("line " + no + ": label <variable> <text>"); lp.labels[mm[1]] = mm[2]; return; }
+    if (kw === "unit") { lp.unit = rest; return; }
+    if (kw === "stretch") { lp.stretch = true; return; }
+    if (kw === "explore") {
+      if (!/^(down|up|best)$/.test(rest.trim())) throw new Error("line " + no + ": explore down, up or best");
+      lp.explore = rest.trim(); return;
+    }
+    if (kw === "view") {
+      const v = rest.split(/[\s,]+/).filter(x => x).map(Number);
+      if (v.some(x => !isFinite(x)) || (v.length !== 4 && v.length !== 6)) throw new Error("line " + no + ": view needs 4 (2D) or 6 (3D) numbers");
+      lp.view = v; return;
+    }
+    if (!lp.vars && kw !== "") {
+      if (/^(max|min|maximize|minimize|maximise|minimise|nonneg|int)$/.test(kw) || OPS.test(line)) throw new Error("line " + no + ": declare the variables first (vars …)");
+    }
+    if (kw === "int" || kw === "integer") {
+      const vs = rest.split(/[\s,]+/).filter(x => x);
+      lp.int = lp.vars.map(() => false);
+      for (const v of vs) { const vi = lp.vars.indexOf(v); if (vi < 0) throw new Error("line " + no + ": unknown variable “" + v + "”"); lp.int[vi] = true; }
+      return;
+    }
+    if (/^(max|maximize|maximise|min|minimize|minimise)$/.test(kw)) {
+      lp.sense = kw.startsWith("max") ? "max" : "min";
+      const e = parseLin(rest, lp.vars, no);
+      if (e.co.every(x => x.isZero())) throw new Error("line " + no + ": the objective has no variable");
+      lp.c = e.co; return;
+    }
+    if (kw === "nonneg") return;
+    const parts = line.split("|").map(x => x.trim()), body = parts[0];
+    let name = parts[1] || "", color = "", on = true, cut = false;
+    for (const f of parts.slice(2)) for (const tok of f.split(/\s+/).filter(x => x)) {
+      if (tok.toLowerCase() === "off") on = false;
+      else if (tok.toLowerCase() === "cut") { cut = true; on = false; }
+      else if (PALETTE[tok.toLowerCase()]) color = PALETTE[tok.toLowerCase()];
+      else if (/^#[0-9a-fA-F]{3,6}$/.test(tok)) color = tok;
+      else throw new Error("line " + no + ": “" + tok + "” is neither a colour nor “off” or “cut”");
+    }
+    const seg = body.split(OPS);
+    if (seg.length < 3) throw new Error("line " + no + ": neither a keyword nor a constraint");
+    if (seg.length === 3 && seg[0].includes(",")) {
+      const vs = seg[0].split(",").map(x => x.trim()), op = opNorm(seg[1]), r = parseLin(seg[2], lp.vars, no);
+      if (r.co.some(x => !x.isZero())) throw new Error("line " + no + ": “x, y >= …” needs a number on the right");
+      for (const v of vs) {
+        const vi = lp.vars.indexOf(v); if (vi < 0) throw new Error("line " + no + ": unknown variable “" + v + "”");
+        const nonneg = op === ">=" && r.k.isZero();
+        pend.push({ a: lp.vars.map((w, j) => j === vi ? F1 : F0), op, b: r.k, name, color, on, cut, nonneg });
+      }
+      return;
+    }
+    for (let q = 0; q + 2 < seg.length; q += 2) {
+      const L = parseLin(seg[q], lp.vars, no), R = parseLin(seg[q + 2], lp.vars, no), op = opNorm(seg[q + 1]);
+      let a = L.co.map((x, j) => x.sub(R.co[j])), b = R.k.sub(L.k);
+      if (a.every(x => x.isZero())) throw new Error("line " + no + ": a constraint without a variable");
+      let op2 = op;
+      if (L.co.every(x => x.isZero()) && R.co.some(x => !x.isZero())) { a = a.map(x => x.neg()); b = b.neg(); op2 = op === "<=" ? ">=" : op === ">=" ? "<=" : "="; }
+      const nz = a.map((x, j) => x.isZero() ? -1 : j).filter(j => j >= 0);
+      const nonneg = nz.length === 1 && b.isZero() && ((op2 === ">=" && a[nz[0]].sign > 0) || (op2 === "<=" && a[nz[0]].sign < 0));
+      const both = L.co.some(x => !x.isZero()) && R.co.some(x => !x.isZero());
+      pend.push({ a, op: op2, b, name, color, on, cut, nonneg, disp: both ? { L, R, op } : null });
+    }
+  });
+  if (!lp.vars) throw new Error("no variables declared (vars x y)");
+  if (!lp.c) throw new Error("no objective (max … or min …)");
+  if (lp.view && lp.view.length !== 2 * lp.vars.length) throw new Error("view: " + 2 * lp.vars.length + " numbers for " + lp.vars.length + " variables");
+  let ai = 0;
+  pend.forEach(p => { if (!p.color) p.color = p.nonneg ? PALETTE.gray : PALETTE[AUTO[ai++ % AUTO.length]]; });
+  lp.cons = pend;
+  lp.d = lp.vars.length;
+  if (!lp.int) lp.int = lp.vars.map(() => true);
+  if (!lp.title) lp.title = "custom LP";
+  return lp;
+}
+/* the rows A x ≤ b of the switched-on constraints, in order (x ≥ 0 is implied); the objective in MIN form */
+function lpRows(lp, on) {
+  const A = [], b = [], src = [];
+  lp.cons.forEach((k, i) => {
+    if (k.nonneg || !(on ? on[i] : k.on)) return;
+    if (k.op === "<=" || k.op === "=") { A.push(k.a); b.push(k.b); src.push(i); }
+    if (k.op === ">=" || k.op === "=") { A.push(k.a.map(x => x.neg())); b.push(k.b.neg()); src.push(i); }
+  });
+  const sg = lp.sense === "max" ? -1 : 1;
+  return { c: lp.c.map(x => sg < 0 ? x.neg() : x), A, b, src, sg };
+}
+
+/* ---------- TeX of linear expressions and constraints (Frac coefficients) ---------- */
+function varT(v) {
+  const m = /^([A-Za-z]+)_?(\d+)$/.exec(v);
+  if (m) return (m[1].length > 1 ? "\\mathit{" + m[1] + "}" : m[1]) + "_{" + m[2] + "}";
+  return v.length > 1 ? "\\mathit{" + v.replace(/_/g, "\\_") + "}" : v;
+}
+function exprT(co, vars) {
+  let s = "";
+  co.forEach((c, j) => {
+    c = Frac.of(c);
+    if (c.isZero()) return;
+    const a = c.abs(), t = (a.eq(F1) ? "" : num(a).tex) + varT(vars[j]);
+    s += s ? (c.sign < 0 ? " - " : " + ") + t : (c.sign < 0 ? "-" : "") + t;
+  });
+  return s || "0";
+}
+function sideT(e, vars) {
+  if (!e.co.some(x => !x.isZero())) return numT(e.k);
+  let s = exprT(e.co, vars);
+  if (!e.k.isZero()) s = e.kFirst ? numT(e.k) + (s[0] === "-" ? " " + s.replace(/^-/, "- ") : " + " + s) : s + (e.k.sign < 0 ? " - " : " + ") + numT(e.k.abs());
+  return s;
+}
+const REL = { "<=": "\\;\\le\\;", ">=": "\\;\\ge\\;", "=": "\\;=\\;" };
+const consT = (k, vars) => k.disp ? sideT(k.disp.L, vars) + REL[k.disp.op] + sideT(k.disp.R, vars) : exprT(k.a, vars) + REL[k.op] + numT(k.b);
+function exprP(co, vars) {
+  let s = "";
+  co.forEach((c, j) => {
+    c = Frac.of(c); if (c.isZero()) return;
+    const a = c.abs(), t = (a.eq(F1) ? "" : numP(a)) + vars[j];
+    s += s ? (c.sign < 0 ? " − " : " + ") + t : (c.sign < 0 ? "−" : "") + t;
+  });
+  return s || "0";
+}
+
+/* ---------- the graph text format (algs4 Graph), with optional coordinates ---------- */
+function isLPText(text) { return /^\s*(vars|variables)\b/im.test(text); }
+function parseGraphText(text) {
+  let problem = null, title = "";
+  const toks = [];
+  text.split(/\r?\n/).forEach((raw, i) => {
+    const line = raw.replace(/#.*$/, "").trim();
+    if (!line) return;
+    const m = /^(problem|title)\b\s*(.*)$/i.exec(line);
+    if (m) {
+      if (m[1].toLowerCase() === "title") { title = m[2]; return; }
+      const p = m[2].trim().toLowerCase();
+      if (p !== "vc" && p !== "is") throw new Error("line " + (i + 1) + ": problem vc (Vertex Cover) or problem is (Independent Set)");
+      problem = p; return;
+    }
+    for (const t of line.split(/[\s,]+/).filter(x => x)) toks.push({ t, no: i + 1 });
+  });
+  let k = 0;
+  const int = what => {
+    if (k >= toks.length) throw new Error("the input ends early: expected " + what);
+    const { t, no } = toks[k++];
+    if (!/^\d+$/.test(t)) throw new Error("line " + no + ": expected " + what + ", found “" + t + "”");
+    return parseInt(t, 10);
+  };
+  const V = int("the number of vertices V"), E = int("the number of edges E");
+  if (V < 1 || V > 14) throw new Error("between 1 and 14 vertices, please (every subset is tried by brute force)");
+  const edges = [];
+  for (let e = 0; e < E; e++) {
+    const u = int("edge " + (e + 1)), v = int("edge " + (e + 1));
+    if (u >= V || v >= V) throw new Error("line " + toks[k - 1].no + ": vertex out of range 0…" + (V - 1));
+    if (u === v) throw new Error("line " + toks[k - 1].no + ": a self-loop " + u + "–" + v);
+    edges.push([u, v]);
+  }
+  const rest = toks.length - k;
+  let pos = null;
+  if (rest) {
+    if (rest !== 2 * V) throw new Error("after the edges: either nothing or exactly " + V + " lines “x y” with coordinates (found " + rest + " numbers)");
+    pos = [];
+    for (let v = 0; v < V; v++) {
+      const x = Number(toks[k++].t), y = Number(toks[k++].t);
+      if (!isFinite(x) || !isFinite(y)) throw new Error("line " + toks[k - 1].no + ": coordinates must be numbers");
+      pos.push([x, y]);
+    }
+  }
+  return { kind: "graph", V, edges, pos, problem, title, src: text };
+}
+function graphToText(g, problem) {
+  const L = [];
+  if (g.title) L.push("title " + g.title);
+  L.push("problem " + problem, String(g.V), String(g.edges.length));
+  for (const [u, v] of g.edges) L.push(u + " " + v);
+  for (const [x, y] of g.pos) L.push((+x.toFixed(3)) + " " + (+y.toFixed(3)));
+  return L.join("\n") + "\n";
+}
+
+/* ==========================================================================
+   MathJax: one queue, a cache of typeset results; TeX labels inside the SVG drawings
+   ========================================================================== */
+const mjReady = () => !!(window.MathJax && MathJax.typesetPromise && MathJax.startup && MathJax.startup.document);
+/* All typesetting goes through one queue (MathJax does not like overlapping calls).
+   Every result is cached by its source, so a formula that was typeset once — e.g. ahead of time,
+   in the background — is shown instantly and without MathJax afterwards. */
+const MJC = new Map();
+const MJQ = { hi: [], lo: [], busy: false };
+function mjRun() {
+  if (MJQ.busy || !mjReady()) return;
+  const job = MJQ.hi.shift() || MJQ.lo.shift();
+  if (!job) return;
+  MJQ.busy = true;
+  Promise.resolve().then(job).catch(() => {}).finally(() => { MJQ.busy = false; setTimeout(mjRun, 0); });
+}
+function mjTypeset(html, ctx) {
+  if (MJC.has(html)) return Promise.resolve(MJC.get(html));
+  const tmp = document.createElement("div"), cs = getComputedStyle(ctx || document.body);
+  tmp.className = "mj-buf"; tmp.style.fontSize = cs.fontSize; tmp.style.fontFamily = cs.fontFamily; tmp.innerHTML = html;
+  document.body.appendChild(tmp);
+  return MathJax.typesetPromise([tmp]).then(() => {
+    const out = tmp.innerHTML; MJC.set(html, out);
+    if (MathJax.typesetClear) MathJax.typesetClear([tmp]);
+    return out;
+  }).finally(() => tmp.remove());
+}
+function setMath(node, html) {
+  node._want = html;
+  if (MJC.has(html)) { if (node._shown !== html) { node.innerHTML = MJC.get(html); node._shown = html; } return; }
+  if (!mjReady()) { if (node._shown !== html) { node.innerHTML = html; node._shown = html; node._raw = true; } return; }
+  if (node._queued) return;
+  node._queued = true;
+  MJQ.hi.push(() => {
+    node._queued = false;
+    const want = node._want;
+    return mjTypeset(want, node).then(out => { if (node._want === want) { node.innerHTML = out; node._shown = want; node._raw = false; } else setMath(node, node._want); });
+  });
+  mjRun();
+}
+/* typeset in place (static parts of the page), through the same queue */
+function mjInPlace(nodes) { MJQ.hi.push(() => MathJax.typesetPromise(nodes)); mjRun(); }
+/* background: typeset these sources (each with the element it will go to, for the font) */
+function mjPrepare(items, onProgress, alive) {
+  const todo = items.filter(it => !MJC.has(it[0])).filter((it, i, arr) => arr.findIndex(q => q[0] === it[0]) === i);
+  let done = 0; const total = todo.length;
+  onProgress(done, total);
+  for (const [html, ctx] of todo) MJQ.lo.push(() => { if (!alive()) return; return mjTypeset(html, ctx).then(() => { done++; onProgress(done, total); }); });
+  mjRun();
+}
+const MJL = new Map(); let mjAgain = 0;
+function mjSvg(tex) {
+  const c = MJL.get(tex);
+  if (c) return c === 1 ? null : c;
+  if (!mjReady()) return null;
+  MJL.set(tex, 1);
+  MJQ.hi.push(() => MathJax.tex2svgPromise(tex, { display: false }).then(node => {
+    const sv = node.querySelector("svg");
+    MJL.set(tex, { vb: sv.getAttribute("viewBox").split(/[\s,]+/).map(Number), inner: sv.innerHTML });
+    if (!mjAgain) mjAgain = requestAnimationFrame(() => { mjAgain = 0; render(); });
+  }).catch(() => MJL.delete(tex)));
+  mjRun();
+  return null;
+}
+let MEASURE = null;
+const BODYFONT = () => getComputedStyle(document.body).fontFamily;
+function textW(s, font) {
+  if (!MEASURE) MEASURE = document.createElement("canvas").getContext("2d");
+  MEASURE.font = font; return MEASURE.measureText(s).width;
+}
+function mathAt(tex, x, y, fs, anchor, color, plain) {
+  const c = mjSvg(tex);
+  if (!c) {
+    const w = textW(plain, "italic " + fs + "px " + BODYFONT());
+    return { w, svg: '<text x="' + f1(x) + '" y="' + f1(y) + '" style="font:italic ' + fs + 'px var(--wi-font-body);fill:' + color + ';text-anchor:' + (anchor || "start") + '">' + esc(plain) + "</text>" };
+  }
+  const [, vy, vw, vh] = c.vb, w = vw / 1000 * fs, h = vh / 1000 * fs;
+  const left = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w : x;
+  return { w, svg: '<svg x="' + f1(left) + '" y="' + f1(y + vy / 1000 * fs) + '" width="' + f1(w) + '" height="' + f1(h) +
+                   '" viewBox="' + c.vb.join(" ") + '" overflow="visible" style="color:' + color + '">' + c.inner + "</svg>" };
+}
+
+/* ==========================================================================
+   The bound bar: what is known about the optimum.  One horizontal value axis.
+   For a minimization problem, from left to right: values that are ruled out
+   (no solution can be this good), the open interval, and values that are no
+   longer interesting (we already have a solution at least this good).
+   For a maximization problem the same, mirrored in meaning.
+
+   o = { sense, lo, hi,
+         lp: Frac|null, round: bool (objective values are integers),
+         search: number|null (a bound proved by exhaustive search),
+         best: number|null, bestLabel, earlier: [numbers],
+         opt: number|null, optShown, words: { out: [..], worse: [..] } }
+   ========================================================================== */
+function barBounds(o) {
+  const min = o.sense === "min";
+  const lpv = o.lp ? o.lp.toNumber() : null;
+  const rnd = o.lp && o.round ? (min ? o.lp.ceil() : o.lp.floor()).toNumber() : null;
+  let bound = rnd !== null ? rnd : lpv;
+  if (o.search !== null && o.search !== undefined)
+    bound = bound === null ? o.search : (min ? Math.max(bound, o.search) : Math.min(bound, o.search));
+  const proved = o.best !== null && o.best !== undefined && bound !== null && Math.abs(o.best - bound) < 1e-9;
+  return { lpv, rnd, bound, proved };
+}
+function drawBar(svg, wrap, o) {
+  const W = Math.max(300, wrap.clientWidth), H = 128, pl = 22, pr = 22;
+  const span = (o.hi - o.lo) || 1, X = v => pl + (v - o.lo) / span * (W - pl - pr);
+  const yT = 54, yA = 74;                     /* band from yT to the axis yA */
+  const min = o.sense === "min", B = barBounds(o), FS = 13.5;
+  let defs = '<defs><pattern id="hatchOpen" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+             '<rect width="7" height="7" fill="#f7f0e2"/><line x1="0" y1="0" x2="0" y2="7" stroke="#c9a56c" stroke-width="2"/></pattern></defs>';
+  let s = "";
+  /* the three regions */
+  const regions = [];
+  const best = o.best === undefined ? null : o.best;
+  if (min) {
+    if (B.bound !== null) regions.push({ a: o.lo, b: B.bound, kind: "out" });
+    regions.push({ a: B.bound !== null ? B.bound : o.lo, b: best !== null ? best : o.hi, kind: "open" });
+    if (best !== null) regions.push({ a: best, b: o.hi, kind: "worse" });
+  } else {
+    if (best !== null) regions.push({ a: o.lo, b: best, kind: "worse" });
+    regions.push({ a: best !== null ? best : o.lo, b: B.bound !== null ? B.bound : o.hi, kind: "open" });
+    if (B.bound !== null) regions.push({ a: B.bound, b: o.hi, kind: "out" });
+  }
+  const regFont = "10.5px " + getComputedStyle(document.documentElement).getPropertyValue("--wi-font-head");
+  for (const r of regions) {
+    const x0 = X(Math.max(o.lo, Math.min(r.a, r.b))), x1 = X(Math.min(o.hi, Math.max(r.a, r.b)));
+    if (x1 - x0 < 0.5) continue;
+    const fill = r.kind === "out" ? "#ecd3cc" : r.kind === "worse" ? "#e7e1d4" : "url(#hatchOpen)";
+    s += '<rect x="' + f1(x0) + '" y="' + yT + '" width="' + f1(x1 - x0) + '" height="' + (yA - yT) + '" fill="' + fill + '"/>';
+    const opts = r.kind === "out" ? o.words.out : r.kind === "worse" ? o.words.worse : (B.bound === null ? ["open: no bound yet", "open"] : ["open", ""]);
+    const lab = opts.find(t => textW(t, regFont) + 10 <= x1 - x0);
+    if (lab) s += '<text class="sv-reg" x="' + f1((x0 + x1) / 2) + '" y="' + (yT + 13.5) + '"' + (r.kind === "open" ? ' style="fill:#7a5a22"' : "") + ">" + esc(lab) + "</text>";
+  }
+  s += '<rect x="' + f1(X(o.lo)) + '" y="' + yT + '" width="' + f1(X(o.hi) - X(o.lo)) + '" height="' + (yA - yT) + '" fill="none" stroke="var(--wi-border-soft)"/>';
+  /* axis and ticks */
+  s += '<line x1="' + f1(X(o.lo)) + '" x2="' + f1(X(o.hi)) + '" y1="' + yA + '" y2="' + yA + '" stroke="#6b675c" stroke-width="1.3"/>';
+  const stepT = span <= 16 ? 1 : niceStep(span, Math.max(4, (W - pl - pr) / 60));
+  const marks = [o.best, o.optShown ? o.opt : null].filter(v => v !== null && v !== undefined).map(X);
+  for (let v = Math.ceil(o.lo / stepT) * stepT; v <= o.hi + 1e-9; v += stepT) {
+    const x = X(v);
+    if (marks.some(m => Math.abs(m - x) < 7)) continue;
+    s += '<line x1="' + f1(x) + '" x2="' + f1(x) + '" y1="' + yA + '" y2="' + (yA + 4) + '" stroke="#6b675c" stroke-width="1"/>' +
+         '<text class="sv-tick" x="' + f1(x) + '" y="' + (yA + 16) + '" text-anchor="middle" style="paint-order:stroke;stroke:var(--wi-bg);stroke-width:3px">' + esc(numP(+v.toPrecision(10))) + "</text>";
+  }
+  const place = (m, x, anchor) => {            /* keep a label inside the drawing */
+    let ax = x, an = anchor;
+    if (an === "middle") { if (x - m.w / 2 < 2) { ax = 2; an = "start"; } else if (x + m.w / 2 > W - 2) { ax = W - 2; an = "end"; } }
+    else if (an === "end" && x - m.w < 2) { ax = 2; an = "start"; }
+    else if (an === "start" && x + m.w > W - 2) { ax = W - 2; an = "end"; }
+    return [ax, an];
+  };
+  const tex = (t, x, y, anchor, color, plain) => {
+    const m0 = mathAt(t, 0, 0, FS, "start", color, plain), [ax, an] = place(m0, x, anchor);
+    return mathAt(t, ax, y, FS, an, color, plain).svg;
+  };
+  const txt = (t, x, y, anchor, color, bold) => {
+    const font = (bold ? "bold " : "") + "12.5px " + BODYFONT(), w = textW(t, font), [ax, an] = place({ w }, x, anchor);
+    return '<text class="sv-bar" x="' + f1(ax) + '" y="' + y + '" text-anchor="' + an + '" style="fill:' + color + (bold ? ";font-weight:bold" : "") + '">' + esc(t) + "</text>";
+  };
+  /* the LP bound: red, above the band */
+  const lpSide = min ? "end" : "start", rndSide = min ? "start" : "end";
+  if (B.lpv !== null) {
+    const x = X(B.lpv), sep = B.rnd !== null && Math.abs(B.rnd - B.lpv) > 1e-9;
+    s += '<line x1="' + f1(x) + '" x2="' + f1(x) + '" y1="26" y2="' + yA + '" stroke="' + C_LP + '" stroke-width="2"/>' +
+         '<path d="M' + f1(x - 5) + ',' + (yT - 9) + 'L' + f1(x + 5) + ',' + (yT - 9) + 'L' + f1(x) + ',' + (yT - 1) + 'Z" fill="' + C_LP + '"/>';
+    s += tex("z_{\\mathrm{LP}} = " + numT(o.lp), x + (sep ? (min ? -6 : 6) : 0), 18, sep ? lpSide : "middle", C_LP, "z_LP = " + numP(o.lp));
+    if (sep) {
+      const xr = X(B.rnd);
+      s += '<line x1="' + f1(xr) + '" x2="' + f1(xr) + '" y1="32" y2="' + yA + '" stroke="' + C_LP + '" stroke-width="1.6" stroke-dasharray="4 3"/>';
+      s += tex((min ? "\\lceil z_{\\mathrm{LP}}\\rceil" : "\\lfloor z_{\\mathrm{LP}}\\rfloor") + " = " + numT(B.rnd), xr + (min ? 6 : -6), 40, rndSide, C_LP, (min ? "⌈z_LP⌉ = " : "⌊z_LP⌋ = ") + numP(B.rnd));
+    }
+  }
+  /* a bound from exhaustive search: dark, in the band */
+  if (o.search !== null && o.search !== undefined) {
+    const x = X(o.search);
+    s += '<line x1="' + f1(x) + '" x2="' + f1(x) + '" y1="' + (B.lpv === null ? 26 : 44) + '" y2="' + yA + '" stroke="#38362e" stroke-width="1.8" stroke-dasharray="2 2"/>';
+    const t = "search: " + (min ? "≥ " : "≤ ") + numP(o.search);
+    if (B.lpv === null) s += txt(t, x, 18, "middle", "#38362e");
+    else if (B.rnd === null || Math.abs(B.rnd - o.search) > 1e-9) s += txt(t, x + (min ? -6 : 6), 40, min ? "end" : "start", "#38362e");
+  }
+  /* solutions: blue, below the axis */
+  for (const v of o.earlier || []) {
+    const x = X(v);
+    s += '<line x1="' + f1(x) + '" x2="' + f1(x) + '" y1="' + (yA - 6) + '" y2="' + (yA + 8) + '" stroke="' + C_INT + '" stroke-width="1.5" opacity=".35"/>';
+  }
+  const optShown = o.optShown && o.opt !== null && o.opt !== undefined;
+  if (best !== null) {
+    const x = X(best), col = B.proved ? C_OPT : C_INT;
+    s += '<line x1="' + f1(x) + '" x2="' + f1(x) + '" y1="' + yT + '" y2="' + (yA + 24) + '" stroke="' + col + '" stroke-width="2.4"/>' +
+         '<path d="M' + f1(x - 5.5) + ',' + (yA + 31) + 'L' + f1(x + 5.5) + ',' + (yA + 31) + 'L' + f1(x) + ',' + (yA + 22) + 'Z" fill="' + col + '"/>';
+    let t = o.bestLabel + ": " + numP(best);
+    if (B.proved) t += " — optimal, proved";
+    else if (optShown && Math.abs(o.opt - best) < 1e-9) t += " = the optimum";
+    const sepOpt = optShown && Math.abs(o.opt - best) > 1e-9;
+    s += txt(t, x + (sepOpt ? (min ? 6 : -6) : 0), H - 6, sepOpt ? (min ? "start" : "end") : "middle", col, B.proved);
+  }
+  if (optShown && (best === null || Math.abs(o.opt - best) > 1e-9)) {
+    const x = X(o.opt);
+    s += '<path d="M' + f1(x) + ',' + (yA - 7) + 'L' + f1(x + 7) + ',' + yA + 'L' + f1(x) + ',' + (yA + 7) + 'L' + f1(x - 7) + ',' + yA + 'Z" fill="' + C_OPT + '" stroke="var(--wi-panel-2)" stroke-width="1.2"/>';
+    s += txt("optimum: " + numP(o.opt), x + (best !== null ? (min ? -6 : 6) : 0), H - 6, best !== null ? (min ? "end" : "start") : "middle", C_OPT);
+  }
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.innerHTML = defs + s;
+  return B;
+}
+function niceStep(range, n) {
+  const raw = range / Math.max(1, n), p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+  return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
+}
+
+/* ==========================================================================
+   Tab “Prove it optimal”: a graph, Vertex Cover or Independent Set.
+   Four stages, all reachable at any time: a solution, can it be beaten?,
+   relax, verdict.  Not a recorded run: the state below is what is shown.
+   ========================================================================== */
+const poly = (n, r, rot) => [...Array(n)].map((_, i) => { const a = (rot === undefined ? -Math.PI / 2 : rot) + 2 * Math.PI * i / n; return [(r || 1) * Math.cos(a), (r || 1) * Math.sin(a)]; });
+const completeEdges = n => { const E = []; for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) E.push([i, j]); return E; };
+/* edge lists in the same order as in ilp_reference.py (the order of the LP rows) */
+const GRAPHS = {
+  cycle5:   { name: "5-cycle", V: 5, edges: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 0]], pos: poly(5) },
+  k4:       { name: "K₄ (complete graph, 4 vertices)", V: 4, edges: completeEdges(4), pos: poly(4, 1, -3 * Math.PI / 4) },
+  kn:       { name: "Kₙ (complete graph, choose n)", kn: true },
+  triangle: { name: "triangle", V: 3, edges: [[0, 1], [1, 2], [0, 2]], pos: poly(3) },
+  path3:    { name: "path, 3 vertices", V: 3, edges: [[0, 1], [1, 2]], pos: [[0, 0], [1, 0.5], [2, 0]] },
+  path4:    { name: "path, 4 vertices", V: 4, edges: [[0, 1], [1, 2], [2, 3]], pos: [[0, 0], [1, 0.5], [2, 0], [3, 0.5]] },
+  bowtie:   { name: "bowtie (two triangles, one shared vertex)", V: 5, edges: [[0, 1], [0, 2], [1, 2], [0, 3], [0, 4], [3, 4]],
+              pos: [[0, 0], [-1.1, -0.8], [-1.1, 0.8], [1.1, -0.8], [1.1, 0.8]] },
+  startri:  { name: "star plus triangle", V: 7, edges: [[0, 1], [0, 2], [0, 3], [0, 4], [4, 5], [5, 6], [4, 6]],
+              pos: [[0, 0], [-0.9, -1], [-1.3, 0], [-0.9, 1], [1.1, 0], [1.9, -0.85], [1.9, 0.85]] },
+  wheel:    { name: "wheel (hub and 5-cycle)", V: 6, edges: [[0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 2], [2, 3], [3, 4], [4, 5], [5, 1]],
+              pos: [[0, 0]].concat(poly(5)) },
+  prism:    { name: "prism (two triangles, joined)", V: 6, edges: [[0, 1], [1, 2], [0, 2], [3, 4], [4, 5], [3, 5], [0, 3], [1, 4], [2, 5]],
+              pos: poly(3, 1.3).concat(poly(3, 0.5)) },
+  grid23:   { name: "grid 2 × 3 (bipartite)", V: 6, edges: [[0, 1], [1, 2], [3, 4], [4, 5], [0, 3], [1, 4], [2, 5]],
+              pos: [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1]] },
+  petersen: { name: "Petersen graph", V: 10,
+              edges: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 0], [0, 5], [1, 6], [2, 7], [3, 8], [4, 9], [5, 7], [6, 8], [7, 9], [8, 5], [9, 6]],
+              pos: poly(5).concat(poly(5, 0.5)) }
+};
+function graphPreset(key, n) {
+  const g = GRAPHS[key];
+  if (g.kn) return { V: n, edges: completeEdges(n), pos: poly(n, 1, n === 4 ? -3 * Math.PI / 4 : undefined), title: "K" + n };
+  return { V: g.V, edges: g.edges.map(e => e.slice()), pos: g.pos.map(p => p.slice()), title: g.name };
+}
+
+const P1 = {
+  key: "cycle5", n: 6, problem: "vc", V: 0, edges: [], pos: [], title: "", custom: null,
+  sel: new Set(), earlier: [], stage: 1, reached: new Set([1]), lp: null, optData: null, optShown: false,
+  searchBound: null, lastSearch: null, srch: null,
+  view: { z: 1, dx: 0, dy: 0 }, box: null, H: 440, Hdef: 440, split: 0.58
+};
+const isVC = () => P1.problem === "vc";
+const WORDS = {
+  vc: { sol: "vertex cover", s: "cover", ss: "covers", better: "smaller", out: ["ruled out: no cover this small", "ruled out", ""], worse: ["not better than yours", "worse", ""] },
+  is: { sol: "independent set", s: "independent set", ss: "independent sets", better: "larger", out: ["ruled out: no independent set this large", "ruled out", ""], worse: ["not better than yours", "worse", ""] }
+};
+const W1 = () => WORDS[P1.problem];
+
+function loadGraph(g, keepView) {
+  P1.V = g.V; P1.edges = g.edges; P1.pos = g.pos; P1.title = g.title || "";
+  if (g.problem) P1.problem = g.problem;
+  if (!keepView) fitBox();
+  resetSolution();
+}
+function fitBox() {
+  const xs = P1.pos.map(p => p[0]), ys = P1.pos.map(p => p[1]);
+  P1.box = { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+  P1.view = { z: 1, dx: 0, dy: 0 };
+}
+function resetSolution() {
+  stopSearch();
+  P1.sel = new Set(); P1.earlier = []; P1.stage = 1; P1.reached = new Set([1]);
+  P1.lp = null; P1.optData = null; P1.optShown = false; P1.searchBound = null; P1.lastSearch = null;
+}
+const bitsOf = set => { let m = 0; for (const v of set) m |= 1 << v; return m; };
+const popcount = m => { let c = 0; while (m) { m &= m - 1; c++; } return c; };
+/* the edges a set violates: uncovered edges (Vertex Cover), edges inside the set (Independent Set) */
+function violations(set) {
+  const has = v => set.has(v), out = [];
+  P1.edges.forEach(([u, v], i) => { if (isVC() ? !has(u) && !has(v) : has(u) && has(v)) out.push(i); });
+  return out;
+}
+function validMask(m) {
+  for (const [u, v] of P1.edges) {
+    const a = (m >> u) & 1, b = (m >> v) & 1;
+    if (isVC() ? !a && !b : a && b) return false;
+  }
+  return true;
+}
+/* the size of the chosen solution, or null if it is not valid (or empty: nothing chosen is not a solution worth showing) */
+const curValue = () => !P1.sel.size || violations(P1.sel).length ? null : P1.sel.size;
+/* the optimum by brute force over all 2^V subsets */
+function optData() {
+  if (P1.optData) return P1.optData;
+  let best = null, masks = [];
+  for (let m = 0; m < 1 << P1.V; m++) {
+    if (!validMask(m)) continue;
+    const s = popcount(m);
+    if (best === null || (isVC() ? s < best : s > best)) { best = s; masks = [m]; }
+    else if (s === best) masks.push(m);
+  }
+  return (P1.optData = { best, masks });
+}
+/* a valid solution that is deliberately not optimal, if there is one:
+   the inclusion-minimal cover (maximal independent set) farthest from the optimum; if all of those are optimal,
+   the first cover with one vertex more (independent set with one vertex less) */
+function someSolution() {
+  const od = optData(), vc = isVC();
+  let pick = null, pickVal = null;
+  for (let m = 0; m < 1 << P1.V; m++) {
+    if (!validMask(m)) continue;
+    let extreme = true;
+    for (let v = 0; v < P1.V && extreme; v++) {
+      const inside = (m >> v) & 1;
+      if (vc && inside && validMask(m & ~(1 << v))) extreme = false;
+      if (!vc && !inside && validMask(m | (1 << v))) extreme = false;
+    }
+    if (!extreme) continue;
+    const s = popcount(m);
+    if (pickVal === null || (vc ? s > pickVal : s < pickVal)) { pick = m; pickVal = s; }
+  }
+  if (pickVal === od.best) {
+    const want = vc ? od.best + 1 : od.best - 1;
+    if (want >= 1 && want <= P1.V) for (let m = 0; m < 1 << P1.V; m++) if (popcount(m) === want && validMask(m)) { pick = m; break; }
+  }
+  const set = new Set(); for (let v = 0; v < P1.V; v++) if ((pick >> v) & 1) set.add(v);
+  return set;
+}
+function setSelection(set) {
+  const old = curValue();
+  if (old !== null && old !== (!set.size || violations(set).length ? null : set.size) && !P1.earlier.includes(old)) P1.earlier.push(old);
+  P1.sel = set;
+}
+function toggleVertex(v) {
+  if (P1.srch) return;
+  const s = new Set(P1.sel);
+  if (s.has(v)) s.delete(v); else s.add(v);
+  setSelection(s);
+  renderProve(); writeHash();
+}
+function goStage(s) {
+  P1.stage = s; P1.reached.add(s);
+  renderProve();
+}
+
+/* ---------- stage 2: try every candidate of size k − 1 (k + 1) ---------- */
+function combos(n, k) {
+  const out = [], cur = [];
+  const rec = start => {
+    if (cur.length === k) { out.push(cur.slice()); return; }
+    for (let v = start; v <= n - (k - cur.length); v++) { cur.push(v); rec(v + 1); cur.pop(); }
+  };
+  if (k >= 0 && k <= n) rec(0);
+  return out;
+}
+function startSearch() {
+  const k = curValue();
+  if (k === null || P1.srch) return;
+  const s = isVC() ? k - 1 : k + 1, cands = combos(P1.V, s), fails = [];
+  let found = -1;
+  for (let i = 0; i < cands.length; i++) {
+    const viol = violations(new Set(cands[i]));
+    fails.push(viol.length ? viol[0] : -1);
+    if (!viol.length) { found = i; break; }
+  }
+  const shown = found >= 0 ? found + 1 : cands.length;
+  P1.srch = { k, s, N: cands.length, cands, fails, found, shown, i: -1, t0: performance.now(), dur: Math.min(3000, Math.max(500, shown * 200)) };
+  if (!shown) { finishSearch(); return; }
+  const tick = now => {
+    const S = P1.srch; if (!S) return;
+    const i = Math.min(S.shown - 1, Math.floor((now - S.t0) / S.dur * S.shown));
+    if (i !== S.i) { S.i = i; drawGraph(); el("pCount").textContent = "checked " + (i + 1) + " of " + S.N; }
+    if (now - S.t0 >= S.dur + 250) finishSearch(); else S.raf = requestAnimationFrame(tick);
+  };
+  P1.srch.raf = requestAnimationFrame(tick);
+  renderProve();
+}
+function stopSearch() { if (P1.srch) { cancelAnimationFrame(P1.srch.raf); P1.srch = null; } }
+function finishSearch() {
+  const S = P1.srch; if (!S) return;
+  cancelAnimationFrame(S.raf); P1.srch = null;
+  if (S.found >= 0) {
+    setSelection(new Set(S.cands[S.found]));
+    P1.lastSearch = { k: S.k, s: S.s, N: S.N, found: true, checked: S.found + 1 };
+  } else {
+    P1.lastSearch = { k: S.k, s: S.s, N: S.N, found: false };
+    const b = S.k;
+    P1.searchBound = P1.searchBound === null ? b : (isVC() ? Math.max(P1.searchBound, b) : Math.min(P1.searchBound, b));
+  }
+  renderProve(); writeHash();
+}
+
+/* ---------- stage 3: the LP relaxation ---------- */
+function askLP() {
+  const L = graphLP(P1.problem, P1.V, P1.edges), r = lpMin(L.c, L.A, L.b);
+  P1.lp = { z: isVC() ? r.z : r.z.neg(), x: r.x };
+  renderProve(); writeHash();
+}
+function proveBarOpts() {
+  const od = P1.optShown ? optData() : null;
+  return { sense: isVC() ? "min" : "max", lo: 0, hi: Math.max(1, P1.V), lp: P1.lp ? P1.lp.z : null, round: true,
+           search: P1.searchBound, best: curValue(), bestLabel: isVC() ? "your cover" : "your set", earlier: P1.earlier.filter(v => v !== curValue()),
+           opt: od ? od.best : null, optShown: P1.optShown, words: W1() };
+}
+
+/* ---------- texts ---------- */
+function proveStatus() {
+  const vc = isVC(), w = W1(), k = curValue(), viol = violations(P1.sel), B = barBounds(proveBarOpts());
+  const nE = P1.edges.length;
+  if (P1.stage === 1) {
+    if (k === null) return vc
+      ? "Choose a <b>vertex cover</b>: click vertices until every edge has a chosen endpoint. Uncovered edges are drawn red. " +
+        (P1.sel.size ? "Right now: " + P1.sel.size + " chosen, " + viol.length + " edge" + (viol.length === 1 ? "" : "s") + " uncovered." : "Or press “some cover” for a quick start.")
+      : "Choose an <b>independent set</b>: click vertices; no two chosen vertices may be joined by an edge. Conflicts are drawn red. " +
+        (P1.sel.size ? "Right now: " + P1.sel.size + " chosen, " + viol.length + " conflict" + (viol.length === 1 ? "" : "s") + "." : "Or press “some independent set” for a quick start.");
+    return (vc ? "A vertex cover with " + M("k = " + k) + " vertices. Checking it was easy: one pass over the " + nE + " edges. " +
+                 "Its size is an <b>upper bound</b>: the smallest cover has at most " + k + " vertices."
+               : "An independent set with " + M("k = " + k) + " vertices. Checking it was easy: one pass over the " + nE + " edges. " +
+                 "Its size is a <b>lower bound</b>: the largest independent set has at least " + k + " vertices.") +
+           " But is " + k + " the best possible? That is a statement about <i>all</i> " + w.ss + " — the next stages try to prove it.";
+  }
+  if (P1.stage === 2) {
+    if (k === null) return "First choose a valid " + w.sol + " in stage 1 (or press “some " + w.s + "” there).";
+    const s = vc ? k - 1 : k + 1, N = binom(P1.V, s);
+    let t = "To prove that " + M("k = " + k) + " is optimal, rule out every " + w.s + " with " + s + " vertices. " +
+            (vc ? "(A smaller cover could be filled up to " + s + " vertices, so size " + s + " is all we need to check.) "
+                : "(A larger independent set contains one with " + s + " vertices, so size " + s + " is all we need to check.) ");
+    if (s < 0 || s > P1.V) return t + "There is no set of " + s + " vertices at all, so " + k + " is trivially optimal.";
+    t += "There are " + M("\\tbinom{" + P1.V + "}{" + s + "} = " + N) + " candidates.";
+    const L = P1.lastSearch;
+    if (P1.srch) return t + " Trying them all …";
+    if (L && L.found && L.k !== k) return "Found " + (vc ? "a cover" : "an independent set") + " with " + L.s + " vertices after checking " + L.checked + " of " + L.N +
+      " candidates — yours could be beaten. It replaces yours. Try again: is " + k + " optimal?";
+    if (L && !L.found && L.k === k) return "All " + N + " sets of " + s + " vertices " + (vc ? "leave an edge uncovered" : "contain an edge") + ": no " + w.s + " with " + s +
+      " vertices exists, so " + k + " is optimal. A valid proof — but it checked " + N + " sets, and that number grows exponentially: " +
+      "for 100 vertices and " + (vc ? "a cover" : "a set") + " of size 50, it would be about " + M("10^{29}") + ".";
+    return t + " Try them all?";
+  }
+  if (P1.stage === 3) {
+    const rel = vc ? "Every vertex cover is a 0/1 point of this LP, so the LP optimum can only be smaller: " + M("z_{\\mathrm{LP}} \\le |S|") + " for every cover " + M("S") + "."
+                   : "Every independent set is a 0/1 point of this LP, so the LP optimum can only be larger: " + M("z_{\\mathrm{LP}} \\ge |S|") + " for every independent set " + M("S") + ".";
+    if (!P1.lp) return "<b>Relax:</b> drop the integrality and allow " + M("0 \\le x_v \\le 1") + " — the LP relaxation (on the right). " + rel + " Ask an LP solver for " + M("z_{\\mathrm{LP}}") + ".";
+    const z = P1.lp.z, integral = P1.lp.x.every(x => x.isInt());
+    let t = "The LP optimum is " + M("z_{\\mathrm{LP}} = " + numT(z)) + "; the red pies show the values " + M("x^*_v") + ". " +
+      (vc ? "So no cover has fewer than " + numP(z) + " vertices — and since sizes are integers, every cover has at least " + M("\\lceil " + numT(z) + "\\rceil = " + B.rnd) + "."
+          : "So no independent set has more than " + numP(z) + " vertices — and since sizes are integers, every one has at most " + M("\\lfloor " + numT(z) + "\\rfloor = " + B.rnd) + ".");
+    if (integral) t += " Here " + M("\\mathbf x^*") + " is even integral: it is itself " + (vc ? "a cover" : "an independent set") + " of this size, so the bound is attained.";
+    return t + " We take the solver’s word for " + M("z_{\\mathrm{LP}}") + ": LPs can be solved exactly, in polynomial time.";
+  }
+  /* stage 4 */
+  if (k === null) return "First choose a valid " + w.sol + " in stage 1.";
+  if (B.bound === null) return "Nothing is proved yet: we have " + (vc ? "a cover" : "an independent set") + " with " + k + " vertices, but no " + (vc ? "lower" : "upper") +
+    " bound. Get one by exhaustive search (stage 2) or from the LP (stage 3).";
+  const od = P1.optShown ? optData() : null;
+  if (B.proved) {
+    if (B.rnd === k) return "<b>Optimal.</b> " + (vc ? "A cover with " + k + " vertices, and the LP shows that no cover has fewer than " + M("\\lceil z_{\\mathrm{LP}}\\rceil = " + k)
+                                                   : "An independent set with " + k + " vertices, and the LP shows that none has more than " + M("\\lfloor z_{\\mathrm{LP}}\\rfloor = " + k)) +
+      ". The proof is one solution and one LP value — short, and quick to check if we trust the LP solver. No candidates need to be tried.";
+    return "<b>Optimal</b>, proved by exhaustive search: all " + P1.lastSearch.N + " candidates of size " + P1.lastSearch.s + " fail. " +
+      (P1.lp ? "The LP alone does not show this: it only gives " + M((vc ? "\\lceil z_{\\mathrm{LP}}\\rceil" : "\\lfloor z_{\\mathrm{LP}}\\rfloor") + " = " + B.rnd) + "." : "Does the LP give a shorter proof? Ask it in stage 3.");
+  }
+  let t = "<b>Open:</b> the optimum lies " + (vc ? "between " + B.bound + " and " + k : "between " + k + " and " + B.bound) + ". " +
+          "The " + (vc ? "lower" : "upper") + " bound does not meet your solution, so this proves nothing yet.";
+  if (od) {
+    const gap = P1.lp ? (vc ? Frac.of(od.best).div(P1.lp.z) : P1.lp.z.div(Frac.of(od.best))) : null;
+    if (od.best === B.bound) t += " The optimum is " + od.best + " (green): the bound was right, but your solution can be improved — try stage 2.";
+    else t += " The optimum is " + od.best + " (green): even the best " + w.s + " does not reach the bound " + B.bound + ". " +
+      (P1.lp ? "The LP relaxation is not tight here; ratio " + M((vc ? "z^*_{\\mathrm{ILP}} / z_{\\mathrm{LP}}" : "z_{\\mathrm{LP}} / z^*_{\\mathrm{ILP}}") + " = " + numT(gap)) + " on this instance. " : "") +
+      "Proving optimality needs more than the LP value — for example branch and bound.";
+  }
+  return t;
+}
+function proveActions() {
+  const k = curValue(), w = W1();
+  if (P1.stage === 1) return '<button id="aSome" class="pri">some ' + esc(w.s) + '</button><button id="aClear">clear</button>';
+  if (P1.stage === 2) {
+    if (P1.srch) return '<button id="aStop">stop</button><span class="count" id="pCount"></span>';
+    const s = k === null ? null : isVC() ? k - 1 : k + 1;
+    const N = s === null ? 0 : binom(P1.V, s), done = P1.lastSearch && !P1.lastSearch.found && P1.lastSearch.k === k;
+    return '<button id="aTry" class="pri"' + (k === null || !N || done ? " disabled" : "") + '>try them all</button><span class="count" id="pCount">' +
+           (done ? "checked " + N + " of " + N : "") + "</span>";
+  }
+  if (P1.stage === 3) return '<button id="aLP" class="pri"' + (P1.lp ? " disabled" : "") + ">" + (P1.lp ? "LP solved" : "ask the LP solver") + "</button>";
+  return '<button id="aReveal"' + (k === null ? " disabled" : "") + ">" + (P1.optShown ? "hide the optimum" : "reveal the optimum") + "</button>" +
+         '<button id="aBB" title="Open the branch-and-bound tab">settle it by branch and bound</button>';
+}
+function wireActions() {
+  const on = (id, f) => { const b = el(id); if (b) b.onclick = f; };
+  on("aSome", () => { setSelection(someSolution()); renderProve(); writeHash(); });
+  on("aClear", () => { setSelection(new Set()); renderProve(); writeHash(); });
+  on("aTry", startSearch);
+  on("aStop", () => { stopSearch(); renderProve(); });
+  on("aLP", askLP);
+  on("aReveal", () => { P1.optShown = !P1.optShown; renderProve(); });
+  on("aBB", () => setMode("bb"));
+}
+function proveForm() {
+  const vc = isVC(), fade = s => "\\color{#aaa395}{" + s + "}";
+  const obj = (vc ? "\\min" : "\\max") + " & \\sum_{v\\in V} x_v", con = "x_u + x_v " + (vc ? "\\ge" : "\\le") + " 1 \\quad (\\forall\\, uv\\in E)";
+  const ilp = "\\begin{array}{rl}" + obj + "\\\\ \\text{s.t.} & " + con + "\\\\ & x_v \\in \\{0,1\\} \\quad (\\forall\\, v\\in V)\\end{array}";
+  const lp = "\\begin{array}{rl}" + fade((vc ? "\\min" : "\\max")) + " & " + fade("\\sum_{v\\in V} x_v") + "\\\\ " + fade("\\text{s.t.}") + " & " + fade(con) +
+             "\\\\ & 0 \\le x_v \\le 1 \\quad (\\forall\\, v\\in V)\\end{array}";
+  const P = vc ? "VC" : "IS";
+  let h = '<div class="cols"><div><div class="lab">integer program (' + P + "-ILP)</div>" + M(ilp) + '</div><div><div class="lab">LP relaxation (' + P + "-LP)</div>" + M(lp) + "</div></div>";
+  h += '<div class="here">Here: ' + P1.V + " variables " + M("x_0,\\ldots,x_{" + (P1.V - 1) + "}") + ", " + P1.edges.length + " edge constraints.</div>";
+  const k = curValue(), vec = xs => "(" + xs.join(",\\,") + ")";
+  h += '<div class="cur"><div class="int">' + (vc ? "your cover" : "your set") + ": " +
+       (P1.sel.size || k !== null ? M("\\mathbf x = " + vec([...Array(P1.V)].map((_, v) => P1.sel.has(v) ? 1 : 0)) + ",\\;\\; \\textstyle\\sum_v x_v = " + P1.sel.size) +
+         (k === null ? " — not valid" : "") : "none yet") + "</div>" +
+       '<div class="lp">LP optimum: ' + (P1.lp ? M("\\mathbf x^* = " + vec(P1.lp.x.map(fracT)) + ",\\;\\; z_{\\mathrm{LP}} = " + numT(P1.lp.z)) : "not asked yet") + "</div></div>";
+  return h;
+}
+const PROVE_EXPLAIN =
+  "<h4>Two kinds of bounds</h4><p>For a minimization problem like Vertex Cover, every solution we find is an <i>upper</i> bound on the optimum. " +
+  "A <i>lower</i> bound is a different kind of statement: it is about all solutions at once — “no cover is smaller than this”. " +
+  "When an upper and a lower bound meet, the solution is proved optimal. (For a maximization problem like Independent Set, swap the roles.)</p>" +
+  "<h4>Checking is easy, proving optimality is hard</h4><p>Checking that a set of vertices is a vertex cover takes one pass over the edges; " +
+  "that is why the decision version of Vertex Cover is in NP. But to argue that no smaller cover exists, the naive way is to try every candidate — " +
+  "exponentially many. For NP-complete problems, no short and efficiently checkable argument of this kind is known in general.</p>" +
+  "<h4>Why the relaxation gives a bound</h4><p>Dropping the constraint " + M("x_v\\in\\{0,1\\}") + " in favour of " + M("0\\le x_v\\le 1") +
+  " enlarges the set of feasible points: every cover is still feasible, together with many fractional points. Minimizing over a larger set can only give a smaller value, so " +
+  M("z_{\\mathrm{LP}} \\le z^*_{\\mathrm{ILP}}") + ". Cover sizes are integers, hence even " + M("\\lceil z_{\\mathrm{LP}}\\rceil \\le z^*_{\\mathrm{ILP}}") +
+  ". The LP itself can be solved in polynomial time; here we simply trust the solver’s value.</p>" +
+  "<h4>When the bound is not enough</h4><p>On the complete graph " + M("K_n") + ", all " + M("x_v = \\tfrac12") + " is optimal for both LPs, with value " + M("n/2") +
+  ". The largest independent set has just one vertex, so the LP overestimates it by the factor " + M("n/2") +
+  "; the smallest vertex cover has " + M("n-1") + " vertices, almost twice the LP value. The ratio between the LP value and the true optimum on an instance is its " +
+  "<i>integrality gap</i>. That the rounded LP bound is not always tight is no accident: if it always were, Vertex Cover could be solved in polynomial time, and P = NP.</p>";
+
+/* ---------- drawing ---------- */
+function graphXf(W, H) {
+  const b = P1.box, pad = 50, w = (b.x1 - b.x0) || 1, h = (b.y1 - b.y0) || 1;
+  let s0 = Math.min((W - 2 * pad) / w, (H - 2 * pad) / h);
+  s0 = Math.min(s0, 170) * P1.view.z;
+  const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
+  return { s: s0, X: p => W / 2 + (p[0] - cx) * s0 + P1.view.dx, Y: p => H / 2 + (p[1] - cy) * s0 + P1.view.dy,
+           inv: (x, y) => [(x - W / 2 - P1.view.dx) / s0 + cx, (y - H / 2 - P1.view.dy) / s0 + cy] };
+}
+function piePath(cx, cy, r, f) {
+  if (f >= 1) return '<circle cx="' + f1(cx) + '" cy="' + f1(cy) + '" r="' + r + '"';
+  const a = 2 * Math.PI * f, ex = cx + r * Math.sin(a), ey = cy - r * Math.cos(a);
+  return '<path d="M' + f1(cx) + "," + f1(cy) + "L" + f1(cx) + "," + f1(cy - r) + "A" + r + "," + r + " 0 " + (f > 0.5 ? 1 : 0) + " 1 " + f1(ex) + "," + f1(ey) + 'Z"';
+}
+function drawGraph() {
+  if (!P1.box) return;
+  const svg = el("gSvg"), W = Math.max(300, el("gWrap").clientWidth), H = P1.H, T = graphXf(W, H), R = 18;
+  const S = P1.srch, cand = S && S.i >= 0 ? new Set(S.cands[S.i]) : null, candBad = cand ? S.fails[S.i] : -1;
+  const shownSet = cand || P1.sel, viol = cand ? (candBad >= 0 ? [candBad] : []) : violations(P1.sel);
+  const lp = P1.lp, od = P1.optShown ? optData() : null, optSet = od ? od.masks[0] : 0;
+  const pts = P1.pos.map(p => [T.X(p), T.Y(p)]);
+  const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length, cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+  let edges = "", verts = "", labels = "";
+  P1.edges.forEach(([u, v], i) => {
+    const bad = viol.includes(i), a = pts[u], b = pts[v];
+    edges += '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="' + (bad ? C_ERR : "#6b675c") +
+             '" stroke-width="' + (bad ? 3.6 : 2) + '"' + (bad ? ' stroke-dasharray="7 4"' : "") + ' stroke-linecap="round"/>';
+  });
+  for (let v = 0; v < P1.V; v++) {
+    const [x, y] = pts[v], chosen = shownSet.has(v), fill = cand ? (chosen ? C_INT_SOFT : "var(--wi-panel-2)") : (chosen && !lp ? C_INT : "var(--wi-panel-2)");
+    let g = "";
+    if (od && (optSet >> v) & 1) g += '<circle cx="' + f1(x) + '" cy="' + f1(y) + '" r="' + (R + 9) + '" fill="none" stroke="' + C_OPT + '" stroke-width="2.2" stroke-dasharray="5 3"/>';
+    g += '<circle cx="' + f1(x) + '" cy="' + f1(y) + '" r="' + R + '" fill="' + fill + '" stroke="' + (cand && chosen ? C_INT : "#38362e") + '" stroke-width="' + (cand && chosen ? 2.2 : 1.4) + '"' + (cand && chosen ? ' stroke-dasharray="4 2"' : "") + "/>";
+    if (lp && !cand) {
+      const f = lp.x[v].toNumber();
+      if (f > 1e-9) g += piePath(x, y, R - 1, f) + ' fill="' + C_LP + '" fill-opacity=".82"/>';
+      if (chosen) g += '<circle cx="' + f1(x) + '" cy="' + f1(y) + '" r="' + (R + 4.5) + '" fill="none" stroke="' + C_INT + '" stroke-width="3.4"/>';
+      let dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy);
+      if (d < 1) { dx = 0.7; dy = -0.7; d = 1; }
+      const lx = x + dx / d * (R + 19), ly = y + dy / d * (R + 19);
+      labels += mathAt(fracT(lp.x[v]), lx, ly + 5, 16, "middle", C_LP, fracP(lp.x[v])).svg;
+    }
+    const white = chosen && !lp && !cand;
+    g += '<text class="sv-vno" x="' + f1(x) + '" y="' + f1(y) + '" style="fill:' + (white ? "var(--wi-panel-2)" : "var(--wi-ink-strong)") +
+         (lp && !cand ? ";paint-order:stroke;stroke:var(--wi-panel-2);stroke-width:3.5px" : "") + '">' + v + "</text>";
+    g += '<circle class="hit" data-v="' + v + '" cx="' + f1(x) + '" cy="' + f1(y) + '" r="' + (R + 6) + '" fill="transparent"/>';
+    verts += g;
+  }
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.innerHTML = edges + labels + verts +
+    '<text class="sv-small" x="' + (W - 10) + '" y="' + (H - 8) + '" style="text-anchor:end">' + (W < 620 ? "click · drag · pinch to zoom" : "click: choose · drag: move · wheel or pinch: zoom · double-click: reset") + "</text>";
+}
+function proveLegend() {
+  const vc = isVC(), it = (svg, t) => '<span class="item">' + svg + t + "</span>";
+  const dot = (fill, stroke, dash) => '<svg width="16" height="16"><circle cx="8" cy="8" r="6.5" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.6"' + (dash ? ' stroke-dasharray="3 2"' : "") + "/></svg>";
+  let h = (P1.lp ? it(dot("var(--wi-panel-2)", C_INT), (vc ? "your cover" : "your set") + " (ring)") : it(dot(C_INT, "#38362e"), vc ? "in your cover" : "in your set")) +
+          it('<svg width="28" height="10"><line x1="2" x2="26" y1="5" y2="5" stroke="' + C_ERR + '" stroke-width="3.2" stroke-dasharray="6 3"/></svg>', vc ? "uncovered edge" : "conflict: both ends chosen");
+  if (P1.srch || P1.stage === 2) h += it(dot(C_INT_SOFT, C_INT, true), "a candidate being tried");
+  if (P1.lp) h += it('<svg width="16" height="16"><circle cx="8" cy="8" r="6.5" fill="var(--wi-panel-2)" stroke="#38362e" stroke-width="1.2"/><path d="M8,8L8,1.5A6.5,6.5 0 0 1 8,14.5Z" fill="' + C_LP + '"/></svg>',
+                     "LP value " + M("x^*_v") + " (filled share)");
+  if (P1.optShown) h += it(dot("none", C_OPT, true), "an optimal " + W1().s);
+  return h;
+}
+function renderProve() {
+  if (!P1.box) return;
+  drawGraph();
+  const o = proveBarOpts(), B = drawBar(el("barSvg"), el("barWrap"), o), vc = isVC();
+  const k = curValue(), viol = violations(P1.sel).length;
+  el("gMeta").textContent = P1.V + " vertices, " + P1.edges.length + " edges · " + (k !== null ? (vc ? "cover" : "set") + " of size " + k
+    : !P1.sel.size ? "nothing chosen" : viol + (vc ? " uncovered edge" : " conflict") + (viol === 1 ? "" : "s"));
+  el("barMeta").textContent = B.proved ? "optimal: " + k : B.bound !== null && k !== null ? "open: " + (vc ? B.bound + " … " + k : k + " … " + B.bound)
+                            : (vc ? "minimize" : "maximize") + " the size";
+  el("stageStrip").querySelectorAll("button").forEach(b => {
+    const s = +b.dataset.s; b.classList.toggle("on", s === P1.stage); b.classList.toggle("reached", P1.reached.has(s));
+  });
+  setMath(el("pStatus"), proveStatus());
+  const act = proveActions();
+  if (el("pActions")._html !== act) { el("pActions")._html = act; el("pActions").innerHTML = act; wireActions(); }
+  setMath(el("pForm"), proveForm());
+  setMath(el("gLegend"), proveLegend());
+  el("knCtl").classList.toggle("hidden", P1.key !== "kn");
+  el("probSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.p === P1.problem));
+}
+
+/* pointer: click a vertex to choose it, drag a vertex to move it, drag the background to pan, wheel or pinch to zoom */
+function initGraphPointer() {
+  const svg = el("gSvg"), touches = new Map();
+  let drag = null;
+  const local = e => { const r = svg.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const zoomAt = (f, x, y, base) => {
+    const W = svg.clientWidth, H = P1.H, v0 = base || P1.view, z = clamp(v0.z * f, 0.3, 6), g = z / v0.z;
+    P1.view = { z, dx: (v0.dx - (x - W / 2)) * g + (x - W / 2), dy: (v0.dy - (y - H / 2)) * g + (y - H / 2) };
+    drawGraph();
+  };
+  svg.addEventListener("wheel", e => { e.preventDefault(); const [x, y] = local(e); const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1) * (e.ctrlKey ? 2.5 : 1); zoomAt(Math.exp(-clamp(dy, -300, 300) * 0.0015), x, y); }, { passive: false });
+  svg.addEventListener("dblclick", e => { if (!e.target.closest("[data-v]")) { e.preventDefault(); P1.view = { z: 1, dx: 0, dy: 0 }; drawGraph(); } });
+  svg.addEventListener("pointerdown", e => {
+    if (e.pointerType === "touch") touches.set(e.pointerId, local(e));
+    if (touches.size === 2) {
+      const [a, b] = [...touches.values()];
+      drag = { kind: "pinch", d0: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], base: Object.assign({}, P1.view) };
+      return;
+    }
+    if (e.button !== 0) return;
+    const [x, y] = local(e), hit = e.target.closest("[data-v]");
+    drag = { kind: hit ? "vertex" : "pan", v: hit ? +hit.dataset.v : -1, x, y, moved: false, view: Object.assign({}, P1.view) };
+    svg.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  svg.addEventListener("pointermove", e => {
+    const [x, y] = local(e);
+    if (touches.has(e.pointerId)) touches.set(e.pointerId, [x, y]);
+    if (!drag) return;
+    if (drag.kind === "pinch") {
+      if (touches.size < 2) return;
+      const [a, b] = [...touches.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]) || 1;
+      P1.view = Object.assign({}, drag.base); zoomAt(d / drag.d0, drag.mid[0], drag.mid[1], drag.base); return;
+    }
+    if (!drag.moved && Math.hypot(x - drag.x, y - drag.y) < 4) return;
+    drag.moved = true;
+    if (drag.kind === "vertex") {
+      const T = graphXf(svg.clientWidth, P1.H);
+      P1.pos[drag.v] = T.inv(x, y); P1.custom = P1.custom || "moved";
+    } else P1.view = { z: drag.view.z, dx: drag.view.dx + x - drag.x, dy: drag.view.dy + y - drag.y };
+    drawGraph();
+  });
+  const end = e => {
+    touches.delete(e.pointerId);
+    if (!drag) return;
+    if (drag.kind === "pinch") { if (touches.size < 2) drag = null; return; }
+    if (!drag.moved && drag.kind === "vertex") toggleVertex(drag.v);
+    else if (drag.moved && drag.kind === "vertex") writeHash();
+    drag = null;
+  };
+  svg.addEventListener("pointerup", end); svg.addEventListener("pointercancel", end);
+}
+function applyGraphPreset(key, n) {
+  P1.key = key; if (n) P1.n = n; P1.custom = null;
+  el("gPreset").value = key;
+  loadGraph(graphPreset(key, P1.n));
+  el("knN").value = P1.n; el("knVal").textContent = "n = " + P1.n;
+}
+
+/* ==========================================================================
+   Tab “Lattice and gap”: the LP of the simplex page, with the integer grid.
+   Exact answers (lpMin, ilpColumns) decide; floating point only draws.
+   ========================================================================== */
+const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
+const norm = a => Math.sqrt(dot(a, a));
+const sub = (a, b) => a.map((x, i) => x - b[i]);
+const add = (a, b) => a.map((x, i) => x + b[i]);
+const mul = (a, k) => a.map(x => x * k);
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const OBJ = "#e07b10", OBJD = "#a85808";
+
+/* ---------- geometry for drawing (floating point, from the simplex page) ---------- */
+function solve(A, b) {
+  const d = A.length;
+  if (d === 2) {
+    const det = A[0][0] * A[1][1] - A[0][1] * A[1][0];
+    if (Math.abs(det) <= 1e-11 * norm(A[0]) * norm(A[1])) return null;
+    return [(b[0] * A[1][1] - A[0][1] * b[1]) / det, (A[0][0] * b[1] - b[0] * A[1][0]) / det];
+  }
+  const c12 = cross(A[1], A[2]), det = dot(A[0], c12);
+  if (Math.abs(det) <= 1e-11 * norm(A[0]) * norm(A[1]) * norm(A[2])) return null;
+  const c20 = cross(A[2], A[0]), c01 = cross(A[0], A[1]);
+  return [0, 1, 2].map(i => (b[0] * c12[i] + b[1] * c20[i] + b[2] * c01[i]) / det);
+}
+const tolOf = (h, x) => 1e-9 * (Math.abs(h.b) + norm(h.a) * norm(x) + 1);
+const sat = (h, x) => dot(h.a, x) <= h.b + tolOf(h, x);
+const tightOn = (h, x) => Math.abs(dot(h.a, x) - h.b) <= tolOf(h, x) * 10;
+function vertices(H, d) {
+  const out = [], n = H.length;
+  const push = p => {
+    for (const h of H) if (!sat(h, p)) return;
+    const sc = 1e-7 * (1 + norm(p));
+    for (const q of out) if (norm(sub(q.p, p)) <= sc) return;
+    out.push({ p });
+  };
+  if (d === 2) { for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const p = solve([H[i].a, H[j].a], [H[i].b, H[j].b]); if (p) push(p); } }
+  else { for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) for (let k = j + 1; k < n; k++) { const p = solve([H[i].a, H[j].a, H[k].a], [H[i].b, H[j].b, H[k].b]); if (p) push(p); } }
+  for (const v of out) {
+    v.tight = []; H.forEach((h, i) => { if (tightOn(h, v.p)) v.tight.push(i); });
+    v.real = v.tight.every(i => !H[i].box);
+  }
+  return out;
+}
+function boxH(lo, hi) {
+  const d = lo.length, H = [];
+  for (let i = 0; i < d; i++) {
+    const e = new Array(d).fill(0); e[i] = 1;
+    H.push({ a: e, b: hi[i], box: true, ci: -1 });
+    H.push({ a: mul(e, -1), b: -lo[i], box: true, ci: -1 });
+  }
+  return H;
+}
+function orderPoly(pts, nrm) {
+  if (pts.length < 3) return pts.slice();
+  const d = pts[0].length, c = pts.reduce((s, p) => add(s, p), new Array(d).fill(0)).map(x => x / pts.length);
+  let ang;
+  if (d === 2) ang = p => Math.atan2(p[1] - c[1], p[0] - c[0]);
+  else {
+    const n = mul(nrm, 1 / norm(nrm)), t = Math.abs(n[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+    const u = cross(n, t), un = mul(u, 1 / norm(u)), v = cross(n, un);
+    ang = p => { const q = sub(p, c); return Math.atan2(dot(q, v), dot(q, un)); };
+  }
+  return pts.slice().sort((p, q) => ang(p) - ang(q));
+}
+function clipLine(n, z, H) {
+  const nn = dot(n, n), p0 = mul(n, z / nn), dv = [-n[1], n[0]];
+  let lo = -Infinity, hi = Infinity;
+  for (const h of H) {
+    const ad = dot(h.a, dv), r = h.b - dot(h.a, p0);
+    if (Math.abs(ad) < 1e-14 * norm(h.a) * norm(dv)) { if (r < -tolOf(h, p0)) return null; continue; }
+    const t = r / ad; if (ad > 0) hi = Math.min(hi, t); else lo = Math.max(lo, t);
+  }
+  if (!(lo <= hi + 1e-12 * (Math.abs(lo) + Math.abs(hi) + 1))) return null;
+  return [add(p0, mul(dv, lo)), add(p0, mul(dv, hi))];
+}
+/* convex hull of integer points in the plane (monotone chain) */
+function hull2(P) {
+  const pts = P.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (pts.length < 3) return pts;
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const p of pts) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+/* convex hull of integer points in space: its facets, by brute force over triples (exact, integers) */
+function hull3(P) {
+  const n = P.length, facets = [], seen = new Set();
+  if (n < 4) return { facets, flat: P };
+  const gcd = (a, b) => { a = Math.abs(a); b = Math.abs(b); while (b) [a, b] = [b, a % b]; return a; };
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) for (let k = j + 1; k < n; k++) {
+    let nr = cross(sub(P[j], P[i]), sub(P[k], P[i]));
+    if (!nr[0] && !nr[1] && !nr[2]) continue;
+    let d = dot(nr, P[i]), pos = 0, neg = 0;
+    for (const q of P) { const s = dot(nr, q) - d; if (s > 0) pos++; else if (s < 0) neg++; if (pos && neg) break; }
+    if (pos && neg) continue;
+    if (!pos && !neg) return { facets: [], flat: P, nrm: nr };
+    if (pos) { nr = nr.map(x => -x); d = -d; }
+    const g = gcd(gcd(nr[0], nr[1]), gcd(nr[2], d)) || 1, key = nr.map(x => x / g).join(",") + "," + d / g;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    facets.push({ nrm: nr, pts: orderPoly(P.filter(q => dot(nr, q) === d), nr) });
+  }
+  return { facets };
+}
+
+/* ---------- presets ---------- */
+const LAT_PRESETS = {
+  slide: { name: "the triangle of the slides (max)", text:
+`title the triangle
+vars x y
+max 10x + y
+y <= 2x + 0.2          | | red
+y <= -0.15x + 4.5      | | blue
+22y >= x + 64.6       | | green
+explore up
+view -0.3 9.3 0.4 6.4
+` },
+  hessy: { name: "Hessy James's apple farm (max)", text:
+`title Hessy James's apple farm
+vars s k
+label s #Sossenheimer Roter trees
+label k #Korbacher Edelrenette trees
+unit €
+max 195s + 255k
+4s + 4k <= 5000     | Orchard     | red
+6s + 4.5k <= 3000   | Fertilizer  | green
+s + 3k <= 1700      | Harvest     | blue
+view -30 1450 -30 950
+` },
+  hessyzoom: { name: "Hessy's farm, zoomed to the optimum", text:
+`title Hessy's farm, near the optimum
+vars s k
+label s #Sossenheimer Roter trees
+label k #Korbacher Edelrenette trees
+unit €
+max 195s + 255k
+4s + 4k <= 5000     | Orchard     | red
+6s + 4.5k <= 3000   | Fertilizer  | green
+s + 3k <= 1700      | Harvest     | blue
+view 96 104 529 537
+` },
+  sliver: { name: "a thin sliver (max, choose k)", sliver: true },
+  textbook: { name: "a small example (max)", text:
+`title a small example
+vars x y
+max 5x + 4y
+x + y <= 5      | | red
+10x + 6y <= 45  | | blue
+view -0.5 6.5 -0.5 6
+` },
+  cover2d: { name: "a covering problem (min)", text:
+`title a covering problem
+vars x y
+min 2x + 5y
+2x + 2y >= 15   | | red
+x + 3y >= 21    | | blue
+2x - y <= 6     | | green
+x <= 8          | | gray
+y <= 8          | | gray
+view -0.6 9.5 -0.6 9.2
+` },
+  vc3: { name: "3D: Vertex Cover on a triangle (min)", graph: { V: 3, edges: [[0, 1], [1, 2], [0, 2]], pos: null }, text:
+`title Vertex Cover on a triangle
+vars x0 x1 x2
+min x0 + x1 + x2
+x0 + x1 >= 1        | edge 0–1 | red
+x1 + x2 >= 1        | edge 1–2 | blue
+x0 + x2 >= 1        | edge 0–2 | green
+x0 <= 1             | | gray
+x1 <= 1             | | gray
+x2 <= 1             | | gray
+x0 + x1 + x2 >= 2   | odd cycle | brown cut
+view -0.15 1.15 -0.15 1.15 -0.15 1.15
+` },
+  is3: { name: "3D: Independent Set on a triangle (max)", graph: { V: 3, edges: [[0, 1], [1, 2], [0, 2]], pos: null }, text:
+`title Independent Set on a triangle
+vars x0 x1 x2
+max x0 + x1 + x2
+x0 + x1 <= 1        | edge 0–1 | red
+x1 + x2 <= 1        | edge 1–2 | blue
+x0 + x2 <= 1        | edge 0–2 | green
+x0 <= 1             | | gray
+x1 <= 1             | | gray
+x2 <= 1             | | gray
+x0 + x1 + x2 <= 1   | clique | brown cut
+view -0.15 1.15 -0.15 1.15 -0.15 1.15
+` },
+  poly3: { name: "3D: a small polytope (max)", text:
+`title a small polytope
+vars x1 x2 x3
+max 2x1 + x2 + 4x3
+3x1 + 3x2 - 2x3 <= 12   | | red
+2x2 + 5x3 <= 8         | | blue
+2x1 + x3 <= 4          | | green
+x1 <= 4               | | gray
+x2 <= 4               | | gray
+x3 <= 4               | | gray
+explore up
+view -0.3 4.4 -0.3 4.4 -0.3 4.4
+` },
+  big3: { name: "3D: a larger polytope (max)", text:
+`title a larger polytope
+vars x1 x2 x3
+max 4x1 + x2 + 3x3
+x1 + x2 + x3 <= 10      | | red
+x1 + x2 <= 9           | | blue
+x2 + x3 <= 8           | | green
+x1 + x3 <= 7           | | teal
+2x1 - x2 + x3 <= 8.5    | | purple
+x1 + x2 + x3 >= 3       | | brown
+-x1 + 2x2 + x3 <= 11.5  | | pink
+x1 <= 5               | | gray
+x2 <= 5               | | gray
+x3 <= 5               | | gray
+explore up
+view -0.3 5.6 -0.3 5.6 -0.3 5.6
+` }
+};
+function sliverText(k) {
+  return "title a thin sliver, k = " + k + "\nvars x y\nmax y\n-" + k + "x + y <= 1   | | red\n" + k + "x + y <= " + (k + 1) + "   | | blue\nview -0.6 1.6 -0.4 " + (k / 2 + 1.7) + "\n";
+}
+
+/* ---------- state ---------- */
+const G2 = {
+  key: "slide", k: 4, lp: null, on: [], z: 0, sweep: 0, view2: null, view3: null, yaw: 215, pitch: 22, zoom3: 1,
+  showGrid: true, showGap: true, showHull: false, showRound: false, pick: null, A: null,
+  reached: { ilp: false, lp: false }, hover: -1, H: 520, Hdef: 520, split: 0.6, graph: null, hoverPt: null
+};
+function prepLat(lp) {
+  /* x ≥ 0 is always part of the LP: make it visible as gray constraints that cannot be switched off */
+  lp.vars.forEach((v, i) => {
+    if (!lp.cons.some(k => k.nonneg && k.a[i].sign !== 0))
+      lp.cons.push({ a: lp.vars.map((w, j) => j === i ? F1 : F0), op: ">=", b: F0, name: "", color: PALETTE.gray, on: true, cut: false, nonneg: true, implied: true });
+  });
+  for (const k of lp.cons) { k.af = k.a.map(x => x.toNumber()); k.bf = k.b.toNumber(); }
+  lp.cf = lp.c.map(x => x.toNumber());
+  return lp;
+}
+function baseView2(lp) {
+  const d = lp.d;
+  if (lp.view) return { lo: [...Array(d)].map((_, i) => lp.view[2 * i]), hi: [...Array(d)].map((_, i) => lp.view[2 * i + 1]) };
+  return { lo: new Array(d).fill(-0.5), hi: new Array(d).fill(10) };
+}
+function loadLat(key, lp) {
+  stopSweep2();
+  G2.key = key; G2.lp = prepLat(lp);
+  G2.graph = key && LAT_PRESETS[key] && LAT_PRESETS[key].graph ? LAT_PRESETS[key].graph : null;
+  G2.on = G2.lp.cons.map(k => k.on);
+  G2.on0 = G2.on.join(""); G2.c0 = G2.lp.c.join(",");
+  const bv = baseView2(G2.lp);
+  if (G2.lp.d === 2) G2.view2 = bv; else { G2.view3 = bv; G2.yaw = 215; G2.pitch = 22; G2.zoom3 = 1; }
+  G2.pick = null;
+  latChanged(true);
+}
+function latChanged(fresh) {
+  stopSweep2();
+  analyse2();
+  G2.reached = { ilp: false, lp: false };
+  if (fresh || G2.z === undefined) G2.z = startZ();
+  const [a, b] = zRange2(); G2.z = clamp(G2.z, a, b);
+  markReached();
+}
+
+/* ---------- exact analysis ---------- */
+/* the integer box around P: from 2n LPs; where P is unbounded, up to the window */
+function intBox(R) {
+  const lp = G2.lp, d = lp.d, view = d === 2 ? (G2.E2 || G2.view2) : G2.view3, box = [];
+  let clipped = false;
+  for (let i = 0; i < d; i++) {
+    const e = lp.vars.map((_, j) => j === i ? F1 : F0);
+    const mn = lpMin(e, R.A, R.b), mx = lpMin(e.map(x => x.neg()), R.A, R.b);
+    const lo = mn.status === "optimal" ? Number(mn.z.ceil().p) : 0;
+    let hi;
+    if (mx.status === "optimal") hi = Number(mx.z.neg().floor().p);
+    else { hi = Math.max(0, Math.floor(view.hi[i])); clipped = true; }
+    box.push([Math.max(0, lo), hi]);
+  }
+  return { box, clipped };
+}
+const better2 = () => G2.lp.sense === "max" ? 1 : -1;
+function analyse2() {
+  const lp = G2.lp, d = lp.d, R = lpRows(lp, G2.on), sg = R.sg;
+  const A = { R };
+  const r = lpMin(R.c, R.A, R.b);
+  A.lp = { status: r.status, z: r.z === null ? null : (sg < 0 ? r.z.neg() : r.z), x: r.x };
+  const ro = lpMin(R.c.map(x => x.neg()), R.A, R.b);            /* the opposite objective: where the sweep enters */
+  A.entry = ro.status === "optimal" ? (sg < 0 ? ro.z : ro.z.neg()) : null;
+  /* the box of the grid points: from the LP, or from the window where P is unbounded */
+  A.clipped = false; A.ilp = null;
+  if (r.status !== "infeasible") {
+    const ib = intBox(R); A.box = ib.box; A.clipped = ib.clipped;
+    const box = ib.box;
+    const res = ilpColumns(R.c, R.A, R.b, box, 2e5);
+    A.ilp = res.tooMany ? { tooMany: true } : { z: res.z === null ? null : (sg < 0 ? res.z.neg() : res.z), arg: res.arg, cnt: res.cnt, cols: res.cols };
+  }
+  /* the declared cuts: valid for the grid points of P without any cut?  do they cut off the LP optimum? */
+  const base = lp.cons.map((k, i) => G2.on[i] && !k.cut);
+  const RB = lpRows(lp, base), rb = lpMin(RB.c, RB.A, RB.b);
+  let ptsB = null;
+  if (rb.status === "optimal" && lp.cons.some(k => k.cut)) {
+    const resB = ilpColumns(RB.c, RB.A, RB.b, intBox(RB).box, 2e5);
+    ptsB = [];
+    for (const c of resB.cols || []) for (let t = c.lo; t <= c.hi && ptsB.length < 50000; t++) ptsB.push(c.pre.concat([t]));
+  }
+  A.cuts = lp.cons.map((k, i) => {
+    if (!k.cut) return null;
+    const viol = p => { const v = fdot(k.a, p.map(t => new Frac(BigInt(t)))); return k.op === "<=" ? v.gt(k.b) : k.op === ">=" ? v.lt(k.b) : !v.eq(k.b); };
+    const valid = ptsB ? !ptsB.some(viol) : null;
+    let off = null;
+    if (rb.status === "optimal") { const v = fdot(k.a, rb.x); off = k.op === "<=" ? v.gt(k.b) : k.op === ">=" ? v.lt(k.b) : !v.eq(k.b); }
+    return { valid, off };
+  });
+  /* the hull and the rounding (drawing) */
+  A.ptsEnds = [];
+  if (A.ilp && A.ilp.cols) for (const c of A.ilp.cols) { A.ptsEnds.push(c.pre.concat([c.lo])); if (c.hi !== c.lo) A.ptsEnds.push(c.pre.concat([c.hi])); }
+  A.hull = null;
+  if (A.lp.status === "optimal") {
+    const xs = A.lp.x, combos = [[]];
+    for (const v of xs) { const f = Number(v.floor().p), cc = Number(v.ceil().p), nx = []; for (const c of combos) { nx.push(c.concat([f])); if (cc !== f) nx.push(c.concat([cc])); } combos.splice(0, combos.length, ...nx); }
+    const near = xs.map(v => Number(v.add(new Frac(1n, 2n)).floor().p));
+    const feas = p => feasibleAt(R.A, R.b, p);
+    const valT = p => fdot(lp.c, p.map(t => new Frac(BigInt(t))));
+    A.round = { near: { p: near, ok: feas(near), z: valT(near) }, all: combos.map(p => ({ p, ok: feas(p), z: valT(p) })) };
+  } else A.round = null;
+  G2.A = A;
+}
+function latHull() {
+  const A = G2.A;
+  if (A.hull) return A.hull;
+  if (!A.ptsEnds.length) return (A.hull = { none: true });
+  if (G2.lp.d === 2) return (A.hull = { poly: hull2(A.ptsEnds) });
+  if (A.ptsEnds.length > 90) return (A.hull = { tooMany: true });
+  return (A.hull = hull3(A.ptsEnds));
+}
+/* the stops of the sweep (floating point; for comparisons only) */
+function stops2() {
+  const A = G2.A, f = x => x === null || x === undefined ? null : x.toNumber();
+  return { entry: f(A.entry), ilp: A.ilp && A.ilp.z ? f(A.ilp.z) : null, lp: A.lp.status === "optimal" ? f(A.lp.z) : null };
+}
+function viewCorners2() {
+  const d = G2.lp.d, v = d === 2 ? (G2.E2 || G2.view2) : G2.view3, out = [];
+  for (let m = 0; m < (1 << d); m++) out.push([...Array(d)].map((_, i) => (m >> i) & 1 ? v.hi[i] : v.lo[i]));
+  return out;
+}
+function zRange2() {
+  const vals = viewCorners2().map(p => dot(G2.lp.cf, p)), S = stops2();
+  for (const v of [S.entry, S.ilp, S.lp]) if (v !== null) vals.push(v);
+  return [Math.min(...vals), Math.max(...vals)];
+}
+const relTol2 = () => { const [a, b] = zRange2(); return 2e-6 * (Math.abs(a) + Math.abs(b) + 1); };
+function startZ() {
+  const S = stops2(), g = better2(), [a, b] = zRange2();
+  if (S.entry !== null) return S.entry;
+  return g > 0 ? a : b;
+}
+function zState2(z) {
+  const A = G2.A, S = stops2(), g = better2(), t = relTol2(), s = g * z;
+  if (A.lp.status === "infeasible") return "empty";
+  if (S.entry !== null) { if (Math.abs(s - g * S.entry) <= t) return "entry"; if (s < g * S.entry) return "before"; }
+  if (S.ilp !== null) { if (Math.abs(s - g * S.ilp) <= t) return "ilp"; if (s < g * S.ilp) return "inside"; }
+  if (S.lp !== null) { if (Math.abs(s - g * S.lp) <= t) return "lp"; if (s < g * S.lp) return S.ilp !== null ? "between" : "inside"; return "beyond"; }
+  return S.ilp !== null ? "between" : "inside";
+}
+function markReached() {
+  const S = stops2(), g = better2(), t = relTol2();
+  if (S.ilp !== null && g * G2.z >= g * S.ilp - t) G2.reached.ilp = true;
+  if (S.lp !== null && g * G2.z >= g * S.lp - t) G2.reached.lp = true;
+}
+function setZ2(z, snap) {
+  const [a, b] = zRange2(), S = stops2();
+  if (snap) { const w = (b - a) * 0.008; for (const v of [S.ilp, S.lp, S.entry]) if (v !== null && Math.abs(z - v) <= w) { z = v; break; } }
+  G2.z = clamp(z, a, b);
+  markReached();
+  renderLat();
+}
+/* push: from where we are to the next stop in the better direction (best grid point, then LP optimum) */
+function stopSweep2() { if (G2.sweep) { cancelAnimationFrame(G2.sweep); G2.sweep = 0; } const b = el("sweep2"); if (b) b.innerHTML = "▶&#xFE0E; push"; }
+function sweep2() {
+  if (G2.sweep) { stopSweep2(); return; }
+  const S = stops2(), g = better2(), t = relTol2(), [a, b] = zRange2();
+  const cand = [S.ilp, S.lp].filter(v => v !== null && g * v > g * G2.z + t);
+  let to = cand.length ? cand[0] : (g > 0 ? b : a);
+  if (Math.abs(to - G2.z) <= t) return;
+  const from = G2.z, dur = 700 + 2200 * Math.abs(to - from) / Math.max(1e-12, b - a), t0 = performance.now();
+  el("sweep2").innerHTML = "❚❚&#xFE0E; stop";
+  const step = now => {
+    const u = clamp((now - t0) / dur, 0, 1), e = u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u);
+    G2.z = from + (to - from) * e; markReached(); renderLat();
+    if (u < 1) G2.sweep = requestAnimationFrame(step); else { G2.z = to; markReached(); renderLat(); stopSweep2(); }
+  };
+  G2.sweep = requestAnimationFrame(step);
+}
+
+/* ---------- drawing, 2D ---------- */
+const PAD2 = { l: 58, r: 14, t: 12, b: 50 };
+function view2Eff(W, H) {
+  const v = G2.view2, pw = W - PAD2.l - PAD2.r, ph = H - PAD2.t - PAD2.b;
+  const k = Math.min(pw / (v.hi[0] - v.lo[0]), ph / (v.hi[1] - v.lo[1]));
+  const cx = (v.lo[0] + v.hi[0]) / 2, cy = (v.lo[1] + v.hi[1]) / 2;
+  return { lo: [cx - pw / 2 / k, cy - ph / 2 / k], hi: [cx + pw / 2 / k, cy + ph / 2 / k], k, pw, ph };
+}
+function halfspaces2() {
+  const H = [];
+  G2.lp.cons.forEach((k, i) => {
+    if (!G2.on[i]) return;
+    if (k.op === "<=" || k.op === "=") H.push({ a: k.af, b: k.bf, ci: i });
+    if (k.op === ">=" || k.op === "=") H.push({ a: k.af.map(x => -x), b: -k.bf, ci: i });
+  });
+  return H;
+}
+const ARROWDEFS2 = '<marker id="aObj2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="' + OBJD + '"/></marker>' +
+                   '<marker id="aInk2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6b675c"/></marker>';
+const ptKey = p => p.join(",");
+function feasibleSet() {
+  const A = G2.A;
+  if (A._fset) return A._fset;
+  const s = new Set();
+  if (A.ilp && A.ilp.cols && A.ilp.cnt <= 200000) for (const c of A.ilp.cols) for (let t = c.lo; t <= c.hi; t++) s.add(ptKey(c.pre.concat([t])));
+  return (A._fset = s);
+}
+const fracVecT = x => "(" + x.map(v => numT(v)).join(",\\,") + ")";
+function levelLabel(seg, P, text, color, at, below) {
+  const [p, q] = seg.map(P), [a, b] = p[0] < q[0] - 1 ? [p, q] : [q, p];
+  let ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI; if (ang > 90) ang -= 180; if (ang < -90) ang += 180;
+  const lx = a[0] + (b[0] - a[0]) * at, ly = a[1] + (b[1] - a[1]) * at;
+  return '<text class="sv-z" x="' + f1(lx) + '" y="' + f1(ly) + '" dy="' + (below ? 15 : -6) + '" text-anchor="middle" style="fill:' + color + '" transform="rotate(' + ang.toFixed(1) + " " + f1(lx) + " " + f1(ly) + ')">' + esc(text) + "</text>";
+}
+function render2DL() {
+  const lp = G2.lp, A = G2.A, svg = el("lSvg"), W = Math.max(320, el("lWrap").clientWidth), H = G2.H;
+  const E = view2Eff(W, H); G2.E2 = E;
+  const X = x => PAD2.l + (x - E.lo[0]) * E.k, Y = y => H - PAD2.b - (y - E.lo[1]) * E.k, P = p => [X(p[0]), Y(p[1])];
+  const Hv = boxH(E.lo, E.hi), HR = halfspaces2(), g = better2(), unit = lp.unit ? lp.unit + " " : "";
+  let defs = "<defs>" + ARROWDEFS2 + lp.cons.map((k, i) => '<pattern id="lh' + i + '" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="' + k.color + '" stroke-width="1.5" opacity=".75"/></pattern>').join("") +
+             '<pattern id="gapHatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><rect width="8" height="8" fill="' + OBJ + '" fill-opacity=".16"/><line x1="0" y1="0" x2="0" y2="8" stroke="' + OBJ + '" stroke-width="1.4" opacity=".55"/></pattern>' +
+             '<clipPath id="lClip"><rect x="' + PAD2.l + '" y="' + PAD2.t + '" width="' + f1(E.pw) + '" height="' + f1(E.ph) + '"/></clipPath></defs>';
+  let grid = "", body = "", lines = "", over = "", top = "", hits = "";
+  const sx = niceStep(E.hi[0] - E.lo[0], E.pw / 85), sy = niceStep(E.hi[1] - E.lo[1], E.ph / 60);
+  for (let x = Math.ceil(E.lo[0] / sx) * sx; x <= E.hi[0] + 1e-9; x += sx) {
+    const xx = X(x); grid += '<line x1="' + f1(xx) + '" x2="' + f1(xx) + '" y1="' + PAD2.t + '" y2="' + f1(H - PAD2.b) + '" stroke="#e2d5c2" stroke-width="1"/>' +
+      '<text class="sv-tick" x="' + f1(xx) + '" y="' + f1(H - PAD2.b + 16) + '" text-anchor="middle">' + esc(numP(+x.toPrecision(10))) + "</text>";
+  }
+  for (let y = Math.ceil(E.lo[1] / sy) * sy; y <= E.hi[1] + 1e-9; y += sy) {
+    const yy = Y(y); grid += '<line x1="' + PAD2.l + '" x2="' + f1(W - PAD2.r) + '" y1="' + f1(yy) + '" y2="' + f1(yy) + '" stroke="#e2d5c2" stroke-width="1"/>' +
+      '<text class="sv-tick" x="' + (PAD2.l - 6) + '" y="' + f1(yy + 4) + '" text-anchor="end">' + esc(numP(+y.toPrecision(10))) + "</text>";
+  }
+  grid += '<rect x="' + PAD2.l + '" y="' + PAD2.t + '" width="' + f1(E.pw) + '" height="' + f1(E.ph) + '" fill="none" stroke="var(--wi-border)"/>';
+  const axLab = (vi, x, y, rot) => {
+    const v = lp.vars[vi], txt = lp.labels[v] ? lp.labels[v] + " (" : "", fs = 14, tw = txt ? textW(txt, fs + "px " + BODYFONT()) : 0;
+    const m = mathAt(varT(v), 0, 0, fs, "start", "var(--wi-ink-strong)", v), cw = txt ? textW(")", fs + "px " + BODYFONT()) : 0, x0 = -(tw + m.w + cw) / 2;
+    let s = '<g transform="translate(' + f1(x) + "," + f1(y) + ")" + (rot ? " rotate(-90)" : "") + '">';
+    if (txt) s += '<text class="sv-lab" x="' + f1(x0) + '" y="0">' + esc(txt) + "</text>";
+    s += mathAt(varT(v), x0 + tw, 0, fs, "start", "var(--wi-ink-strong)", v).svg;
+    if (txt) s += '<text class="sv-lab" x="' + f1(x0 + tw + m.w) + '" y="0">)</text>';
+    return s + "</g>";
+  };
+  top += axLab(0, PAD2.l + E.pw / 2, H - 12, false) + axLab(1, 16, PAD2.t + E.ph / 2, true);
+  /* region */
+  const RV = A.lp.status === "infeasible" ? [] : vertices(HR.concat(Hv), 2);
+  const poly = orderPoly(RV.map(v => v.p)), path = pp => "M" + pp.map(p => P(p).map(f1).join(",")).join("L") + "Z";
+  if (poly.length >= 3) body += '<path d="' + path(poly) + '" fill="var(--t-region)" opacity=".9"/>';
+  /* integer hull */
+  if (G2.showHull) { const hu = latHull(); if (hu.poly && hu.poly.length >= 3) body += '<path d="' + path(hu.poly) + '" fill="#b98fb4" fill-opacity=".5" stroke="#7d3f8f" stroke-width="1.6"/>';
+                     else if (hu.poly && hu.poly.length === 2) body += '<path d="' + path(hu.poly) + '" fill="none" stroke="#7d3f8f" stroke-width="3"/>'; }
+  /* gap band: points of P strictly better than every grid point, up to the LP optimum */
+  const S = stops2();
+  if (G2.showGap && G2.reached.ilp && G2.reached.lp && S.ilp !== null && S.lp !== null && Math.abs(S.lp - S.ilp) > relTol2()) {
+    const c = lp.cf, band = g > 0 ? [{ a: c, b: S.lp }, { a: mul(c, -1), b: -S.ilp }] : [{ a: mul(c, -1), b: -S.lp }, { a: c, b: S.ilp }];
+    const BV = orderPoly(vertices(HR.concat(Hv, band), 2).map(v => v.p));
+    if (BV.length >= 3) {
+      body += '<path d="' + path(BV) + '" fill="url(#gapHatch)" stroke="' + OBJ + '" stroke-width="1" stroke-opacity=".5"/>';
+      const ctr = BV.reduce((s, p) => add(s, p), [0, 0]).map(v => v / BV.length), q = P(ctr);
+      top += '<text class="sv-gap" x="' + f1(q[0]) + '" y="' + f1(q[1] + 4) + '">gap</text>';
+    }
+  }
+  /* constraints */
+  lp.cons.forEach((k, i) => {
+    const seg = clipLine(k.af, k.bf, Hv); if (!seg) return;
+    const [p, q] = seg.map(P), on = G2.on[i], hot = G2.hover === i;
+    if (on && k.op !== "=" && !k.cut) {
+      const n = mul(k.af, k.op === "<=" ? 1 : -1), ns = [n[0], -n[1]], ln = norm(ns), o = [ns[0] / ln * 9, ns[1] / ln * 9];
+      body += '<path d="M' + f1(p[0]) + "," + f1(p[1]) + "L" + f1(q[0]) + "," + f1(q[1]) + "L" + f1(q[0] + o[0]) + "," + f1(q[1] + o[1]) + "L" + f1(p[0] + o[0]) + "," + f1(p[1] + o[1]) + 'Z" fill="url(#lh' + i + ')"/>';
+    }
+    if (k.cut && !on && !hot) return;
+    if (hot) lines += '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="' + k.color + '" stroke-width="9" opacity=".18" stroke-linecap="round"/>';
+    lines += '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="' + k.color + '" stroke-width="' + (on ? (hot ? 3 : 1.7) : 1.2) + '"' +
+             (k.cut ? ' stroke-dasharray="8 4"' : on ? "" : ' stroke-dasharray="2 4" opacity=".5"') + "/>";
+    if (k.name && on && !k.nonneg) {
+      const [a, b] = p[0] < q[0] - 1 ? [p, q] : [q, p], lx = a[0] + (b[0] - a[0]) * 0.1, ly = a[1] + (b[1] - a[1]) * 0.1;
+      let ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI; if (ang > 90) ang -= 180; if (ang < -90) ang += 180;
+      top += '<text class="sv-name" x="' + f1(lx) + '" y="' + f1(ly) + '" transform="rotate(' + ang.toFixed(1) + " " + f1(lx) + " " + f1(ly) + ')" dy="-5" fill="' + k.color + '">' + esc(k.name) + "</text>";
+    }
+  });
+  /* grid points of the window */
+  const fset = feasibleSet(), spacing = E.k, nWin = (Math.floor(E.hi[0]) - Math.ceil(E.lo[0]) + 1) * (Math.floor(E.hi[1]) - Math.ceil(E.lo[1]) + 1);
+  G2.gridNote = "";
+  if (G2.showGrid) {
+    if (spacing < 6 || nWin > 40000) G2.gridNote = (A.ilp && A.ilp.cnt !== undefined ? A.ilp.cnt.toLocaleString("en").replace(/,/g, " ") + " feasible grid points" : "grid points") + " — too dense to draw here; zoom in";
+    else {
+      const r = clamp(spacing * 0.09, 1.6, 4.2);
+      for (let x = Math.ceil(E.lo[0]); x <= E.hi[0]; x++) for (let y = Math.ceil(E.lo[1]); y <= E.hi[1]; y++) {
+        const f = fset.has(x + "," + y), a = P([x, y]);
+        over += f ? '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="' + f1(r) + '" fill="' + C_INT + '"/>'
+                  : '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="' + f1(Math.max(1.2, r * 0.55)) + '" fill="' + C_INT + '" opacity=".28"/>';
+        hits += '<circle class="hit gpt" data-p="' + x + "," + y + '" cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="' + f1(Math.max(5, spacing * 0.4)) + '" fill="transparent"/>';
+      }
+    }
+  }
+  /* level lines: the stops reached stay drawn */
+  const lvl = (z, color, w, dash, label, at, below) => {
+    const seg = clipLine(lp.cf, z, Hv); if (!seg) return;
+    const [p, q] = seg.map(P);
+    lines += '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="' + color + '" stroke-width="' + w + '" stroke-dasharray="' + dash + '"/>';
+    if (label) top += levelLabel(seg, P, label, color, at, below);
+  };
+  if (G2.reached.ilp && S.ilp !== null) lvl(S.ilp, C_INT, 1.6, "5 4", "best grid point: " + unit + numP(A.ilp.z), 0.58, g > 0);
+  if (G2.reached.lp && S.lp !== null) lvl(S.lp, C_LP, 1.6, "5 4", "LP: " + unit + numP(A.lp.z), 0.86, g < 0);
+  if (G2.pick) { const v = fdot(lp.c, G2.pick.map(t => new Frac(BigInt(t)))); lvl(v.toNumber(), C_INT, 1.2, "2 3", ""); }
+  const z = G2.z, cur = clipLine(lp.cf, z, Hv);
+  if (cur) {
+    const [p, q] = cur.map(P);
+    over += '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="' + OBJ + '" stroke-width="2.2" stroke-dasharray="7 5"/>';
+    const inside = clipLine(lp.cf, z, HR.concat(Hv));
+    if (inside) { const [a, b] = inside.map(P); over += '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="' + OBJ + '" stroke-width="4.5" stroke-linecap="round" opacity=".85"/>'; }
+    const gs = [g * lp.cf[0], -g * lp.cf[1]], gl = norm(gs), u = [gs[0] / gl, gs[1] / gl], L = Math.hypot(q[0] - p[0], q[1] - p[1]), nA = Math.max(1, Math.floor(L / 150));
+    for (let t = 1; t <= nA; t++) {
+      const fx = p[0] + (q[0] - p[0]) * t / (nA + 1), fy = p[1] + (q[1] - p[1]) * t / (nA + 1);
+      over += '<line x1="' + f1(fx) + '" y1="' + f1(fy) + '" x2="' + f1(fx + u[0] * 15) + '" y2="' + f1(fy + u[1] * 15) + '" stroke="' + OBJD + '" stroke-width="1.4" marker-end="url(#aObj2)"/>';
+    }
+  }
+  /* rounding */
+  if (G2.showRound && A.round) {
+    for (const r of A.round.all) { const a = P(r.p); over += '<rect x="' + f1(a[0] - 5) + '" y="' + f1(a[1] - 5) + '" width="10" height="10" fill="none" stroke="' + (r.ok ? C_OPT : "#8b8779") + '" stroke-width="1.6"/>'; }
+    const a = P(A.round.near.p), col = A.round.near.ok ? C_OPT : C_ERR;
+    over += '<path d="M' + f1(a[0] - 7) + "," + f1(a[1] - 7) + "L" + f1(a[0] + 7) + "," + f1(a[1] + 7) + "M" + f1(a[0] + 7) + "," + f1(a[1] - 7) + "L" + f1(a[0] - 7) + "," + f1(a[1] + 7) + '" stroke="' + col + '" stroke-width="2.4"/>';
+    if (A.lp.x) { const b = P(A.lp.x.map(v => v.toNumber())); over += '<line x1="' + f1(b[0]) + '" y1="' + f1(b[1]) + '" x2="' + f1(a[0]) + '" y2="' + f1(a[1]) + '" stroke="' + col + '" stroke-width="1.2" stroke-dasharray="2 2"/>'; }
+  }
+  /* the two optima, your point */
+  if (A.ilp && A.ilp.arg && G2.reached.ilp) for (const p of A.ilp.arg.slice(0, 200)) { const a = P(p); top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="6.5" fill="' + C_INT + '" stroke="#1d2c44" stroke-width="1.6"/>'; }
+  if (G2.pick) { const a = P(G2.pick); top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="9" fill="none" stroke="' + C_INT + '" stroke-width="2.6"/>'; }
+  if (A.lp.status === "optimal" && G2.reached.lp) { const a = P(A.lp.x.map(v => v.toNumber())); top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="6.5" fill="' + C_LP + '" stroke="#5a120c" stroke-width="1.6"/>'; }
+  RV.forEach(v => { if (!v.real) return; const a = P(v.p); top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="2.6" fill="#38362e"/>'; });
+  /* compass */
+  const cx = W - PAD2.r - 44, cy = PAD2.t + 44, gsc = [g * lp.cf[0], -g * lp.cf[1]], gl = norm(gsc), tip = [cx + gsc[0] / gl * 27, cy + gsc[1] / gl * 27];
+  const comp = '<g><circle cx="' + cx + '" cy="' + cy + '" r="36" fill="var(--wi-panel-2)" opacity=".88" stroke="var(--wi-border-soft)"/>' +
+    '<line x1="' + f1(cx - gsc[0] / gl * 12) + '" y1="' + f1(cy - gsc[1] / gl * 12) + '" x2="' + f1(tip[0]) + '" y2="' + f1(tip[1]) + '" stroke="' + OBJD + '" stroke-width="2.4" marker-end="url(#aObj2)"/>' +
+    '<circle id="lHandle" class="grab" cx="' + f1(tip[0]) + '" cy="' + f1(tip[1]) + '" r="9" fill="' + OBJ + '" fill-opacity=".35" stroke="' + OBJD + '" stroke-width="1.2"/>' +
+    '<text class="sv-small" x="' + cx + '" y="' + (cy + 49) + '">better</text></g>';
+  G2.compass = { cx, cy };
+  let note = "";
+  if (G2.gridNote) note += '<text class="sv-note" x="' + f1(PAD2.l + E.pw / 2) + '" y="' + f1(PAD2.t + 22) + '" text-anchor="middle">' + esc(G2.gridNote) + "</text>";
+  if (A.lp.status === "infeasible") note += '<text class="sv-note" x="' + f1(PAD2.l + E.pw / 2) + '" y="' + f1(PAD2.t + 44) + '" text-anchor="middle">no feasible point: the region is empty</text>';
+  note += '<text class="sv-small" x="' + (W - PAD2.r - 4) + '" y="' + (H - 6) + '" style="text-anchor:end">' + (W < 620 ? "drag · pinch to zoom" : "click a grid point · drag to move · wheel or pinch to zoom · double-click to reset") + "</text>";
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.innerHTML = defs + grid + '<g clip-path="url(#lClip)">' + body + lines + over + top + "</g>" + note + hits + comp;
+}
+
+/* ---------- drawing, 3D ---------- */
+function cam3L(W, H) {
+  const v = G2.view3, ctr = v.lo.map((x, i) => (x + v.hi[i]) / 2), rad = 0.5 * norm(sub(v.hi, v.lo));
+  const k = G2.zoom3 * 0.47 * Math.min(W, H) / rad, th = G2.yaw * Math.PI / 180, ph = G2.pitch * Math.PI / 180;
+  const ct = Math.cos(th), st = Math.sin(th), cp = Math.cos(ph), sp = Math.sin(ph);
+  const proj = p => {
+    const x = p[0] - ctr[0], y = p[1] - ctr[1], z = p[2] - ctr[2], u = x * ct - y * st, t = x * st + y * ct;
+    return [W / 2 + u * k, H / 2 - (z * cp + t * sp) * k, -t * cp + z * sp];
+  };
+  return { proj, toViewer: [-st * cp, -ct * cp, sp], k };
+}
+function render3DL() {
+  const lp = G2.lp, A = G2.A, svg = el("lSvg"), W = Math.max(320, el("lWrap").clientWidth), H = G2.H;
+  const C = cam3L(W, H), Pj = p => C.proj(p), g = better2(), v3 = G2.view3, Hb = boxH(v3.lo, v3.hi), HR = halfspaces2();
+  const Hd = A.lp.status === "infeasible" ? null : HR.concat(Hb), RV = Hd ? vertices(Hd, 3) : [];
+  const pts = p => p.map(q => { const r = Pj(q); return f1(r[0]) + "," + f1(r[1]); }).join(" ");
+  const ln = (a, b, at) => '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" ' + at + "/>";
+  let back = "", mid = "", front = "", top = "", hits = "", dots = [];
+  const corners = []; for (let m = 0; m < 8; m++) corners.push([0, 1, 2].map(i => (m >> i) & 1 ? v3.hi[i] : v3.lo[i]));
+  for (let m = 0; m < 8; m++) for (let i = 0; i < 3; i++) if (!((m >> i) & 1)) back += ln(Pj(corners[m]), Pj(corners[m | (1 << i)]), 'stroke="#d4c5b4" stroke-width="1" stroke-dasharray="2 3"');
+  for (let i = 0; i < 3; i++) {
+    const p0 = [0, 0, 0], p1 = [0, 0, 0]; p0[i] = Math.max(v3.lo[i], 0); p1[i] = v3.hi[i];
+    const a = Pj(p0), b = Pj(p1);
+    back += ln(a, b, 'stroke="#6b675c" stroke-width="1.3" marker-end="url(#aInk2)"');
+    const dx = b[0] - a[0], dy = b[1] - a[1], dl = Math.hypot(dx, dy) || 1;
+    top += mathAt(varT(lp.vars[i]), b[0] + dx / dl * 13, b[1] + dy / dl * 13 + 5, 15, "middle", "var(--wi-ink-strong)", lp.vars[i]).svg;
+  }
+  /* faces */
+  const faces = [];
+  if (Hd) Hd.forEach((h, hi) => {
+    const on = RV.filter(v => v.tight.includes(hi)); if (on.length < 3) return;
+    const key = on.map(v => RV.indexOf(v)).sort((a, b) => a - b).join(","); if (faces.some(f => f.key === key)) return;
+    faces.push({ h, key, vs: orderPoly(on.map(v => v.p), h.a), real: !h.box, front: dot(h.a, C.toViewer) > 0 });
+  });
+  for (const f of faces) {
+    const c = f.h.box ? "#b6b1a1" : lp.cons[f.h.ci].color, hot = f.real && G2.hover === f.h.ci;
+    const s = '<polygon points="' + pts(f.vs) + '" fill="' + (f.real ? c : "var(--t-region)") + '" fill-opacity="' + (f.real ? (f.front ? (hot ? 0.42 : 0.2) : 0.1) : 0.05) + '"/>';
+    if (f.front) front += s; else back += s;
+  }
+  const Emap = new Map();
+  for (const f of faces) for (let i = 0; i < f.vs.length; i++) {
+    const a = f.vs[i], b = f.vs[(i + 1) % f.vs.length], key = [a, b].map(p => p.map(x => x.toFixed(6)).join(":")).sort().join("|");
+    if (!Emap.has(key)) Emap.set(key, { a, b, faces: [] }); Emap.get(key).faces.push(f);
+  }
+  let edges = "", bedges = "";
+  for (const e of Emap.values()) {
+    const nReal = e.faces.filter(f => f.real).length, fr = e.faces.some(f => f.front); if (!nReal) continue;
+    const a = Pj(e.a), b = Pj(e.b);
+    if (nReal === 1) { const s = ln(a, b, 'stroke="#9a6a96" stroke-width="1.1" stroke-dasharray="1.5 3"'); if (fr) edges += s; else bedges += s; continue; }
+    if (fr) edges += ln(a, b, 'stroke="#38362e" stroke-width="1.6"'); else bedges += ln(a, b, 'stroke="#6b675c" stroke-width="1.1" stroke-dasharray="5 4" opacity=".75"');
+  }
+  /* integer hull */
+  if (G2.showHull) {
+    const hu = latHull();
+    if (hu.facets) for (const f of hu.facets) { if (f.pts.length < 3) continue; const fr = dot(f.nrm, C.toViewer) > 0;
+      const s = '<polygon points="' + pts(f.pts) + '" fill="#9b6a96" fill-opacity="' + (fr ? 0.3 : 0.12) + '" stroke="#7d3f8f" stroke-width="' + (fr ? 1.4 : 0.8) + '"' + (fr ? "" : ' stroke-dasharray="3 3"') + "/>";
+      if (fr) front += s; else back += s; }
+    if (hu.flat && hu.flat.length >= 3 && hu.nrm) mid += '<polygon points="' + pts(orderPoly(hu.flat, hu.nrm)) + '" fill="#9b6a96" fill-opacity=".35" stroke="#7d3f8f" stroke-width="1.4"/>';
+  }
+  /* planes: the current one, and the cross-section at the best grid point once reached */
+  const plane = z => [{ a: lp.cf, b: z, box: true }, { a: mul(lp.cf, -1), b: -z, box: true }];
+  const S = stops2(), z = G2.z;
+  const PW = orderPoly(vertices(Hb.concat(plane(z)), 3).map(v => v.p), lp.cf);
+  if (PW.length >= 3) back = '<polygon points="' + pts(PW) + '" fill="' + OBJ + '" fill-opacity=".08" stroke="' + OBJ + '" stroke-opacity=".55" stroke-width="1.2" stroke-dasharray="6 4"/>' + back;
+  if (Hd) {
+    const CS = orderPoly(vertices(Hd.concat(plane(z)), 3).map(v => v.p), lp.cf);
+    if (CS.length >= 3) mid += '<polygon points="' + pts(CS) + '" fill="' + OBJ + '" fill-opacity=".42" stroke="' + OBJD + '" stroke-width="1.6"/>';
+    if (G2.reached.ilp && S.ilp !== null && Math.abs(z - S.ilp) > relTol2()) {
+      const CI = orderPoly(vertices(Hd.concat(plane(S.ilp)), 3).map(v => v.p), lp.cf);
+      if (CI.length >= 3) mid += '<polygon points="' + pts(CI) + '" fill="' + C_INT + '" fill-opacity=".1" stroke="' + C_INT + '" stroke-width="1.6" stroke-dasharray="5 3"/>';
+    }
+    const base = CS.length ? CS.reduce((s, p) => add(s, p), [0, 0, 0]).map(x => x / CS.length) : null;
+    if (base) {
+      const a = Pj(base), b = Pj(add(base, mul(lp.cf, g / norm(lp.cf))));
+      let dx = b[0] - a[0], dy = b[1] - a[1]; const dl = Math.hypot(dx, dy);
+      if (dl > 1e-6) { dx = dx / dl * 40; dy = dy / dl * 40;
+        top += ln(a, [a[0] + dx, a[1] + dy], 'stroke="' + OBJD + '" stroke-width="2.4" marker-end="url(#aObj2)"') +
+               '<text class="sv-small halo" x="' + f1(a[0] + dx * 1.35) + '" y="' + f1(a[1] + dy * 1.35 + 4) + '">better</text>'; }
+    }
+  }
+  /* grid points: feasible ones solid, the others of the box faint if there are few */
+  const fset = feasibleSet();
+  if (G2.showGrid && A.ilp && A.ilp.cols) {
+    const box = A.box, tot = box.reduce((s, [lo, hi]) => s * Math.max(0, hi - lo + 1), 1);
+    const ext = [0, 1, 2].map(i => [Math.max(Math.ceil(v3.lo[i]), 0), Math.floor(v3.hi[i])]);
+    const totW = ext.reduce((s, [lo, hi]) => s * Math.max(0, hi - lo + 1), 1);
+    const faint = totW <= 400;
+    for (let x = ext[0][0]; x <= ext[0][1]; x++) for (let y = ext[1][0]; y <= ext[1][1]; y++) for (let w = ext[2][0]; w <= ext[2][1]; w++) {
+      const f = fset.has(x + "," + y + "," + w);
+      if (!f && !faint) continue;
+      const a = Pj([x, y, w]); dots.push({ a, f, p: [x, y, w] });
+    }
+    if (!faint && fset.size > 3000) dots = [];
+    dots.sort((p, q) => p.a[2] - q.a[2]);
+  }
+  let dotS = "";
+  for (const d of dots) {
+    dotS += d.f ? '<circle cx="' + f1(d.a[0]) + '" cy="' + f1(d.a[1]) + '" r="3.6" fill="' + C_INT + '" stroke="var(--wi-panel-2)" stroke-width=".8"/>'
+                : '<circle cx="' + f1(d.a[0]) + '" cy="' + f1(d.a[1]) + '" r="1.8" fill="' + C_INT + '" opacity=".3"/>';
+    hits += '<circle class="hit gpt" data-p="' + d.p.join(",") + '" cx="' + f1(d.a[0]) + '" cy="' + f1(d.a[1]) + '" r="7" fill="transparent"/>';
+  }
+  if (G2.showRound && A.round) {
+    for (const r of A.round.all) { const a = Pj(r.p); top += '<rect x="' + f1(a[0] - 5) + '" y="' + f1(a[1] - 5) + '" width="10" height="10" fill="none" stroke="' + (r.ok ? C_OPT : "#8b8779") + '" stroke-width="1.6"/>'; }
+    const a = Pj(A.round.near.p), col = A.round.near.ok ? C_OPT : C_ERR;
+    top += '<path d="M' + f1(a[0] - 7) + "," + f1(a[1] - 7) + "L" + f1(a[0] + 7) + "," + f1(a[1] + 7) + "M" + f1(a[0] + 7) + "," + f1(a[1] - 7) + "L" + f1(a[0] - 7) + "," + f1(a[1] + 7) + '" stroke="' + col + '" stroke-width="2.4"/>';
+  }
+  if (A.ilp && A.ilp.arg && G2.reached.ilp) for (const p of A.ilp.arg.slice(0, 100)) { const a = Pj(p); top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="6.5" fill="' + C_INT + '" stroke="#1d2c44" stroke-width="1.6"/>'; }
+  if (G2.pick) { const a = Pj(G2.pick); top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="9" fill="none" stroke="' + C_INT + '" stroke-width="2.6"/>'; }
+  if (A.lp.status === "optimal" && G2.reached.lp) { const a = Pj(A.lp.x.map(v => v.toNumber())); top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="6.5" fill="' + C_LP + '" stroke="#5a120c" stroke-width="1.6"/>'; }
+  let note = "";
+  if (A.lp.status === "infeasible") note = '<text class="sv-note" x="' + f1(W / 2) + '" y="26" text-anchor="middle">no feasible point: the region is empty</text>';
+  note += '<text class="sv-small" x="' + (W - 10) + '" y="' + (H - 8) + '" style="text-anchor:end">' + (W < 620 ? "drag · pinch to zoom" : "click a grid point · drag to rotate · wheel or pinch to zoom · double-click to reset") + "</text>";
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.innerHTML = "<defs>" + ARROWDEFS2 + "</defs>" + back + bedges + dotS + mid + front + edges + top + note + hits;
+}
+
+/* ---------- side panel ---------- */
+function latStatus() {
+  const A = G2.A, lp = G2.lp, st = zState2(G2.z), d = lp.d, L = d === 2 ? "line" : "plane", unitT = lp.unit ? "\\text{" + lp.unit + "}\\," : "";
+  const bw = lp.sense === "max" ? "larger" : "smaller", zT = M("z = " + unitT + numT(+G2.z.toPrecision(8)));
+  const optP = arr => arr.slice(0, 4).map(p => M("(" + p.join(",") + ")")).join(", ") + (arr.length > 4 ? ", …" : "");
+  if (A.lp.status === "infeasible") return "<b>Infeasible.</b> The switched-on constraints have no common point — neither the LP nor the integer program has a solution.";
+  let pre = "";
+  if (A.ilp && A.ilp.z === null && !A.ilp.tooMany) pre = "<b>No grid point in P.</b> The LP is feasible, but the integer program is not" + (A.clipped ? " (within the window)" : "") + ". ";
+  if (A.lp.status === "unbounded") pre += "The LP is unbounded: its value has no limit. ";
+  switch (st) {
+    case "before": return pre + "No point of the region has value " + zT + " yet. Push the " + L + " towards " + bw + " values.";
+    case "entry": return pre + "The " + L + " just reaches the region: these are its worst points. Push on.";
+    case "inside": return pre + "The " + L + " of value " + zT + " crosses the region; the blue grid points are the integer solutions, " +
+                          "each with its own value. Push on: the " + L + " stops twice — at the best grid point, then at the LP optimum.";
+    case "ilp": return pre + "<b>Best grid point:</b> the " + L + " touches " + optP(A.ilp.arg) + " with " + M("z^*_{\\mathrm{ILP}} = " + unitT + numT(A.ilp.z)) +
+                       ". No feasible grid point has a " + (lp.sense === "max" ? "larger" : "smaller") + " value — but the region continues: fractional points of the LP do better. Push on.";
+    case "between": return pre + "Between the two optima: no grid point on this " + L + ", only fractional points of the region. Every such point is a feasible LP solution that no integer solution can match.";
+    case "lp": return pre + "<b>LP optimum:</b> the " + L + " leaves the region at " + M("\\mathbf x^* = " + fracVecT(A.lp.x)) + " with " + M("z_{\\mathrm{LP}} = " + unitT + numT(A.lp.z)) + ". " +
+                      (A.ilp && A.ilp.z ? "The band between the two stops is the <b>gap</b>: " + M(numT(A.lp.z.sub(A.ilp.z).abs())) + "." : "");
+    case "beyond": return pre + "No point of the region has value " + zT + ": the " + L + " has left it.";
+  }
+  return pre;
+}
+function latReadout() {
+  const A = G2.A, lp = G2.lp, unitT = lp.unit ? "\\text{" + lp.unit + "}\\," : "", max = lp.sense === "max";
+  const row = (cls, k, v) => '<div class="rrow ' + cls + '"><span class="rk">' + k + '</span><span class="rv">' + v + "</span></div>";
+  const R2 = G2.reached, wait = '<span class="wait">not reached yet: push the ' + (lp.d === 2 ? "line" : "plane") + "</span>";
+  let h = row("lp", "LP relaxation", A.lp.status === "optimal" && !R2.lp ? wait : A.lp.status === "optimal" ? M("z_{\\mathrm{LP}} = " + unitT + numT(A.lp.z)) + " at " + M("\\mathbf x^* = " + fracVecT(A.lp.x)) :
+           A.lp.status === "unbounded" ? "unbounded" : "infeasible");
+  const il = A.ilp;
+  h += row("int", "integer program", !il ? "—" : il.z && !R2.ilp ? wait : il.tooMany ? "too many grid points to search" : il.z === null ? "no feasible grid point" :
+        M("z^*_{\\mathrm{ILP}} = " + unitT + numT(il.z)) + " at " + il.arg.slice(0, 3).map(p => M("(" + p.join(",") + ")")).join(", ") + (il.arg.length > 3 ? " and " + (il.arg.length - 3) + " more" : ""));
+  if (A.lp.status === "optimal" && il && il.z && R2.lp && R2.ilp) {
+    const diff = A.lp.z.sub(il.z).abs(), ratio = !il.z.isZero() && il.z.sign === A.lp.z.sign ? (max ? A.lp.z.div(il.z) : il.z.div(A.lp.z)) : null;
+    h += row("", "gap", M(numT(diff)) + (ratio ? "<br>ratio " + M((max ? "z_{\\mathrm{LP}}/z^*_{\\mathrm{ILP}}" : "z^*_{\\mathrm{ILP}}/z_{\\mathrm{LP}}") + (ratio.q <= 60n ? " = " + num(ratio).tex : " \\approx " + String(+ratio.toNumber().toPrecision(5)))) + " on this instance" : ""));
+  } else h += row("", "gap", "—");
+  h += row("", "grid points", il && il.cnt !== undefined ? il.cnt.toLocaleString("en").replace(/,/g, " ") + " feasible" + (A.clipped ? " (within the window)" : "") : "—");
+  if (A.round && R2.lp) {
+    const r = A.round, okAll = r.all.filter(q => q.ok);
+    h += row("", "rounding " + M("\\mathbf x^*"), M("(" + r.near.p.join(",") + ")") + (r.near.ok ? " is feasible, value " + M(unitT + numT(r.near.z)) : " is infeasible") +
+         "; " + (okAll.length ? okAll.length + " of the " + r.all.length + " roundings up or down are feasible" : "none of the " + r.all.length + " roundings up or down is feasible"));
+  } else h += row("", "rounding " + M("\\mathbf x^*"), A.lp.status === "optimal" ? wait : "—");
+  return h;
+}
+function latBarOpts() {
+  const A = G2.A, lp = G2.lp, max = lp.sense === "max";
+  const ilz = A.ilp && A.ilp.z ? A.ilp.z.toNumber() : null, lpz = A.lp.status === "optimal" ? A.lp.z : null;
+  const pickV = G2.pick ? fdot(lp.c, G2.pick.map(t => new Frac(BigInt(t)))).toNumber() : null;
+  const best = pickV !== null ? pickV : G2.reached.ilp ? ilz : null;
+  const vals = [lpz ? lpz.toNumber() : null, ilz, pickV].filter(v => v !== null);
+  let lo = vals.length ? Math.min(...vals) : 0, hi = vals.length ? Math.max(...vals) : 1;
+  const pad = Math.max((hi - lo) * 0.25, Math.abs(hi) * 0.002, 1); lo -= pad; hi += pad;
+  return { sense: lp.sense, lo, hi, lp: G2.reached.lp ? lpz : null, round: lp.c.every(x => x.isInt()) && (lp.int || []).every(x => x),
+           best, bestLabel: pickV !== null ? "your grid point" : "best grid point", earlier: [], opt: ilz, optShown: pickV !== null && G2.reached.ilp,
+           words: { out: ["ruled out by the LP", "ruled out", ""], worse: ["not better", ""] } };
+}
+function latConsPanel() {
+  const lp = G2.lp, A = G2.A, xo = A.lp.status === "optimal" ? A.lp.x : null;
+  const row = (k, i) => {
+    let tag = "", cls = "";
+    if (k.cut) { const c = A.cuts[i]; tag = c ? (c.valid === false ? "invalid!" : c.valid ? "valid" : "") + (c.off ? " · cuts off x*" : "") : ""; cls = c && c.valid === false ? "bad" : "tight"; }
+    else if (xo && G2.on[i] && !k.implied) { const v = fdot(k.a, xo); if (v.eq(k.b)) { tag = "tight at x*"; cls = "tight"; } }
+    return '<div class="crow' + (G2.on[i] ? "" : " off") + (k.implied ? " fixed" : "") + (G2.hover === i ? " hot" : "") + '" data-ci="' + i + '">' +
+      '<input type="checkbox"' + (G2.on[i] ? " checked" : "") + (k.implied ? " disabled" : "") + ' aria-label="constraint ' + (i + 1) + '">' +
+      '<span class="sw" style="background:' + k.color + '"></span><span class="tx">' + M(consT(k, lp.vars)) + (k.name ? '<span class="nm">' + esc(k.name) + "</span>" : "") +
+      '</span><span class="tag ' + cls + '">' + esc(tag) + "</span></div>";
+  };
+  let h = '<div class="lp-obj">' + M((lp.sense === "max" ? "\\max\\;\\; " : "\\min\\;\\; ") + exprT(lp.c, lp.vars)) + ' <span class="st">subject to</span></div>';
+  lp.cons.forEach((k, i) => { if (!k.cut && !k.implied) h += row(k, i); });
+  h += '<div class="crow-note">' + M(lp.vars.map(varT).join(",") + " \\ge 0") + ", " + M(lp.vars.map(varT).join(",") + " \\in \\mathbb Z") + " for the integer program</div>";
+  if (lp.cons.some(k => k.cut)) { h += '<div class="cuts-h">cutting planes</div>'; lp.cons.forEach((k, i) => { if (k.cut) h += row(k, i); }); }
+  return h;
+}
+function latGraphInset() {
+  const g = G2.graph, box = el("lGraphBox");
+  if (!g) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  const svg = el("lGraph"), W = Math.max(200, el("lGraphWrap").clientWidth), H = 190, R = 17, pos = poly(3, 1);
+  const P = p => [W / 2 + p[0] * 62, H / 2 + 12 + p[1] * 62];
+  const A = G2.A, hov = G2.hoverPt, xs = hov ? hov.map(t => new Frac(BigInt(t))) : (A.lp.status === "optimal" && G2.reached.lp ? A.lp.x : null);
+  let s = "";
+  g.edges.forEach(([u, v], ei) => {
+    const on = G2.on[ei], a = P(pos[u]), b = P(pos[v]), col = G2.lp.cons[ei].color;
+    s += '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="' + (on ? col : "#b6b1a1") + '" stroke-width="' + (on ? 3 : 1.6) + '"' + (on ? "" : ' stroke-dasharray="4 4"') + "/>" +
+         '<line class="hit" data-edge="' + ei + '" x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="transparent" stroke-width="16"/>';
+  });
+  for (let v = 0; v < 3; v++) {
+    const [x, y] = P(pos[v]), f = xs ? xs[v].toNumber() : 0;
+    s += '<circle cx="' + f1(x) + '" cy="' + f1(y) + '" r="' + R + '" fill="var(--wi-panel-2)" stroke="#38362e" stroke-width="1.4"/>';
+    if (f > 1e-9) s += piePath(x, y, R - 1, f) + ' fill="' + (hov ? C_INT : C_LP) + '" fill-opacity=".8"/>';
+    s += '<text class="sv-vno" x="' + f1(x) + '" y="' + f1(y) + '" style="paint-order:stroke;stroke:var(--wi-panel-2);stroke-width:3.5px">' + v + "</text>";
+    if (xs) s += mathAt(fracT(xs[v]), x + (pos[v][0]) * 34, y + pos[v][1] * 34 + 5 + (v === 0 ? -4 : 6), 15, "middle", hov ? C_INT : C_LP, fracP(xs[v])).svg;
+  }
+  s += '<text class="sv-small" x="' + f1(W / 2) + '" y="' + (H - 4) + '">' + (hov ? "the grid point under the pointer" : xs ? "the LP optimum" : "point at a grid point") + " · click an edge to switch it</text>";
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.innerHTML = s;
+}
+function latLegend() {
+  const it = (svg, t) => '<span class="item">' + svg + t + "</span>";
+  const dot = (fill, r, stroke) => '<svg width="16" height="16"><circle cx="8" cy="8" r="' + r + '" fill="' + fill + '"' + (stroke ? ' stroke="' + stroke + '" stroke-width="1.6"' : "") + "/></svg>";
+  let h = it('<svg width="24" height="12"><rect x="1" y="1" width="22" height="10" rx="2" fill="var(--t-region)"/></svg>', "region " + M("P") + " of the LP") +
+          it(dot(C_INT, 3.4), "feasible grid point") + it(dot(C_INT, 6, "#1d2c44"), "best grid point") + it(dot(C_LP, 6, "#5a120c"), "LP optimum " + M("\\mathbf x^*"));
+  if (G2.showGap && G2.lp.d === 2) h += it('<svg width="24" height="12"><rect x="1" y="1" width="22" height="10" fill="' + OBJ + '" fill-opacity=".25" stroke="' + OBJ + '" stroke-opacity=".5"/></svg>', "the gap");
+  if (G2.showHull) h += it('<svg width="24" height="12"><rect x="1" y="1" width="22" height="10" fill="#b98fb4" fill-opacity=".6" stroke="#7d3f8f"/></svg>', "integer hull");
+  if (G2.showRound) h += it('<svg width="16" height="16"><path d="M3,3L13,13M13,3L3,13" stroke="' + C_ERR + '" stroke-width="2.2"/></svg>', "rounded " + M("\\mathbf x^*"));
+  return h;
+}
+function renderLat() {
+  if (!G2.lp) return;
+  if (G2.lp.d === 2) render2DL(); else render3DL();
+  const [a, b] = zRange2(), r = el("zR2");
+  r.value = Math.round(b > a ? (G2.z - a) / (b - a) * 10000 : 0);
+  const unit = G2.lp.unit ? G2.lp.unit + " " : "";
+  el("zV2").textContent = unit + numP(+G2.z.toPrecision(9));
+  const bt = '<span class="bt">better</span>';
+  el("endL2").innerHTML = G2.lp.sense === "max" ? "worse" : "← " + bt; el("endR2").innerHTML = G2.lp.sense === "max" ? bt + " →" : "worse";
+  setMath(el("lStatus"), latStatus());
+  el("lState").textContent = { before: "not reached", entry: "first contact", inside: "inside", ilp: "best grid point", between: "between the optima", lp: "LP optimum", beyond: "beyond", empty: "infeasible" }[zState2(G2.z)] || "";
+  setMath(el("lReadout"), latReadout());
+  drawBar(el("barSvg2"), el("barWrap2"), latBarOpts());
+  const sig = G2.key + "|" + G2.on.join("") + "|" + G2.hover + "|" + G2.lp.c.join(",") + "|" + (G2.A.lp.status);
+  if (el("lCons")._sig !== sig) { el("lCons")._sig = sig; setMath(el("lCons"), latConsPanel()); }
+  latGraphInset();
+  setMath(el("lLegend"), latLegend());
+  el("lMeta").textContent = G2.lp.title + (G2.lp.d === 3 ? " · 3D" : "");
+  el("kCtl").classList.toggle("hidden", G2.key !== "sliver");
+  el("lToggles").querySelectorAll("input").forEach(i => { i.checked = !!G2[i.dataset.k]; });
+}
+
+/* ---------- pointer ---------- */
+function setDirection2(phi) {
+  const lp = G2.lp, g = better2(), len = norm(lp.cf), cands = [];
+  lp.cons.forEach((k, i) => { if (G2.on[i]) { cands.push(k.af); cands.push(mul(k.af, -1)); } });
+  cands.push([1, 0], [0, 1], [-1, 0], [0, -1]);
+  let c = null;
+  for (const a of cands) {
+    let dd = Math.abs(Math.atan2(a[1], a[0]) - phi); dd = Math.min(dd, 2 * Math.PI - dd);
+    if (dd < 2.5 * Math.PI / 180) { const k = Math.max(1, Math.round(len / norm(a))); c = mul(a, g * k); break; }
+  }
+  if (!c) { const R = clamp(len, 4, 12); c = [Math.cos(phi), Math.sin(phi)].map(x => Math.round(g * x * R)); if (c.every(x => x === 0)) return; }
+  const cf = c.map(x => Frac.parse(String(+x.toPrecision(8))));
+  if (cf.every((x, i) => x.eq(lp.c[i]))) return;
+  lp.c = cf; lp.cf = cf.map(x => x.toNumber());
+  latChanged(true); renderLat(); writeHash();
+}
+function initLatPointer() {
+  const svg = el("lSvg"), touches = new Map();
+  let drag = null;
+  const local = e => { const r = svg.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const zoomAt = (f, px, py, base) => {
+    if (G2.lp.d === 2) {
+      const E = view2Eff(svg.clientWidth, G2.H), v = base || G2.view2;
+      const w = [E.lo[0] + (px - PAD2.l) / E.k, E.lo[1] + (G2.H - PAD2.b - py) / E.k];
+      G2.view2 = { lo: v.lo.map((x, i) => w[i] + (x - w[i]) * f), hi: v.hi.map((x, i) => w[i] + (x - w[i]) * f) };
+    } else G2.zoom3 = clamp((base ? base.z3 : G2.zoom3) / f, 0.25, 8);
+    renderLat();
+  };
+  svg.addEventListener("wheel", e => { e.preventDefault(); const [x, y] = local(e); const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1) * (e.ctrlKey ? 2.5 : 1); zoomAt(Math.exp(clamp(dy, -300, 300) * 0.0015), x, y); }, { passive: false });
+  svg.addEventListener("dblclick", e => { e.preventDefault(); resetView2(); });
+  svg.addEventListener("pointerdown", e => {
+    if (e.pointerType === "touch") touches.set(e.pointerId, local(e));
+    if (touches.size === 2) { const [a, b] = [...touches.values()]; drag = { kind: "pinch", d0: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], base: G2.lp.d === 2 ? { lo: G2.view2.lo.slice(), hi: G2.view2.hi.slice() } : { z3: G2.zoom3 } }; return; }
+    if (e.button !== 0) return;
+    stopSweep2(); tipHide();
+    const [x, y] = local(e);
+    if (e.target.id === "lHandle") drag = { kind: "comp" };
+    else drag = { kind: G2.lp.d === 2 ? "pan" : "rot", x, y, moved: false, target: e.target, v: G2.lp.d === 2 ? { lo: G2.view2.lo.slice(), hi: G2.view2.hi.slice() } : null, yaw: G2.yaw, pitch: G2.pitch };
+    svg.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  svg.addEventListener("pointermove", e => {
+    const [x, y] = local(e);
+    if (touches.has(e.pointerId)) touches.set(e.pointerId, [x, y]);
+    if (!drag) {
+      const t = e.target, gp = t.classList && t.classList.contains("gpt") ? t.dataset.p.split(",").map(Number) : null;
+      if (gp) {
+        const f = feasibleSet().has(gp.join(",")), v = fdot(G2.lp.c, gp.map(q => new Frac(BigInt(q))));
+        tipShow(e, '<div class="tt-h">grid point (' + gp.join(", ") + ")</div><div>" + (f ? "feasible, value " + esc((G2.lp.unit ? G2.lp.unit + " " : "") + numP(v)) + "<br>click: take it as your solution" : '<span class="tt-s">not in the region</span>') + "</div>");
+      } else tipHide();
+      const hp = gp && feasibleSet().has(gp.join(",")) ? gp : null;
+      if (G2.graph && String(hp) !== String(G2.hoverPt)) { G2.hoverPt = hp; latGraphInset(); }
+      return;
+    }
+    if (drag.kind === "pinch") { if (touches.size < 2) return; const [a, b] = [...touches.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]) || 1; if (G2.lp.d === 2) G2.view2 = drag.base; zoomAt(drag.d0 / d, drag.mid[0], drag.mid[1], drag.base); return; }
+    if (drag.kind === "comp") { const dx = x - G2.compass.cx, dy = -(y - G2.compass.cy); if (Math.hypot(dx, dy) >= 4) setDirection2(Math.atan2(dy, dx)); return; }
+    if (!drag.moved && Math.hypot(x - drag.x, y - drag.y) < 4) return;
+    drag.moved = true;
+    if (drag.kind === "pan") { const k = G2.E2.k, dx = (x - drag.x) / k, dy = (y - drag.y) / k; G2.view2 = { lo: [drag.v.lo[0] - dx, drag.v.lo[1] + dy], hi: [drag.v.hi[0] - dx, drag.v.hi[1] + dy] }; }
+    else { G2.yaw = drag.yaw - (x - drag.x) * 0.5; G2.pitch = clamp(drag.pitch + (y - drag.y) * 0.5, -85, 85); }
+    renderLat();
+  });
+  const end = e => {
+    touches.delete(e.pointerId);
+    if (!drag) return;
+    if (drag.kind === "pinch") { if (touches.size < 2) drag = null; return; }
+    if (!drag.moved && drag.target && drag.target.classList && drag.target.classList.contains("gpt")) {
+      const p = drag.target.dataset.p.split(",").map(Number);
+      if (feasibleSet().has(p.join(","))) { G2.pick = G2.pick && G2.pick.join(",") === p.join(",") ? null : p; renderLat(); }
+    }
+    drag = null;
+  };
+  svg.addEventListener("pointerup", end); svg.addEventListener("pointercancel", end);
+  svg.addEventListener("pointerleave", () => { if (!drag) { tipHide(); if (G2.hoverPt) { G2.hoverPt = null; latGraphInset(); } } });
+  el("lGraph").addEventListener("click", e => { const t = e.target.closest("[data-edge]"); if (t) { const i = +t.dataset.edge; G2.on[i] = !G2.on[i]; latChanged(false); renderLat(); writeHash(); } });
+}
+function resetView2() {
+  const bv = baseView2(G2.lp);
+  if (G2.lp.d === 2) G2.view2 = bv; else { G2.view3 = bv; G2.yaw = 215; G2.pitch = 22; G2.zoom3 = 1; }
+  renderLat();
+}
+function zoom2(f) {
+  if (G2.lp.d === 2) { const v = G2.view2, c = v.lo.map((x, i) => (x + v.hi[i]) / 2); G2.view2 = { lo: v.lo.map((x, i) => c[i] + (x - c[i]) * f), hi: v.hi.map((x, i) => c[i] + (x - c[i]) * f) }; }
+  else G2.zoom3 = clamp(G2.zoom3 / f, 0.25, 8);
+  renderLat();
+}
+function fitView2() {
+  const A = G2.A, d = G2.lp.d;
+  if (A.lp.status === "infeasible") { resetView2(); return; }
+  const HR = halfspaces2(), big = boxH(new Array(d).fill(-1e6), new Array(d).fill(1e6));
+  const V = vertices(HR.concat(big), d).filter(v => v.real).map(v => v.p);
+  if (!V.length) return;
+  const lo = [...Array(d)].map((_, i) => Math.min(...V.map(p => p[i]))), hi = [...Array(d)].map((_, i) => Math.max(...V.map(p => p[i])));
+  const sp = Math.max(...hi.map((x, i) => x - lo[i]), 1), m = A.lp.status === "unbounded" ? 0.45 : 0.12;
+  const v = { lo: lo.map(x => x - m * sp), hi: hi.map(x => x + m * sp) };
+  if (d === 2) G2.view2 = v; else { G2.view3 = v; G2.zoom3 = 1; }
+  renderLat();
+}
+function applyLatPreset(key, k) {
+  if (k) G2.k = clamp(k, 1, 12);
+  const p = LAT_PRESETS[key] || LAT_PRESETS.slide;
+  const text = p.sliver ? sliverText(G2.k) : p.text;
+  loadLat(LAT_PRESETS[key] ? key : "slide", parseLP(text));
+  el("lPreset").value = G2.key; el("kN").value = G2.k; el("kVal").textContent = "k = " + G2.k;
+}
+function tipShow(e, html) { const t = el("tip"); t.innerHTML = html; t.style.display = "block"; t.style.left = (e.clientX + 14) + "px"; t.style.top = (e.clientY + 12) + "px"; }
+function tipHide() { el("tip").style.display = "none"; }
+const LAT_EXPLAIN =
+  "<h4>Grid points and the region</h4><p>The LP relaxation is the whole purple region " + M("P") + ". The integer program may only use its grid points " + M("P\\cap\\mathbb Z^n") +
+  " (blue). Pushing the " + "level line in the better direction, it first passes the last grid point — the integer optimum — and only later leaves the region at a vertex, the LP optimum. " +
+  "The band in between is the <i>gap</i>: values that the LP reaches, but no integer solution.</p>" +
+  "<h4>Bounds</h4><p>Every grid point is a point of " + M("P") + ", so the LP value is a bound for the integer program: " + M("z_{\\mathrm{LP}} \\ge z^*_{\\mathrm{ILP}}") +
+  " for maximization (" + M("\\le") + " for minimization). Click a grid point to take it as your own solution; the bar below then shows what is known.</p>" +
+  "<h4>Rounding is not enough</h4><p>The LP optimum " + M("\\mathbf x^*") + " is usually fractional. Rounding it can leave the region, and even a feasible rounding can be far from the best grid point " +
+  "(switch on “rounding”).</p>" +
+  "<h4>The integer hull</h4><p>The convex hull of the feasible grid points is again a polytope. If we knew its inequalities, the LP over it would have the best grid point as an optimal vertex — " +
+  "no gap. Cutting planes are inequalities that hold for all grid points but cut off fractional parts of " + M("P") + "; they move the region towards the integer hull.</p>";
+function initLat() {
+  el("lPreset").innerHTML = Object.entries(LAT_PRESETS).map(([k, p]) => '<option value="' + k + '">' + esc(p.name) + "</option>").join("") + '<option value="custom">custom (from the text box)</option>';
+  el("lPreset").onchange = () => { const v = el("lPreset").value; if (v === "custom") return; applyLatPreset(v); renderLat(); writeHash(); };
+  el("kN").oninput = () => { applyLatPreset("sliver", +el("kN").value); renderLat(); writeHash(); };
+  el("zR2").oninput = () => { stopSweep2(); const [a, b] = zRange2(); setZ2(a + (b - a) * (+el("zR2").value) / 10000, true); };
+  el("sweep2").onclick = sweep2;
+  el("best2").onclick = () => { stopSweep2(); const S = stops2(); const t = S.lp !== null ? S.lp : S.ilp; if (t !== null) setZ2(t); };
+  el("zoomIn2").onclick = () => zoom2(1 / 1.25); el("zoomOut2").onclick = () => zoom2(1.25);
+  el("fit2").onclick = fitView2; el("reset2").onclick = resetView2;
+  el("lToggles").querySelectorAll("input").forEach(i => i.onchange = () => { G2[i.dataset.k] = i.checked; renderLat(); });
+  el("lCons").addEventListener("click", e => {
+    const r = e.target.closest(".crow"); if (!r || r.classList.contains("fixed")) return;
+    const i = +r.dataset.ci;
+    if (e.target.tagName === "INPUT") G2.on[i] = e.target.checked; else G2.on[i] = !G2.on[i];
+    latChanged(false); renderLat(); writeHash();
+  });
+  el("lCons").addEventListener("mouseover", e => { const r = e.target.closest(".crow"); const i = r ? +r.dataset.ci : -1; if (i !== G2.hover) { G2.hover = i; el("lCons")._sig = null; renderLat(); } });
+  el("lCons").addEventListener("mouseleave", () => { if (G2.hover !== -1) { G2.hover = -1; el("lCons")._sig = null; renderLat(); } });
+  initLatPointer();
+  initSplit(G2, "latSplit", "stageLat", "lVH", renderLat);
+  setMath(el("lExplain"), LAT_EXPLAIN);
+}
+/* the LP shown, as text (exact coefficients; switched-off constraints marked “off”) */
+function latText() {
+  const lp = G2.lp, cname = c => (Object.entries(PALETTE).find(([, v]) => v === c) || [c])[0];
+  const ex = co => { let s = ""; co.forEach((c, j) => { if (c.isZero()) return; const a = c.abs(), t = (a.eq(F1) ? "" : a.toString()) + lp.vars[j];
+    s += s ? (c.sign < 0 ? " - " : " + ") + t : (c.sign < 0 ? "-" : "") + t; }); return s || "0"; };
+  const out = [];
+  if (lp.title) out.push("title " + lp.title);
+  out.push("vars " + lp.vars.join(" "));
+  for (const [v, t] of Object.entries(lp.labels)) out.push("label " + v + " " + t);
+  if (lp.unit) out.push("unit " + lp.unit);
+  if (lp.int && !lp.int.every(x => x)) out.push("int " + lp.vars.filter((_, i) => lp.int[i]).join(" "));
+  out.push(lp.sense + " " + ex(lp.c));
+  lp.cons.forEach((k, i) => {
+    if (k.implied) return;
+    const fl = [cname(k.color)]; if (k.cut) fl.push("cut"); else if (!G2.on[i]) fl.push("off");
+    if (k.cut && G2.on[i]) fl.pop();
+    out.push(ex(k.a) + " " + k.op + " " + k.b.toString() + "   | " + (k.name || "") + " | " + fl.join(" "));
+  });
+  if (lp.explore && lp.explore !== "down") out.push("explore " + lp.explore);
+  const v = lp.d === 2 ? G2.view2 : G2.view3;
+  out.push("view " + [...Array(lp.d)].map((_, i) => +v.lo[i].toPrecision(6) + " " + +v.hi[i].toPrecision(6)).join(" "));
+  return out.join("\n") + "\n";
+}
+
+/* ==========================================================================
+   Tabs, presentation view, splitters, address, text input, start
+   ========================================================================== */
+let MODE = "prove";
+function render() { if (MODE === "prove") renderProve(); else if (MODE === "lattice") renderLat(); }
+function setMode(m) {
+  if (m !== "prove") stopSearch();
+  if (m !== "lattice") stopSweep2();
+  MODE = m;
+  el("modeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+  for (const [id, mm] of [["tabProve", "prove"], ["tabLattice", "lattice"], ["tabBB", "bb"]]) el(id).classList.toggle("hidden", mm !== m);
+  render(); writeHash();
+}
+function setPresent(on) {
+  document.body.classList.toggle("present", on);
+  requestAnimationFrame(render);
+  writeHash();
+}
+function initSplit(T, splitId, stageId, vhId, gfx) {
+  const sp = el(splitId), st = el(stageId);
+  const set = (f, quiet) => { T.split = clamp(f, 0.35, 0.8); st.style.setProperty("--lf", (100 * T.split).toFixed(2) + "fr"); st.style.setProperty("--rf", (100 * (1 - T.split)).toFixed(2) + "fr"); if (!quiet) render(); };
+  set(T.split, true);
+  let drag = false, raf = 0;
+  const moveTo = x => { const r = st.getBoundingClientRect(); cancelAnimationFrame(raf); raf = requestAnimationFrame(() => set((x - r.left) / (r.width || 1))); };
+  sp.addEventListener("pointerdown", e => { drag = true; sp.classList.add("drag"); sp.setPointerCapture(e.pointerId); e.preventDefault(); });
+  sp.addEventListener("pointermove", e => { if (drag) moveTo(e.clientX); });
+  sp.addEventListener("pointerup", () => { drag = false; sp.classList.remove("drag"); });
+  sp.addEventListener("dblclick", () => set(0.58));
+  sp.addEventListener("keydown", e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); e.stopPropagation(); set(T.split + (e.key === "ArrowLeft" ? -0.03 : 0.03)); } });
+  const vh = el(vhId);
+  let vd = null;
+  vh.addEventListener("pointerdown", e => { vd = { y: e.clientY, h: T.H }; vh.classList.add("drag"); vh.setPointerCapture(e.pointerId); e.preventDefault(); });
+  vh.addEventListener("pointermove", e => { if (!vd) return; T.H = clamp(vd.h + e.clientY - vd.y, 220, 1400); gfx(); });
+  vh.addEventListener("pointerup", () => { vd = null; vh.classList.remove("drag"); });
+  vh.addEventListener("dblclick", () => { T.H = T.Hdef; gfx(); });
+  vh.addEventListener("keydown", e => { if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); T.H = clamp(T.H + (e.key === "ArrowDown" ? 30 : -30), 220, 1400); gfx(); } });
+}
+
+/* ---------- the address: #prove&g=k4&problem=is&n=6&present ---------- */
+function writeHash() {
+  const h = [];
+  if (MODE !== "prove") h.push(MODE === "lattice" ? "lattice" : "bb");
+  if (MODE === "prove") {
+    if (P1.custom) h.push("src=" + encodeURIComponent(graphToText({ V: P1.V, edges: P1.edges, pos: P1.pos, title: P1.title }, P1.problem)));
+    else {
+      if (P1.key !== "cycle5") h.push("g=" + P1.key);
+      if (P1.key === "kn") h.push("n=" + P1.n);
+      if (P1.problem !== "vc") h.push("problem=" + P1.problem);
+    }
+  }
+  if (MODE === "lattice") {
+    if (G2.key === "custom") h.push("src=" + encodeURIComponent(G2.lp.src));
+    else {
+      if (G2.key !== "slide") h.push("lp=" + G2.key);
+      if (G2.key === "sliver") h.push("k=" + G2.k);
+      if (G2.lp.c.join(",") !== G2.c0) h.push("c=" + G2.lp.c.join(","));
+      if (G2.on.join("") !== G2.on0) h.push("on=" + G2.on.map(x => x ? 1 : 0).join(""));
+    }
+  }
+  if (document.body.classList.contains("present")) h.push("present");
+  const s = h.length ? "#" + h.join("&") : location.pathname + location.search;
+  try { history.replaceState(null, "", s); } catch (e) { /* sandboxed preview */ }
+}
+function readHash() {
+  const q = new URLSearchParams(location.hash.replace(/^#/, ""));
+  if (q.has("lattice")) MODE = "lattice"; else if (q.has("bb")) MODE = "bb";
+  if (q.get("problem") === "is") P1.problem = "is";
+  let ok = false;
+  try {
+    if (q.get("src") && MODE === "prove") { const g = parseGraphText(q.get("src")); loadCustomGraph(g); ok = true; }
+  } catch (e) { /* a broken link: keep the default */ }
+  if (MODE === "lattice") {
+    let okL = false;
+    try { if (q.get("src")) { loadLat("custom", parseLP(q.get("src"))); el("lPreset").value = "custom"; okL = true; } } catch (e) { /* keep the default */ }
+    if (!okL) {
+      if (LAT_PRESETS[q.get("lp")]) applyLatPreset(q.get("lp"), parseInt(q.get("k"), 10) || 4);
+      try {
+        const c = (q.get("c") || "").split(",").filter(x => x).map(x => Frac.parse(x)), on = q.get("on") || "";
+        if (c.length === G2.lp.d && c.some(x => !x.isZero())) { G2.lp.c = c; G2.lp.cf = c.map(x => x.toNumber()); }
+        if (on.length === G2.on.length) G2.on = [...on].map((x, i) => G2.lp.cons[i].implied || x === "1");
+        if (c.length || on) latChanged(true);
+      } catch (e) { /* ignore a broken part of the address */ }
+    }
+    if (q.get("src")) ok = true;   /* the src was an LP: the graph stays the default */
+  }
+  if (!ok || MODE === "lattice") {
+    const key = GRAPHS[q.get("g")] ? q.get("g") : "cycle5";
+    applyGraphPreset(key, clamp(parseInt(q.get("n"), 10) || 6, 3, 10));
+  }
+  return q.has("present");
+}
+function loadCustomGraph(g) {
+  if (!g.pos) g.pos = poly(g.V);
+  P1.key = "custom"; P1.custom = "text";
+  el("gPreset").value = "custom";
+  loadGraph(g);
+}
+
+const FORMAT_HINT =
+  "<b>A graph</b> (for the tab “Prove it optimal”), in the format of the algs4 <code>Graph</code> class: the number of vertices <code>V</code>, " +
+  "the number of edges <code>E</code>, then <code>E</code> lines <code>v w</code> with vertices <code>0 … V−1</code>. " +
+  "Optionally exactly <code>V</code> more lines <code>x y</code> with coordinates (any scale; <i>y</i> grows downwards), otherwise the vertices are placed on a circle. " +
+  "An optional first line <code>problem vc</code> (Vertex Cover) or <code>problem is</code> (Independent Set), and <code>title …</code>. " +
+  "At most 14 vertices: every subset is tried by brute force. “current input” writes the graph shown, with its coordinates; drag vertices first to adjust the drawing." +
+  "<br><br><b>A linear program</b> (for the other two tabs): <code>vars x y</code>, <code>max 2x + 3y</code> or <code>min …</code>, then one constraint per line, e.g. " +
+  "<code>4x + 4y &lt;= 50 | Orchard | red</code> (name and colour optional). All variables are non-negative. <code>int x</code> declares which variables are integral " +
+  "(default: all), the flag <code>cut</code> after <code>|</code> marks a cutting plane (it starts switched off), <code>view x0 x1 y0 y1</code> sets the window." +
+  "<br><br>The address keeps the state: e.g. <code>#g=k4&amp;problem=is</code>, <code>#g=kn&amp;n=8</code>, <code>&amp;present</code> for the presentation view.";
+
+function init() {
+  el("gPreset").innerHTML = Object.entries(GRAPHS).map(([k, g]) => '<option value="' + k + '">' + esc(g.name) + "</option>").join("") +
+                            '<option value="custom">custom (from the text box)</option>';
+  el("gPreset").onchange = () => { const v = el("gPreset").value; if (v === "custom") return; applyGraphPreset(v); renderProve(); writeHash(); };
+  el("knN").oninput = () => { P1.n = +el("knN").value; el("knVal").textContent = "n = " + P1.n; applyGraphPreset("kn", P1.n); renderProve(); writeHash(); };
+  el("probSeg").querySelectorAll("button").forEach(b => b.onclick = () => {
+    if (P1.problem === b.dataset.p) return;
+    P1.problem = b.dataset.p; resetSolution(); renderProve(); writeHash();
+  });
+  el("stageStrip").querySelectorAll("button").forEach(b => b.onclick = () => goStage(+b.dataset.s));
+  el("modeSeg").querySelectorAll("button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+  el("presBtn").onclick = () => setPresent(true);
+  el("exitPres").onclick = () => setPresent(false);
+  el("loadBtn").onclick = () => {
+    const txt = el("inputText").value;
+    try {
+      if (isLPText(txt)) {
+        const lp = parseLP(txt);
+        if (lp.vars.length < 2 || lp.vars.length > 3) throw new Error("two or three variables, please: the region is drawn");
+        loadLat("custom", lp); el("lPreset").value = "custom"; el("parseErr").textContent = "";
+        if (MODE !== "lattice") setMode("lattice"); else renderLat();
+        writeHash(); return;
+      }
+      const g = parseGraphText(txt);
+      loadCustomGraph(g);
+      el("parseErr").textContent = "";
+      if (MODE !== "prove") setMode("prove"); else renderProve();
+      writeHash();
+    } catch (e) { el("parseErr").textContent = e.message; }
+  };
+  el("curBtn").onclick = () => { el("inputText").value = MODE === "lattice" ? latText() : graphToText({ V: P1.V, edges: P1.edges, pos: P1.pos, title: P1.title }, P1.problem); };
+  el("formatHint").innerHTML = FORMAT_HINT;
+  document.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("input[type=text], input[type=number], textarea, select")) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "Escape" && document.body.classList.contains("present")) { e.preventDefault(); setPresent(false); return; }
+    if (MODE === "prove" && /^[1-4]$/.test(e.key)) { e.preventDefault(); goStage(+e.key); }
+    if (MODE === "lattice" && (e.key === " " || e.key === "End" || e.key === "Home")) {
+      if (e.target.closest && e.target.closest("button")) return;
+      e.preventDefault();
+      if (e.key === " ") sweep2(); else { stopSweep2(); G2.reached = { ilp: false, lp: false }; if (e.key === "End") el("best2").click(); else setZ2(startZ()); }
+    }
+  });
+  let rz = null;
+  window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(render, 80); });
+  initGraphPointer();
+  initSplit(P1, "proveSplit", "stageProve", "gVH", drawGraph);
+  setMath(el("pExplain"), PROVE_EXPLAIN);
+  initLat();
+  applyLatPreset("slide");
+
+  const present = readHash();
+  el("inputText").value = MODE === "lattice" ? latText() : graphToText({ V: P1.V, edges: P1.edges, pos: P1.pos, title: P1.title }, P1.problem);
+  if (present) document.body.classList.add("present");
+  setMode(MODE);
+  const hook = () => {
+    if (!(window.MathJax && MathJax.startup && MathJax.startup.promise)) return;
+    MathJax.startup.promise.then(() => {
+      mjInPlace([...document.querySelectorAll(".subtitle, .placeholder, .zlab")]);
+      el("lCons")._sig = null;
+      for (const id of ["pStatus", "pForm", "gLegend", "pExplain", "lStatus", "lReadout", "lCons", "lLegend", "lExplain"]) { const nd = el(id); const w = nd._want; nd._shown = null; nd._queued = false; if (w) setMath(nd, w); }
+      render();
+    }).catch(() => {});
+  };
+  if (document.readyState === "complete") hook(); else window.addEventListener("load", hook);
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+
+</script>
+</body>
+</html>

@@ -96,26 +96,38 @@
   .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
                border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:16px; }
   .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:center; }
-  .progress { flex:1 1 320px; min-width:220px; }
-  .progress input[type=range] { display:block; width:100%; margin:0; }
+  /* The scrubber is drawn by hand so its thumb is exactly 16px wide in every browser; its centre
+     then travels exactly over the phase bar, which is inset by half a thumb. The slider maps
+     piecewise-linearly onto the phase buttons (see layoutPhases). */
+  .progress { flex:1 1 320px; min-width:220px; --thumb:8px; }
+  .progress input[type=range] { -webkit-appearance:none; appearance:none; display:block; width:100%;
+                                height:16px; margin:2px 0 0; background:transparent; cursor:pointer; }
+  .progress input[type=range]::-webkit-slider-runnable-track { height:4px; border-radius:2px; background:var(--wi-border); }
+  .progress input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:16px; height:16px;
+        margin-top:-6px; border-radius:50%; background:var(--wi-accent); border:2px solid var(--wi-panel-2);
+        box-sizing:border-box; box-shadow:0 0 0 1px var(--wi-accent); }
+  .progress input[type=range]::-moz-range-track { height:4px; border-radius:2px; background:var(--wi-border); }
+  .progress input[type=range]::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:var(--wi-accent);
+        border:2px solid var(--wi-panel-2); box-sizing:border-box; box-shadow:0 0 0 1px var(--wi-accent); }
   .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint);
-            white-space:nowrap; text-align:right; }
-  .phasebar { display:flex; width:100%; margin-top:3px; }
-  .phasebtn { flex-grow:1; flex-basis:0; min-width:0; padding:3px 4px; font-size:.68rem; line-height:1.3;
-              font-family:var(--wi-font-head); letter-spacing:.03em;
+            white-space:nowrap; text-align:right; align-self:flex-start; padding-top:4px; }
+  .phasebar { display:flex; margin:5px var(--thumb) 0; width:calc(100% - var(--thumb) - var(--thumb)); }
+  .phasebtn { position:relative; overflow:hidden; flex:0 0 auto; padding:3px 0; font-size:.68rem; line-height:1.3;
+              font-family:var(--wi-font-head); letter-spacing:.03em; text-align:center;
               background:var(--wi-panel); border:1px solid var(--wi-border-soft);
-              border-left-width:0; border-radius:0; color:var(--wi-ink-faint); cursor:pointer;
-              overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+              border-left-width:0; border-radius:0; color:var(--wi-ink-faint); cursor:pointer; white-space:nowrap; }
   .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
   .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
-  .phasebtn.on { background:var(--wi-panel-2); border-color:var(--wi-accent-soft); color:var(--wi-accent);
-                 font-weight:bold; }
-  .phasebtn.past { color:var(--wi-ink-soft); background:var(--wi-panel-2); }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3;
+                    border-right:1px solid var(--wi-accent-soft); transition:width .12s linear; }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
   .explain { margin-top:9px; font-size:.85rem; color:var(--wi-ink-strong); min-height:2.6em; line-height:1.45; }
 
   /* --- stage --- */
-  .stage { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(340px,.95fr); gap:18px; align-items:start; }
-  @media (max-width:1080px) { .stage { grid-template-columns:1fr; } }
   .col-side { display:flex; flex-direction:column; gap:14px; }
   .col-main { display:flex; flex-direction:column; gap:14px; }
   .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft);
@@ -232,13 +244,26 @@
     --c-c3:#8a4a86; --c-c3-fill:#ecdcec;     /* the third product   */
     --c-in:#8d897c; --c-in-fill:#eee6d9;
   }
-  .stage { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(320px,.8fr); gap:18px; align-items:start; }
-  .col-main, .col-side { min-width:0; }
-  @media (max-width:1080px) { .stage { grid-template-columns:minmax(0,1fr); } }
-  .phasebtn { min-width:44px; }
+  .stage { display:grid; grid-template-columns:minmax(0,var(--mainw,1.75fr)) 16px minmax(320px,1fr); align-items:start; }
+  .col-main, .col-side { min-width:0; }     /* an <svg> must not set the column's min-content */
+  /* draggable splitters: between the columns, and under the drawing for its height */
+  .vsplit { align-self:stretch; cursor:col-resize; position:relative; touch-action:none; }
+  .vsplit::after { content:""; position:absolute; left:7px; top:8px; bottom:8px; width:2px;
+                   background:var(--wi-border-soft); border-radius:1px; transition:background .15s; }
+  .vsplit:hover::after, .vsplit.drag::after { background:var(--wi-accent-soft); }
+  .hsplit { height:14px; margin:2px 0 -4px; cursor:row-resize; position:relative; touch-action:none; }
+  .hsplit::before, .hsplit::after { content:""; position:absolute; left:calc(50% - 26px); width:52px; height:2px;
+                   background:var(--wi-border); border-radius:1px; transition:background .15s; }
+  .hsplit::before { top:4px; } .hsplit::after { top:8px; }
+  .hsplit:hover::before, .hsplit:hover::after, .hsplit.drag::before, .hsplit.drag::after { background:var(--wi-accent-soft); }
+  body.dragging { user-select:none; }
+  body.dragging.dragx { cursor:col-resize; } body.dragging.dragy { cursor:row-resize; }
+  @media (max-width:1080px) {
+    .stage { grid-template-columns:minmax(0,1fr); row-gap:14px; }
+    .vsplit { display:none; }
+  }
   @media (max-width:820px) {
-    .phasebar { flex-wrap:wrap; }
-    .phasebtn { min-width:38px; border-left-width:1px; border-radius:var(--wi-radius); margin:1px; }
+    .phasebtn { font-size:.6rem; }
     .crumb { font-size:.64rem; }
     pre.code { font-size:.7rem; }
   }
@@ -293,23 +318,23 @@
   /* ---------- SVG ---------- */
   svg text { font-family:var(--wi-font-body); fill:var(--wi-ink-strong); }
   .bit { font-family:var(--wi-font-mono); text-anchor:middle; }
-  .slbl { font-size:10px; fill:var(--wi-ink-faint); font-family:var(--wi-font-head); letter-spacing:.06em; }
-  .lblr { font-size:11px; text-anchor:end; font-family:var(--wi-font-body); font-style:italic; }
+  .slbl { font-size:12px; fill:var(--wi-ink-faint); font-family:var(--wi-font-head); letter-spacing:.06em; }
+  .lblr { font-size:13.5px; text-anchor:end; font-family:var(--wi-font-body); font-style:italic; }
   .rule { stroke:var(--wi-border-strong); stroke-width:1; }
   .colhi { fill:var(--wi-accent); opacity:.10; }
   .cell { stroke-width:.8; }
-  .carry { font-family:var(--wi-font-mono); font-size:9px; text-anchor:middle; fill:var(--wi-accent); }
-  .idx { text-anchor:middle; font-size:8px; fill:var(--wi-ink-faint); font-family:var(--wi-font-mono); }
+  .carry { font-family:var(--wi-font-mono); font-size:11px; text-anchor:middle; fill:var(--wi-accent); }
+  .idx { text-anchor:middle; font-size:10px; fill:var(--wi-ink-faint); font-family:var(--wi-font-mono); }
   .knode { stroke-width:1; }
   .kedge { stroke:var(--wi-ink-faint); stroke-width:.8; fill:none; }
   .kedge.on { stroke:var(--wi-accent); stroke-width:1.6; }
   .klab { font-family:var(--wi-font-mono); text-anchor:middle; }
   .grid { stroke:var(--wi-border-soft); stroke-width:.7; stroke-dasharray:2 4; }
-  .axlab { text-anchor:end; font-size:9.5px; fill:var(--wi-ink-faint); font-family:var(--wi-font-mono); }
+  .axlab { text-anchor:end; font-size:11.5px; fill:var(--wi-ink-faint); font-family:var(--wi-font-mono); }
   .axlab.mid { text-anchor:middle; }
-  .axtitle { text-anchor:middle; font-size:10.5px; fill:var(--wi-ink-soft); }
-  .serlab { font-size:10px; font-family:var(--wi-font-mono); }
-  .dec { font-size:10px; font-family:var(--wi-font-mono); text-anchor:start; opacity:.8; }
+  .axtitle { text-anchor:middle; font-size:12.5px; fill:var(--wi-ink-soft); }
+  .serlab { font-size:12px; font-family:var(--wi-font-mono); }
+  .dec { font-size:12px; font-family:var(--wi-font-mono); text-anchor:start; opacity:.8; }
 </style>
 <style>
 /* wild-inter.net: re-assert the site type stack over the page's own styles */
@@ -371,7 +396,7 @@ body { font-family: var(--wi-font-body); }
               aria-label="Play">&#9654;&#65038;</button>
     </div>
     <div class="progress">
-      <input type="range" id="slider" min="0" max="1" value="0" step="1">
+      <input type="range" id="slider" min="0" max="100000" value="0" step="1" aria-label="Step">
       <div class="phasebar" id="phasebar"></div>
     </div>
     <span class="stepno" id="stepno"></span>
@@ -379,15 +404,16 @@ body { font-family: var(--wi-font-body); }
   <div class="explain" id="explain"></div>
 </div>
 
-<div class="stage">
-  <div class="col-main">
+<div class="stage" id="stage">
+  <div class="col-main" id="colMain">
     <div class="sim-box" id="eqBox">
       <div class="sim-title"><span>The identity Karatsuba exploits</span><span class="rhs" id="eqRhs"></span></div>
       <div class="eq" id="eqBody"></div>
     </div>
     <div class="sim-box">
       <div class="sim-title"><span id="svgTitle">The multiplication</span><span class="rhs" id="svgRhs"></span></div>
-      <svg id="mainSvg" class="stagesvg" viewBox="0 0 720 400" preserveAspectRatio="xMidYMid meet"></svg>
+      <svg id="mainSvg" class="stagesvg"></svg>
+      <div class="hsplit" id="hsplit" title="Drag to change the height of the drawing (double-click: default)"></div>
       <div class="legend" id="legend"></div>
     </div>
     <div class="sim-box">
@@ -400,9 +426,10 @@ body { font-family: var(--wi-font-body); }
         <span class="lbl">bits</span>
         <span class="hint" style="margin-left:8px">the cost model's own growth, not a live run — stays fast at any n</span>
       </div>
-      <svg id="chartSvg" class="stagesvg" viewBox="0 0 720 210" preserveAspectRatio="xMidYMid meet"></svg>
+      <svg id="chartSvg" class="stagesvg"></svg>
     </div>
   </div>
+  <div class="vsplit" id="vsplit" title="Drag to resize the columns (double-click: default)"></div>
   <div class="col-side">
     <div class="sim-box" id="stackBox">
       <div class="sim-title"><span id="stackTitle">Call stack</span><span class="rhs" id="depthRhs"></span></div>
@@ -788,29 +815,41 @@ function karaCostAt(n, variant, memo) {
    the shift-and-add tableau shows what is being added, the z view shows the
    array and the carry the pseudocode actually manipulates.
    ========================================================================= */
-const GR = 700;
+/* Both SVGs are sized in CSS pixels (viewBox = their pixel size), so their text keeps the
+   page's size at any column width. MW follows the column, MH the handle under the drawing;
+   GR is the right edge of the bit grid. */
+const MH_DEF = 380, CH_H = 214;
+let MW = 720, MH = MH_DEF, GR = 700;
+function sizeSvg(svg, h) {
+  const w = Math.max(300, Math.round(svg.getBoundingClientRect().width || svg.parentNode.clientWidth - 30 || 720));
+  svg.setAttribute("viewBox", "0 0 " + w + " " + h);
+  svg.setAttribute("width", w); svg.setAttribute("height", h);
+  svg.style.height = h + "px";
+  return w;
+}
 const zVal = z => z.reduce((a, b, k) => a + (b ? 1n << B(k) : 0n), 0n);                                   /* right edge of the grid  */
 
 function bitCell(x, y, w, h, txt, fill, stroke, cls, op) {
   return '<rect x="' + (x - w / 2) + '" y="' + (y - h + 3) + '" width="' + w + '" height="' + h + '" rx="1.5" fill="' +
     fill + '" stroke="' + stroke + '" class="cell" opacity="' + (op === undefined ? 1 : op) + '"/>' +
-    '<text class="bit ' + (cls || "") + '" x="' + x + '" y="' + (y - 1) + '" font-size="' + Math.min(11, w * .72) +
+    '<text class="bit ' + (cls || "") + '" x="' + x + '" y="' + (y - 1) + '" font-size="' + Math.min(13, w * .72) +
     '" fill="' + stroke + '" opacity="' + (op === undefined ? 1 : op) + '">' + txt + '</text>';
 }
 
 function drawSchool(s) {
   const svg = el("mainSvg"), n = RUN.n, X = RUN.x, Y = RUN.y;
-  const cols = 2 * n, cw = Math.min(22, 620 / cols);
+  MW = sizeSvg(svg, MH); GR = MW - 20;
+  const cols = 2 * n, cw = Math.min(22, (MW - 100) / cols);
   const colX = k => GR - (k + 0.5) * cw;
   const out = [];
   const hiCol = (c, y0, h) => '<rect x="' + (colX(c) - cw / 2) + '" y="' + y0 + '" width="' + cw +
     '" height="' + h + '" class="colhi"/>';
 
   if (VIEW === "tab") {
-    const rowH = Math.min(17, 250 / n);
+    const rowH = Math.min(17, Math.max(4, (MH - 150) / n));
     const yX = 26, yY = 46, ruleT = 54, rows0 = 66;
     const rowsEnd = rows0 + n * rowH, ruleB = rowsEnd + 4, yZ = ruleB + 18, yIdx = yZ + 13;
-    if (s.col !== undefined) out.push(hiCol(s.col, 8, 400));
+    if (s.col !== undefined) out.push(hiCol(s.col, 8, MH - 16));
     /* x and y */
     for (let k = 0; k < n; k++) {
       const on = (s.i === k);
@@ -837,7 +876,7 @@ function drawSchool(s) {
       }
       if (rowH >= 11)
         out.push('<text class="lblr" x="' + (colX(cols - 1) - cw / 2 - 8) + '" y="' + y + '" opacity="' + op +
-          '" font-size="9.5">x<tspan baseline-shift="sub" font-size="70%">' + i + '</tspan>\u00b7y \u226a ' + i + '</text>');
+          '" font-size="11.5">x<tspan baseline-shift="sub" font-size="70%">' + i + '</tspan>\u00b7y \u226a ' + i + '</text>');
     }
     out.push('<line x1="' + (colX(cols - 1) - cw / 2) + '" y1="' + ruleB + '" x2="' + GR + '" y2="' + ruleB + '" class="rule"/>');
     /* the running product */
@@ -853,7 +892,7 @@ function drawSchool(s) {
       zVal(s.z) + '</text>');
     if (s.cOut !== undefined && s.col + 1 < cols)
       out.push('<text class="carry" x="' + colX(s.col + 1) + '" y="' + (yZ - 17) + '">' + s.cOut + "\u2197</text>");
-    out.push('<text class="slbl" x="' + (GR - 620) + '" y="' + (yIdx + 20) +
+    out.push('<text class="slbl" x="20" y="' + (yIdx + 20) +
       '">every round adds one shifted copy of y; the carry runs to the left inside the round</text>');
   } else {
     /* --- the z array as the pseudocode sees it --------------------------- */
@@ -877,16 +916,15 @@ function drawSchool(s) {
       zVal(s.z) + '</text>');
     /* the carry register and the arithmetic of the current step */
     out.push('<rect x="60" y="' + (yZ - 60) + '" width="34" height="22" rx="3" fill="var(--wi-panel-2)" stroke="var(--wi-accent)"/>' +
-      '<text class="bit" x="77" y="' + (yZ - 44) + '" font-size="13" fill="var(--wi-accent)">' + s.c + '</text>' +
+      '<text class="bit" x="77" y="' + (yZ - 44) + '" font-size="15" fill="var(--wi-accent)">' + s.c + '</text>' +
       '<text class="slbl" x="77" y="' + (yZ - 66) + '" text-anchor="middle">carry c</text>');
     if (s.j >= 0 && s.j < n)
-      out.push('<text class="bit" x="' + (GR - 310) + '" y="' + (yZ + 54) + '" font-size="13" text-anchor="middle">' +
+      out.push('<text class="bit" x="' + (MW / 2) + '" y="' + (yZ + 54) + '" font-size="15" text-anchor="middle">' +
         'z' + subNum(s.col) + ' \u2190 ' + s.before + ' + ' + s.cIn + ' + ' + bitAt(X, s.i) + '\u00b7' + bitAt(Y, s.j) +
         ' = ' + s.sum + '  \u2192  z' + subNum(s.col) + ' = ' + s.z[s.col] + ',  c = ' + s.cOut + '</text>');
     out.push('<text class="slbl" x="60" y="' + (yZ + 76) + '">the same run as the tableau, seen through the array the ' +
       'pseudocode writes</text>');
   }
-  svg.setAttribute("viewBox", "0 0 720 " + (VIEW === "tab" ? 400 : 260));
   svg.innerHTML = out.join("");
 }
 const SUBD = { "0":"\u2080","1":"\u2081","2":"\u2082","3":"\u2083","4":"\u2084","5":"\u2085",
@@ -923,7 +961,12 @@ function layoutTree(nodes) {
 function drawKara(s) {
   const svg = el("mainSvg"), nodes = RUN.nodes, LT = RUN.layout;
   const out = [];
-  const TX0 = 24, TX1 = 700, TY0 = 26, TH = 118;
+  /* the tree takes whatever height the rows below it leave free: they need at most
+     60 + 7 rows of 20 (+ the gaps), whichever rows the current step shows */
+  const TY0 = 26, ROWS_H = 60 + 140 + 14, TH = Math.max(50, MH - TY0 - ROWS_H);
+  const H = TY0 + TH + ROWS_H;
+  MW = sizeSvg(svg, H);
+  const TX0 = 24, TX1 = MW - 20;
   const slot = (TX1 - TX0) / Math.max(1, LT.leaves);
   const dy = LT.maxD ? TH / LT.maxD : 0;
   /* A box's width is proportional to the number of bits it represents (its
@@ -973,16 +1016,17 @@ function drawKara(s) {
       const xm = x0 + w / 2;
       out.push('<line x1="' + xm + '" y1="' + (y0 - 7) + '" x2="' + xm + '" y2="' + (y0 + 6) +
         '" stroke="var(--wi-panel-2)" stroke-width="1.2"/>');
-      out.push('<text class="klab" x="' + xm + '" y="' + (y0 + 12.5) + '" font-size="7" fill="' + col[1] + '">+</text>');
+      out.push('<text class="klab" x="' + xm + '" y="' + (y0 + 13) + '" font-size="9" fill="' + col[1] + '">+</text>');
     }
   });
   out.push('<text class="slbl" x="' + TX0 + '" y="' + (TY0 - 12) + '">recursion tree \u2014 each call shows its parent\u2019s x and y, with the bits it takes filled in</text>');
 
   /* ---- the current call, on aligned bit columns ------------------------- */
   const nd = nodes[s.node], V = s.snap, W = 2 * nd.n;
-  const cw = Math.min(26, 520 / Math.max(8, W));
-  const R = 360 + W * cw / 2, colX = k => R - (k + .5) * cw;
-  let y = TY0 + TH + 46;
+  /* rows centred: ~170px of labels on the left, ~130px of decimal values on the right */
+  const cw = Math.min(26, Math.max(6, (MW - 320) / Math.max(8, W)));
+  const R = Math.max(170 + W * cw, (MW - 300 - W * cw) / 2 + 170 + W * cw), colX = k => R - (k + .5) * cw;
+  let y = TY0 + TH + 60;      /* clear of the deepest tree level and of the a | b labels */
   const LBL = R - W * cw - 12;
   function row(label, val, width, shift, fill, stroke, dim) {
     out.push('<text class="lblr" x="' + LBL + '" y="' + y + '" fill="' + stroke + '">' + label + '</text>');
@@ -1023,7 +1067,6 @@ function drawKara(s) {
     y += 4;
     row("x\u00b7y", V.result, W, 0, "var(--c-z-fill)", "var(--c-z)");
   }
-  svg.setAttribute("viewBox", "0 0 720 " + Math.max(320, y + 14));
   svg.innerHTML = out.join("");
 }
 /* ==========================================================================
@@ -1052,13 +1095,80 @@ function phaseList() {
   });
   return out;
 }
+/* ---- phase bar + scrubber -------------------------------------------------
+   Each phase button gets a width proportional to its number of steps, but at
+   least PHASE_MINW px; the rest is shared proportionally ("water filling").
+   If even that does not fit, all buttons get equal widths. The scrubber maps
+   piecewise-linearly onto exactly these widths, so its thumb is always above
+   the button of the current phase, and every slider value maps back to the
+   step it came from. Labels are never ellipsized: the longest of full name /
+   first word / first character that fits; the tooltip has the full name. */
+const SCRUB_RES = 100000, PHASE_MINW = 30;
+let PHASES = [], phaseLay = null, phasesFor = null;
+function layoutPhases() {
+  const bar = el("phasebar"), W = Math.max(1, bar.getBoundingClientRect().width || 600), n = PHASES.length;
+  const cnt = PHASES.map(p => p.to - p.from + 1), w = new Array(n).fill(0);
+  if (n * PHASE_MINW >= W) w.fill(W / n);
+  else {
+    const fixed = new Array(n).fill(false);
+    for (let it = 0; it <= n; it++) {
+      let remW = W, remC = 0;
+      for (let i = 0; i < n; i++) if (fixed[i]) remW -= PHASE_MINW; else remC += cnt[i];
+      let changed = false;
+      for (let i = 0; i < n; i++) if (!fixed[i]) {
+        w[i] = remW * cnt[i] / remC;
+        if (w[i] < PHASE_MINW) { fixed[i] = true; changed = true; }
+      }
+      if (!changed) break;
+    }
+    for (let i = 0; i < n; i++) if (fixed[i]) w[i] = PHASE_MINW;
+  }
+  const x0 = []; let acc = 0;
+  w.forEach(v => { x0.push(acc); acc += v; });
+  phaseLay = { W:W, w:w, x0:x0 };
+}
+function phaseOfStep(i) {
+  for (let p = 0; p < PHASES.length; p++) if (i >= PHASES[p].from && i <= PHASES[p].to) return p;
+  return PHASES.length - 1;
+}
+function stepToSlider(i) {
+  const p = phaseOfStep(i), ph = PHASES[p], c = ph.to - ph.from + 1;
+  return Math.round((phaseLay.x0[p] + (i - ph.from + 0.5) * phaseLay.w[p] / c) / phaseLay.W * SCRUB_RES);
+}
+function sliderToStep(v) {
+  const x = v / SCRUB_RES * phaseLay.W;
+  let p = 0;
+  while (p < PHASES.length - 1 && x >= phaseLay.x0[p] + phaseLay.w[p]) p++;
+  const ph = PHASES[p], c = ph.to - ph.from + 1;
+  return clamp(ph.from + Math.floor((x - phaseLay.x0[p]) / phaseLay.w[p] * c), ph.from, ph.to);
+}
+function buildPhaseBar() {
+  PHASES = phaseList(); phasesFor = RUN;
+  /* fix the step counter's width FIRST: it decides how wide the scrubber and the bar are */
+  el("stepno").style.width = (2 * String(RUN.steps.length).length + 8) + "ch";
+  layoutPhases();
+  const bar = el("phasebar");
+  bar.innerHTML = PHASES.map((p, i) => '<button class="phasebtn" data-goto="' + p.from + '" style="width:' +
+    phaseLay.w[i].toFixed(2) + 'px" title="' + p.label + ', steps ' + (p.from + 1) + "\u2013" + (p.to + 1) +
+    '"><span class="fill"></span><span class="lab"></span></button>').join("");
+  [...bar.children].forEach((b, i) => {
+    const lab = b.querySelector(".lab"), full = PHASES[i].label.replace("row ", "i=");
+    const cands = [full, full.split(/\s+/)[0], full.charAt(0)];
+    lab.textContent = "";
+    for (const c of cands) { lab.textContent = c; if (lab.offsetWidth <= b.clientWidth - 4) break; lab.textContent = ""; }
+    b.onclick = () => { stop(); setStep(+b.getAttribute("data-goto")); };
+  });
+}
 function renderPhases() {
-  const ph = phaseList(), bar = el("phasebar");
-  bar.innerHTML = ph.map(p => '<button class="phasebtn' + (step >= p.from && step <= p.to ? " on" :
-    (step > p.to ? " past" : "")) + '" data-goto="' + p.from + '" title="' + p.label + ', steps ' + (p.from + 1) +
-    "\u2013" + (p.to + 1) + '">' + p.label.replace("row ", "i=") + '</button>').join("");
-  bar.querySelectorAll("[data-goto]").forEach(b => { b.onclick = () => { stop(); setStep(+b.getAttribute("data-goto")); }; });
-  ph.forEach((p, i) => { bar.children[i].style.flexGrow = (p.to - p.from + 1); });
+  if (phasesFor !== RUN) buildPhaseBar();
+  PHASES.forEach((p, i) => {
+    const b = el("phasebar").children[i]; if (!b) return;
+    const on = step >= p.from && step <= p.to, past = step > p.to;
+    b.classList.toggle("on", on); b.classList.toggle("past", past);
+    const f = b.querySelector(".fill"), frac = past ? 1 : on ? (step - p.from + 1) / (p.to - p.from + 1) : 0;
+    f.style.width = (100 * frac) + "%"; f.classList.toggle("empty", frac === 0 || frac === 1);
+  });
+  el("slider").value = stepToSlider(step);
 }
 
 /* --- the side panels ----------------------------------------------------- */
@@ -1152,7 +1262,8 @@ function fmtBits(n) {
 }
 function drawChart() {
   const d = chartData(), svg = el("chartSvg");
-  const X0 = 52, X1 = 596, Y0 = 20, Y1 = 152;
+  const CW = sizeSvg(svg, CH_H);
+  const X0 = 58, X1 = CW - 96, Y0 = 22, Y1 = 158;
   if (!d.xs.length) { svg.innerHTML = ""; return; }
   const all = d.sc.concat(d.ka).filter(v => v > 0);
   const lo = Math.log10(Math.min(...all)), hi = Math.log10(Math.max(...all));
@@ -1248,8 +1359,6 @@ function render() {
   document.querySelectorAll("[data-only]").forEach(n => {
     n.style.display = n.getAttribute("data-only") === ALG ? "" : "none";
   });
-  el("slider").max = RUN.steps.length - 1;
-  el("slider").value = step;
   el("stepno").textContent = "step " + (step + 1) + " / " + RUN.steps.length;
   el("explain").innerHTML = s.expl;
   el("sub").innerHTML = ALG === "school"
@@ -1379,7 +1488,8 @@ function init() {
     CHART_MAX = v;
     drawChart();
   });
-  el("slider").addEventListener("input", e => { stop(); setStep(+e.target.value); });
+  el("slider").addEventListener("input", e => { stop(); const t = sliderToStep(+e.target.value); if (t !== step) setStep(t); });
+  el("slider").addEventListener("change", () => { el("slider").value = stepToSlider(step); });   /* snap onto the step */
   el("btnFirst").onclick = () => { stop(); setStep(0); };
   el("btnPrev").onclick = () => { stop(); setStep(step - 1); };
   el("btnNext").onclick = () => { stop(); setStep(step + 1); };
@@ -1387,9 +1497,9 @@ function init() {
   el("btnLoad").onclick = () => { stop(); loadText(); };
   el("btnDump").onclick = dump;
   document.addEventListener("keydown", e => {
-    if (/input|textarea|select/i.test(e.target.tagName)) return;
-    if (e.key === "ArrowRight") { stop(); setStep(step + 1); }
-    if (e.key === "ArrowLeft") { stop(); setStep(step - 1); }
+    if (/input|textarea|select/i.test(e.target.tagName) && e.target.id !== "slider") return;
+    if (e.key === "ArrowRight") { e.preventDefault(); stop(); setStep(step + 1); }
+    if (e.key === "ArrowLeft") { e.preventDefault(); stop(); setStep(step - 1); }
     if (e.key === " ") { e.preventDefault(); play(); }
   });
   el("mainSvg").addEventListener("mousemove", ev => {
@@ -1408,7 +1518,64 @@ function init() {
   });
   el("mainSvg").addEventListener("mouseleave", () => { el("tt").style.display = "none"; });
 
+  loadLayout();
+  initSplitters();
   readInputs(); build(); render(); dump();
+  let lastW = "";
+  new ResizeObserver(() => {
+    const w = el("stage").clientWidth + "x" + el("mainSvg").parentNode.clientWidth;
+    if (w !== lastW && RUN) { lastW = w; buildPhaseBar(); render(); }
+  }).observe(el("stage"));
+}
+
+/* --- draggable splitters: column widths and the height of the drawing ----- */
+const LS_KEY = "karatsuba-layout:" + location.pathname;
+function saveLayout() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ mainw:el("stage").style.getPropertyValue("--mainw"), h:MH })); }
+  catch (e) { /* storage unavailable: the layout just isn't remembered */ }
+}
+function loadLayout() {
+  try {
+    const o = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    if (o && o.mainw) el("stage").style.setProperty("--mainw", o.mainw);
+    if (o && o.h) MH = clamp(+o.h || MH_DEF, 260, 1400);
+  } catch (e) { /* ignore */ }
+}
+function drawMain() { const s = RUN.steps[step]; if (ALG === "school") drawSchool(s); else drawKara(s); }
+function initSplitters() {
+  const vs = el("vsplit"), hs = el("hsplit"), stage = el("stage");
+  let st = null;
+  vs.addEventListener("pointerdown", ev => {
+    ev.preventDefault(); vs.setPointerCapture(ev.pointerId); vs.classList.add("drag");
+    document.body.classList.add("dragging", "dragx");
+    st = { x:ev.clientX, w:el("colMain").getBoundingClientRect().width };
+  });
+  vs.addEventListener("pointermove", ev => {
+    if (!st) return;
+    const total = stage.getBoundingClientRect().width;
+    const w = Math.max(360, Math.min(total - 16 - 320, st.w + ev.clientX - st.x));
+    stage.style.setProperty("--mainw", w + "px");      /* the ResizeObserver redraws */
+  });
+  const vend = () => { if (!st) return; st = null; vs.classList.remove("drag");
+    document.body.classList.remove("dragging", "dragx"); saveLayout(); };
+  vs.addEventListener("pointerup", vend); vs.addEventListener("pointercancel", vend);
+  vs.addEventListener("dblclick", () => { stage.style.removeProperty("--mainw"); saveLayout(); });
+
+  let hst = null;
+  hs.addEventListener("pointerdown", ev => {
+    ev.preventDefault(); hs.setPointerCapture(ev.pointerId); hs.classList.add("drag");
+    document.body.classList.add("dragging", "dragy");
+    hst = { y:ev.clientY, h:MH };
+  });
+  hs.addEventListener("pointermove", ev => {
+    if (!hst) return;
+    MH = Math.round(clamp(hst.h + ev.clientY - hst.y, 260, 1400));
+    drawMain();
+  });
+  const hend = () => { if (!hst) return; hst = null; hs.classList.remove("drag");
+    document.body.classList.remove("dragging", "dragy"); saveLayout(); };
+  hs.addEventListener("pointerup", hend); hs.addEventListener("pointercancel", hend);
+  hs.addEventListener("dblclick", () => { MH = MH_DEF; saveLayout(); drawMain(); });
 }
 document.addEventListener("DOMContentLoaded", init);
 </script>

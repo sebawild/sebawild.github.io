@@ -276,6 +276,8 @@
     .controls { gap:8px 12px; padding:10px 12px; }
     .seg button { padding:5px 9px; font-size:.74rem; }
   }
+  button.spinbtn.on { background:var(--wi-accent); color:var(--wi-panel-2); border-color:var(--wi-accent); }
+  button.spinbtn.on:hover:not(:disabled) { background:var(--wi-accent-dark); color:var(--wi-panel-2); border-color:var(--wi-accent-dark); }
   @media (prefers-reduced-motion:reduce) { * { animation-duration:.001ms !important; transition-duration:.001ms !important; } }
 </style>
 <style>
@@ -326,6 +328,7 @@ body { font-family: var(--wi-font-body); }
     <button id="zoomIn" class="icon" title="Zoom in" aria-label="Zoom in">+</button>
     <button id="viewFit" title="Fit the view to the feasible region">fit</button>
     <button id="viewReset" title="Back to the view of the input (and, in 3D, the initial rotation)">reset</button>
+    <button id="spinGeo" class="hidden spinbtn" title="Let the drawing turn slowly about the vertical axis (dragging still works)">⟳ rotate</button>
   </div>
   <div class="ctl">
     <label class="chk" id="hatchLab"><input type="checkbox" id="hatchChk" checked> hatch the forbidden side</label>
@@ -1491,6 +1494,7 @@ function metaText() {
    Render, slider, sweep
    ========================================================================== */
 function render() {
+  syncSpinBtn();
   if (MODE !== "geo") { if (S.lp) sxRender(); return; }
   if (!S.lp) return;
   if (S.lp.d === 2) render2D(); else render3D();
@@ -1680,7 +1684,7 @@ function initPointer(T) {
     tipHide(); stopSweep();
     const r = svg.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
     if (S.lp.d === 2 && e.target.id === "cHandle") drag = { kind: "comp" };
-    else drag = { kind: S.lp.d === 2 ? "pan" : "rot", x, y, v: S.lp.d === 2 ? { lo: S.view2.lo.slice(), hi: S.view2.hi.slice() } : null, yaw: S.yaw, pitch: S.pitch };
+    else S.dragging = S.lp.d === 3, drag = { kind: S.lp.d === 2 ? "pan" : "rot", x, y, v: S.lp.d === 2 ? { lo: S.view2.lo.slice(), hi: S.view2.hi.slice() } : null, yaw: S.yaw, pitch: S.pitch };
     svg.setPointerCapture(e.pointerId); e.preventDefault();
   });
   svg.addEventListener("pointermove", e => {
@@ -1715,9 +1719,24 @@ function initPointer(T) {
       render();
     }
   });
-  const end = () => { if (drag) { drag = null; writeHash(); } };
+  const end = () => { S.dragging = false; if (drag) { drag = null; writeHash(); } };
   svg.addEventListener("pointerup", end); svg.addEventListener("pointercancel", end);
   svg.addEventListener("pointerleave", () => { if (!drag) tipHide(); });
+}
+/* let the 3D view turn by itself: S has yaw (and dragging); active(): is it on screen; draw(): redraw the picture */
+function spinToggle(S, btn, active, draw) {
+  const label = on => { btn.innerHTML = on ? "❚❚&#xFE0E; stop" : "⟳ rotate"; btn.classList.toggle("on", on); };
+  if (S.spin) { S.spin = false; label(false); return; }
+  S.spin = true; label(true);
+  let last = performance.now();
+  const step = now => {
+    if (!S.spin) return;
+    if (!active()) { S.spin = false; label(false); return; }
+    const dt = Math.min(100, now - last); last = now;
+    if (!S.dragging) { S.yaw = (S.yaw - dt * 0.02) % 360; draw(); }
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 /* turn the objective: the improvement direction points at angle phi; snaps to constraint normals and the axes */
 function setDirection(phi) {
@@ -2562,7 +2581,9 @@ function sxBuildBar(T) {
   bar.querySelectorAll(".phasebtn").forEach(b => b.onclick = () => { sxStop(T); sxGoto(T, T.groups[+b.dataset.g].from); });
   const sc = el(T.prefix + "Scrub"); sc.max = Math.max(0, T.steps.length - 1);
 }
+function syncSpinBtn() { const sb = el(MODE === "geo" ? "spinGeo" : S.prefix + "Spin"); if (sb) sb.classList.toggle("hidden", !(S.lp && S.lp.d === 3)); }
 function sxRender() {
+  syncSpinBtn();
   const T = S, st = T.steps[T.cur]; if (!st) return;
   T.curX = sxNow(T);
   const lp = T.lp, P = T.P;
@@ -2684,6 +2705,7 @@ function sxBuildDom(T) {
     (full ? '<div class="ctl"><span class="lbl">Pivot rule</span><span class="seg" id="' + p + 'Rule"><button data-rule="dantzig" class="on" title="most negative reduced cost">Dantzig</button><button data-rule="bland" title="smallest index with negative reduced cost (never cycles)">Bland</button><button data-rule="best" title="largest decrease of the objective, step length included">largest step</button><button data-rule="click" title="you click the entering variable">you choose</button></span></div>' +
 
             '<label class="chk hidden" id="' + p + 'StretchLab"><input type="checkbox" id="' + p + 'Stretch"> stretch the axes</label>' : "") +
+    '<div class="ctl"><button id="' + p + 'Spin" class="hidden spinbtn" title="Let the drawing turn slowly about the vertical axis (dragging still works)">⟳ rotate</button></div>' +
     "</div>" +
     '<div class="transport"><div class="transport-row"><span class="ctl" style="gap:6px">' +
       '<button id="' + p + 'Reset" class="icon hide-p" title="Back to the first step (Home)" aria-label="Back to the first step">&#x21BA;</button>' +
@@ -2693,7 +2715,7 @@ function sxBuildDom(T) {
       '<span class="progress"><input type="range" class="scrub" id="' + p + 'Scrub" min="0" max="1" value="0" step="1" aria-label="Step"><div class="phasebar" id="' + p + 'Bar"></div></span>' +
       '<span class="stepno" id="' + p + 'No"></span>' +
       '<span class="prep hide-p" id="' + p + 'Prep" title="All formulas of this run are typeset in the background, so that stepping never waits for MathJax"></span>' +
-      '<span class="ctl hide-p" style="gap:6px"><span class="lbl">Pause</span><input type="range" id="' + p + 'Speed" min="200" max="2500" value="1100" style="width:88px;accent-color:var(--wi-accent)" aria-label="Pause between steps"></span>' +
+      '<span class="ctl hide-p" style="gap:6px"><span class="lbl">Delay</span><input type="range" id="' + p + 'Speed" min="200" max="2500" value="1100" style="width:88px;accent-color:var(--wi-accent)" aria-label="Delay between steps (ms)"></span>' +
     "</div></div>" +
     '<div class="stage" id="' + p + 'Stage"><div class="col-main">' +
       '<div class="sim-box"><div class="sim-title"><span>Feasible region</span><span class="rhs" id="' + p + 'Meta"></span></div>' +
@@ -2726,6 +2748,7 @@ function sxBuildDom(T) {
     : SX_LISTS[p].map(opt).join("") + '<option value="custom">custom (from the text box)</option>';
   el(p + "Preset").onchange = () => { const v = el(p + "Preset").value; if (v === "custom") return; sxStop(T); sxLoad(T, parseLP(LPTEXT[v]), v); el("inputText").value = LPTEXT[v]; el("parseErr").textContent = ""; sxRender(); };
   el(p + "Reset").onclick = () => { sxStop(T); sxGoto(T, 0); };
+  el(p + "Spin").onclick = () => spinToggle(T, el(p + "Spin"), () => S === T && T.lp && T.lp.d === 3, render3D);
   el(p + "Back").onclick = () => { sxStop(T); sxStep(T, -1); };
   el(p + "Fwd").onclick = () => { sxStop(T); sxStep(T, 1); };
   el(p + "Play").onclick = () => sxPlay(T);
@@ -2812,6 +2835,7 @@ function init() {
     const lp = S.lp; el("inputText").value = lpToText(lp, lp.cons.map((k, i) => Object.assign({}, k, { on: S.on[i] })), S.c, S.sense);
   };
   el("senseSeg").querySelectorAll("button").forEach(b => b.onclick = () => { if (S.sense === b.dataset.sense) return; S.sense = b.dataset.sense; changed(true); });
+  el("spinGeo").onclick = () => spinToggle(G, el("spinGeo"), () => MODE === "geo" && G.lp && G.lp.d === 3, render3D);
   el("zoomIn").onclick = () => zoom(1 / 1.25); el("zoomOut").onclick = () => zoom(1.25);
   el("viewFit").onclick = fitView;
   el("viewReset").onclick = () => { const bv = baseView(S.lp); if (S.lp.d === 2) S.view2 = bv; else { S.view3 = bv; S.yaw = 215; S.pitch = 22; S.zoom3 = 1; } render(); };

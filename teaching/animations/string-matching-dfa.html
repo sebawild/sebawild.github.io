@@ -165,6 +165,24 @@
   table.grid td.note { text-align:left; padding-left:10px; font-family:var(--wi-font-body); font-size:.76rem;
                        color:var(--wi-ink-soft); width:auto; white-space:nowrap; }
   table.grid td.set { width:auto; padding:0 5px; font-size:.76rem; }
+  /* states written between the characters: boundary b = after reading the b characters to its left */
+  table.grid tr.qlane-row th.rl { padding-right:1.3em; vertical-align:top; padding-top:4px; }
+  table.grid td.qlane-td { padding:0; vertical-align:top; }
+  table.grid tr.qlane-row td.note { padding-left:1.4em; vertical-align:top; padding-top:4px; }
+  .qlane { position:relative; }
+  .qcol { position:absolute; top:4px; transform:translateX(-50%); display:flex; flex-direction:column; gap:2px; }
+  .qcol span { display:block; min-width:1.3em; padding:0 2px; height:1.45em; line-height:1.4em; text-align:center; font-size:.85rem;
+               border:1px solid var(--wi-border); background:var(--wi-panel-2); border-radius:3px; color:var(--wi-ink-strong); }
+  .qcol span.old { color:var(--wi-ink-faint); border-color:var(--wi-border-soft); }
+  .qcol span.cur { box-shadow:inset 0 0 0 2px var(--wi-active); color:var(--wi-active); font-weight:bold; }
+  .qcol span.match { background:var(--match); }
+  .qcol .qnew, .qcol.qnew { opacity:0; transition:opacity .2s; }
+  /* a set of states: one box, the members stacked inside */
+  .qcol.qset { gap:0; border:1px solid var(--wi-border); background:var(--wi-panel-2); border-radius:3px; }
+  .qcol.qset span { border:0; background:none; height:1.3em; line-height:1.3em; }
+  .qcol.qset.cur { box-shadow:inset 0 0 0 2px var(--wi-active); }
+  .qcol.qset.cur span { color:var(--wi-active); font-weight:bold; }
+  .qcol.qset.match { background:var(--match); }
   table.grid tr.rule td { border-top:1px solid var(--wi-border-soft); }
 
   /* value tables (δ, fail, λ, γ, …) */
@@ -185,6 +203,16 @@
 
   svg.aut { display:block; background:var(--wi-bg); border-radius:var(--wi-radius); }
   svg.aut text { font-family:var(--wi-font-mono); }
+  /* hover: a table cell and its edge light up together */
+  svg.aut .edge.omitted, svg.aut .jdot.omitted { display:none; }
+  svg.aut .edge.omitted.hl, svg.aut .jdot.omitted.hl { display:inline; }
+  svg.aut .edge.hl .e { stroke:var(--wi-examine); stroke-width:3px; opacity:1; }
+  svg.aut .edge.hl .ah { fill:var(--wi-examine); opacity:1; }
+  svg.aut .edge.hl .el { fill:var(--wi-examine); font-weight:bold; }
+  svg.aut .jdot.hl { fill:var(--wi-examine); }
+  svg.aut .edge { cursor:default; }
+  table.tbl td[data-from] { cursor:default; }
+  table.tbl td.hl { box-shadow:inset 0 0 0 2px var(--wi-examine); }
 
   /* code panel: the pseudocode, the line being executed highlighted */
   .codebox { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
@@ -260,8 +288,8 @@ body { font-family: var(--wi-font-body); }
     <label for="presetSel">Example</label>
     <select id="presetSel"></select>
   </div>
-<div class="ctl"><label for="T">Text T</label><input type="text" id="T" class="str wide" value="aabacaababacaa" spellcheck="false"><label for="P">Pattern P</label><input type="text" id="P" class="str " value="ababaca" spellcheck="false"><label for="sigma">Σ</label><input type="text" id="sigma" class="str narrow" value="abc" spellcheck="false" title="the alphabet; empty = all characters occurring in T and P"><button class="pri" data-run title="Run with these inputs (Enter)">Set</button></div>
-<script type="application/json" id="presetData">[{"name": "example: aabacaababacaa / ababaca", "v": {"T": "aabacaababacaa", "P": "ababaca", "sigma": "abc"}}, {"name": "abababaabab / ababaca", "v": {"T": "abababaabab", "P": "ababaca", "sigma": "abc"}}, {"name": "algs4: abracadabra", "v": {"T": "abacadabrabracabracadabrabrabracad", "P": "abracadabra", "sigma": ""}}, {"name": "aⁿ / a³b", "v": {"T": "aaaaaaaaaaa", "P": "aaab", "sigma": "ab"}}]</script>
+<div class="ctl"><label for="T">Text T</label><input type="text" id="T" class="str wide" value="aabacaababacaa" spellcheck="false"><label for="P">Pattern P</label><input type="text" id="P" class="str " value="ababaca" spellcheck="false"><label for="sigma">Σ</label><input type="text" id="sigma" class="str narrow" value="abc" spellcheck="false" title="the alphabet; empty = all characters occurring in T and P"><button class="pri" data-run title="Run with these inputs (Enter)">Set</button></div><div class="ctl"><span class="lbl">Edges</span><span class="seg"><button data-aut="arcs" onclick="setAut('style','arcs')" title="bent arcs, as on the slides">arcs</button><button data-aut="tracks" onclick="setAut('style','tracks')" title="orthogonal: every back edge on a track of its own">tracks</button><button data-aut="bus" onclick="setAut('style','bus')" title="circuit style: edges into the same state share one track">bus</button></span><label class="chk" title="only the DFA: the convention of leaving out all transitions into state 0"><input id="omit0" type="checkbox" onchange="setAut('omit0', this.checked)"> omit edges into 0</label></div>
+<script type="application/json" id="presetData">[{"name": "example: aabacaababacaa / ababaca", "v": {"T": "aabacaababacaa", "P": "ababaca", "sigma": "abc"}}, {"name": "abababaabab / ababaca", "v": {"T": "abababaabab", "P": "ababaca", "sigma": "abc"}}, {"name": "algs4: abracadabra", "v": {"T": "abacadabrabracabracadabrabrabracad", "P": "abracadabra", "sigma": ""}}, {"name": "aⁿ / a³b", "v": {"T": "aaaaaaaaaaa", "P": "aaab", "sigma": "ab"}}, {"name": "fruit salad: 16 emoji in Σ", "v": {"T": "🍇🍎🍌🍎🍓🍎🍌🍎🍌🍎🍒🍉", "P": "🍎🍌🍎🍒", "sigma": "🍎🍐🍊🍋🍌🍉🍇🍓🍈🍒🍑🥭🍍🥥🥝🍅"}}]</script>
   <div class="ctl">
     <button id="copyBtn" title="Copy a link that reopens exactly this example">Copy link</button>
     <span class="flash" id="flash"></span>
@@ -335,12 +363,21 @@ produces a permalink to the example.</p>
 rows make that explicit — characters in parentheses are known to be equal <em>from the state alone</em> and are never
 looked at again, the plain character is the one just read, and a red character is the one that killed the guess. The
 automaton never goes back in the text: one table lookup per character, no matter how badly things go.</p>
+<p><b>The trace.</b> The states are written <em>between</em> the characters of the text: the box at a boundary holds
+the state after reading everything to its left, starting with state 0 in front of the first character. Each step is
+animated in the automaton: a token follows the edge taken (for the NFA, one token per edge that keeps a state alive),
+and the new state appears in the trace when the token arrives.</p>
 <p><b>The NFA.</b> Here a whole set of states is active. Each active state <code>q ≥ 1</code> is one alignment of the
 pattern, shifted so that its first <code>q</code> characters cover the last <code>q</code> characters read; all of
 them have to be tracked simultaneously, which is what makes the set simulation slow. State 0 carries the Σ-loop and is
 therefore always active — every position is still a possible start.</p>
 <p><b>Cost.</b> DFA: one table lookup per text character, plus Θ(mσ) time and space for the table (both shown as
 chips). NFA: the number of edges inspected.</p>
+<p><b>Drawing the edges.</b> <i>Edges</i> switches between three ways of drawing the backward edges: <em>arcs</em>
+(bent arcs, deeper for longer jumps, as on the slides), <em>tracks</em> (orthogonal: down, along a horizontal track of
+its own, up into the target) and <em>bus</em> (circuit style: all edges into the same state share one track; a dot
+marks where an edge joins it, crossings have no dot). Labels sit next to the source of the edge. The choice is
+remembered in this browser for all these pages. <em>Omit edges into 0</em> uses the textbook convention of leaving out every transition into state 0; that removes most of the clutter for large alphabets. Hovering a cell of the table highlights its edge, and vice versa.</p>
 </div>
 </details>
 
@@ -372,6 +409,10 @@ function ch(c){ return c === ' ' ? '␣' : esc(c); }
 let STEPS = [], IDX = 0, PAGE = null, playTimer = null, PHASES = [];
 /* true while stabiliseHeights renders steps only to measure them (no animations then) */
 let MEASURING = false;
+/* animations run only when a step is reached by one step forward; going back, jumping, or redrawing
+   the same step (resize, splitter, toggles) shows the final picture at once */
+let ANIMATE = false, SHOWN = -1;
+const motionOK = () => ANIMATE && !MEASURING && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
 /* ── pseudocode panel ─────────────────────────────────────────────── */
 const KEYWORDS = ['procedure','for','while','do','if','then','else','return','break','end','new','array','initialized','to','loop','inner','each'];
@@ -429,6 +470,7 @@ const App = {
   init(page){
     PAGE = page;
     buildCodePanel(page.pseudo);
+    if (typeof syncAutControls === 'function') { syncAutControls(); initEdgeHover(); }
     initPresets();
     wireNav();
     initSplitter();
@@ -436,7 +478,7 @@ const App = {
     this.run();
   },
   run(){
-    stopPlay();
+    stopPlay(); SHOWN = -2;
     try { STEPS = PAGE.compute(); }
     catch (e) { STEPS = [{ desc: '<span class="err">' + esc(e.message) + '</span>' }]; }
     if (!STEPS.length) STEPS = [{ desc: 'Nothing to show.' }];
@@ -480,6 +522,7 @@ function stabiliseHeights(){
 
 function show(){
   const s = App.step();
+  ANIMATE = IDX === SHOWN + 1; SHOWN = IDX;
   $('#log').innerHTML = s.desc || '';
   renderCost(s.cost);
   try { PAGE.render(s); } catch (e) { $('#view').innerHTML = '<span class="err">' + esc(e.message) + '</span>'; }
@@ -732,6 +775,12 @@ function loadInputText(){
   } catch (e) { err.textContent = e.message; }
 }
 
+/* ── strings as sequences of characters ──────────────────────────────
+   JS strings index UTF-16 code units, so an emoji would count as two characters. The inputs are
+   turned into arrays of code points that still print as strings (template literals, esc, Number). */
+class CStr extends Array { toString(){ return this.join(''); } }
+const cs = s => CStr.from(String(s));
+
 /* ── HTML building helpers ────────────────────────────────────────── */
 /* rows: [{label, cells:[{t,cls}], note}]  — cls is a space separated class list */
 function grid(rows, opts = {}){
@@ -763,7 +812,7 @@ function table(head, rows, opts = {}){
   h += '<tr>' + head.map((c, i) => `<th class="${(opts.colhot === i - 1) ? 'colhot' : ''}">${c}</th>`).join('') + '</tr>';
   rows.forEach(r => {
     h += '<tr><th>' + r.head + '</th>' + r.cells.map(c =>
-      `<td class="${c.cls || ''}">${c.t == null ? '' : c.t}</td>`).join('') + '</tr>';
+      `<td class="${c.cls || ''}"${c.from != null && c.to != null ? ` data-from="${c.from}" data-to="${c.to}"` : ''}>${c.t == null ? '' : c.t}</td>`).join('') + '</tr>';
   });
   return h + '</table>';
 }
@@ -772,64 +821,251 @@ function table(head, rows, opts = {}){
 /* states: number of states (0..S-1); accepting: index or -1
    edges: [{from,to,label,kind}] kind: 'match' | 'back' | 'loop' | 'fail'
    hot:   {state, edge:{from,to}}                                        */
+/* A row of states that sit between the characters of a grid row: cols[b] (b = 0..n) lists the values at
+   boundary b, i.e. after reading the b characters to its left, as [{t, cls}]. mode 'seq': one box per value,
+   top to bottom (values taken one after the other); mode 'set': one box holding all values (a set of states).
+   The grid row the boundaries refer to carries cls 'lane-ref'; placeLanes() puts the columns in place. */
+function laneRow(n, cols, o = {}){
+  const depth = Math.max(1, ...cols.map(a => (a || []).length));
+  const H = o.mode === 'set' ? `calc(${depth} * 1.3em + 10px)` : `calc(${depth} * 1.45em + ${depth - 1} * 2px + 10px)`;
+  return `<tr class="qlane-row"><th class="rl">${o.label || ''}</th><td class="qlane-td" colspan="${n}">` +
+    `<div class="qlane" style="height:${H}">` +
+    cols.map((a, b) => a && a.length ? `<div class="qcol${o.mode === 'set' ? ' qset' : ''} ${(o.colCls && o.colCls(b)) || ''}" data-b="${b}">` +
+      a.map(v => `<span class="${v.cls || ''}">${v.t}</span>`).join('') + '</div>' : '').join('') +
+    `</div></td>` + (o.note ? `<td class="note" colspan="3">${o.note}</td>` : '') + `</tr>`;
+}
+function gridWithLane(rows, lane){ return grid(rows).replace(/<\/table>$/, lane + '</table>'); }
+/* the grid columns are not all equally wide, so the boundaries are measured */
+function placeLanes(root = document){
+  root.querySelectorAll('.qlane').forEach(lane => {
+    const ref = lane.closest('table').querySelector('tr.lane-ref'); if (!ref) return;
+    const cells = [...ref.querySelectorAll('td')], L = lane.getBoundingClientRect().left;
+    lane.querySelectorAll('.qcol').forEach(c => {
+      const b = +c.dataset.b, r = cells[Math.min(b, cells.length - 1)].getBoundingClientRect();
+      c.style.left = ((b < cells.length ? r.left : r.right) - L) + 'px';
+    });
+  });
+}
+const showNewStates = () => $$('#view .qnew').forEach(e => e.classList.remove('qnew'));
+
+/* Follow the transition just taken: a token travels along the hot edge of the automaton in el, the source
+   state is lit while it travels and the target (already drawn as the current state) lights up on arrival.
+   done() is called on arrival — at once while measuring or with reduced motion. */
+function travelEdge(el, from, to, dur, done = () => {}, o = {}){
+  /* o.sel picks the edges (default: the hot ones); o.green: the token and the lit state in the colour of x */
+  const svg = el && el.querySelector('svg.aut'), paths = svg ? [...svg.querySelectorAll(o.sel || 'path[data-hot]')] : [];
+  const LC = o.green ? COL.x : COL.hot, LF = o.green ? FILL.x : FILL.hot;
+  if (!paths.length || !motionOK() || dur < 80) { done(); return; }
+  /* from and to may be sets of states (one token per hot edge then) */
+  const F = [].concat(from), Tt = [].concat(to);
+  const parts = k => [...svg.querySelectorAll(`[data-st="${k}"]`)];
+  const saved = [], keep = e => saved.push([e, ['fill', 'stroke', 'stroke-width', 'font-weight', 'opacity'].map(a => [a, e.getAttribute(a)])]);
+  const look = (k, hot) => parts(k).forEach(e => {
+    keep(e);
+    const r = e.dataset.role, c = hot ? LC : COL.base;
+    if (r === 'ring') { e.setAttribute('stroke', c); e.setAttribute('fill', hot ? LF : FILL.base); e.setAttribute('stroke-width', hot ? 2.6 : 1.3); }
+    else if (r === 'acc') e.setAttribute('stroke', c);
+    else if (r === 'num') { e.setAttribute('fill', c); if (hot) e.setAttribute('font-weight', 'bold'); else e.removeAttribute('font-weight'); }
+    else if (r === 'tag') e.setAttribute('opacity', 0);
+  });
+  Tt.filter(k => !F.includes(k)).forEach(k => look(k, false));
+  F.filter(k => !Tt.includes(k)).forEach(k => look(k, true));
+  const toks = paths.map(p => {
+    const L = p.getTotalLength(), start = p.getPointAtLength(0);
+    const tok = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    tok.setAttribute('r', 6); tok.setAttribute('fill', LC); tok.setAttribute('stroke', FILL.base); tok.setAttribute('stroke-width', 1.5);
+    tok.setAttribute('cx', start.x); tok.setAttribute('cy', start.y);
+    svg.appendChild(tok);
+    return { p, L, tok };
+  });
+  const t0 = performance.now();
+  const tick = now => {
+    if (!toks[0].tok.isConnected) return;
+    const u = Math.min(1, (now - t0) / dur), e = u < .5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u);
+    toks.forEach(({ p, L, tok }) => { const pt = p.getPointAtLength(L * e); tok.setAttribute('cx', pt.x); tok.setAttribute('cy', pt.y); });
+    if (u < 1) { requestAnimationFrame(tick); return; }
+    toks.forEach(t => t.tok.remove());
+    saved.forEach(([e, at]) => at.forEach(([a, v]) => v == null ? e.removeAttribute(a) : e.setAttribute(a, v)));
+    done();
+  };
+  requestAnimationFrame(tick);
+}
 const COL = { base: '#6b675c', hot: '#cc2f22', fail: '#902015', out: '#2a6a63', x: '#4a7c3f' };
 const FILL = { base: '#fcf9f3', hot: '#f6e6df', x: '#e8f0e2' };
 const AUT_FS = 14;          /* label size in px, close to the text size of the page */
+let GROW_ID = 0;
 function growEdges(){
   if (typeof MEASURING !== 'undefined' && MEASURING) return;
-  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   document.querySelectorAll('svg.aut path.grow').forEach(p => {
     if (p.dataset.grown) return;
     p.dataset.grown = '1';
-    const labs = p.parentNode.querySelectorAll('text.grow-lab');
-    const done = () => { p.style.strokeDasharray = ''; p.style.strokeDashoffset = '';
-                         p.setAttribute('marker-end', p.dataset.mk); labs.forEach(t => t.style.opacity = ''); };
-    if (reduce) { done(); return; }
+    const svg = p.ownerSVGElement, g = p.parentNode, extras = [...g.querySelectorAll('.ah, text.grow-lab')];
+    const dashed = p.getAttribute('stroke-dasharray');
+    const done = () => { p.style.strokeDasharray = ''; p.style.strokeDashoffset = ''; p.removeAttribute('mask');
+                         extras.forEach(t => t.style.opacity = ''); };
+    if (!motionOK()) { done(); return; }
     const L = p.getTotalLength();
-    p.style.strokeDasharray = L; p.style.strokeDashoffset = L;
+    /* a solid edge is drawn with its own dash; a dashed one is revealed through a mask that is drawn that way */
+    let drawn = p;
+    if (dashed) {
+      const NS = 'http://www.w3.org/2000/svg', id = 'growmask' + (++GROW_ID);
+      const mask = document.createElementNS(NS, 'mask'), q = document.createElementNS(NS, 'path');
+      mask.setAttribute('id', id); mask.setAttribute('maskUnits', 'userSpaceOnUse');
+      mask.setAttribute('x', 0); mask.setAttribute('y', 0); mask.setAttribute('width', svg.getAttribute('width')); mask.setAttribute('height', svg.getAttribute('height'));
+      q.setAttribute('d', p.getAttribute('d')); q.setAttribute('fill', 'none'); q.setAttribute('stroke', '#fff'); q.setAttribute('stroke-width', 8);
+      mask.appendChild(q); svg.querySelector('defs').appendChild(mask);
+      p.style.strokeDasharray = ''; p.setAttribute('mask', `url(#${id})`);
+      drawn = q;
+    }
+    drawn.style.strokeDasharray = L; drawn.style.strokeDashoffset = L;
     const t0 = performance.now(), D = 800;
     const tick = now => {
       if (!p.isConnected) return;
       const u = Math.min(1, (now - t0) / D), e = u < .5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u);
-      p.style.strokeDashoffset = L * (1 - e);
-      labs.forEach(t => t.style.opacity = Math.max(0, (u - .6) / .4));
+      drawn.style.strokeDashoffset = L * (1 - e);
+      extras.forEach(t => t.style.opacity = t.classList.contains('ah') ? (u > .92 ? 1 : 0) : Math.max(0, (u - .6) / .4));
       if (u < 1) requestAnimationFrame(tick); else done();
     };
     requestAnimationFrame(tick);
   });
 }
+/* ── view options for the automata (shared by all pages, remembered in this browser) ── */
+const AUT = { style: 'arcs', omit0: false };
+try { Object.assign(AUT, JSON.parse(localStorage.getItem('wi-aut') || '{}')); } catch (e) { /* no storage */ }
+function setAut(k, v){
+  AUT[k] = v;
+  try { localStorage.setItem('wi-aut', JSON.stringify(AUT)); } catch (e) { /* no storage */ }
+  syncAutControls(); stabiliseHeights(); show();
+}
+function syncAutControls(){
+  $$('[data-aut]').forEach(b => b.classList.toggle('on', AUT.style === b.dataset.aut));
+  const o = $('#omit0'); if (o) o.checked = !!AUT.omit0;
+}
+
+/* ── hover: a table cell and the edge it stands for light up together ── */
+function initEdgeHover(){
+  const view = $('#view');
+  const key = el => el && el.closest && el.closest('[data-from][data-to]');
+  const mark = (k, on) => $$(`#view [data-from="${k.dataset.from}"][data-to="${k.dataset.to}"]`).forEach(e => e.classList.toggle('hl', on));
+  view.addEventListener('mouseover', ev => { const k = key(ev.target); if (k) mark(k, true); });
+  view.addEventListener('mouseout', ev => { const k = key(ev.target); if (k && !(ev.relatedTarget && k.contains(ev.relatedTarget))) mark(k, false); });
+}
+
+/* ── geometry helpers ── */
+const lerp = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+function bez(P, t){ const [a, b, c, d] = P, u = 1 - t;
+  return { x: u*u*u*a.x + 3*u*u*t*b.x + 3*u*t*t*c.x + t*t*t*d.x, y: u*u*u*a.y + 3*u*u*t*b.y + 3*u*t*t*c.y + t*t*t*d.y }; }
+/* cut a cubic where it is AH away from its end: returns the shortened curve and the arrow (tip, unit direction);
+   the arrow points along the chord over its own length, not along the very last tangent */
+function cutCubic(P, AH){
+  let lo = 0, hi = 1;
+  for (let k = 0; k < 30; k++) { const m = (lo + hi) / 2; if (dist(bez(P, m), P[3]) > AH) lo = m; else hi = m; }
+  const t = lo, [a, b, c, d] = P;
+  const ab = lerp(a, b, t), bc = lerp(b, c, t), cd = lerp(c, d, t), abc = lerp(ab, bc, t), bcd = lerp(bc, cd, t), m = lerp(abc, bcd, t);
+  const L = dist(m, d) || 1;
+  return { curve: [a, ab, abc, m], tip: d, dir: { x: (d.x - m.x) / L, y: (d.y - m.y) / L } };
+}
+function arrowHead(tip, dir, col, extra = ''){
+  const AH = 10, AW = 4, bx = tip.x - dir.x * AH, by = tip.y - dir.y * AH, nx = -dir.y, ny = dir.x;
+  return `<path class="ah" d="M${tip.x.toFixed(1)},${tip.y.toFixed(1)} L${(bx + nx * AW).toFixed(1)},${(by + ny * AW).toFixed(1)} ` +
+         `L${(bx - nx * AW).toFixed(1)},${(by - ny * AW).toFixed(1)} z" fill="${col}"${extra}/>`;
+}
+const f1 = v => v.toFixed(1);
+
+/* Linear automaton: states 0..S−1 on a line, match edges straight, loops above, back edges below.
+   AUT.style picks how back edges are drawn:
+     arcs   — bent arcs, deeper for longer spans (the look of the slides), ends spread around the state
+     tracks — orthogonal routing: down, along a horizontal track of its own, up into the target
+     bus    — like tracks, but all edges into the same state share one track (a "bus", circuit style);
+              a dot marks where an edge joins a bus, plain crossings have no dot
+   cfg: states, slots, accepting, edges [{from,to,label,kind}], hot {state, edge}, hotLabel, x, xedge,
+        trail, tags, box {to,label}, grow, depthSpan, dx,
+        layoutEdges (the final edge set: tracks and ends are fixed from it, so the picture does not
+        rearrange itself while the automaton grows), omit0 (the page allows hiding edges into state 0) */
 function linearAutomaton(cfg){
-  /* optional: slots (positions reserved, for a width that does not change while states appear),
-     depthSpan (the longest back edge to reserve room for), box {to, label} (a frame around states 0..to),
-     trail [{from,to}] (edges already taken, drawn lighter than the hot one), tags {state: text} */
-  const S = cfg.states, R = 18, DX = Math.max(68, cfg.dx || 74), fs = AUT_FS, SL = Math.max(S, cfg.slots || 0);
-  const backEdges = (cfg.edges || []).filter(e => e.kind === 'back' || e.kind === 'fail');
-  let maxSpan = 0;
-  backEdges.forEach(e => maxSpan = Math.max(maxSpan, Math.abs(e.from - e.to)));
-  const depthOf = span => 26 + Math.min(span, 8) * 13;
-  /* the newly added edge, drawn as if it grew out of its source state (no-op while measuring) */
-  if (cfg.grow && !(typeof MEASURING !== 'undefined' && MEASURING)) setTimeout(() => growEdges(), 0);
-  if (cfg.depthSpan != null) maxSpan = Math.max(maxSpan, cfg.depthSpan);
-  const top = cfg.box ? 92 : 68, W = 40 + SL * DX + 20,
-        H = top + (maxSpan > 0 ? R - 2 + .75 * (depthOf(maxSpan) + 14 - R) + fs + 8 : R + 12);
-  const x = i => 36 + i * DX, cy = top;
-  let s = `<svg class="aut" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><defs>`;
-  for (const k in COL) s += `<marker id="ar-${k}" viewBox="0 0 9 7" markerWidth="11" markerHeight="8.5" markerUnits="userSpaceOnUse" refX="8.5" refY="3.5" orient="auto">
-      <path d="M0,0 L9,3.5 L0,7 z" fill="${COL[k]}"/></marker>`;
-  s += '</defs>';
+  const S = cfg.states, R = 18, fs = AUT_FS, SL = Math.max(S, cfg.slots || 0);
+  const style = AUT.style || 'arcs', omit0 = !!(cfg.omit0 && AUT.omit0);
+  const edges = cfg.edges || [];
+  /* the states move apart when labels are long (large alphabets), so that a label fits between two states */
+  const labW = t => typeof textW === 'function' ? textW(String(t).replace(/<[^>]*>/g, ''), `${fs}px ui-monospace, Menlo, Consolas, monospace`) : String(t).length * fs * .6;
+  const longest = Math.max(0, ...(cfg.layoutEdges || []).concat(edges).filter(e => e.from !== e.to).map(e => labW(e.label)));
+  const DX = Math.max(68, cfg.dx || 74, Math.ceil(longest + 28));
   const same = (a, b) => a && b && a.from === b.from && a.to === b.to;
-  const isHot = e => same(cfg.hot && cfg.hot.edge, e) || same(cfg.grow, e);   /* grow: the edge that has just been added */
-  /* a growing edge starts out invisible (no dash drawn, no arrowhead), so it never flashes before growEdges() runs */
-  const mkA = e => same(cfg.grow, e) ? ` class="grow" data-mk="url(#${mk(e)})" style="stroke-dasharray:0 100000"` : ` marker-end="url(#${mk(e)})"`;
+  const hotE = cfg.hot && cfg.hot.edge, isHotE = e => Array.isArray(hotE) ? hotE.some(h => same(h, e)) : same(hotE, e);
+  const isGrow = e => same(cfg.grow, e);
+  const isHot = e => isHotE(e) || isGrow(e);
   const isX   = e => same(cfg.xedge, e);
   const isTr  = e => (cfg.trail || []).some(t => same(t, e));
   const key = e => isX(e) ? 'x' : isHot(e) ? 'hot' : isTr(e) ? 'hot' : e.kind === 'fail' ? 'fail' : e.kind === 'out' ? 'out' : 'base';
   const col = e => COL[key(e)];
   const wd  = e => (isX(e) || isHot(e)) ? 2.6 : isTr(e) ? 1.9 : (e.kind === 'fail' ? 1.4 : 1.3);
   const op  = e => (isX(e) || isHot(e)) ? 1 : isTr(e) ? .5 : (e.kind === 'fail' ? .6 : e.kind === 'out' ? .8 : 1);
-  const mk  = e => 'ar-' + key(e);
-  const lab = (tx, ty, e) => `<text${same(cfg.grow, e) ? ' class="grow-lab" style="opacity:0"' : ''} x="${tx}" y="${ty}" font-size="${fs}" text-anchor="middle" fill="${col(e)}"${isX(e) || isHot(e) ? ' font-weight="bold"' : ''}>${e.label}</text>`;
+  const lit = e => isX(e) || isHot(e) || isTr(e);
+  const x = i => 36 + i * DX;
+  const halo = ' paint-order="stroke" stroke="#f5ebd9" stroke-width="4" stroke-linejoin="round"';
+  const isBack = e => e.from !== e.to && e.to !== e.from + 1;
 
+  /* ── layout of the back edges: depth order, ends on the states, tracks ── */
+  const L = (cfg.layoutEdges || edges).filter(isBack);
+  edges.filter(isBack).forEach(e => { if (!L.some(l => same(l, e))) L.push(e); });   /* edges not in the final set */
+  const span = e => Math.abs(e.from - e.to);
+  const depthOf = sp => 26 + Math.min(sp, 8) * 13;
+  const track = new Map();            /* tracks / bus: edge key (or target) → track index */
+  const ekey = e => e.from + '>' + e.to;
+  let nTracks = 0;
+  if (style !== 'arcs') {
+    /* items: one per edge (tracks) or one per target (bus); interval in units of states, ends nudged
+       inwards so that an edge leaving a state and one arriving there can share a track */
+    const items = [];
+    if (style === 'bus') {
+      const byT = new Map();
+      L.forEach(e => { const it = byT.get(e.to) || { lo: e.to, hi: e.to, edges: [] }; it.hi = Math.max(it.hi, e.from); it.lo = Math.min(it.lo, e.from); it.edges.push(e); byT.set(e.to, it); });
+      byT.forEach((it, t) => items.push({ id: 't' + t, a: it.lo === t ? t + .3 : it.lo - .3, b: it.hi === t ? t - .3 : it.hi - .3, edges: it.edges }));
+      items.forEach(it => { if (it.a > it.b) [it.a, it.b] = [it.b, it.a]; });
+    } else L.forEach(e => items.push({ id: ekey(e), a: Math.min(e.from, e.to) + .3, b: Math.max(e.from, e.to) - .3, edges: [e] }));
+    items.sort((p, q) => (p.b - p.a) - (q.b - q.a) || p.a - q.a);
+    const used = [];
+    items.forEach(it => {
+      let k = 0;
+      while ((used[k] || []).some(o => !(it.b < o.a - .01 || it.a > o.b + .01))) k++;
+      (used[k] = used[k] || []).push(it); it.edges.forEach(e => track.set(ekey(e), k));
+    });
+    nTracks = used.length;
+  }
+  const depth = e => style === 'arcs' ? depthOf(span(e)) : (track.get(ekey(e)) ?? nTracks) + 1;
+  /* ends on the bottom of each state: left to right — edges leaving to the left (shallow to deep),
+     then edges arriving from the right (deep to shallow); with a bus, arrivals share one end */
+  const ends = new Map();             /* 'o'|'i' + edge key → x offset */
+  for (let v = 0; v < SL; v++) {
+    const outs = L.filter(e => e.from === v && e.to < v).sort((p, q) => depth(p) - depth(q));
+    let ins = L.filter(e => e.to === v && e.from > v).sort((p, q) => depth(q) - depth(p));
+    const slots = outs.map(e => ['o', e]);
+    if (style === 'bus') { if (ins.length) slots.push(['i', null]); } else ins.forEach(e => slots.push(['i', e]));
+    const n = slots.length, w = Math.min(1.4 * R, (n - 1) * 8);
+    slots.forEach(([k, e], j) => {
+      const off = n === 1 ? 0 : -w / 2 + j * w / (n - 1);
+      if (e) ends.set(k + ekey(e), off); else ends.set('ibus' + v, off);
+    });
+  }
+  const endX = (k, e) => k === 'i' && style === 'bus' ? (ends.get('ibus' + e.to) || 0) : (ends.get(k + ekey(e)) || 0);
+  const onCircle = (cx0, off) => ({ x: cx0 + off, y: cy + Math.sqrt(Math.max(0, R * R - off * off)) });
+
+  /* ── vertical extent ── */
+  let maxSpan = 0;
+  L.forEach(e => { maxSpan = Math.max(maxSpan, span(e)); });
+  if (cfg.depthSpan != null) maxSpan = Math.max(maxSpan, cfg.depthSpan);
+  const TS = 19, T0 = 16;             /* tracks: spacing, distance of the first one below the states */
+  const top = cfg.box ? 92 : 68, W = 40 + SL * DX + 20;
+  var cy = top;
+  const reserve = cfg.layoutEdges ? 1 : 0;   /* one spare track for edges that only exist while building */
+  const below = style === 'arcs'
+    ? (maxSpan > 0 ? R - 2 + .75 * (depthOf(maxSpan) + 14 - R) + fs + 8 : R + 12)
+    : (nTracks + reserve > 0 ? R + T0 + (nTracks + reserve - 1) * TS + 10 : R + 12);
+  const H = top + below + (omit0 ? fs + 4 : 0);
+  const trackY = k => cy + R + T0 + k * TS;
+
+  let s = `<svg class="aut" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><defs></defs>`;
   if (cfg.box) {
     const bx = 3, bw = x(cfg.box.to) + R + 12 - bx;
     s += `<rect id="autbox" x="${bx}" y="${top - R - 46}" width="${bw}" height="${H - (top - R - 46) - 3}" rx="8"
@@ -837,48 +1073,101 @@ function linearAutomaton(cfg){
          `<text id="autboxlab" x="${bx + bw}" y="${top - R - 53}" font-size="${fs + 2}" text-anchor="end" font-style="italic"
            fill="${COL.base}">${cfg.box.label}</text>`;
   }
-  s += `<path d="M${x(0) - R - 18},${cy} L${x(0) - R - 3},${cy}" stroke="${COL.base}" stroke-width="1.3" marker-end="url(#ar-base)" fill="none"/>`;
+  s += `<path d="M${x(0) - R - 18},${cy} L${x(0) - R - 9},${cy}" stroke="${COL.base}" stroke-width="1.3" fill="none"/>` +
+       arrowHead({ x: x(0) - R - 1, y: cy }, { x: 1, y: 0 }, COL.base);
 
-  (cfg.edges || []).forEach(e => {
+  /* ── edges, drawn in groups: path, arrowhead, label ── */
+  const order = e => isHot(e) || isX(e) ? 3 : isTr(e) ? 2 : 1;
+  const dots = [];
+  const groups = edges.slice().sort((p, q) => order(p) - order(q)).map(e => {
+    const c = col(e), grow = isGrow(e);
     const dash = e.kind === 'fail' ? ' stroke-dasharray="6 4"' : e.kind === 'out' ? ' stroke-dasharray="2 3"' : '';
-    if (e.from === e.to) {
-      const cx = x(e.from);
-      s += `<path d="M${cx - 10},${cy - R + 3} C${cx - 26},${cy - R - 34} ${cx + 26},${cy - R - 34} ${cx + 10},${cy - R + 3}"
-             fill="none" stroke="${col(e)}" stroke-width="${wd(e)}" opacity="${op(e)}"${dash} ${mkA(e)}/>` +
-           lab(cx, cy - R - 31, e);
+    const attrs = (isHotE(e) ? ' data-hot="1"' : '') + (isX(e) ? ' data-x="1"' : '') +
+                  (grow ? ' class="e grow" style="stroke-dasharray:0 100000"' : ' class="e"');
+    const hide = grow ? ' style="opacity:0"' : '';
+    const lab = (tx, ty, anchor = 'middle') => `<text class="el${grow ? ' grow-lab' : ''}" x="${f1(tx)}" y="${f1(ty)}" font-size="${fs}" text-anchor="${anchor}" fill="${c}"` +
+      `${lit(e) ? ' font-weight="bold"' : ''}${halo}${hide}>${e.label}</text>`;
+    let d, tip, dir, labs = '';
+    if (e.from === e.to && style !== 'arcs') {
+      /* a rectangular loop with rounded corners, to match the orthogonal edges */
+      const cx0 = x(e.from), o = 9, yt = cy - R - 24, r = 6, ys = cy - Math.sqrt(R * R - o * o);
+      d = `M${f1(cx0 - o)},${f1(ys)} V${f1(yt + r)} Q${f1(cx0 - o)},${f1(yt)} ${f1(cx0 - o + r)},${f1(yt)} H${f1(cx0 + o - r)} ` +
+          `Q${f1(cx0 + o)},${f1(yt)} ${f1(cx0 + o)},${f1(yt + r)} V${f1(ys - 10)}`;
+      tip = { x: cx0 + o, y: ys }; dir = { x: 0, y: 1 }; labs = lab(cx0, yt - 6);
+    } else if (e.from === e.to) {
+      const cx0 = x(e.from);
+      const P = [{ x: cx0 - 10, y: cy - R + 3 }, { x: cx0 - 26, y: cy - R - 34 }, { x: cx0 + 26, y: cy - R - 34 }, { x: cx0 + 10, y: cy - R + 3 }];
+      const k = cutCubic(P, 10);
+      d = `M${f1(P[0].x)},${f1(P[0].y)} C${k.curve.slice(1).map(p => f1(p.x) + ',' + f1(p.y)).join(' ')}`;
+      tip = k.tip; dir = k.dir; labs = lab(cx0, cy - R - 31);
     } else if (e.to === e.from + 1) {
-      const x1 = x(e.from) + R + 2, x2 = x(e.to) - R - 3, mx = (x1 + x2) / 2;
-      s += `<path d="M${x1},${cy} L${x2},${cy}" stroke="${col(e)}" stroke-width="${wd(e)}" opacity="${op(e)}"${dash}
-             ${mkA(e)} fill="none"/>` + lab(mx, cy - 7, e);
+      const x1 = x(e.from) + R, x2 = x(e.to) - R;
+      d = `M${x1},${cy} L${x2 - 9},${cy}`; tip = { x: x2, y: cy }; dir = { x: 1, y: 0 }; labs = lab((x1 + x2) / 2, cy - 7);
+    } else if (style === 'arcs') {
+      const a = onCircle(x(e.from), endX('o', e)), b = onCircle(x(e.to), endX('i', e));
+      const my = cy + depthOf(span(e)) + 12;
+      const P = [a, { x: a.x, y: my }, { x: b.x, y: my }, b];
+      const k = cutCubic(P, 10);
+      d = `M${f1(a.x)},${f1(a.y)} C${k.curve.slice(1).map(p => f1(p.x) + ',' + f1(p.y)).join(' ')}`;
+      tip = k.tip; dir = k.dir;
+      const lp = bez(P, .3); labs = lab(lp.x, lp.y + fs + 1);
     } else {
-      const x1 = x(e.from), x2 = x(e.to);
-      const depth = depthOf(Math.abs(e.from - e.to));
-      const y1 = cy + R - 2, my = cy + depth + 12;
-      s += `<path d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2 + (x2 < x1 ? 4 : -4)},${y1 + 1}"
-             fill="none" stroke="${col(e)}" stroke-width="${wd(e)}" opacity="${op(e)}"${dash} ${mkA(e)}/>` +
-           lab(.784 * x1 + .216 * x2, .37 * y1 + .63 * my + fs + 1, e);
+      /* orthogonal: down from the source, along the track, up into the target, rounded corners */
+      const a = onCircle(x(e.from), endX('o', e)), b = onCircle(x(e.to), endX('i', e));
+      const k = track.has(ekey(e)) ? track.get(ekey(e)) : nTracks;
+      const y = trackY(k), r = 6, sg = a.x > b.x ? -1 : 1;
+      d = `M${f1(a.x)},${f1(a.y)} V${f1(y - r)} Q${f1(a.x)},${f1(y)} ${f1(a.x + sg * r)},${f1(y)} H${f1(b.x - sg * r)} ` +
+          `Q${f1(b.x)},${f1(y)} ${f1(b.x)},${f1(y - r)} V${f1(b.y + 10)}`;
+      tip = b; dir = { x: 0, y: -1 };
+      labs = lab(a.x - 5, y - 4, 'end');
+      if (style === 'bus') {
+        /* a dot where the edge joins a bus that runs on further to the right */
+        const farther = L.some(o => o.to === e.to && o.from > e.from);
+        if (farther) dots.push({ x: a.x, y, e });
+      }
     }
+    const omitted = omit0 && e.to === 0 && !lit(e) && !grow;
+    return `<g class="edge${omitted ? ' omitted' : ''}" data-from="${e.from}" data-to="${e.to}">` +
+      `<path d="${d}" fill="none" stroke="${c}" stroke-width="${wd(e)}" opacity="${op(e)}"${dash}${attrs}/>` +
+      arrowHead(tip, dir, c, ` opacity="${op(e)}"` + hide) + labs + `</g>`;
   });
+  s += groups.join('');
+  dots.forEach(p => { const om = omit0 && p.e.to === 0 && !lit(p.e);
+    s += `<circle class="jdot${om ? ' omitted' : ''}" data-from="${p.e.from}" data-to="${p.e.to}" cx="${f1(p.x)}" cy="${f1(p.y)}" r="2.6" fill="${col(p.e)}"/>`; });
+  if (omit0) s += `<text x="8" y="${H - 6}" font-size="${fs - 3}" font-style="italic" fill="${COL.base}">edges into state 0 not drawn</text>`;
+
+  /* ── states ── */
   for (let i = 0; i < S; i++) {
     const hot = cfg.hot && (Array.isArray(cfg.hot.state) ? cfg.hot.state.includes(i) : cfg.hot.state === i);
     const isx = cfg.x === i, acc = cfg.accepting === i;
     const stroke = hot ? COL.hot : isx ? COL.x : COL.base;
     const fill = hot ? FILL.hot : isx ? FILL.x : FILL.base;
-    s += `<circle cx="${x(i)}" cy="${cy}" r="${R}" fill="${fill}" stroke="${stroke}" stroke-width="${hot || isx ? 2.6 : 1.3}"/>`;
-    if (acc) s += `<circle cx="${x(i)}" cy="${cy}" r="${R - 4}" fill="none" stroke="${stroke}" stroke-width="1.1"/>`;
-    s += `<text x="${x(i)}" y="${cy + 5}" font-size="${fs + 1}" text-anchor="middle" fill="${stroke}"${hot || isx ? ' font-weight="bold"' : ''}>${i}</text>`;
+    s += `<circle data-st="${i}" data-role="ring" cx="${x(i)}" cy="${cy}" r="${R}" fill="${fill}" stroke="${stroke}" stroke-width="${hot || isx ? 2.6 : 1.3}"/>`;
+    if (acc) s += `<circle data-st="${i}" data-role="acc" cx="${x(i)}" cy="${cy}" r="${R - 4}" fill="none" stroke="${stroke}" stroke-width="1.1"/>`;
+    s += `<text data-st="${i}" data-role="num" x="${x(i)}" y="${cy + 5}" font-size="${fs + 1}" text-anchor="middle" fill="${stroke}"${hot || isx ? ' font-weight="bold"' : ''}>${i}</text>`;
     const tag = isx ? (hot && cfg.hotLabel ? 'x, ' + cfg.hotLabel : 'x') : (hot && cfg.hotLabel) ? cfg.hotLabel : '';
+    const loop = edges.some(e => e.from === i && e.to === i);
     const plain = !tag && cfg.tags && cfg.tags[i];
-    if (plain) s += `<text x="${x(i) + ((cfg.edges || []).some(e => e.from === i && e.to === i) ? R + 3 : 0)}" y="${cy - R - ((cfg.edges || []).some(e => e.from === i && e.to === i) ? -1 : 9)}"
-           font-size="${fs}" font-style="italic" text-anchor="${(cfg.edges || []).some(e => e.from === i && e.to === i) ? 'start' : 'middle'}" fill="${COL.base}">${plain}</text>`;
-    if (tag && !(cfg.edges || []).some(e => e.from === i && e.to === i))
-      s += `<text x="${x(i)}" y="${cy - R - 9}" font-size="${fs}" font-style="italic" text-anchor="middle" fill="${isx ? COL.x : COL.hot}">${tag}</text>`;
+    if (plain) s += `<text x="${x(i) + (loop ? R + 3 : 0)}" y="${cy - R - (loop ? -1 : 9)}"
+           font-size="${fs}" font-style="italic" text-anchor="${loop ? 'start' : 'middle'}" fill="${COL.base}">${plain}</text>`;
+    if (tag && !loop)
+      s += `<text data-st="${i}" data-role="tag" x="${x(i)}" y="${cy - R - 9}" font-size="${fs}" font-style="italic" text-anchor="middle" fill="${isx ? COL.x : COL.hot}">${tag}</text>`;
     else if (tag)
-      s += `<text x="${x(i) + R + 3}" y="${cy - R + 1}" font-size="${fs}" font-style="italic" text-anchor="start" fill="${isx ? COL.x : COL.hot}">${tag}</text>`;
+      s += `<text data-st="${i}" data-role="tag" x="${x(i) + R + 3}" y="${cy - R + 1}" font-size="${fs}" font-style="italic" text-anchor="start" fill="${isx ? COL.x : COL.hot}">${tag}</text>`;
   }
+  if (cfg.grow && !(typeof MEASURING !== 'undefined' && MEASURING)) setTimeout(() => growEdges(), 0);
   return s + '</svg>';
 }
 /* collect transitions of a DFA row into grouped edges: from q, targets -> label list */
+/* label of an edge that stands for several characters: a short list as it is; a long one (a large
+   alphabet) as Σ minus the few characters it does not contain, else shortened */
+function edgeLabel(chars, sigma, complete = true){
+  if (chars.length <= 3) return chars.map(ch).join(',');
+  if (complete && chars.length === sigma.length) return 'Σ';
+  const rest = sigma.filter(c => !chars.includes(c));
+  if (complete && rest.length <= 3) return 'Σ−' + (rest.length > 1 ? '{' + rest.map(ch).join(',') + '}' : ch(rest[0]));
+  return chars.slice(0, 2).map(ch).join(',') + ',… (' + chars.length + ')';
+}
 function groupedEdges(delta, sigma, q){
   const byTarget = new Map();
   sigma.forEach(c => {
@@ -886,7 +1175,7 @@ function groupedEdges(delta, sigma, q){
     if (!byTarget.has(t)) byTarget.set(t, []);
     byTarget.get(t).push(c);
   });
-  return [...byTarget.entries()].map(([t, cs]) => ({ from: q, to: t, label: cs.map(ch).join(',') }));
+  return [...byTarget.entries()].map(([t, cs]) => ({ from: q, to: t, label: edgeLabel(cs, sigma) }));
 }
 
 
@@ -953,7 +1242,7 @@ function alphabet(T, P){
 }
 
 function compute(){
-  const T = val('T'), P = val('P'), nfa = val('mode') === 'nfa';
+  const T = cs(val('T')), P = cs(val('P')), nfa = val('mode') === 'nfa';
   if (!P.length) throw new Error('The pattern P must not be empty.');
   const n = T.length, m = P.length, sigma = alphabet(T, P);
   const delta = buildDFA(P, sigma);
@@ -1054,28 +1343,37 @@ function render(s){
       groupedEdges(delta, sigma, q).forEach(e => edges.push({ ...e, kind: e.to === e.from ? 'loop' : e.to === e.from + 1 ? 'match' : 'back' }));
     edges.push({ from: m, to: m, label: 'Σ', kind: 'loop' });
   }
+  /* the edges just followed: one for the DFA; for the NFA every edge out of the previous set that keeps
+     a state alive (the Σ-loops at 0 and m, and the match edges labelled with the character read) */
+  let taken = s.edge, prev = null;
+  if (nfa && s.hot) {
+    prev = s.trace[s.i];
+    const c = T[s.i];
+    taken = [];
+    prev.forEach(q => {
+      if (q === 0 || q === m) taken.push({ from: q, to: q });
+      if (q < m && P[q] === c) taken.push({ from: q, to: q + 1 });
+    });
+  }
   const aut = linearAutomaton({
-    states: m + 1, accepting: m, edges,
-    hot: { state: nfa ? s.S : s.q, edge: s.edge }
+    states: m + 1, accepting: m, edges, omit0: !nfa,
+    hot: { state: nfa ? s.S : s.q, edge: taken }
   });
 
-  /* trace table */
-  const marks = {}, mstart = s.matchAt;
-  const textCells = [{ t: '', cls: '' }].concat([...T].map((c, i) => ({
+  /* trace: the states sit between the characters — boundary b holds the state (set) after reading T[0..b) */
+  const mstart = s.matchAt, curB = s.i + 1, anim = !!(nfa ? s.hot : s.edge);
+  const textCells = [...T].map((c, i) => ({
     t: ch(c),
     cls: (mstart >= 0 && i >= mstart && i < mstart + m ? 'match ' : '') + (i === s.i ? 'cur' : '')
-  })));
-  const stCells = (s.trace || []).map((v, k) => ({
-    t: nfa ? v.join(',') : v,
-    cls: (nfa ? 'set ' : '') + 'b ' +
-         (mstart >= 0 && k - 1 >= mstart && k - 1 < mstart + m ? 'match ' : '') +
-         (k === (s.i + 1) ? 'cur' : '')
   }));
-  while (stCells.length < n + 1) stCells.push({ t: '', cls: (nfa ? 'set ' : '') + 'b' });
-  const trace = grid([
-    { label: 'text:', cells: textCells },
-    { label: nfa ? 'states:' : 'state:', cells: stCells }
-  ]);
+  const inMatch = b => mstart >= 0 && b > mstart && b <= mstart + m;
+  const tr = s.trace || [];
+  const lane = nfa
+    ? laneRow(n, tr.map(v => v.map(q => ({ t: q }))), { label: 'states:', mode: 'set',
+        colCls: b => (b === curB ? 'cur' + (anim ? ' qnew' : '') : '') + (inMatch(b) ? ' match' : '') })
+    : laneRow(n, tr.map((v, b) => [{ t: v, cls: (inMatch(b) ? 'match ' : '') + (b === curB ? 'cur' + (anim ? ' qnew' : '') : '') }]),
+        { label: 'state:' });
+  const trace = gridWithLane([{ label: 'text:', cells: textCells, cls: 'lane-ref' }], lane);
 
   /* alignments: how the pattern sits over the text right now */
   let align = '';
@@ -1124,12 +1422,12 @@ function render(s){
   }
 
   let out = `<div class="block"><h3>${nfa ? 'nondeterministic automaton (Σ⋆ P Σ⋆)' : 'string matching automaton for P'}</h3>${aut}</div>`;
-  out += `<div class="block"><h3>trace &mdash; state${nfa ? ' set' : ''} after reading this character</h3>${trace}</div>` + align;
+  out += `<div class="block"><h3>trace &mdash; the state${nfa ? ' set' : ''} between the characters: after reading everything to its left</h3>${trace}</div>` + align;
   if (!nfa) {
     const rows = sigma.map(c => ({
       head: ch(c),
       cells: Array.from({ length: m }, (_, q) => ({
-        t: delta[q][c],
+        t: delta[q][c], from: q, to: delta[q][c],
         cls: (s.from === q && T[s.i] === c) ? 'set-now' : (s.from === q ? 'colhot' : '')
       }))
     }));
@@ -1138,6 +1436,9 @@ function render(s){
             { colhot: s.from, caption: 'state m is accepting and absorbing (Σ-loop), so it has no column here' }) + '</div>';
   }
   $('#view').innerHTML = out;
+  placeLanes($('#view'));
+  if (anim) travelEdge($('#view'), nfa ? prev : s.edge.from, nfa ? s.S : s.edge.to,
+                       Math.min(550, 0.75 * +$('#sSpeed').value), showNewStates);
 }
 
 App.init({ pseudo: PSEUDO, compute, render, fields: ['T', 'P', 'sigma', 'mode'], lines: ['P', 'T'], lineNames: { P: 'the pattern P', T: 'the text T' },

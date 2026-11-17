@@ -276,6 +276,7 @@
     .controls { gap:8px 12px; padding:10px 12px; }
     .seg button { padding:5px 9px; font-size:.74rem; }
   }
+  .spinbtn.on { background:var(--wi-accent); color:#fff; border-color:var(--wi-accent); }
   @media (prefers-reduced-motion:reduce) { * { animation-duration:.001ms !important; transition-duration:.001ms !important; } }
   /* ---- this page ---- */
   .stagestrip { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
@@ -318,6 +319,25 @@
   .sv-gap { font-family:var(--wi-font-head); font-size:12px; letter-spacing:.1em; text-transform:uppercase; fill:#a85808; text-anchor:middle; paint-order:stroke; stroke:var(--wi-bg); stroke-width:3.5px; }
   @media (max-width:760px) { #lStatus { height:14em; } .readout { height:17em; } .rrow { grid-template-columns:6.8em minmax(0,1fr); } }
   .readout .wait { color:var(--wi-ink-faint); font-style:italic; }
+  #bStatus { height:12.5em; }
+  #bWrap svg, #bTreeWrap svg, #bBarWrap svg { display:block; }
+  #bSvg { cursor:grab; } #bTree .hit { cursor:pointer; } #bSvg .pickvx { cursor:pointer; }
+  .codenote { font-size:.8rem; color:var(--wi-ink-soft); padding:4px 15px 10px; line-height:1.45; min-height:4.4em; }
+  .nodepanel { font-size:.88rem; height:9.6em; overflow-y:auto; }
+  .nodepanel .nhead { font-family:var(--wi-font-head); font-size:.8rem; letter-spacing:.04em; color:var(--wi-ink-strong); margin-bottom:4px; }
+  .nodepanel .nhead span { color:var(--wi-ink-faint); }
+  .nrow { display:grid; grid-template-columns:4.6em minmax(0,1fr); gap:8px; padding:3px 2px; border-bottom:1px solid var(--wi-border-soft); line-height:1.55; }
+  .nrow:last-child { border-bottom:0; }
+  .nrow .rk { font-family:var(--wi-font-head); font-size:.68rem; letter-spacing:.07em; text-transform:uppercase; color:var(--wi-ink-faint); padding-top:3px; }
+  .pickv { padding:1px 7px; margin:1px 2px; border-color:#e07b10; background:#fbeedd; }
+  #bRoundLab.dis { opacity:.45; }
+  .sv-tz { font-size:10.5px; fill:#6b675c; text-anchor:middle; font-family:var(--wi-font-body); paint-order:stroke; stroke:var(--wi-panel-2); stroke-width:3px; }
+  .sv-tn { font-size:10px; fill:#38362e; text-anchor:middle; font-family:var(--wi-font-head); }
+  .sv-strip { font-size:11px; fill:#6b675c; text-anchor:middle; font-family:var(--wi-font-head); letter-spacing:.05em; paint-order:stroke; stroke:#f4efe6; stroke-width:3px; }
+  @media (max-width:760px) { #bStatus { height:15em; } .nodepanel { height:12em; } }
+  .sv-tz { text-anchor:start !important; }
+  button.spinbtn.on { background:var(--wi-accent); color:var(--wi-panel-2); border-color:var(--wi-accent); }
+  button.spinbtn.on:hover:not(:disabled) { background:var(--wi-accent-dark); color:var(--wi-panel-2); border-color:var(--wi-accent-dark); }
 </style>
 <style>
 /* wild-inter.net: re-assert the site type stack over the page's own styles */
@@ -408,12 +428,14 @@ body { font-family: var(--wi-font-body); }
       <button id="zoomIn2" class="icon" title="Zoom in" aria-label="Zoom in">+</button>
       <button id="fit2" title="Fit the view to the feasible region">fit</button>
       <button id="reset2" title="Back to the view of the input (and, in 3D, the initial rotation)">reset</button>
+      <button id="spin2" class="hidden spinbtn" title="Let the drawing turn slowly about the vertical axis (dragging still works)">⟳ rotate</button>
     </div>
     <div class="ctl" id="lToggles">
       <label class="chk"><input type="checkbox" data-k="showGrid" checked> grid points</label>
       <label class="chk"><input type="checkbox" data-k="showGap" checked> gap</label>
       <label class="chk"><input type="checkbox" data-k="showRound"> rounding</label>
       <label class="chk"><input type="checkbox" data-k="showHull"> integer hull</label>
+      <label class="chk hidden" id="lGrid3"><input type="checkbox" data-k="grid3"> grid lines</label>
     </div>
   </div>
   <div class="stage" id="stageLat">
@@ -466,7 +488,72 @@ body { font-family: var(--wi-font-body); }
   </div>
 </div>
 <div id="tabBB" class="hidden">
-  <div class="sim-box placeholder">The branch-and-bound view is being built: it will settle open cases like the one on \(K_4\) by splitting the problem.</div>
+  <p class="subtitle hide-p">Branch and bound splits the problem on a fractional variable of the LP optimum, solves the LPs of the parts, and prunes every part whose LP bound
+    cannot beat the best solution found so far. Step through the code; the tree below the picture is the proof of optimality once the open list is empty.</p>
+  <div class="controls hide-p">
+    <div class="ctl"><label for="bInst">Instance</label><select id="bInst"></select></div>
+    <div class="ctl hidden" id="bProbSeg"><span class="seg"><button data-p="vc" title="Vertex Cover (minimize)">Vertex Cover</button><button data-p="is" title="Independent Set (maximize)">Independent Set</button></span></div>
+    <div class="ctl"><span class="lbl">Order</span><span class="seg" id="bOrder">
+      <button data-o="down" title="Depth first; of the two children, the one with x_i ≤ ⌊x*_i⌋ first">depth first, ≤ first</button>
+      <button data-o="up" title="Depth first; of the two children, the one with x_i ≥ ⌈x*_i⌉ first">depth first, ≥ first</button>
+      <button data-o="best" title="The open node with the best LP value">best bound</button></span></div>
+    <div class="ctl"><span class="lbl">Branch on</span><span class="seg" id="bVar">
+      <button data-v="first" title="The first variable with a fractional value">first fractional</button>
+      <button data-v="most" title="The variable whose fractional part is closest to 1/2">most fractional</button>
+      <button data-v="pick" title="The run stops at line 9 and you click the variable">you choose</button></span></div>
+    <label class="chk" id="bRoundLab"><input type="checkbox" id="bRound"> round the bound</label>
+    <div class="ctl"><span class="lbl">View</span>
+      <button id="bZoomOut" class="icon" title="Zoom out" aria-label="Zoom out">−</button>
+      <button id="bZoomIn" class="icon" title="Zoom in" aria-label="Zoom in">+</button>
+      <button id="bResetV" title="Back to the initial view">reset</button>
+      <button id="bSpin" class="hidden spinbtn" title="Let the drawing turn slowly about the vertical axis (dragging still works)">⟳ rotate</button>
+      <label class="chk hidden" id="bGrid3Lab"><input type="checkbox" id="bGrid3"> grid lines</label></div>
+  </div>
+  <div class="transport"><div class="transport-row"><span class="ctl" style="gap:6px">
+      <button id="bReset" class="icon hide-p" title="Back to the first step (Home)" aria-label="Back to the first step">&#x21BA;</button>
+      <button id="bBack" class="icon" title="One step back (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+      <button id="bFwd" class="icon pri" title="One step forward (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+      <button id="bPlay" class="icon" title="Play / pause (space)" aria-label="Play">&#x25B6;&#xFE0E;</button></span>
+    <span class="progress"><input type="range" class="scrub" id="bScrub" min="0" max="1" value="0" step="any" aria-label="Step"><div class="phasebar" id="bBar"></div></span>
+    <span class="stepno" id="bNo"></span>
+    <span class="prep hide-p" id="bPrep" title="All formulas of this run are typeset in the background, so that stepping never waits for MathJax"></span>
+    <span class="ctl hide-p" style="gap:6px"><span class="lbl">Delay</span><input type="range" id="bSpeed" min="200" max="2500" value="1100" style="width:88px;accent-color:var(--wi-accent)" aria-label="Delay between steps (ms)"></span>
+  </div></div>
+  <div class="stage" id="stageBB">
+    <div class="col-main">
+      <div class="sim-box">
+        <div class="sim-title"><span>The nodes in the picture</span><span class="rhs" id="bMeta"></span></div>
+        <div id="bWrap"><svg id="bSvg" class="stagesvg"></svg></div>
+        <div class="vhandle hide-p" id="bVH" role="separator" aria-orientation="horizontal" tabindex="0"
+             title="Drag to change the height of the drawing (double-click: back to the default)"></div>
+        <div class="legend hide-p" id="bLegend"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>The tree</span><span class="rhs" id="bCount"></span></div>
+        <div id="bTreeWrap"><svg id="bTree"></svg></div>
+        <div class="legend hide-p" id="bTreeLeg"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>What we know about the optimum</span></div>
+        <div id="bBarWrap"><svg id="bBarSvg"></svg></div>
+      </div>
+    </div>
+    <div class="splitter" id="bSplit" role="separator" aria-orientation="vertical" tabindex="0"
+         title="Drag to share the width between drawing and side panel (double-click: back to the default)"></div>
+    <div class="col-side">
+      <div class="codebox"><div class="sim-title"><span>The code</span></div><div class="codescroll"><div id="bCode"></div></div>
+        <div class="codenote" id="bCodeNote"></div></div>
+      <div class="sim-box">
+        <div class="sim-title"><span>What happens</span><span class="rhs" id="bPhase"></span></div>
+        <div class="status" id="bStatus"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>The node</span></div>
+        <div class="nodepanel" id="bNode"></div>
+      </div>
+      <details class="explain hide-p"><summary>Branching, pruning, and why the tree is a proof</summary><div class="explain-body" id="bExplain"></div></details>
+    </div>
+  </div>
 </div>
 
 <details class="editor hide-p" id="editorBox">
@@ -1228,11 +1315,12 @@ function drawBar(svg, wrap, o) {
     const x = X(B.lpv), sep = B.rnd !== null && Math.abs(B.rnd - B.lpv) > 1e-9;
     s += '<line x1="' + f1(x) + '" x2="' + f1(x) + '" y1="26" y2="' + yA + '" stroke="' + C_LP + '" stroke-width="2"/>' +
          '<path d="M' + f1(x - 5) + ',' + (yT - 9) + 'L' + f1(x + 5) + ',' + (yT - 9) + 'L' + f1(x) + ',' + (yT - 1) + 'Z" fill="' + C_LP + '"/>';
-    s += tex("z_{\\mathrm{LP}} = " + numT(o.lp), x + (sep ? (min ? -6 : 6) : 0), 18, sep ? lpSide : "middle", C_LP, "z_LP = " + numP(o.lp));
+    const LT = o.lpTex || "z_{\\mathrm{LP}}", LP_ = o.lpPlain || "z_LP";
+    s += tex(LT + " = " + numT(o.lp), x + (sep ? (min ? -6 : 6) : 0), 18, sep ? lpSide : "middle", C_LP, LP_ + " = " + numP(o.lp));
     if (sep) {
       const xr = X(B.rnd);
       s += '<line x1="' + f1(xr) + '" x2="' + f1(xr) + '" y1="32" y2="' + yA + '" stroke="' + C_LP + '" stroke-width="1.6" stroke-dasharray="4 3"/>';
-      s += tex((min ? "\\lceil z_{\\mathrm{LP}}\\rceil" : "\\lfloor z_{\\mathrm{LP}}\\rfloor") + " = " + numT(B.rnd), xr + (min ? 6 : -6), 40, rndSide, C_LP, (min ? "⌈z_LP⌉ = " : "⌊z_LP⌋ = ") + numP(B.rnd));
+      s += tex((min ? "\\lceil " + LT + "\\rceil" : "\\lfloor " + LT + "\\rfloor") + " = " + numT(B.rnd), xr + (min ? 6 : -6), 40, rndSide, C_LP, (min ? "⌈" + LP_ + "⌉ = " : "⌊" + LP_ + "⌋ = ") + numP(B.rnd));
     }
   }
   /* a bound from exhaustive search: dark, in the band */
@@ -1282,6 +1370,9 @@ const poly = (n, r, rot) => [...Array(n)].map((_, i) => { const a = (rot === und
 const completeEdges = n => { const E = []; for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) E.push([i, j]); return E; };
 /* edge lists in the same order as in ilp_reference.py (the order of the LP rows) */
 const GRAPHS = {
+  hubtri:   { name: "a star with three triangles", V: 10,
+              edges: [[0, 1], [0, 2], [0, 3], [0, 6], [3, 4], [4, 5], [3, 5], [6, 7], [7, 8], [6, 8], [7, 9], [8, 9]],
+              pos: [[0, 0], [-0.55, -1.05], [0.55, -1.05], [-1.15, 0.45], [-2.25, 0.15], [-1.85, 1.3], [1.15, 0.45], [2.25, 0.15], [1.85, 1.3], [2.95, 1.05]] },
   cycle5:   { name: "5-cycle", V: 5, edges: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 0]], pos: poly(5) },
   k4:       { name: "K₄ (complete graph, 4 vertices)", V: 4, edges: completeEdges(4), pos: poly(4, 1, -3 * Math.PI / 4) },
   kn:       { name: "Kₙ (complete graph, choose n)", kn: true },
@@ -1292,6 +1383,13 @@ const GRAPHS = {
               pos: [[0, 0], [-1.1, -0.8], [-1.1, 0.8], [1.1, -0.8], [1.1, 0.8]] },
   startri:  { name: "star plus triangle", V: 7, edges: [[0, 1], [0, 2], [0, 3], [0, 4], [4, 5], [5, 6], [4, 6]],
               pos: [[0, 0], [-0.9, -1], [-1.3, 0], [-0.9, 1], [1.1, 0], [1.9, -0.85], [1.9, 0.85]] },
+  c5pend:   { name: "5-cycle with two pendant vertices", V: 7, edges: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 0], [0, 5], [2, 6]],
+              pos: poly(5).concat([[0, -1.9], [1.1, 1.5]]) },
+  cater:    { name: "a tree (bipartite)", V: 9, edges: [[0, 1], [1, 2], [2, 3], [3, 4], [1, 5], [1, 6], [2, 7], [3, 8]],
+              pos: [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [0.7, -0.95], [1.3, 0.95], [2, 0.95], [3, -0.95]] },
+  net11:    { name: "a sparse network, 11 vertices", V: 11,
+              edges: [[0, 4], [1, 3], [1, 4], [1, 6], [2, 8], [2, 9], [3, 6], [4, 7], [5, 6], [5, 10], [8, 9], [8, 10]],
+              pos: [[3.12, 0.31], [2.29, 1.01], [0, 0.62], [2.94, 1.49], [2.27, 0.11], [1.51, 1.72], [2.28, 1.91], [1.44, 0.22], [0.58, 1.04], [0.45, 0.26], [0.97, 1.49]] },
   wheel:    { name: "wheel (hub and 5-cycle)", V: 6, edges: [[0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 2], [2, 3], [3, 4], [4, 5], [5, 1]],
               pos: [[0, 0]].concat(poly(5)) },
   prism:    { name: "prism (two triangles, joined)", V: 6, edges: [[0, 1], [1, 2], [0, 2], [3, 4], [4, 5], [3, 5], [0, 3], [1, 4], [2, 5]],
@@ -1309,7 +1407,7 @@ function graphPreset(key, n) {
 }
 
 const P1 = {
-  key: "cycle5", n: 6, problem: "vc", V: 0, edges: [], pos: [], title: "", custom: null,
+  key: "hubtri", n: 6, problem: "vc", V: 0, edges: [], pos: [], title: "", custom: null,
   sel: new Set(), earlier: [], stage: 1, reached: new Set([1]), lp: null, optData: null, optShown: false,
   searchBound: null, lastSearch: null, srch: null,
   view: { z: 1, dx: 0, dy: 0 }, box: null, H: 440, Hdef: 440, split: 0.58
@@ -1557,7 +1655,7 @@ function wireActions() {
   on("aStop", () => { stopSearch(); renderProve(); });
   on("aLP", askLP);
   on("aReveal", () => { P1.optShown = !P1.optShown; renderProve(); });
-  on("aBB", () => setMode("bb"));
+  on("aBB", bbFromProve);
 }
 function proveForm() {
   const vc = isVC(), fade = s => "\\color{#aaa395}{" + s + "}";
@@ -1840,6 +1938,39 @@ function hull3(P) {
   return { facets };
 }
 
+/* ---------- 3D helpers shared by both tabs: turning the view, thin lattice lines ---------- */
+/* S: a state with yaw (and dragging); active(): is the 3D view on screen; draw(): render it */
+function spinToggle(S, btn, active, draw) {
+  const label = on => { btn.innerHTML = on ? "❚❚&#xFE0E; stop" : "⟳ rotate"; btn.classList.toggle("on", on); };
+  if (S.spin) { S.spin = false; label(false); return; }
+  S.spin = true; label(true);
+  let last = performance.now();
+  const step = now => {
+    if (!S.spin) return;
+    if (!active()) { S.spin = false; label(false); return; }
+    const dt = Math.min(100, now - last); last = now;
+    if (!S.dragging) { S.yaw = (S.yaw - dt * 0.02) % 360; draw(); }
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+/* lines through all integer points of the window, parallel to the three axes */
+function gridLines3(v3, Pj) {
+  const r = [0, 1, 2].map(i => [Math.max(0, Math.ceil(v3.lo[i] - 1e-9)), Math.floor(v3.hi[i] + 1e-9)]);
+  if (r.some(([a, b]) => b - a > 14 || b < a)) return "";
+  let s = "";
+  for (let i = 0; i < 3; i++) {
+    const j = (i + 1) % 3, k = (i + 2) % 3;
+    for (let a = r[j][0]; a <= r[j][1]; a++) for (let b = r[k][0]; b <= r[k][1]; b++) {
+      const p = [0, 0, 0], q = [0, 0, 0];
+      p[i] = r[i][0]; q[i] = r[i][1]; p[j] = q[j] = a; p[k] = q[k] = b;
+      const P = Pj(p), Q = Pj(q);
+      s += '<line x1="' + f1(P[0]) + '" y1="' + f1(P[1]) + '" x2="' + f1(Q[0]) + '" y2="' + f1(Q[1]) + '"/>';
+    }
+  }
+  return '<g stroke="#5b7fb8" stroke-width=".55" stroke-opacity=".45">' + s + "</g>";
+}
+
 /* ---------- presets ---------- */
 const LAT_PRESETS = {
   slide: { name: "the triangle of the slides (max)", text:
@@ -1907,6 +2038,17 @@ x0 <= 1             | | gray
 x1 <= 1             | | gray
 x2 <= 1             | | gray
 x0 + x1 + x2 >= 2   | odd cycle | brown cut
+view -0.15 1.15 -0.15 1.15 -0.15 1.15
+` },
+  vcp3: { name: "3D: Vertex Cover on a path (min)", graph: { V: 3, edges: [[0, 1], [1, 2]], pos: [[-1, 0.45], [0, -0.55], [1, 0.45]] }, text:
+`title Vertex Cover on a path
+vars x0 x1 x2
+min x0 + x1 + x2
+x0 + x1 >= 1        | edge 0–1 | red
+x1 + x2 >= 1        | edge 1–2 | blue
+x0 <= 1             | | gray
+x1 <= 1             | | gray
+x2 <= 1             | | gray
 view -0.15 1.15 -0.15 1.15 -0.15 1.15
 ` },
   is3: { name: "3D: Independent Set on a triangle (max)", graph: { V: 3, edges: [[0, 1], [1, 2], [0, 2]], pos: null }, text:
@@ -1996,8 +2138,32 @@ function latChanged(fresh) {
   if (fresh || G2.z === undefined) G2.z = startZ();
   const [a, b] = zRange2(); G2.z = clamp(G2.z, a, b);
   markReached();
+  clearTimeout(G2.prepT); G2.prepT = setTimeout(latPrerender, 80);
 }
-
+/* typeset the texts of every state of the sweep ahead of time: pushing never waits for MathJax */
+function latPrerender() {
+  if (!mjReady() || !G2.lp || !G2.A) return;
+  const save = { z: G2.z, reached: G2.reached }, S = stops2(), g = better2(), [a, b] = zRange2(), d = (b - a) * 0.01, items = [];
+  const zs = [];
+  if (S.entry !== null) zs.push(S.entry - g * d, S.entry);
+  const top = S.lp !== null ? S.lp : S.ilp;
+  if (S.entry !== null && S.ilp !== null) zs.push((S.entry + S.ilp) / 2);
+  if (S.ilp !== null) zs.push(S.ilp);
+  if (S.ilp !== null && S.lp !== null) zs.push((S.ilp + S.lp) / 2);
+  if (top !== null) zs.push(top, top + g * d);
+  for (const z of zs) for (const rc of [[false, false], [true, false], [true, true]]) {
+    G2.z = z; G2.reached = { ilp: rc[0], lp: rc[1] };
+    items.push([latStatus(), el("lStatus")], [latReadout(), el("lReadout")]);
+  }
+  G2.z = save.z; G2.reached = save.reached;
+  if (G2.A.lp.status === "optimal") {
+    const v = G2.A.lp.z, mx = G2.lp.sense === "max";
+    mjSvg("z_{\\mathrm{LP}} = " + numT(v));
+    if (!v.isInt()) mjSvg((mx ? "\\lfloor z_{\\mathrm{LP}}\\rfloor" : "\\lceil z_{\\mathrm{LP}}\\rceil") + " = " + numT(mx ? v.floor() : v.ceil()));
+  }
+  const gen = G2.prepGen = (G2.prepGen || 0) + 1;
+  mjPrepare(items, () => {}, () => G2.prepGen === gen);
+}
 /* ---------- exact analysis ---------- */
 /* the integer box around P: from 2n LPs; where P is unbounded, up to the window */
 function intBox(R) {
@@ -2094,6 +2260,7 @@ function zState2(z) {
   const A = G2.A, S = stops2(), g = better2(), t = relTol2(), s = g * z;
   if (A.lp.status === "infeasible") return "empty";
   if (S.entry !== null) { if (Math.abs(s - g * S.entry) <= t) return "entry"; if (s < g * S.entry) return "before"; }
+  if (S.ilp !== null && S.lp !== null && Math.abs(S.lp - S.ilp) <= t && Math.abs(z - S.lp) <= t) return "both";
   if (S.ilp !== null) { if (Math.abs(s - g * S.ilp) <= t) return "ilp"; if (s < g * S.ilp) return "inside"; }
   if (S.lp !== null) { if (Math.abs(s - g * S.lp) <= t) return "lp"; if (s < g * S.lp) return S.ilp !== null ? "between" : "inside"; return "beyond"; }
   return S.ilp !== null ? "between" : "inside";
@@ -2308,7 +2475,7 @@ function render3DL() {
   const Hd = A.lp.status === "infeasible" ? null : HR.concat(Hb), RV = Hd ? vertices(Hd, 3) : [];
   const pts = p => p.map(q => { const r = Pj(q); return f1(r[0]) + "," + f1(r[1]); }).join(" ");
   const ln = (a, b, at) => '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" ' + at + "/>";
-  let back = "", mid = "", front = "", top = "", hits = "", dots = [];
+  let back = G2.grid3 ? gridLines3(v3, Pj) : "", mid = "", front = "", top = "", hits = "", dots = [];
   const corners = []; for (let m = 0; m < 8; m++) corners.push([0, 1, 2].map(i => (m >> i) & 1 ? v3.hi[i] : v3.lo[i]));
   for (let m = 0; m < 8; m++) for (let i = 0; i < 3; i++) if (!((m >> i) & 1)) back += ln(Pj(corners[m]), Pj(corners[m | (1 << i)]), 'stroke="#d4c5b4" stroke-width="1" stroke-dasharray="2 3"');
   for (let i = 0; i < 3; i++) {
@@ -2410,23 +2577,26 @@ function render3DL() {
 /* ---------- side panel ---------- */
 function latStatus() {
   const A = G2.A, lp = G2.lp, st = zState2(G2.z), d = lp.d, L = d === 2 ? "line" : "plane", unitT = lp.unit ? "\\text{" + lp.unit + "}\\," : "";
-  const bw = lp.sense === "max" ? "larger" : "smaller", zT = M("z = " + unitT + numT(+G2.z.toPrecision(8)));
+  const bw = lp.sense === "max" ? "larger" : "smaller", zT = "the value " + M("z") + " shown below";
   const optP = arr => arr.slice(0, 4).map(p => M("(" + p.join(",") + ")")).join(", ") + (arr.length > 4 ? ", …" : "");
   if (A.lp.status === "infeasible") return "<b>Infeasible.</b> The switched-on constraints have no common point — neither the LP nor the integer program has a solution.";
   let pre = "";
   if (A.ilp && A.ilp.z === null && !A.ilp.tooMany) pre = "<b>No grid point in P.</b> The LP is feasible, but the integer program is not" + (A.clipped ? " (within the window)" : "") + ". ";
   if (A.lp.status === "unbounded") pre += "The LP is unbounded: its value has no limit. ";
   switch (st) {
-    case "before": return pre + "No point of the region has value " + zT + " yet. Push the " + L + " towards " + bw + " values.";
+    case "before": return pre + "No point of the region has " + zT + " yet. Push the " + L + " towards " + bw + " values.";
     case "entry": return pre + "The " + L + " just reaches the region: these are its worst points. Push on.";
-    case "inside": return pre + "The " + L + " of value " + zT + " crosses the region; the blue grid points are the integer solutions, " +
+    case "inside": return pre + "The " + L + " of equal value " + M("z") + " crosses the region; the blue grid points are the integer solutions, " +
                           "each with its own value. Push on: the " + L + " stops twice — at the best grid point, then at the LP optimum.";
     case "ilp": return pre + "<b>Best grid point:</b> the " + L + " touches " + optP(A.ilp.arg) + " with " + M("z^*_{\\mathrm{ILP}} = " + unitT + numT(A.ilp.z)) +
                        ". No feasible grid point has a " + (lp.sense === "max" ? "larger" : "smaller") + " value — but the region continues: fractional points of the LP do better. Push on.";
+    case "both": return pre + "<b>No gap:</b> the best grid point and the LP optimum have the same value " + M("z = " + unitT + numT(A.lp.z)) + ". " +
+                        (A.lp.x.every(v => v.isInt()) ? "The " + L + " leaves the region at " + M("\\mathbf x^* = " + fracVecT(A.lp.x)) + ", and that is itself a grid point: the LP solves the integer program."
+                                                       : "The LP optimum " + M("\\mathbf x^* = " + fracVecT(A.lp.x)) + " is fractional, but a grid point is just as good: the LP value proves it optimal.");
     case "between": return pre + "Between the two optima: no grid point on this " + L + ", only fractional points of the region. Every such point is a feasible LP solution that no integer solution can match.";
     case "lp": return pre + "<b>LP optimum:</b> the " + L + " leaves the region at " + M("\\mathbf x^* = " + fracVecT(A.lp.x)) + " with " + M("z_{\\mathrm{LP}} = " + unitT + numT(A.lp.z)) + ". " +
                       (A.ilp && A.ilp.z ? "The band between the two stops is the <b>gap</b>: " + M(numT(A.lp.z.sub(A.ilp.z).abs())) + "." : "");
-    case "beyond": return pre + "No point of the region has value " + zT + ": the " + L + " has left it.";
+    case "beyond": return pre + "No point of the region has " + zT + ": the " + L + " has left it.";
   }
   return pre;
 }
@@ -2484,7 +2654,7 @@ function latGraphInset() {
   const g = G2.graph, box = el("lGraphBox");
   if (!g) { box.classList.add("hidden"); return; }
   box.classList.remove("hidden");
-  const svg = el("lGraph"), W = Math.max(200, el("lGraphWrap").clientWidth), H = 190, R = 17, pos = poly(3, 1);
+  const svg = el("lGraph"), W = Math.max(200, el("lGraphWrap").clientWidth), H = 190, R = 17, pos = g.pos || poly(3, 1);
   const P = p => [W / 2 + p[0] * 62, H / 2 + 12 + p[1] * 62];
   const A = G2.A, hov = G2.hoverPt, xs = hov ? hov.map(t => new Frac(BigInt(t))) : (A.lp.status === "optimal" && G2.reached.lp ? A.lp.x : null);
   let s = "";
@@ -2498,7 +2668,8 @@ function latGraphInset() {
     s += '<circle cx="' + f1(x) + '" cy="' + f1(y) + '" r="' + R + '" fill="var(--wi-panel-2)" stroke="#38362e" stroke-width="1.4"/>';
     if (f > 1e-9) s += piePath(x, y, R - 1, f) + ' fill="' + (hov ? C_INT : C_LP) + '" fill-opacity=".8"/>';
     s += '<text class="sv-vno" x="' + f1(x) + '" y="' + f1(y) + '" style="paint-order:stroke;stroke:var(--wi-panel-2);stroke-width:3.5px">' + v + "</text>";
-    if (xs) s += mathAt(fracT(xs[v]), x + (pos[v][0]) * 34, y + pos[v][1] * 34 + 5 + (v === 0 ? -4 : 6), 15, "middle", hov ? C_INT : C_LP, fracP(xs[v])).svg;
+    if (xs) { const cx = (pos[0][0] + pos[1][0] + pos[2][0]) / 3, cy = (pos[0][1] + pos[1][1] + pos[2][1]) / 3, dx = pos[v][0] - cx, dy = pos[v][1] - cy, dl = Math.hypot(dx, dy) || 1;
+      s += mathAt(fracT(xs[v]), x + dx / dl * 34, y + dy / dl * 34 + (dy < 0 ? 0 : 10), 15, "middle", hov ? C_INT : C_LP, fracP(xs[v])).svg; }
   }
   s += '<text class="sv-small" x="' + f1(W / 2) + '" y="' + (H - 4) + '">' + (hov ? "the grid point under the pointer" : xs ? "the LP optimum" : "point at a grid point") + " · click an edge to switch it</text>";
   svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
@@ -2524,7 +2695,7 @@ function renderLat() {
   const bt = '<span class="bt">better</span>';
   el("endL2").innerHTML = G2.lp.sense === "max" ? "worse" : "← " + bt; el("endR2").innerHTML = G2.lp.sense === "max" ? bt + " →" : "worse";
   setMath(el("lStatus"), latStatus());
-  el("lState").textContent = { before: "not reached", entry: "first contact", inside: "inside", ilp: "best grid point", between: "between the optima", lp: "LP optimum", beyond: "beyond", empty: "infeasible" }[zState2(G2.z)] || "";
+  el("lState").textContent = { before: "not reached", entry: "first contact", inside: "inside", ilp: "best grid point", both: "no gap", between: "between the optima", lp: "LP optimum", beyond: "beyond", empty: "infeasible" }[zState2(G2.z)] || "";
   setMath(el("lReadout"), latReadout());
   drawBar(el("barSvg2"), el("barWrap2"), latBarOpts());
   const sig = G2.key + "|" + G2.on.join("") + "|" + G2.hover + "|" + G2.lp.c.join(",") + "|" + (G2.A.lp.status);
@@ -2533,6 +2704,7 @@ function renderLat() {
   setMath(el("lLegend"), latLegend());
   el("lMeta").textContent = G2.lp.title + (G2.lp.d === 3 ? " · 3D" : "");
   el("kCtl").classList.toggle("hidden", G2.key !== "sliver");
+  el("spin2").classList.toggle("hidden", G2.lp.d !== 3); el("lGrid3").classList.toggle("hidden", G2.lp.d !== 3);
   el("lToggles").querySelectorAll("input").forEach(i => { i.checked = !!G2[i.dataset.k]; });
 }
 
@@ -2573,7 +2745,7 @@ function initLatPointer() {
     stopSweep2(); tipHide();
     const [x, y] = local(e);
     if (e.target.id === "lHandle") drag = { kind: "comp" };
-    else drag = { kind: G2.lp.d === 2 ? "pan" : "rot", x, y, moved: false, target: e.target, v: G2.lp.d === 2 ? { lo: G2.view2.lo.slice(), hi: G2.view2.hi.slice() } : null, yaw: G2.yaw, pitch: G2.pitch };
+    else G2.dragging = G2.lp.d === 3, drag = { kind: G2.lp.d === 2 ? "pan" : "rot", x, y, moved: false, target: e.target, v: G2.lp.d === 2 ? { lo: G2.view2.lo.slice(), hi: G2.view2.hi.slice() } : null, yaw: G2.yaw, pitch: G2.pitch };
     svg.setPointerCapture(e.pointerId); e.preventDefault();
   });
   svg.addEventListener("pointermove", e => {
@@ -2598,7 +2770,7 @@ function initLatPointer() {
     renderLat();
   });
   const end = e => {
-    touches.delete(e.pointerId);
+    touches.delete(e.pointerId); G2.dragging = false;
     if (!drag) return;
     if (drag.kind === "pinch") { if (touches.size < 2) drag = null; return; }
     if (!drag.moved && drag.target && drag.target.classList && drag.target.classList.contains("gpt")) {
@@ -2658,6 +2830,7 @@ function initLat() {
   el("kN").oninput = () => { applyLatPreset("sliver", +el("kN").value); renderLat(); writeHash(); };
   el("zR2").oninput = () => { stopSweep2(); const [a, b] = zRange2(); setZ2(a + (b - a) * (+el("zR2").value) / 10000, true); };
   el("sweep2").onclick = sweep2;
+  el("spin2").onclick = () => spinToggle(G2, el("spin2"), () => MODE === "lattice" && G2.lp && G2.lp.d === 3, renderLat);
   el("best2").onclick = () => { stopSweep2(); const S = stops2(); const t = S.lp !== null ? S.lp : S.ilp; if (t !== null) setZ2(t); };
   el("zoomIn2").onclick = () => zoom2(1 / 1.25); el("zoomOut2").onclick = () => zoom2(1.25);
   el("fit2").onclick = fitView2; el("reset2").onclick = resetView2;
@@ -2699,17 +2872,850 @@ function latText() {
 }
 
 /* ==========================================================================
+   Tab “Branch and bound”: a recorded run of branchAndBound (engine), stepped
+   through line by line of the pseudocode.  Picture (2D, 3D or the graph),
+   the tree, the bound bar, the node panel.
+   ========================================================================== */
+const BB = {
+  inst: null, rows: null, run: null, steps: [], nodes: new Map(), order: [], cur: 0,
+  opt: { order: "down", varRule: "first", round: false }, pick: {},
+  view2: null, view3: null, yaw: 215, pitch: 22, zoom3: 1, gview: { z: 1, dx: 0, dy: 0 },
+  H: 440, Hdef: 440, split: 0.58, hover: null, playing: false, timer: 0, groups: [], treeH: 250
+};
+
+/* ---------- instances ---------- */
+const BB_LP_KEYS = ["slide", "textbook", "cover2d", "hessy", "hessyzoom", "sliver", "poly3", "big3", "vc3", "is3", "vcp3"];
+function bbLoadLP(key, lp) {
+  prepLat(lp);
+  const d = lp.d;
+  BB.inst = { kind: "lp", key, lp, d, vars: lp.vars, sense: lp.sense, title: lp.title, unit: lp.unit || "" };
+  const R = lpRows(lp, lp.cons.map(k => k.on));
+  BB.rows = { c: R.c, A: R.A, b: R.b, sg: R.sg, isInt: lp.int || lp.vars.map(() => true) };
+  if (d === 2) BB.view2 = baseView2(lp);
+  else if (d === 3) { BB.view3 = baseView2(lp); BB.yaw = 215; BB.pitch = 22; BB.zoom3 = 1; }
+  BB.opt.order = lp.explore === "up" ? "up" : "down";
+  bbAnalyse();
+}
+function bbLoadGraph(key, g, problem) {
+  const L = graphLP(problem, g.V, g.edges);
+  BB.inst = { kind: "graph", key, g, problem, d: g.V, vars: [...Array(g.V)].map((_, i) => "x" + i), sense: problem === "vc" ? "min" : "max",
+              title: (g.title || "a graph") + (problem === "vc" ? " · Vertex Cover" : " · Independent Set"), unit: "" };
+  BB.rows = { c: L.c, A: L.A, b: L.b, sg: problem === "vc" ? 1 : -1, isInt: new Array(g.V).fill(true) };
+  BB.gview = { z: 1, dx: 0, dy: 0 };
+  BB.opt.order = "down";
+  bbAnalyse();
+}
+/* the grid points (for drawing) and the size of the brute-force search */
+function bbAnalyse() {
+  const I = BB.inst, R = BB.rows;
+  I.intObj = R.c.every(x => x.isInt()) && R.isInt.every(x => x);
+  if (I.kind === "graph") { I.brute = Math.pow(2, I.d); I.pts = null; return; }
+  const box = [];
+  for (let i = 0; i < I.d; i++) {
+    const e = I.vars.map((_, j) => j === i ? F1 : F0);
+    const mn = lpMin(e, R.A, R.b), mx = lpMin(e.map(x => x.neg()), R.A, R.b);
+    box.push([mn.status === "optimal" ? Math.max(0, Number(mn.z.ceil().p)) : 0, mx.status === "optimal" ? Number(mx.z.neg().floor().p) : 0]);
+  }
+  I.brute = box.reduce((s, [lo, hi]) => s * Math.max(0, hi - lo + 1), 1);
+  I.pts = null;
+  if (I.d <= 3) {
+    const res = ilpColumns(R.c, R.A, R.b, box, 2e5);
+    if (!res.tooMany && res.cnt <= 20000) { I.pts = []; for (const c of res.cols) for (let t = c.lo; t <= c.hi; t++) I.pts.push(c.pre.concat([t])); }
+    I.nPts = res.tooMany ? null : res.cnt;
+  }
+}
+const bbTv = z => z === null || z === undefined ? null : (BB.rows.sg < 0 ? z.neg() : z);      /* value in the sense of the problem */
+
+/* ---------- recording ---------- */
+function bbRecord() {
+  const I = BB.inst, R = BB.rows, o = BB.opt;
+  const run = branchAndBound(R.c, R.A, R.b, { order: o.order === "best" ? "best" : "dfs", first: o.order === "up" ? "up" : "down",
+    varRule: o.varRule === "most" ? "most" : "first", roundBound: o.round && I.intObj, isInt: R.isInt, maxNodes: 200, pick: BB.pick });
+  BB.run = run;
+  /* the node table: processed nodes, and the children that were created but never taken */
+  const nodes = new Map();
+  let nb = 0;
+  run.nodes.forEach((N, k) => {
+    nodes.set(N.id, Object.assign(nodes.get(N.id) || {}, { id: N.id, parent: N.parent, bnd: N.bnd, depth: N.depth, proc: k, N }));
+    if (N.verdict === "branch") {
+      const i = N.bvar, lo = N.x[i].floor(), hi = N.x[i].ceil();
+      const kids = [{ id: 2 * nb + 1, bnd: { i, dir: "<=", k: lo } }, { id: 2 * nb + 2, bnd: { i, dir: ">=", k: hi } }];
+      nb++;
+      N.kids = kids.map(q => q.id);
+      for (const q of kids) if (!nodes.has(q.id)) nodes.set(q.id, { id: q.id, parent: N.id, bnd: q.bnd, depth: N.depth + 1, proc: null });
+    }
+  });
+  BB.nodes = nodes;
+  /* the steps */
+  const steps = [{ kind: "init", lines: [2], nid: 0 }];
+  nodes.get(0).created = 0;
+  let waitAt = -1;
+  run.nodes.forEach((N, k) => {
+    if (waitAt >= 0) return;
+    const nd = nodes.get(N.id);
+    nd.sel = steps.length; steps.push({ kind: "select", lines: [3, 4], nid: N.id, k });
+    nd.sol = steps.length; steps.push({ kind: "solve", lines: [5], nid: N.id, k });
+    if (N.verdict === "infeasible") { nd.end = steps.length; steps.push({ kind: "infeasible", lines: [6], nid: N.id, k }); }
+    else if (N.verdict === "unbounded") { nd.end = steps.length; steps.push({ kind: "unbounded", lines: [5], nid: N.id, k }); }
+    else if (N.verdict === "bound") { nd.end = steps.length; steps.push({ kind: "bound", lines: [7], nid: N.id, k }); }
+    else if (N.verdict === "incumbent") { nd.end = steps.length; steps.push({ kind: "incumbent", lines: [8], nid: N.id, k }); }
+    else {
+      const wait = o.varRule === "pick" && N.frac.length > 1 && BB.pick[N.id] === undefined;
+      nd.choose = steps.length; steps.push({ kind: "choose", lines: [9], nid: N.id, k, wait });
+      if (wait) { nd.end = steps.length - 1; waitAt = steps.length - 1; return; }
+      nd.end = steps.length; steps.push({ kind: "split", lines: [10], nid: N.id, k });
+      for (const id of N.kids) nodes.get(id).created = nd.end;
+    }
+  });
+  if (waitAt >= 0) {
+    steps.length = waitAt + 1;
+    for (const nd of nodes.values()) {
+      if (nd.sel > waitAt) { nd.sel = nd.sol = nd.end = nd.choose = undefined; nd.proc = null; nd.N = null; }
+      if (nd.created > waitAt) nd.created = undefined;
+    }
+  } else steps.push({ kind: run.stopped === "maxNodes" ? "stopped" : run.stopped === "unbounded" ? "stoppedU" : "done", lines: run.stopped ? [] : [11], nid: null });
+  for (const st of steps) if (st.kind === "infeasible" || st.kind === "bound" || st.kind === "incumbent" || st.kind === "split" || st.kind === "unbounded") nodes.get(st.nid).verd = steps.indexOf(st);
+  BB.steps = steps;
+  BB.order = run.nodes.filter(N => nodes.get(N.id).sel !== undefined).map(N => N.id);
+  /* a fixed value range for the bar */
+  const vals = [];
+  for (const nd of nodes.values()) if (nd.N && nd.N.status === "optimal" && nd.sel !== undefined) vals.push(bbTv(nd.N.z).toNumber());
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (!vals.length) { lo = 0; hi = 1; }
+  const pad = Math.max((hi - lo) * 0.18, Math.abs(hi) * 0.002, I.intObj ? 1 : 0.5);
+  BB.range = [lo - pad, hi + pad];
+  bbLayoutTree();
+  BB.cur = clamp(BB.cur, 0, steps.length - 1);
+  bbBuildBar();
+  BB._drawn = null;
+  setTimeout(bbPrerender, 50);
+}
+function bbReRecord(keepStep) {
+  const old = BB.cur;
+  bbStop(); bbRecord();
+  BB.cur = keepStep ? clamp(old, 0, BB.steps.length - 1) : 0;
+  renderBB(); writeHash();
+}
+
+/* ---------- the state at a step ---------- */
+function nodeState(nd, s) {
+  if (nd.created === undefined || nd.created > s) return "hidden";
+  if (nd.sel === undefined || s < nd.sel) return "open";
+  const st = BB.steps[s];
+  if (st && st.nid === nd.id && s <= nd.end) return "current";
+  if (nd.end === undefined || s < nd.end) return "current";
+  const v = nd.N.verdict;
+  if (v === "incumbent") {
+    for (const q of BB.nodes.values()) if (q !== nd && q.N && q.N.verdict === "incumbent" && q.end <= s && q.end > nd.end) return "superseded";
+    return "incumbent";
+  }
+  return v === "branch" ? "branched" : v;
+}
+function bestAt(s) {
+  let best = null; const earlier = [];
+  for (const id of BB.order) { const nd = BB.nodes.get(id); if (nd.N.verdict === "incumbent" && nd.end <= s) { if (best) earlier.push(best); best = nd; } }
+  return { best, earlier };
+}
+/* the bound in min form: null = none yet (−∞); { proved } at the end */
+function boundAt(s) {
+  let b = undefined, none = false;
+  for (const nd of BB.nodes.values()) {
+    if (nd.created === undefined || nd.created > s) continue;
+    if (nd.verd !== undefined && nd.verd <= s) continue;           /* finished (pruned, kept, or replaced by its children) */
+    let v;
+    if (nd.sol !== undefined && nd.sol <= s) { if (nd.N.status !== "optimal") continue; v = nd.N.z; }
+    else if (nd.parent === null) { none = true; continue; }
+    else v = BB.nodes.get(nd.parent).N.z;
+    if (b === undefined || v.lt(b)) b = v;
+  }
+  if (none) return { z: null };
+  const { best } = bestAt(s);
+  if (b === undefined) return { z: best ? best.N.z : null, empty: true };
+  if (best && best.N.z.lt(b)) b = best.N.z;          /* the optimum is the better of x_best and the open nodes */
+  return { z: b };
+}
+function pathBounds(nd) {
+  const out = [];
+  for (let q = nd; q && q.parent !== null; q = BB.nodes.get(q.parent)) out.unshift(q.bnd);
+  return out;
+}
+/* the effective bounds of a node, per variable: [lo, hi] (numbers; hi may be Infinity) */
+function nodeBox(nd) {
+  const lo = BB.inst.vars.map(() => 0), hi = BB.inst.vars.map(() => Infinity);
+  for (const b of pathBounds(nd)) { const k = Number(b.k.p); if (b.dir === "<=") hi[b.i] = Math.min(hi[b.i], k); else lo[b.i] = Math.max(lo[b.i], k); }
+  return { lo, hi };
+}
+const bndT = b => varT(BB.inst.vars[b.i]) + (b.dir === "<=" ? " \\le " : " \\ge ") + numT(b.k);
+const vecT = x => "(" + x.map(v => numT(v)).join(",\\,") + ")";
+const procNo = nd => nd.proc === null || nd.proc === undefined ? "" : String(BB.order.indexOf(nd.id) + 1);
+
+/* ---------- the pseudocode ---------- */
+function bbCode() {
+  const max = BB.inst && BB.inst.sense === "max", rnd = BB.opt.round && BB.inst && BB.inst.intObj, cm = s => ' <span class="cm">// ' + s + "</span>";
+  const zs = rnd ? (max ? "\\lfloor z^*\\rfloor" : "\\lceil z^*\\rceil") : "z^*";
+  return [
+    [0, "<b>procedure</b> branchAndBound(" + M("\\mathbf c,\\mathbf A,\\mathbf b") + "):" + cm(M((max ? "\\max" : "\\min") + "\\ \\mathbf c^{\\mathsf T}\\mathbf x") + " s.t. " + M("\\mathbf A\\mathbf x\\le\\mathbf b,\\ \\mathbf x\\ge\\mathbf 0,\\ \\mathbf x\\in\\mathbb Z^n"))],
+    [1, M("\\mathit{open} \\gets \\{\\mathit{root}\\};\\ \\ z_{\\mathrm{best}} \\gets " + (max ? "-\\infty" : "+\\infty") + ";\\ \\ \\mathbf x_{\\mathrm{best}} \\gets") + " none" + cm("root: the LP relaxation")],
+    [1, "<b>while</b> " + M("\\mathit{open} \\ne \\emptyset")],
+    [2, "take a node " + M("N") + " out of " + M("\\mathit{open}") + cm(M("N") + ": the LP plus the bounds on the path to " + M("N"))],
+    [2, "solve " + M("\\mathrm{LP}(N)") + ": " + M("\\mathbf x^*,\\ z^*")],
+    [2, "<b>if</b> " + M("\\mathrm{LP}(N)") + " is infeasible: <b>continue</b>" + cm("prune: nothing here")],
+    [2, "<b>if</b> " + M(zs + (max ? " \\le " : " \\ge ") + "z_{\\mathrm{best}}") + ": <b>continue</b>" + cm("prune: cannot beat " + M("\\mathbf x_{\\mathrm{best}}"))],
+    [2, "<b>if</b> " + M("\\mathbf x^* \\in \\mathbb Z^n") + ": " + M("\\mathbf x_{\\mathrm{best}} \\gets \\mathbf x^*;\\ z_{\\mathrm{best}} \\gets z^*") + "; <b>continue</b>" + cm("new best solution")],
+    [2, "choose " + M("i") + " with " + M("x^*_i \\notin \\mathbb Z")],
+    [2, "add " + M("N \\wedge (x_i \\le \\lfloor x^*_i\\rfloor)") + " and " + M("N \\wedge (x_i \\ge \\lceil x^*_i\\rceil)") + " to " + M("\\mathit{open}")],
+    [1, "<b>return</b> " + M("\\mathbf x_{\\mathrm{best}}") + cm("none: the integer program is infeasible")]
+  ];
+}
+function bbCodeNote() {
+  const I = BB.inst, max = I.sense === "max", n = [];
+  if (max) n.push("A maximization problem: " + M("z_{\\mathrm{best}}") + " starts at " + M("-\\infty") + ", and line 7 prunes if " + M("z^* \\le z_{\\mathrm{best}}") + ".");
+  if (BB.opt.round && I.intObj) n.push("Rounded bound (not in the plain code): all objective coefficients are integers, so every grid point has an integer value, and line 7 may compare " +
+                                       M(max ? "\\lfloor z^*\\rfloor" : "\\lceil z^*\\rceil") + ".");
+  const ord = { down: "depth first, the " + M("\\le") + " child first", up: "depth first, the " + M("\\ge") + " child first", best: "best bound first: the open node with the best LP value (every open node’s LP is solved to choose)" }[BB.opt.order];
+  n.push("Line 4 here: " + ord + ". Line 9: " + { first: "the first fractional variable", most: "the variable whose fractional part is closest to " + M("\\tfrac12"), pick: "you choose" }[BB.opt.varRule] + ".");
+  return n.join(" ");
+}
+
+/* ---------- texts ---------- */
+function bbStatus(s) {
+  const st = BB.steps[s], I = BB.inst, max = I.sense === "max", nd = st.nid !== null ? BB.nodes.get(st.nid) : null, N = nd && nd.N;
+  const zT = z => M(numT(bbTv(z))), nm = nd ? "node " + procNo(nd) : "", L = I.kind === "graph" ? "" : "";
+  const { best } = bestAt(s), bz = best ? zT(best.N.z) : M(max ? "-\\infty" : "+\\infty");
+  switch (st.kind) {
+    case "init": return "<b>Start.</b> The open list holds one node, the <i>root</i>: the LP relaxation itself, with no extra bounds. There is no solution yet, so " +
+                        M("z_{\\mathrm{best}} = " + (max ? "-\\infty" : "+\\infty")) + ": nothing can be pruned by its bound." + L;
+    case "select": {
+      const pb = pathBounds(nd);
+      return "<b>Take " + nm + "</b> out of the open list (" + { down: "depth first: the node added last", up: "depth first: the node added last", best: "best bound: the open node with the best LP value" }[BB.opt.order] + "). " +
+             (pb.length ? "Its LP is the relaxation plus the bounds " + pb.map(b => M(bndT(b))).join(", ") + "." : "It is the root: the relaxation itself.");
+    }
+    case "solve":
+      if (N.status === "infeasible") return "<b>Solve its LP:</b> infeasible. The bounds on the path exclude every point of the region.";
+      if (N.status === "unbounded") return "<b>Solve its LP:</b> unbounded.";
+      return "<b>Solve its LP:</b> " + M("\\mathbf x^* = " + vecT(N.x)) + " with " + M("z^* = " + numT(bbTv(N.z))) + ". " +
+             "No grid point of this node can be better than " + zT(N.z) + (I.intObj && !bbTv(N.z).isInt() ? ", and since grid points have integer values, none is better than " + M(numT(max ? bbTv(N.z).floor() : bbTv(N.z).ceil())) : "") + ".";
+    case "infeasible": return "<b>Prune (infeasible).</b> No point in this node, so no grid point either. Nothing to do here.";
+    case "unbounded": return "<b>The LP of this node is unbounded.</b> This simple version stops here.";
+    case "bound": {
+      const v = BB.opt.round && I.intObj ? M(max ? "\\lfloor z^*\\rfloor = " + numT(bbTv(N.z).floor()) : "\\lceil z^*\\rceil = " + numT(bbTv(N.z).ceil())) : M("z^* = " + numT(bbTv(N.z)));
+      return "<b>Prune by bound.</b> " + v + " is not better than " + M("z_{\\mathrm{best}} = " + numT(bbTv(best.N.z))) + ": no grid point in this node can beat the solution we have. " +
+             "We drop the node without looking at its grid points.";
+    }
+    case "incumbent": {
+      const prev = bestAt(s - 1).best;
+      return "<b>A grid point!</b> " + M("\\mathbf x^*") + " is integral: a feasible solution of the integer program, with value " + zT(N.z) + ". " +
+             (prev ? "It is better than the previous best " + zT(prev.N.z) + ", so it replaces it." : "It is the first solution found: " + M("\\mathbf x_{\\mathrm{best}}") + " and " + M("z_{\\mathrm{best}}") + " are set.") +
+             " The node needs no children: no grid point in it is better than its own LP optimum.";
+    }
+    case "choose": {
+      const fr = N.frac.map(i => M(varT(I.vars[i]) + "^* = " + numT(N.x[i])));
+      if (st.wait) return "<b>Your choice.</b> " + M("\\mathbf x^*") + " is fractional in " + fr.join(", ") + ". <b>Click</b> one of them (in the node panel" + (I.kind === "graph" ? " or in the graph" : "") + ") to branch on it.";
+      const i = N.bvar;
+      return "<b>Branch.</b> " + M("\\mathbf x^*") + " is fractional in " + fr.join(", ") + ". " +
+             (N.frac.length > 1 ? (BB.opt.varRule === "most" ? "The most fractional one: " : BB.opt.varRule === "pick" ? "You chose " : "The first one: ") : "We take ") + M(varT(I.vars[i])) + ".";
+    }
+    case "split": {
+      const i = N.bvar, v = varT(I.vars[i]), lo = N.x[i].floor(), hi = N.x[i].ceil();
+      return "<b>Two children:</b> " + M(v + " \\le " + numT(lo)) + " and " + M(v + " \\ge " + numT(hi)) + ". Together they keep every grid point of the node; only the strip " +
+             M(numT(lo) + " < " + v + " < " + numT(hi)) + " is lost, and it holds no grid point. " + M("\\mathbf x^*") + " lies in that strip, so neither child will find it again.";
+    }
+    case "done": {
+      const n = BB.order.length;
+      if (!best) return "<b>Done: the open list is empty</b> and no grid point was found. The integer program is infeasible — and the tree proves it.";
+      return "<b>Done: the open list is empty.</b> " + M("\\mathbf x_{\\mathrm{best}} = " + vecT(best.N.x)) + " with " + M("z_{\\mathrm{best}} = " + numT(bbTv(best.N.z))) + " is optimal. " +
+             "The tree is the proof: every grid point lies in one of its leaves, and each leaf is empty, no better than " + M("\\mathbf x_{\\mathrm{best}}") + ", or " + M("\\mathbf x_{\\mathrm{best}}") + " itself. " +
+             "Here it took " + n + " LP" + (n > 1 ? "s" : "") + "; the tree can be exponentially large, and the smaller the gap between the LP and the integer optimum, the earlier the bound prunes." +
+             (I.kind === "graph" ? " With " + M("x_v \\in \\{0,1\\}") + ", branching on " + M("x_v") + " means: " + M("v") + " is in the solution or not — a bounded search tree, with the LP value as the pruning rule." : "");
+    }
+    case "stopped": return "<b>Stopped after 200 nodes.</b> The open list is not empty yet; this page does not go on.";
+    case "stoppedU": return "<b>Stopped:</b> an unbounded node LP. The integer program may still be bounded, but this simple version does not decide it.";
+  }
+  return "";
+}
+function bbNodePanel(s) {
+  const st = BB.steps[s], I = BB.inst, hv = BB.hover !== null && BB.nodes.get(BB.hover);
+  const nd = hv && hv.created !== undefined && hv.created <= s ? hv : st.nid !== null ? BB.nodes.get(st.nid) : null;
+  if (!nd) {
+    const { best } = bestAt(s);
+    return '<div class="nhead">' + (st.kind === "init" ? "no node taken yet" : "no current node") + "</div>" +
+           '<div class="nrow"><span class="rk">best</span><span class="rv">' + (best ? M("\\mathbf x_{\\mathrm{best}} = " + vecT(best.N.x)) + ", " + M("z_{\\mathrm{best}} = " + numT(bbTv(best.N.z))) : "none") + "</span></div>";
+  }
+  const state = nodeState(nd, s), solved = nd.sol !== undefined && nd.sol <= s, N = nd.N, pb = pathBounds(nd);
+  const word = { open: "open: waiting in the list", current: "current node", infeasible: "pruned: infeasible", bound: "pruned by bound", branched: "branched", incumbent: "best solution so far", superseded: "a solution, beaten later" }[state] || "";
+  let h = '<div class="nhead">' + (nd.proc !== null && nd.proc !== undefined && nd.sel <= s ? "node " + procNo(nd) : "a node in the open list") + " <span>· depth " + nd.depth + " · " + word + "</span></div>";
+  h += '<div class="nrow"><span class="rk">bounds</span><span class="rv">' + (pb.length ? pb.map(b => M(bndT(b))).join(", ") : "none (the root)") + "</span></div>";
+  if (solved && N.status === "optimal") {
+    const fr = st.wait && st.nid === nd.id;
+    h += '<div class="nrow"><span class="rk">' + M("\\mathbf x^*") + '</span><span class="rv">' +
+         (fr ? N.x.map((v, i) => N.frac.includes(i) ? '<button class="pickv" data-i="' + i + '">' + M(varT(I.vars[i]) + " = " + numT(v)) + "</button>" : "").join(" ") : M(vecT(N.x))) + "</span></div>";
+    h += '<div class="nrow"><span class="rk">' + M("z^*") + '</span><span class="rv">' + M(numT(bbTv(N.z))) + "</span></div>";
+  } else h += '<div class="nrow"><span class="rk">LP</span><span class="rv">' + (solved ? N.status : "not solved yet" + (nd.parent !== null ? ": bound " + M(numT(bbTv(BB.nodes.get(nd.parent).N.z))) + " from the parent" : "")) + "</span></div>";
+  return h;
+}
+
+/* ---------- the phase bar (water filling, piecewise linear slider) ---------- */
+function bbGroups() {
+  const steps = BB.steps, n = BB.order.length, W = Math.max(120, el("bBar").clientWidth || 600), maxG = Math.max(2, Math.floor(W / 34));
+  const nodeOf = st => st.nid === null ? -1 : BB.order.indexOf(st.nid);
+  const per = n + 1 <= maxG;
+  const size = per ? 1 : Math.ceil(n / (maxG - 1));
+  const gs = [];
+  steps.forEach((st, i) => {
+    let k = st.kind === "init" ? 0 : nodeOf(st), key, labs, tip;
+    if (k < 0) { key = "end"; labs = [st.kind === "done" ? "result" : "stopped"]; tip = labs[0]; }
+    else if (per) { key = "n" + k; labs = ["node " + (k + 1), String(k + 1)]; const nd = BB.nodes.get(BB.order[k]); tip = "node " + (k + 1) + (nd.N && nd.N.verdict ? ": " + { infeasible: "infeasible", bound: "pruned by bound", incumbent: "a solution", branch: "branched", unbounded: "unbounded" }[nd.N.verdict] : ""); }
+    else { const a = Math.floor(k / size) * size + 1, b = Math.min(n, a + size - 1); key = "c" + a; labs = a === b ? ["node " + a, String(a)] : ["nodes " + a + "–" + b, a + "–" + b, String(a)]; tip = "nodes " + a + "–" + b; }
+    const g = gs[gs.length - 1];
+    if (g && g.key === key) g.to = i; else gs.push({ key, labs, tip, from: i, to: i });
+  });
+  return gs;
+}
+function waterFill(counts, W, m) {
+  const k = counts.length;
+  if (k * m >= W) return counts.map(() => W / k);
+  const w = new Array(k).fill(0), fixed = new Array(k).fill(false);
+  for (;;) {
+    const rest = W - fixed.reduce((s, f, i) => s + (f ? m : 0), 0), tot = counts.reduce((s, c, i) => s + (fixed[i] ? 0 : c), 0);
+    let changed = false;
+    counts.forEach((c, i) => { if (!fixed[i]) { w[i] = rest * c / tot; if (w[i] < m) { fixed[i] = true; changed = true; } } });
+    if (!changed) break;
+  }
+  return w.map((x, i) => fixed[i] ? m : x);
+}
+function bbBuildBar() {
+  const bar = el("bBar"), W = Math.max(60, bar.clientWidth || 600), gs = bbGroups();
+  const ws = waterFill(gs.map(g => g.to - g.from + 1), W, 30);
+  let x = 0;
+  gs.forEach((g, i) => { g.x0 = x; x += ws[i]; g.x1 = x; });
+  BB.groups = gs; BB.barW = W;
+  const font = "bold 10.9px " + getComputedStyle(document.documentElement).getPropertyValue("--wi-font-head");
+  bar.innerHTML = gs.map((g, i) => {
+    const w = g.x1 - g.x0, lab = g.labs.find(t => textW(t, font) + 6 <= w) || g.labs[g.labs.length - 1].slice(0, 1);
+    return '<button class="phasebtn" data-g="' + i + '" style="flex:0 0 ' + w.toFixed(2) + 'px" title="' + esc(g.tip) + '"><span class="fill empty"></span><span class="lab">' + esc(lab) + "</span></button>";
+  }).join("");
+  bar.querySelectorAll(".phasebtn").forEach(b => b.onclick = () => { bbStop(); bbGoto(BB.groups[+b.dataset.g].from); });
+  const sc = el("bScrub"); sc.max = String(Math.round(W)); sc.step = "any";
+  BB._barW = W;
+}
+const stepToPx = i => { const g = BB.groups.find(q => i >= q.from && i <= q.to); if (!g) return 0; const k = g.to - g.from + 1; return g.x0 + (i - g.from + 0.5) / k * (g.x1 - g.x0); };
+function pxToStep(v) {
+  const g = BB.groups.find(q => v >= q.x0 && v <= q.x1) || (v < 0 ? BB.groups[0] : BB.groups[BB.groups.length - 1]);
+  const k = g.to - g.from + 1;
+  return clamp(g.from + Math.floor((v - g.x0) / Math.max(1e-9, g.x1 - g.x0) * k), g.from, g.to);
+}
+
+/* ---------- transport ---------- */
+function bbGoto(i) { BB.cur = clamp(i, 0, BB.steps.length - 1); renderBB(); }
+function bbStop() { BB.playing = false; clearTimeout(BB.timer); const b = el("bPlay"); if (b) b.innerHTML = "&#x25B6;&#xFE0E;"; }
+function bbPlay() {
+  if (BB.playing) { bbStop(); return; }
+  BB.playing = true; el("bPlay").innerHTML = "❚❚&#xFE0E;";
+  const tick = () => {
+    if (!BB.playing) return;
+    const st = BB.steps[BB.cur];
+    if (BB.cur >= BB.steps.length - 1 || st.wait) { bbStop(); return; }
+    bbGoto(BB.cur + 1);
+    BB.timer = setTimeout(tick, +el("bSpeed").value);
+  };
+  if (BB.cur >= BB.steps.length - 1) { bbGoto(0); BB.timer = setTimeout(tick, 400); } else tick();
+}
+function bbPick(i) {
+  const st = BB.steps[BB.cur];
+  if (!st || !st.wait) return;
+  const N = BB.nodes.get(st.nid).N;
+  if (!N.frac.includes(i)) return;
+  bbStop();
+  /* forget the choices made later in the old run */
+  const k = st.k;
+  for (const id of Object.keys(BB.pick)) { const nd = BB.nodes.get(+id); if (!nd || nd.proc === null || nd.proc === undefined || nd.proc > k) delete BB.pick[id]; }
+  BB.pick[st.nid] = i;
+  const at = BB.cur;
+  bbRecord();
+  BB.cur = Math.min(at + 1, BB.steps.length - 1);
+  renderBB(); writeHash();
+}
+function bbPrerender() {
+  if (!mjReady() || !BB.steps.length || MODE !== "bb") return;
+  const gen = BB.prepGen = (BB.prepGen || 0) + 1, items = [];
+  const order = BB.steps.map((_, i) => i).sort((a, b) => ((a < BB.cur) - (b < BB.cur)) || a - b);
+  for (const i of order) items.push([bbStatus(i), el("bStatus")], [bbNodePanel(i), el("bNode")]);
+  /* the formulas inside the drawings: bar labels, tree labels, LP values at the vertices */
+  const tex = new Set();
+  for (let s = 0; s < BB.steps.length; s++) {
+    const bd = boundAt(s);
+    if (bd.z !== null) { const v = bbTv(bd.z); tex.add("\\text{bound} = " + numT(v)); if (BB.inst.intObj && !v.isInt()) { const r = BB.inst.sense === "min" ? v.ceil() : v.floor(); tex.add((BB.inst.sense === "min" ? "\\lceil \\text{bound}\\rceil" : "\\lfloor \\text{bound}\\rfloor") + " = " + numT(r)); } }
+  }
+  for (const nd of BB.nodes.values()) {
+    if (nd.parent !== null) tex.add(bndT(nd.bnd));
+    if (BB.inst.kind === "graph" && nd.N && nd.N.x) for (const v of nd.N.x) tex.add(fracT(v));
+  }
+  for (const t of tex) mjSvg(t);
+  const box = el("bPrep");
+  mjPrepare(items, (d, n) => {
+    if (BB.prepGen !== gen) return;
+    box.textContent = n && d < n ? "preparing formulas " + d + " / " + n : (n ? "all steps ready" : "");
+    box.classList.toggle("ready", !n || d >= n);
+  }, () => BB.prepGen === gen && MODE === "bb");
+}
+
+/* ---------- the tree ---------- */
+const treeNum = v => { if (v.isInt()) return numP(v); const t = numP(v); return t.length <= 6 ? t : "≈" + String(+v.toNumber().toFixed(2)); };
+function bbLayoutTree() {
+  const nodes = BB.nodes, kids = id => { const N = nodes.get(id).N; return N && N.kids ? N.kids.filter(q => nodes.get(q).created !== undefined) : []; };
+  let slot = 0, maxD = 0;
+  const walk = id => {
+    const nd = nodes.get(id), ks = kids(id);
+    maxD = Math.max(maxD, nd.depth);
+    if (!ks.length) { nd.tx = slot++; return; }
+    ks.forEach(walk);
+    nd.tx = (nodes.get(ks[0]).tx + nodes.get(ks[ks.length - 1]).tx) / 2;
+  };
+  walk(0);
+  BB.tree = { leaves: Math.max(1, slot), depth: maxD };
+}
+function renderTree() {
+  const svg = el("bTree"), W = Math.max(280, el("bTreeWrap").clientWidth), s = BB.cur, T = BB.tree, I = BB.inst, H = clamp(52 + T.depth * 58, 110, 340);
+  const padX = 34, padT = 20, padB = 32, sl = (W - 2 * padX) / Math.max(1, T.leaves), dy = T.depth ? Math.min(62, (H - padT - padB) / T.depth) : 0;
+  const r = clamp(Math.min(sl * 0.3, dy * 0.3 || 12), 3.5, 12);
+  const X = nd => padX + (nd.tx + 0.5) * sl, Y = nd => padT + nd.depth * dy;
+  const showZ = sl >= 40 && r >= 6, showE = sl >= 44 && dy >= 38;
+  let edges = "", circ = "", labs = "", hits = "";
+  for (const nd of BB.nodes.values()) {
+    const stt = nodeState(nd, s);
+    if (stt === "hidden") continue;
+    const x = X(nd), y = Y(nd);
+    if (nd.parent !== null) {
+      const p = BB.nodes.get(nd.parent), px = X(p), py = Y(p);
+      edges += '<line x1="' + f1(px) + '" y1="' + f1(py + r) + '" x2="' + f1(x) + '" y2="' + f1(y - r) + '" stroke="#8b8779" stroke-width="1.3"/>';
+      if (showE) { const mx = (px + x) / 2 + (x < px ? -3 : 3), my = (py + y) / 2 - 3; labs += mathAt(bndT(nd.bnd), mx, my, 11.5, x < px ? "end" : "start", "#6b675c", (I.vars[nd.bnd.i]) + (nd.bnd.dir === "<=" ? " ≤ " : " ≥ ") + numP(nd.bnd.k)).svg; }
+    }
+    const solved = nd.sol !== undefined && nd.sol <= s;
+    const sty = {
+      open: 'fill="var(--wi-panel-2)" stroke="#6b675c" stroke-width="1.3" stroke-dasharray="3 2"',
+      current: 'fill="' + (solved && nd.N.status === "optimal" ? "#f3d3cc" : "var(--wi-panel-2)") + '" stroke="' + C_LP + '" stroke-width="3"',
+      branched: 'fill="#efe7da" stroke="#6b675c" stroke-width="1.3"',
+      infeasible: 'fill="#d9d4ca" stroke="#8b8779" stroke-width="1.2"',
+      bound: 'fill="#d9d4ca" stroke="#8b8779" stroke-width="1.2"',
+      incumbent: 'fill="' + C_OPT + '" stroke="#1f4a16" stroke-width="1.6"',
+      superseded: 'fill="#cfe0c8" stroke="' + C_OPT + '" stroke-width="1.3"',
+      unbounded: 'fill="#d9d4ca" stroke="' + C_ERR + '" stroke-width="1.3"'
+    }[stt];
+    const hot = BB.hover === nd.id;
+    if (hot) circ += '<circle cx="' + f1(x) + '" cy="' + f1(y) + '" r="' + f1(r + 5) + '" fill="' + C_OBJ + '" opacity=".3"/>';
+    circ += '<circle cx="' + f1(x) + '" cy="' + f1(y) + '" r="' + f1(r) + '" ' + sty + "/>";
+    if (stt === "infeasible") circ += '<path d="M' + f1(x - r * .55) + "," + f1(y - r * .55) + "L" + f1(x + r * .55) + "," + f1(y + r * .55) + "M" + f1(x + r * .55) + "," + f1(y - r * .55) + "L" + f1(x - r * .55) + "," + f1(y + r * .55) + '" stroke="#6b675c" stroke-width="1.4"/>';
+    if (showZ && solved && nd.N.status === "optimal") labs += '<text class="sv-tz" x="' + f1(x + r + 3) + '" y="' + f1(y + 4) + '">' + esc(treeNum(bbTv(nd.N.z))) + "</text>";
+    if (r >= 8 && nd.sel !== undefined && nd.sel <= s && stt !== "infeasible") labs += '<text class="sv-tn" x="' + f1(x) + '" y="' + f1(y + 3.8) + '"' + (stt === "incumbent" ? ' style="fill:#fff"' : "") + ">" + procNo(nd) + "</text>";
+    hits += '<circle class="hit tnode" data-nid="' + nd.id + '" cx="' + f1(x) + '" cy="' + f1(y) + '" r="' + f1(Math.max(r + 3, 8)) + '" fill="transparent"/>';
+  }
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.innerHTML = edges + circ + labs + hits;
+  if (!el("bTreeLeg")._done) {
+    el("bTreeLeg")._done = true;
+    const c = (sty, extra) => '<svg width="16" height="16"><circle cx="8" cy="8" r="6" ' + sty + "/>" + (extra || "") + "</svg>";
+    el("bTreeLeg").innerHTML = [[c('fill="var(--wi-panel-2)" stroke="#6b675c" stroke-dasharray="3 2"'), "open"], [c('fill="#f3d3cc" stroke="' + C_LP + '" stroke-width="2.4"'), "current"],
+      [c('fill="#efe7da" stroke="#6b675c"'), "branched"], [c('fill="#d9d4ca" stroke="#8b8779"'), "pruned by bound"],
+      [c('fill="#d9d4ca" stroke="#8b8779"', '<path d="M4.7,4.7L11.3,11.3M11.3,4.7L4.7,11.3" stroke="#6b675c" stroke-width="1.3"/>'), "infeasible"],
+      [c('fill="' + C_OPT + '" stroke="#1f4a16"'), "best solution"], [c('fill="#cfe0c8" stroke="' + C_OPT + '"'), "solution, beaten later"]]
+      .map(([s, t]) => '<span class="item">' + s + esc(t) + "</span>").join("") + '<span class="item">number: order taken · next to it: ' + "LP value</span>";
+  }
+  const solvedN = BB.order.filter(id => BB.nodes.get(id).sol <= s).length;
+  el("bCount").textContent = solvedN + " of " + BB.order.length + " node LPs solved · brute force: " +
+    (I.brute > 1e15 ? "≈ " + I.brute.toExponential(1) : I.brute.toLocaleString("en").replace(/,/g, " ")) + (I.kind === "graph" ? " subsets" : " grid points in the box");
+}
+
+/* ---------- the picture: 2D ---------- */
+function bbHalf(nd) {
+  const I = BB.inst, H = [];
+  I.lp.cons.forEach(k => {
+    if (!k.on) return;
+    if (k.op === "<=" || k.op === "=") H.push({ a: k.af, b: k.bf });
+    if (k.op === ">=" || k.op === "=") H.push({ a: k.af.map(x => -x), b: -k.bf });
+  });
+  if (nd) for (const b of pathBounds(nd)) { const e = I.vars.map((_, j) => j === b.i ? 1 : 0), k = b.k.toNumber(); if (b.dir === "<=") H.push({ a: e, b: k }); else H.push({ a: e.map(x => -x), b: -k }); }
+  return H;
+}
+function viewEff(v, W, H) {
+  const pw = W - PAD2.l - PAD2.r, ph = H - PAD2.t - PAD2.b;
+  const k = Math.min(pw / (v.hi[0] - v.lo[0]), ph / (v.hi[1] - v.lo[1])), cx = (v.lo[0] + v.hi[0]) / 2, cy = (v.lo[1] + v.hi[1]) / 2;
+  return { lo: [cx - pw / 2 / k, cy - ph / 2 / k], hi: [cx + pw / 2 / k, cy + ph / 2 / k], k, pw, ph };
+}
+const BB_FILL = { open: ["#2c5aa0", 0.1], current: [C_OBJ, 0.3], bound: ["#8b8779", 0.28], infeasible: ["#8b8779", 0.2], incumbent: [C_OPT, 0.25], superseded: [C_OPT, 0.12], unbounded: ["#8b8779", 0.2] };
+function bbLeaves(s) { const out = []; for (const nd of BB.nodes.values()) { const t = nodeState(nd, s); if (t !== "hidden" && t !== "branched") out.push([nd, t]); } return out; }
+function render2BB() {
+  const I = BB.inst, lp = I.lp, s = BB.cur, st = BB.steps[s], svg = el("bSvg"), W = Math.max(320, el("bWrap").clientWidth), H = BB.H;
+  const E = viewEff(BB.view2, W, H); BB.E2 = E;
+  const X = x => PAD2.l + (x - E.lo[0]) * E.k, Y = y => H - PAD2.b - (y - E.lo[1]) * E.k, P = p => [X(p[0]), Y(p[1])];
+  const Hv = boxH(E.lo, E.hi), path = pp => "M" + pp.map(p => P(p).map(f1).join(",")).join("L") + "Z";
+  const region = nd => orderPoly(vertices(bbHalf(nd).concat(Hv), 2).map(v => v.p));
+  let grid = "", body = "", over = "", top = "", hits = "";
+  const sx = niceStep(E.hi[0] - E.lo[0], E.pw / 85), sy = niceStep(E.hi[1] - E.lo[1], E.ph / 60);
+  for (let x = Math.ceil(E.lo[0] / sx) * sx; x <= E.hi[0] + 1e-9; x += sx) { const xx = X(x); grid += '<line x1="' + f1(xx) + '" x2="' + f1(xx) + '" y1="' + PAD2.t + '" y2="' + f1(H - PAD2.b) + '" stroke="#e2d5c2"/><text class="sv-tick" x="' + f1(xx) + '" y="' + f1(H - PAD2.b + 16) + '" text-anchor="middle">' + esc(numP(+x.toPrecision(10))) + "</text>"; }
+  for (let y = Math.ceil(E.lo[1] / sy) * sy; y <= E.hi[1] + 1e-9; y += sy) { const yy = Y(y); grid += '<line x1="' + PAD2.l + '" x2="' + f1(W - PAD2.r) + '" y1="' + f1(yy) + '" y2="' + f1(yy) + '" stroke="#e2d5c2"/><text class="sv-tick" x="' + (PAD2.l - 6) + '" y="' + f1(yy + 4) + '" text-anchor="end">' + esc(numP(+y.toPrecision(10))) + "</text>"; }
+  grid += '<rect x="' + PAD2.l + '" y="' + PAD2.t + '" width="' + f1(E.pw) + '" height="' + f1(E.ph) + '" fill="none" stroke="var(--wi-border)"/>';
+  for (let i = 0; i < 2; i++) top += mathAt(varT(I.vars[i]), i === 0 ? PAD2.l + E.pw / 2 : 18, i === 0 ? H - 12 : PAD2.t + E.ph / 2, 15, "middle", "var(--wi-ink-strong)", I.vars[i]).svg;
+  /* the region P, faint; its constraints */
+  const R0 = region(null);
+  if (R0.length >= 3) body += '<path d="' + path(R0) + '" fill="var(--t-region)" opacity=".55"/>';
+  lp.cons.forEach(k => {
+    if (!k.on || k.nonneg) return;
+    const seg = clipLine(k.af, k.bf, Hv); if (!seg) return;
+    const [p, q] = seg.map(P);
+    body += '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="' + k.color + '" stroke-width="1.3" opacity=".7"/>';
+  });
+  /* the strips cut out by the branchings so far */
+  for (const nd of BB.nodes.values()) {
+    if (!nd.N || nd.N.verdict !== "branch" || nd.end === undefined || nd.end > s) continue;
+    const i = nd.N.bvar, lo = nd.N.x[i].floor().toNumber(), e = [0, 0]; e[i] = 1;
+    const SV = orderPoly(vertices(bbHalf(nd).concat(Hv, [{ a: e.map(x => -x), b: -lo }, { a: e, b: lo + 1 }]), 2).map(v => v.p));
+    if (SV.length < 3) continue;
+    body += '<path d="' + path(SV) + '" fill="url(#bStrip)" stroke="#8b8779" stroke-width=".8" stroke-dasharray="3 3"/>';
+    if (nd.id === st.nid && st.kind === "split") {
+      const c = SV.reduce((a, p) => add(a, p), [0, 0]).map(v => v / SV.length), q = P(c);
+      top += '<text class="sv-strip" x="' + f1(q[0]) + '" y="' + f1(q[1]) + '" transform="rotate(' + (i === 0 ? -90 : 0) + " " + f1(q[0]) + " " + f1(q[1]) + ')">no grid points in here</text>';
+    }
+  }
+  /* the leaves of the tree so far */
+  for (const [nd, t] of bbLeaves(s)) {
+    const pg = region(nd); if (pg.length < 3) continue;
+    const [col, op] = BB_FILL[t] || ["#8b8779", 0.15], hot = BB.hover === nd.id;
+    body += '<path d="' + path(pg) + '" fill="' + col + '" fill-opacity="' + op + '" stroke="' + (t === "current" ? OBJD : col) + '" stroke-width="' + (hot ? 3 : t === "current" ? 2 : 1) + '"' + (t === "open" ? ' stroke-dasharray="5 3"' : "") + "/>";
+    hits += '<path class="hit nreg" data-nid="' + nd.id + '" d="' + path(pg) + '" fill="transparent"/>';
+  }
+  if (BB.hover !== null) { const hn = BB.nodes.get(BB.hover); if (hn && nodeState(hn, s) === "branched") { const pg = region(hn); if (pg.length >= 3) over += '<path d="' + path(pg) + '" fill="none" stroke="' + C_OBJ + '" stroke-width="3"/>'; } }
+  /* grid points */
+  if (I.pts && E.k >= 5) for (const p of I.pts) { if (p[0] < E.lo[0] || p[0] > E.hi[0] || p[1] < E.lo[1] || p[1] > E.hi[1]) continue; const a = P(p); over += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="' + f1(clamp(E.k * 0.08, 1.6, 3.6)) + '" fill="' + C_INT + '"/>'; }
+  /* the best solution, its level line; the current x* */
+  const { best, earlier } = bestAt(s);
+  for (const q of earlier) { const a = P(q.N.x.map(v => v.toNumber())); top += star(a[0], a[1], 7, "#cfe0c8", C_OPT); }
+  if (best) {
+    const seg = clipLine(lp.cf, bbTv(best.N.z).toNumber(), Hv);
+    if (seg) { const [p, q] = seg.map(P); over += '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="' + C_OPT + '" stroke-width="1.5" stroke-dasharray="6 4"/>'; }
+    const a = P(best.N.x.map(v => v.toNumber())); top += star(a[0], a[1], 9.5, C_OPT, "#1f4a16");
+  }
+  const sh = shownNode();
+  if (sh && sh.sol !== undefined && sh.sol <= s && sh.N.status === "optimal") { const a = P(sh.N.x.map(v => v.toNumber())); top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="6" fill="' + C_LP + '" stroke="#5a120c" stroke-width="1.5"/>'; }
+  let note = '<text class="sv-small" x="' + (W - PAD2.r - 4) + '" y="' + (H - 6) + '" style="text-anchor:end">' + (W < 620 ? "drag · pinch to zoom" : "drag to move · wheel or pinch to zoom · double-click to reset") + "</text>";
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.innerHTML = '<defs><pattern id="bStrip" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="#f4efe6"/><line x1="0" y1="0" x2="0" y2="7" stroke="#b6b1a1" stroke-width="1.5"/></pattern>' +
+                  '<clipPath id="bClip"><rect x="' + PAD2.l + '" y="' + PAD2.t + '" width="' + f1(E.pw) + '" height="' + f1(E.ph) + '"/></clipPath></defs>' +
+                  grid + '<g clip-path="url(#bClip)">' + body + over + hits + top + "</g>" + note;
+}
+function star(x, y, r, fill, stroke) {
+  let d = "";
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; d += (i ? "L" : "M") + f1(x + rr * Math.cos(a)) + "," + f1(y + rr * Math.sin(a)); }
+  return '<path d="' + d + 'Z" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.2"/>';
+}
+const shownNode = () => { const s = BB.cur, hv = BB.hover !== null && BB.nodes.get(BB.hover); if (hv && hv.created !== undefined && hv.created <= s) return hv; const st = BB.steps[s]; return st && st.nid !== null ? BB.nodes.get(st.nid) : null; };
+
+/* ---------- the picture: 3D ---------- */
+function render3BB() {
+  const I = BB.inst, s = BB.cur, svg = el("bSvg"), W = Math.max(320, el("bWrap").clientWidth), H = BB.H, v3 = BB.view3;
+  const ctr = v3.lo.map((x, i) => (x + v3.hi[i]) / 2), rad = 0.5 * norm(sub(v3.hi, v3.lo)), k = BB.zoom3 * 0.47 * Math.min(W, H) / rad;
+  const th = BB.yaw * Math.PI / 180, ph = BB.pitch * Math.PI / 180, ct = Math.cos(th), st_ = Math.sin(th), cp = Math.cos(ph), sp = Math.sin(ph);
+  const Pj = p => { const x = p[0] - ctr[0], y = p[1] - ctr[1], z = p[2] - ctr[2], u = x * ct - y * st_, t = x * st_ + y * ct; return [W / 2 + u * k, H / 2 - (z * cp + t * sp) * k, -t * cp + z * sp]; };
+  const toV = [-st_ * cp, -ct * cp, sp], Hb = boxH(v3.lo, v3.hi);
+  const pts = p => p.map(q => { const r = Pj(q); return f1(r[0]) + "," + f1(r[1]); }).join(" ");
+  const ln = (a, b, at) => '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" ' + at + "/>";
+  let back = BB.grid3 ? gridLines3(v3, Pj) : "", front = "", edges = "", top = "";
+  for (let i = 0; i < 3; i++) {
+    const p0 = [0, 0, 0], p1 = [0, 0, 0]; p0[i] = Math.max(v3.lo[i], 0); p1[i] = v3.hi[i];
+    const a = Pj(p0), b = Pj(p1), dx = b[0] - a[0], dy = b[1] - a[1], dl = Math.hypot(dx, dy) || 1;
+    back += ln(a, b, 'stroke="#6b675c" stroke-width="1.3" marker-end="url(#aInk2)"');
+    top += mathAt(varT(I.vars[i]), b[0] + dx / dl * 13, b[1] + dy / dl * 13 + 5, 15, "middle", "var(--wi-ink-strong)", I.vars[i]).svg;
+  }
+  const polyOf = nd => {
+    const Hd = bbHalf(nd).concat(Hb), RV = vertices(Hd, 3), faces = [];
+    Hd.forEach((h, hi) => {
+      const on = RV.filter(v => v.tight.includes(hi)); if (on.length < 3) return;
+      const key = on.map(v => RV.indexOf(v)).sort((a, b) => a - b).join(","); if (faces.some(f => f.key === key)) return;
+      faces.push({ key, vs: orderPoly(on.map(v => v.p), h.a), front: dot(h.a, toV) > 0 });
+    });
+    return faces;
+  };
+  const drawPoly = (faces, col, op, sw, dash) => {
+    for (const f of faces) {
+      const sh = '<polygon points="' + pts(f.vs) + '" fill="' + col + '" fill-opacity="' + (f.front ? op : op * 0.4) + '" stroke="' + col + '" stroke-opacity="' + (f.front ? 0.9 : 0.4) + '" stroke-width="' + sw + '"' + (dash || !f.front ? ' stroke-dasharray="4 3"' : "") + "/>";
+      if (f.front) front += sh; else back += sh;
+    }
+  };
+  drawPoly(polyOf(null), "#9a6a96", 0.04, 0.8, true);
+  const sh = shownNode();
+  for (const [nd, t] of bbLeaves(s)) {
+    if (nd === sh) continue;
+    const [col, op] = BB_FILL[t] || ["#8b8779", 0.15];
+    drawPoly(polyOf(nd), col, op * 0.7, 1, t === "open");
+  }
+  if (sh) drawPoly(polyOf(sh), C_OBJ, 0.32, 1.8, false);
+  let dots = "";
+  if (I.pts && I.pts.length <= 3000) {
+    const D = I.pts.map(p => ({ p, a: Pj(p) })).sort((a, b) => a.a[2] - b.a[2]);
+    for (const d of D) dots += '<circle cx="' + f1(d.a[0]) + '" cy="' + f1(d.a[1]) + '" r="2.5" fill="' + C_INT + '" fill-opacity=".85"/>';
+  }
+  const { best, earlier } = bestAt(s);
+  for (const q of earlier) { const a = Pj(q.N.x.map(v => v.toNumber())); top += star(a[0], a[1], 7, "#cfe0c8", C_OPT); }
+  if (best) { const a = Pj(best.N.x.map(v => v.toNumber())); top += star(a[0], a[1], 9.5, C_OPT, "#1f4a16"); }
+  if (sh && sh.sol !== undefined && sh.sol <= s && sh.N.status === "optimal") { const a = Pj(sh.N.x.map(v => v.toNumber())); top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="6" fill="' + C_LP + '" stroke="#5a120c" stroke-width="1.5"/>'; }
+  const note = '<text class="sv-small" x="' + (W - 10) + '" y="' + (H - 8) + '" style="text-anchor:end">' + (W < 620 ? "drag · pinch to zoom" : "drag to rotate · wheel or pinch to zoom · double-click to reset") + "</text>";
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.innerHTML = "<defs>" + ARROWDEFS2 + "</defs>" + back + dots + front + edges + top + note;
+}
+
+/* ---------- the picture: a graph ---------- */
+function renderGBB() {
+  const I = BB.inst, g = I.g, s = BB.cur, svg = el("bSvg"), W = Math.max(320, el("bWrap").clientWidth), H = BB.H, R = clamp(Math.min(W, H) / 16, 14, 21);
+  const xs = g.pos.map(p => p[0]), ys = g.pos.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const pad = R * 2.6, sc = Math.min((W - 2 * pad) / Math.max(1e-9, x1 - x0), (H - 2 * pad) / Math.max(1e-9, y1 - y0)), v = BB.gview;
+  const P = p => [W / 2 + ((p[0] - (x0 + x1) / 2) * sc) * v.z + v.dx, H / 2 + ((p[1] - (y0 + y1) / 2) * sc) * v.z + v.dy];
+  BB.gP = P;
+  const sh = shownNode(), solved = sh && sh.sol !== undefined && sh.sol <= s && sh.N.status === "optimal", xv = solved ? sh.N.x : null;
+  const box = sh ? nodeBox(sh) : null, { best } = bestAt(s), bx = best ? best.N.x : null, vc = I.problem === "vc";
+  const st = BB.steps[s], waiting = st && st.wait;
+  let E = "", Vs = "", labs = "";
+  for (const [u, w] of g.edges) { const a = P(g.pos[u]), b = P(g.pos[w]); E += '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="#6b675c" stroke-width="1.6"/>'; }
+  for (let i = 0; i < g.V; i++) {
+    const [x, y] = P(g.pos[i]), fix0 = box && box.hi[i] <= 0, fix1 = box && box.lo[i] >= 1;
+    if (bx && bx[i].isInt() && Number(bx[i].p) === 1) Vs += '<circle cx="' + f1(x) + '" cy="' + f1(y) + '" r="' + f1(R + 5) + '" fill="none" stroke="' + C_OPT + '" stroke-width="3"/>';
+    Vs += '<circle cx="' + f1(x) + '" cy="' + f1(y) + '" r="' + f1(R) + '" fill="' + (fix1 ? "#38362e" : "var(--wi-panel-2)") + '" stroke="#38362e" stroke-width="1.4"/>';
+    if (xv && !fix1) { const f = xv[i].toNumber(); if (f > 1e-9) Vs += piePath(x, y, R - 1, f) + ' fill="' + C_LP + '" fill-opacity=".8"/>'; }
+    if (fix0) Vs += '<path d="M' + f1(x - R * .62) + "," + f1(y - R * .62) + "L" + f1(x + R * .62) + "," + f1(y + R * .62) + "M" + f1(x + R * .62) + "," + f1(y - R * .62) + "L" + f1(x - R * .62) + "," + f1(y + R * .62) + '" stroke="#6b675c" stroke-width="2"/>';
+    Vs += '<text class="sv-vno" x="' + f1(x) + '" y="' + f1(y) + '" style="paint-order:stroke;stroke:' + (fix1 ? "#38362e" : "var(--wi-panel-2)") + ";stroke-width:3.5px" + (fix1 ? ";fill:#fff" : "") + '">' + i + "</text>";
+    if (xv) labs += mathAt(fracT(xv[i]), x + R + 4, y - R + 2, 15, "start", C_LP, fracP(xv[i])).svg;
+    if (waiting && xv && sh.N.frac.includes(i)) Vs += '<circle class="hit pickvx" data-i="' + i + '" cx="' + f1(x) + '" cy="' + f1(y) + '" r="' + f1(R + 4) + '" fill="transparent" stroke="' + C_OBJ + '" stroke-width="2.4" stroke-dasharray="4 3"/>';
+  }
+  const note = '<text class="sv-small" x="' + (W - 10) + '" y="' + (H - 8) + '" style="text-anchor:end">' + (waiting ? "click a dashed vertex to branch on it" : W < 620 ? "drag · pinch to zoom" : "drag to move · wheel or pinch to zoom · double-click to reset") + "</text>";
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.innerHTML = E + Vs + labs + note;
+}
+
+/* ---------- render ---------- */
+function bbLegend() {
+  const I = BB.inst, it = (svg, t) => '<span class="item">' + svg + t + "</span>";
+  const sw = (c, o, dash) => '<svg width="24" height="12"><rect x="1" y="1" width="22" height="10" rx="2" fill="' + c + '" fill-opacity="' + o + '" stroke="' + c + '"' + (dash ? ' stroke-dasharray="3 2"' : "") + "/></svg>";
+  const stS = '<svg width="18" height="18">' + star(9, 9, 8, C_OPT, "#1f4a16") + "</svg>", lp = '<svg width="16" height="16"><circle cx="8" cy="8" r="5.5" fill="' + C_LP + '" stroke="#5a120c" stroke-width="1.4"/></svg>';
+  if (I.kind === "graph")
+    return it(lp.replace('r="5.5"', 'r="6"'), "LP value " + M("x^*_v") + " of the node (filled share)") + it('<svg width="16" height="16"><circle cx="8" cy="8" r="6.5" fill="#38362e"/></svg>', "fixed to " + M("1")) +
+           it('<svg width="16" height="16"><circle cx="8" cy="8" r="6.5" fill="var(--wi-panel-2)" stroke="#38362e"/><path d="M4,4L12,12M12,4L4,12" stroke="#6b675c" stroke-width="1.6"/></svg>', "fixed to " + M("0")) +
+           it('<svg width="18" height="18"><circle cx="9" cy="9" r="7" fill="none" stroke="' + C_OPT + '" stroke-width="2.4"/></svg>', "best solution so far");
+  if (I.d > 3) return "";
+  return it(sw(C_OBJ, 0.3), "current node") + it(sw("#2c5aa0", 0.12, true), "open") + it(sw("#8b8779", 0.28), "pruned") + it(sw(C_OPT, 0.25), "solution") +
+         (I.d === 2 ? it('<svg width="24" height="12"><rect x="1" y="1" width="22" height="10" fill="url(#bStripL)" stroke="#8b8779" stroke-dasharray="3 3"/><defs><pattern id="bStripL" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#b6b1a1" stroke-width="1.5"/></pattern></defs></svg>', "cut out by branching") : "") +
+         it(lp, M("\\mathbf x^*") + " of the node") + it(stS, "best solution so far");
+}
+function renderBB() {
+  if (!BB.inst || !BB.steps.length) return;
+  const I = BB.inst, s = BB.cur, st = BB.steps[s];
+  if (I.kind === "graph") renderGBB();
+  else if (I.d === 2) render2BB();
+  else if (I.d === 3) render3BB();
+  else { const svg = el("bSvg"), W = Math.max(320, el("bWrap").clientWidth), H = 120; svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H); svg.innerHTML = '<text class="sv-note" x="' + W / 2 + '" y="64" text-anchor="middle">' + I.d + " variables: no picture — the tree and the node panel tell the story.</text>"; }
+  renderTree();
+  /* the bar */
+  const bd = boundAt(s), { best, earlier } = bestAt(s), max = I.sense === "max";
+  drawBar(el("bBarSvg"), el("bBarWrap"), { sense: I.sense, lo: BB.range[0], hi: BB.range[1], lp: bd.z === null ? null : bbTv(bd.z), round: I.intObj, lpTex: "\\text{bound}", lpPlain: "bound",
+    best: best ? bbTv(best.N.z).toNumber() : null, bestLabel: "best so far", earlier: earlier.map(q => bbTv(q.N.z).toNumber()), opt: null, optShown: false,
+    words: { out: ["ruled out by the LP bounds", "ruled out", ""], worse: ["not better than the best", "not better", ""] } });
+  /* texts */
+  const key = s + "|" + BB.steps.length + "|" + BB.hover + "|" + (BB.inst.key);
+  if (BB._drawn !== key) {
+    BB._drawn = key;
+    setMath(el("bStatus"), bbStatus(s));
+    setMath(el("bNode"), bbNodePanel(s));
+    el("bPhase").textContent = { init: "start", select: "line 4", solve: "line 5", infeasible: "pruned", bound: "pruned", incumbent: "solution", choose: st.wait ? "your choice" : "branch", split: "branch", done: "done", stopped: "stopped", stoppedU: "stopped", unbounded: "unbounded" }[st.kind];
+  }
+  el("bCode").querySelectorAll(".cline").forEach(c => c.classList.toggle("on", st.lines.includes(+c.dataset.ln)));
+  el("bScrub").value = stepToPx(s);
+  el("bNo").textContent = (s + 1) + " / " + BB.steps.length;
+  BB.groups.forEach((g, i) => {
+    const b = el("bBar").children[i]; if (!b) return;
+    const fr = s > g.to ? 1 : s < g.from ? 0 : (s - g.from + 1) / (g.to - g.from + 1);
+    b.classList.toggle("on", s >= g.from && s <= g.to); b.classList.toggle("past", s > g.to);
+    const f = b.querySelector(".fill"); f.style.width = (100 * fr) + "%"; f.classList.toggle("empty", fr === 0);
+  });
+  el("bMeta").textContent = I.title + (I.kind === "lp" && I.d === 3 ? " · 3D" : "");
+  if (BB._legKey !== I.kind + I.d) { BB._legKey = I.kind + I.d; setMath(el("bLegend"), bbLegend()); }
+  writeHash();
+}
+function bbRefreshCode() {
+  el("bCode").innerHTML = bbCode().map(([ind, html], i) => '<div class="cline" data-ln="' + (i + 1) + '"><span class="ln">' + (i + 1) + '</span><span class="tx" style="padding-left:' + (ind * 1.3) + 'em">' + html + "</span></div>").join("");
+  mjInPlace([el("bCode")]);
+  setMath(el("bCodeNote"), bbCodeNote());
+  el("bRound").disabled = !BB.inst.intObj;
+  el("bRoundLab").classList.toggle("dis", !BB.inst.intObj);
+  el("bRoundLab").title = BB.inst.intObj ? "Line 7 compares the rounded LP value: grid points have integer objective values" : "Only for integer objective coefficients";
+  el("bOrder").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.o === BB.opt.order));
+  el("bVar").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === BB.opt.varRule));
+  el("bRound").checked = BB.opt.round;
+  el("bProbSeg").classList.toggle("hidden", BB.inst.kind !== "graph");
+  const is3 = BB.inst.kind === "lp" && BB.inst.d === 3;
+  el("bSpin").classList.toggle("hidden", !is3); el("bGrid3Lab").classList.toggle("hidden", !is3);
+  if (BB.inst.kind === "graph") el("bProbSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.p === BB.inst.problem));
+}
+function bbSetInstance(sel, problem) {
+  BB.pick = {}; BB.hover = null; BB.cur = 0;
+  if (sel.startsWith("lp:")) {
+    const key = sel.slice(3), p = LAT_PRESETS[key];
+    bbLoadLP(key, parseLP(p.sliver ? sliverText(G2.k || 4) : p.text));
+  } else if (sel.startsWith("g:")) {
+    const key = sel.slice(2), g = graphPreset(key, P1.n);
+    bbLoadGraph(key, g, problem || (BB.inst && BB.inst.kind === "graph" ? BB.inst.problem : "vc"));
+  }
+  el("bInst").value = sel;
+  bbRecord(); bbRefreshCode();
+}
+function bbFromProve() {
+  BB.pick = {}; BB.hover = null; BB.cur = 0;
+  const g = { V: P1.V, edges: P1.edges.map(e => e.slice()), pos: P1.pos.map(p => p.slice()), title: P1.title };
+  const key = P1.custom ? "custom" : P1.key === "kn" ? "kn" : P1.key;
+  bbLoadGraph(key, g, P1.problem);
+  if (GRAPHS[key] && key !== "kn") el("bInst").value = "g:" + key; else { BB.inst.key = "custom"; BB.inst.src = graphToText(g, P1.problem); el("bInst").value = "custom"; }
+  bbRecord(); bbRefreshCode();
+  setMode("bb");
+}
+function bbCurrentText() {
+  const I = BB.inst;
+  if (I.kind === "graph") return graphToText(I.g, I.problem);
+  return I.lp.src || "";
+}
+
+/* ---------- pointer ---------- */
+function initBBPointer() {
+  const svg = el("bSvg"), touches = new Map();
+  let drag = null;
+  const local = e => { const r = svg.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const zoomAt = (f, px, py, base) => {
+    const I = BB.inst;
+    if (I.kind === "graph") { const v = base || BB.gview, W = svg.clientWidth, H = BB.H, z = clamp(v.z / f, 0.3, 6), k = z / v.z;
+      BB.gview = { z, dx: (v.dx - (px - W / 2)) * k + (px - W / 2), dy: (v.dy - (py - H / 2)) * k + (py - H / 2) }; }
+    else if (I.d === 2) { const E = viewEff(BB.view2, svg.clientWidth, BB.H), v = base || BB.view2, w = [E.lo[0] + (px - PAD2.l) / E.k, E.lo[1] + (BB.H - PAD2.b - py) / E.k];
+      BB.view2 = { lo: v.lo.map((x, i) => w[i] + (x - w[i]) * f), hi: v.hi.map((x, i) => w[i] + (x - w[i]) * f) }; }
+    else if (I.d === 3) BB.zoom3 = clamp((base ? base.z3 : BB.zoom3) / f, 0.25, 8);
+    renderBB();
+  };
+  BB.zoomAt = zoomAt;
+  svg.addEventListener("wheel", e => { e.preventDefault(); const [x, y] = local(e); const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1) * (e.ctrlKey ? 2.5 : 1); zoomAt(Math.exp(clamp(dy, -300, 300) * 0.0015), x, y); }, { passive: false });
+  svg.addEventListener("dblclick", e => { e.preventDefault(); bbResetView(); });
+  svg.addEventListener("pointerdown", e => {
+    if (e.pointerType === "touch") touches.set(e.pointerId, local(e));
+    const I = BB.inst;
+    if (touches.size === 2) { const [a, b] = [...touches.values()]; drag = { kind: "pinch", d0: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
+      base: I.kind === "graph" ? Object.assign({}, BB.gview) : I.d === 2 ? { lo: BB.view2.lo.slice(), hi: BB.view2.hi.slice() } : { z3: BB.zoom3 } }; return; }
+    if (e.button !== 0) return;
+    const t = e.target;
+    if (t.classList && t.classList.contains("pickvx")) { bbPick(+t.dataset.i); return; }
+    const [x, y] = local(e);
+    BB.dragging = I.kind === "lp" && I.d === 3;
+    drag = { x, y, moved: false, v2: BB.view2 && { lo: BB.view2.lo.slice(), hi: BB.view2.hi.slice() }, gv: Object.assign({}, BB.gview), yaw: BB.yaw, pitch: BB.pitch };
+    svg.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  svg.addEventListener("pointermove", e => {
+    const [x, y] = local(e);
+    if (touches.has(e.pointerId)) touches.set(e.pointerId, [x, y]);
+    if (!drag) {
+      const t = e.target, nid = t.classList && t.classList.contains("nreg") ? +t.dataset.nid : null;
+      if (nid !== BB.hover && (nid !== null || BB.hover !== null)) { BB.hover = nid; renderBB(); }
+      return;
+    }
+    const I = BB.inst;
+    if (drag.kind === "pinch") { if (touches.size < 2) return; const [a, b] = [...touches.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]) || 1; zoomAt(drag.d0 / d, drag.mid[0], drag.mid[1], drag.base); return; }
+    if (!drag.moved && Math.hypot(x - drag.x, y - drag.y) < 4) return;
+    drag.moved = true;
+    if (I.kind === "graph") BB.gview = { z: drag.gv.z, dx: drag.gv.dx + x - drag.x, dy: drag.gv.dy + y - drag.y };
+    else if (I.d === 2) { const k = BB.E2.k, dx = (x - drag.x) / k, dy = (y - drag.y) / k; BB.view2 = { lo: [drag.v2.lo[0] - dx, drag.v2.lo[1] + dy], hi: [drag.v2.hi[0] - dx, drag.v2.hi[1] + dy] }; }
+    else if (I.d === 3) { BB.yaw = drag.yaw - (x - drag.x) * 0.5; BB.pitch = clamp(drag.pitch + (y - drag.y) * 0.5, -85, 85); }
+    renderBB();
+  });
+  const end = e => { touches.delete(e.pointerId); BB.dragging = false; if (drag && drag.kind === "pinch" && touches.size >= 2) return; drag = null; };
+  svg.addEventListener("pointerup", end); svg.addEventListener("pointercancel", end);
+  svg.addEventListener("pointerleave", () => { if (!drag && BB.hover !== null) { BB.hover = null; renderBB(); } });
+  /* the tree: hover and click */
+  const tr = el("bTree");
+  tr.addEventListener("pointermove", e => {
+    const t = e.target, nid = t.classList && t.classList.contains("tnode") ? +t.dataset.nid : null;
+    if (nid !== null) {
+      const nd = BB.nodes.get(nid), N = nd.N, solved = nd.sol !== undefined && nd.sol <= BB.cur;
+      tipShow(e, '<div class="tt-h">' + (nd.sel !== undefined && nd.sel <= BB.cur ? "node " + procNo(nd) : "open node") + "</div><div>" +
+        (pathBounds(nd).map(b => esc(BB.inst.vars[b.i] + (b.dir === "<=" ? " ≤ " : " ≥ ") + numP(b.k))).join(", ") || "the root") + "<br>" +
+        (solved ? (N.status === "optimal" ? "x* = (" + N.x.map(v => numP(v)).join(", ") + "), z* = " + numP(bbTv(N.z)) : N.status) : "not solved yet") + "<br>click: go to this node</div>");
+    } else tipHide();
+    if (nid !== BB.hover) { BB.hover = nid; renderBB(); }
+  });
+  tr.addEventListener("pointerleave", () => { tipHide(); if (BB.hover !== null) { BB.hover = null; renderBB(); } });
+  tr.addEventListener("click", e => {
+    const t = e.target; if (!(t.classList && t.classList.contains("tnode"))) return;
+    const nd = BB.nodes.get(+t.dataset.nid);
+    bbStop(); BB.hover = null; tipHide();
+    bbGoto(nd.sol !== undefined ? nd.sol : nd.created !== undefined ? nd.created : 0);
+  });
+  el("bNode").addEventListener("click", e => { const b = e.target.closest(".pickv"); if (b) bbPick(+b.dataset.i); });
+}
+function bbResetView() {
+  const I = BB.inst;
+  if (I.kind === "graph") BB.gview = { z: 1, dx: 0, dy: 0 };
+  else if (I.d === 2) BB.view2 = baseView2(I.lp);
+  else if (I.d === 3) { BB.view3 = baseView2(I.lp); BB.yaw = 215; BB.pitch = 22; BB.zoom3 = 1; }
+  renderBB();
+}
+
+const BB_EXPLAIN =
+  "<h4>The idea</h4><p>The LP relaxation gives a bound, but its optimum " + M("\\mathbf x^*") + " is usually fractional. Branch and bound splits the problem on a fractional variable " +
+  M("x_i") + ": every grid point has " + M("x_i \\le \\lfloor x^*_i\\rfloor") + " or " + M("x_i \\ge \\lceil x^*_i\\rceil") + ", so the two children together keep all grid points, " +
+  "but neither contains " + M("\\mathbf x^*") + ". Each child is again an LP, with a weaker (or equal) bound.</p>" +
+  "<h4>Pruning</h4><p>A node needs no further work if its LP is infeasible, if its LP optimum is integral (a solution — no grid point in the node is better), " +
+  "or if its LP value is not better than the best solution found so far: then no grid point in the node can be better either. The last rule is where good bounds pay off.</p>" +
+  "<h4>The proof</h4><p>When the open list is empty, the tree is a certificate of optimality: its leaves cover all grid points, and each leaf has been ruled out or holds the best solution. " +
+  "The bar below the tree shows the two sides closing in: the best solution so far, and the best LP value among the nodes still open.</p>" +
+  "<h4>The order</h4><p>Depth first finds solutions early and keeps the open list short; best bound first raises the bound fastest. Neither avoids exponentially large trees: " +
+  "for " + M("\\min x_{n+1}") + " subject to " + M("2x_1+\\dots+2x_n+x_{n+1} = n") + " with " + M("x \\in \\{0,1\\}^{n+1}") + " and " + M("n") + " odd, every branch-and-bound tree of this kind " +
+  "has at least " + M("2^{(n+1)/2}") + " nodes (Jeroslow). That integer programming is NP-hard says more: no method at all is expected to run in polynomial time.</p>" +
+  "<h4>Branch and cut</h4><p>This page shows plain branch and bound. Branch and cut adds <i>cutting planes</i> to the LP of a node before branching: inequalities that hold for every grid point " +
+  "but cut off the fractional " + M("\\mathbf x^*") + " (as the cuts of the tab “Lattice and gap”). Better LP bounds prune earlier, and the trees get much smaller; practical solvers combine both.</p>";
+
+function initBB() {
+  const lpOpts = BB_LP_KEYS.map(k => '<option value="lp:' + k + '">' + esc(LAT_PRESETS[k].name) + "</option>").join("");
+  const gOpts = Object.entries(GRAPHS).filter(([k]) => k !== "kn").map(([k, g]) => '<option value="g:' + k + '">' + esc(g.name) + "</option>").join("");
+  el("bInst").innerHTML = '<optgroup label="Linear programs">' + lpOpts + '</optgroup><optgroup label="Graphs">' + gOpts + '</optgroup><option value="custom">custom (from the text box or the first tab)</option>';
+  el("bInst").onchange = () => { const v = el("bInst").value; if (v === "custom") return; bbStop(); bbSetInstance(v); renderBB(); };
+  el("bProbSeg").querySelectorAll("button").forEach(b => b.onclick = () => {
+    const I = BB.inst; if (I.kind !== "graph" || I.problem === b.dataset.p) return;
+    bbStop(); BB.pick = {}; BB.cur = 0; bbLoadGraph(I.key, I.g, b.dataset.p); BB.inst.src = I.src; bbRecord(); bbRefreshCode(); renderBB();
+  });
+  el("bOrder").querySelectorAll("button").forEach(b => b.onclick = () => { BB.opt.order = b.dataset.o; BB.pick = {}; bbRefreshCode(); bbReRecord(false); });
+  el("bVar").querySelectorAll("button").forEach(b => b.onclick = () => { BB.opt.varRule = b.dataset.v; BB.pick = {}; bbRefreshCode(); bbReRecord(false); });
+  el("bRound").onchange = () => { BB.opt.round = el("bRound").checked; bbRefreshCode(); bbReRecord(true); };
+  el("bReset").onclick = () => { bbStop(); bbGoto(0); };
+  el("bBack").onclick = () => { bbStop(); bbGoto(BB.cur - 1); };
+  el("bFwd").onclick = () => { bbStop(); bbGoto(BB.cur + 1); };
+  el("bPlay").onclick = bbPlay;
+  el("bScrub").oninput = () => { bbStop(); bbGoto(pxToStep(+el("bScrub").value)); };
+  el("bZoomIn").onclick = () => { const svg = el("bSvg"); BB.zoomAt(1 / 1.25, svg.clientWidth / 2, BB.H / 2); };
+  el("bZoomOut").onclick = () => { const svg = el("bSvg"); BB.zoomAt(1.25, svg.clientWidth / 2, BB.H / 2); };
+  el("bResetV").onclick = bbResetView;
+  el("bSpin").onclick = () => spinToggle(BB, el("bSpin"), () => MODE === "bb" && BB.inst.kind === "lp" && BB.inst.d === 3, renderBB);
+  el("bGrid3").onchange = () => { BB.grid3 = el("bGrid3").checked; renderBB(); };
+  initBBPointer();
+  initSplit(BB, "bSplit", "stageBB", "bVH", renderBB);
+  setMath(el("bExplain"), BB_EXPLAIN);
+  let rz = null;
+  window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { if (BB.steps.length && Math.abs((el("bBar").clientWidth || 0) - (BB._barW || 0)) > 1) { bbBuildBar(); if (MODE === "bb") renderBB(); } }, 90); });
+  bbSetInstance("lp:slide");
+}
+
+/* ==========================================================================
    Tabs, presentation view, splitters, address, text input, start
    ========================================================================== */
 let MODE = "prove";
-function render() { if (MODE === "prove") renderProve(); else if (MODE === "lattice") renderLat(); }
+function render() { if (MODE === "prove") renderProve(); else if (MODE === "lattice") renderLat(); else if (MODE === "bb") { if (BB.steps.length && Math.abs((el("bBar").clientWidth || 0) - (BB._barW || 0)) > 1) bbBuildBar(); renderBB(); } }
 function setMode(m) {
   if (m !== "prove") stopSearch();
   if (m !== "lattice") stopSweep2();
+  if (m !== "bb") bbStop();
   MODE = m;
   el("modeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
   for (const [id, mm] of [["tabProve", "prove"], ["tabLattice", "lattice"], ["tabBB", "bb"]]) el(id).classList.toggle("hidden", mm !== m);
   render(); writeHash();
+  if (m === "bb") setTimeout(bbPrerender, 60);
 }
 function setPresent(on) {
   document.body.classList.toggle("present", on);
@@ -2743,7 +3749,7 @@ function writeHash() {
   if (MODE === "prove") {
     if (P1.custom) h.push("src=" + encodeURIComponent(graphToText({ V: P1.V, edges: P1.edges, pos: P1.pos, title: P1.title }, P1.problem)));
     else {
-      if (P1.key !== "cycle5") h.push("g=" + P1.key);
+      if (P1.key !== "hubtri") h.push("g=" + P1.key);
       if (P1.key === "kn") h.push("n=" + P1.n);
       if (P1.problem !== "vc") h.push("problem=" + P1.problem);
     }
@@ -2756,6 +3762,18 @@ function writeHash() {
       if (G2.lp.c.join(",") !== G2.c0) h.push("c=" + G2.lp.c.join(","));
       if (G2.on.join("") !== G2.on0) h.push("on=" + G2.on.map(x => x ? 1 : 0).join(""));
     }
+  }
+  if (MODE === "bb" && BB.inst) {
+    const I = BB.inst;
+    if (I.key === "custom") h.push("src=" + encodeURIComponent(bbCurrentText()));
+    else if (I.kind === "lp") { if (I.key !== "slide") h.push("lp=" + I.key); }
+    else h.push("g=" + I.key);
+    if (I.kind === "graph" && I.problem !== "vc") h.push("problem=" + I.problem);
+    const defOrder = I.kind === "lp" && I.lp.explore === "up" ? "up" : "down";
+    if (BB.opt.order !== defOrder) h.push("order=" + BB.opt.order);
+    if (BB.opt.varRule !== "first") h.push("var=" + BB.opt.varRule);
+    if (BB.opt.round) h.push("round");
+    if (BB.cur) h.push("step=" + (BB.cur + 1));
   }
   if (document.body.classList.contains("present")) h.push("present");
   const s = h.length ? "#" + h.join("&") : location.pathname + location.search;
@@ -2783,8 +3801,24 @@ function readHash() {
     }
     if (q.get("src")) ok = true;   /* the src was an LP: the graph stays the default */
   }
-  if (!ok || MODE === "lattice") {
-    const key = GRAPHS[q.get("g")] ? q.get("g") : "cycle5";
+  if (MODE === "bb") {
+    try {
+      if (q.get("src")) {
+        const t = q.get("src");
+        if (isLPText(t)) bbLoadLP("custom", parseLP(t)); else { const g = parseGraphText(t); if (!g.pos) g.pos = poly(g.V); bbLoadGraph("custom", g, g.problem || (q.get("problem") === "is" ? "is" : "vc")); }
+        BB.inst.key = "custom"; BB.inst.src = t; el("bInst").value = "custom";
+      } else if (q.get("g") && GRAPHS[q.get("g")] && q.get("g") !== "kn") { BB.inst = null; bbLoadGraph(q.get("g"), graphPreset(q.get("g"), P1.n), q.get("problem") === "is" ? "is" : "vc"); el("bInst").value = "g:" + q.get("g"); }
+      else if (LAT_PRESETS[q.get("lp")]) { const p = LAT_PRESETS[q.get("lp")]; bbLoadLP(q.get("lp"), parseLP(p.sliver ? sliverText(G2.k) : p.text)); el("bInst").value = "lp:" + q.get("lp"); }
+      if (["down", "up", "best"].includes(q.get("order"))) BB.opt.order = q.get("order");
+      if (["first", "most", "pick"].includes(q.get("var"))) BB.opt.varRule = q.get("var");
+      BB.opt.round = q.has("round") && BB.inst.intObj;
+      BB.pick = {}; BB.cur = 0; bbRecord(); bbRefreshCode();
+      BB.cur = clamp((parseInt(q.get("step"), 10) || 1) - 1, 0, BB.steps.length - 1);
+    } catch (e) { /* a broken link: keep the default */ }
+    ok = true;
+  }
+  if (!ok || MODE === "lattice" || MODE === "bb") {
+    const key = GRAPHS[q.get("g")] ? q.get("g") : "hubtri";
     applyGraphPreset(key, clamp(parseInt(q.get("n"), 10) || 6, 3, 10));
   }
   return q.has("present");
@@ -2797,7 +3831,7 @@ function loadCustomGraph(g) {
 }
 
 const FORMAT_HINT =
-  "<b>A graph</b> (for the tab “Prove it optimal”), in the format of the algs4 <code>Graph</code> class: the number of vertices <code>V</code>, " +
+  "<b>A graph</b> (for the tabs “Prove it optimal” and “Branch and bound”), in the format of the algs4 <code>Graph</code> class: the number of vertices <code>V</code>, " +
   "the number of edges <code>E</code>, then <code>E</code> lines <code>v w</code> with vertices <code>0 … V−1</code>. " +
   "Optionally exactly <code>V</code> more lines <code>x y</code> with coordinates (any scale; <i>y</i> grows downwards), otherwise the vertices are placed on a circle. " +
   "An optional first line <code>problem vc</code> (Vertex Cover) or <code>problem is</code> (Independent Set), and <code>title …</code>. " +
@@ -2805,7 +3839,7 @@ const FORMAT_HINT =
   "<br><br><b>A linear program</b> (for the other two tabs): <code>vars x y</code>, <code>max 2x + 3y</code> or <code>min …</code>, then one constraint per line, e.g. " +
   "<code>4x + 4y &lt;= 50 | Orchard | red</code> (name and colour optional). All variables are non-negative. <code>int x</code> declares which variables are integral " +
   "(default: all), the flag <code>cut</code> after <code>|</code> marks a cutting plane (it starts switched off), <code>view x0 x1 y0 y1</code> sets the window." +
-  "<br><br>The address keeps the state: e.g. <code>#g=k4&amp;problem=is</code>, <code>#g=kn&amp;n=8</code>, <code>&amp;present</code> for the presentation view.";
+  "<br><br>The address keeps the state: e.g. <code>#g=k4&amp;problem=is</code>, <code>#g=kn&amp;n=8</code>, <code>#bb&amp;lp=big3&amp;order=best&amp;step=13</code>, <code>&amp;present</code> for the presentation view.";
 
 function init() {
   el("gPreset").innerHTML = Object.entries(GRAPHS).map(([k, g]) => '<option value="' + k + '">' + esc(g.name) + "</option>").join("") +
@@ -2823,6 +3857,12 @@ function init() {
   el("loadBtn").onclick = () => {
     const txt = el("inputText").value;
     try {
+      if (MODE === "bb") {
+        if (isLPText(txt)) { const lp = parseLP(txt); if (lp.vars.length > 12) throw new Error("at most 12 variables, please"); bbLoadLP("custom", lp); }
+        else { const g = parseGraphText(txt); if (!g.pos) g.pos = poly(g.V); bbLoadGraph("custom", g, g.problem || "vc"); }
+        BB.inst.key = "custom"; BB.inst.src = txt; el("bInst").value = "custom"; BB.pick = {}; BB.cur = 0; bbRecord(); bbRefreshCode();
+        el("parseErr").textContent = ""; renderBB(); writeHash(); setTimeout(bbPrerender, 60); return;
+      }
       if (isLPText(txt)) {
         const lp = parseLP(txt);
         if (lp.vars.length < 2 || lp.vars.length > 3) throw new Error("two or three variables, please: the region is drawn");
@@ -2837,13 +3877,20 @@ function init() {
       writeHash();
     } catch (e) { el("parseErr").textContent = e.message; }
   };
-  el("curBtn").onclick = () => { el("inputText").value = MODE === "lattice" ? latText() : graphToText({ V: P1.V, edges: P1.edges, pos: P1.pos, title: P1.title }, P1.problem); };
+  el("curBtn").onclick = () => { el("inputText").value = MODE === "bb" ? bbCurrentText() : MODE === "lattice" ? latText() : graphToText({ V: P1.V, edges: P1.edges, pos: P1.pos, title: P1.title }, P1.problem); };
   el("formatHint").innerHTML = FORMAT_HINT;
   document.addEventListener("keydown", e => {
     if (e.target.closest && e.target.closest("input[type=text], input[type=number], textarea, select")) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === "Escape" && document.body.classList.contains("present")) { e.preventDefault(); setPresent(false); return; }
     if (MODE === "prove" && /^[1-4]$/.test(e.key)) { e.preventDefault(); goStage(+e.key); }
+    if (MODE === "bb" && [" ", "ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) {
+      if (e.target.closest && e.target.closest("button, input[type=range]") && e.key !== " ") return;
+      if (e.target.closest && e.target.closest("button") && e.key === " ") return;
+      e.preventDefault();
+      if (e.key === " ") bbPlay();
+      else { bbStop(); bbGoto(e.key === "Home" ? 0 : e.key === "End" ? BB.steps.length - 1 : BB.cur + (e.key === "ArrowLeft" ? -1 : 1)); }
+    }
     if (MODE === "lattice" && (e.key === " " || e.key === "End" || e.key === "Home")) {
       if (e.target.closest && e.target.closest("button")) return;
       e.preventDefault();
@@ -2857,9 +3904,10 @@ function init() {
   setMath(el("pExplain"), PROVE_EXPLAIN);
   initLat();
   applyLatPreset("slide");
+  initBB();
 
   const present = readHash();
-  el("inputText").value = MODE === "lattice" ? latText() : graphToText({ V: P1.V, edges: P1.edges, pos: P1.pos, title: P1.title }, P1.problem);
+  el("inputText").value = MODE === "bb" ? bbCurrentText() : MODE === "lattice" ? latText() : graphToText({ V: P1.V, edges: P1.edges, pos: P1.pos, title: P1.title }, P1.problem);
   if (present) document.body.classList.add("present");
   setMode(MODE);
   const hook = () => {
@@ -2867,8 +3915,10 @@ function init() {
     MathJax.startup.promise.then(() => {
       mjInPlace([...document.querySelectorAll(".subtitle, .placeholder, .zlab")]);
       el("lCons")._sig = null;
-      for (const id of ["pStatus", "pForm", "gLegend", "pExplain", "lStatus", "lReadout", "lCons", "lLegend", "lExplain"]) { const nd = el(id); const w = nd._want; nd._shown = null; nd._queued = false; if (w) setMath(nd, w); }
+      bbRefreshCode(); BB._drawn = null; BB._legKey = null;
+      for (const id of ["pStatus", "pForm", "gLegend", "pExplain", "lStatus", "lReadout", "lCons", "lLegend", "lExplain", "bStatus", "bNode", "bExplain", "bCodeNote", "bLegend"]) { const nd = el(id); const w = nd._want; nd._shown = null; nd._queued = false; if (w) setMath(nd, w); }
       render();
+      if (MODE === "bb") bbPrerender();
     }).catch(() => {});
   };
   if (document.readyState === "complete") hook(); else window.addEventListener("load", hook);

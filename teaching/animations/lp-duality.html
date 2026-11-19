@@ -1,0 +1,2202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dual linear programs · bounds from multipliers</title>
+<script>
+  /* MathJax: TeX in \( \), Euler letters, SVG output (also used for the labels inside the drawings) */
+  window.MathJax = {
+    tex: { inlineMath: [["\\(", "\\)"]] },
+    svg: { fontCache: "none", mtextInheritFont: true },
+    output: { linebreaks: { inline: false } },
+    options: { enableMenu: false },
+    startup: { typeset: false }
+  };
+</script>
+<script src="/assets/mathjax/wi-mathjax.js" data-output="svg"></script>
+<script defer src="/assets/mathjax/v4/tex-svg.js"></script>
+<style>
+  /* Same token values as /css/animations.css, repeated so the page also works when opened directly. */
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#9c866d;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, "TeX Gyre Pagella", Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-font-mono:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    /* page tints: the feasible region purple as on the slides (purple!20, border purple!50), the objective orange */
+    --t-region:#e6d3e3; --t-region-line:#9a6a96; --t-obj:#e07b10; --t-obj-dark:#a85808;
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .wi-topbar { display:flex; align-items:baseline; justify-content:space-between; gap:1em; flex-wrap:wrap;
+               margin:0 0 1.1em; padding-bottom:.5em; border-bottom:1px solid var(--wi-border);
+               font-family:var(--wi-font-head); letter-spacing:.03em; }
+  .wi-topbar .wi-home { color:var(--wi-ink-strong); font-size:1.05em; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:14px 22px; flex-wrap:wrap; margin:0 0 6px; }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 14px; max-width:100ch; line-height:1.5; }
+
+  /* --- chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:11px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .lbl, .ctl > label:not(.chk) { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer; line-height:1.35;
+           transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text; font-size:1.02rem; line-height:1.1;
+                padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  .seg { display:inline-flex; flex-wrap:wrap; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  .seg button.on:hover:not(:disabled) { background:var(--wi-accent-dark); color:var(--wi-panel-2); }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+  .hidden { display:none !important; }
+
+  /* --- stage --- */
+  .stage { display:grid; grid-template-columns:minmax(0, var(--lf, 60fr)) 18px minmax(330px, var(--rf, 40fr)); gap:0; align-items:start; }
+  @media (max-width:980px) { .stage { grid-template-columns:1fr; gap:16px; } .splitter { display:none !important; } }
+  .splitter { align-self:stretch; min-height:200px; cursor:col-resize; touch-action:none; display:flex; justify-content:center; }
+  .splitter::before { content:""; width:4px; margin:30px 0; border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .splitter:hover::before, .splitter.drag::before, .splitter:focus-visible::before { background:var(--wi-accent-soft); }
+  .splitter:focus-visible { outline:none; }
+  .col-main, .col-side { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  @media (min-width:981px) { .col-side { position:sticky; top:10px; } }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); padding:11px 13px; min-width:0; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--wi-ink-faint);
+               margin:0 0 8px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--wi-font-body); font-size:1.15em; color:var(--wi-ink-soft); }
+  svg.stagesvg { display:block; background:var(--wi-bg); border-radius:var(--wi-radius); touch-action:none; user-select:none; -webkit-user-select:none; }
+  #cvWrap { position:relative; }
+  /* the canvas height: drag the handle under the drawing */
+  .vhandle { height:14px; cursor:row-resize; touch-action:none; display:flex; align-items:center; justify-content:center; }
+  .vhandle::before { content:""; height:4px; width:64px; border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .vhandle:hover::before, .vhandle.drag::before, .vhandle:focus-visible::before { background:var(--wi-accent-soft); }
+  .vhandle:focus-visible { outline:none; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:4px; font-size:.74rem; color:var(--wi-ink-soft); align-items:center; min-height:2.4em; }
+  .legend .item { display:inline-flex; align-items:center; gap:6px; }
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius);
+            padding:9px 13px; font-size:.88rem; color:var(--wi-ink-strong); height:10.4em; overflow-y:auto; line-height:1.5; }
+  .status b { font-family:var(--wi-font-head); font-weight:normal; letter-spacing:.04em; color:var(--wi-accent); }
+  .status .good { color:var(--wi-relax); }
+  .about { font-size:.82rem; line-height:1.55; color:var(--wi-ink-soft); }
+  .about p { margin:0 0 6px; }
+  .about b { color:var(--wi-ink-strong); font-family:var(--wi-font-head); font-weight:normal; letter-spacing:.04em; font-size:.92em; }
+  mjx-container[jax="SVG"] { color:inherit; }
+  .mj-buf  { position:absolute; left:-10000px; top:0; visibility:hidden; }
+
+  /* the objective-value slider under the drawing */
+  .zrow { display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; margin-top:4px; padding:8px 4px 2px; border-top:1px solid var(--wi-border-soft); }
+  .zrow .zlab { font-size:.95rem; white-space:nowrap; }
+  .zslide { flex:1 1 260px; display:flex; flex-direction:column; min-width:200px; }
+  .zslide .ends { display:flex; justify-content:space-between; font-size:.7rem; color:var(--wi-ink-faint); font-family:var(--wi-font-head); letter-spacing:.05em; height:1.1em; }
+  .zslide .ends .bt { color:var(--t-obj-dark); }
+  input.zr { -webkit-appearance:none; appearance:none; width:100%; height:18px; margin:0; background:transparent; cursor:pointer; }
+  input.zr::-webkit-slider-runnable-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.zr::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; box-sizing:border-box; width:16px; height:16px; margin-top:-6px;
+                border-radius:50%; background:var(--t-obj); border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--t-obj-dark); }
+  input.zr::-moz-range-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.zr::-moz-range-thumb { box-sizing:border-box; width:16px; height:16px; border-radius:50%; background:var(--t-obj);
+                border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--t-obj-dark); }
+  .zval { font-variant-numeric:tabular-nums; min-width:8.5em; text-align:left; color:var(--t-obj-dark); font-size:.95rem; white-space:nowrap; }
+
+  /* the LP and its constraints */
+  .lp-obj { font-size:.95rem; padding:0 2px 6px; border-bottom:1px solid var(--wi-border-soft); margin-bottom:4px; min-height:2em; }
+  .lp-obj .st { color:var(--wi-ink-faint); font-size:.85em; margin-left:2px; }
+  .crow { display:grid; grid-template-columns:20px 14px minmax(0,1fr) 8.6em; gap:6px; align-items:center; padding:2px 4px;
+          border-radius:3px; font-size:.9rem; cursor:pointer; border-left:3px solid transparent; }
+  .crow:hover, .crow.hot { background:#f3ebdd; }
+  .crow.off .tx { opacity:.42; text-decoration:line-through; text-decoration-color:var(--wi-ink-faint); }
+  .crow.iis { border-left-color:var(--wi-active); background:#f6e6df; }
+  .crow input { margin:0; cursor:pointer; accent-color:var(--wi-accent); }
+  .crow .sw { width:12px; height:12px; border-radius:2px; display:inline-block; }
+  .crow .tx { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .crow .nm { color:var(--wi-ink-faint); font-size:.85em; margin-left:.6em; }
+  .crow .tag { font-size:.74rem; text-align:right; color:var(--wi-ink-faint); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .crow .tag.tight { color:var(--wi-accent); font-family:var(--wi-font-head); letter-spacing:.05em; }
+  .crow .tag.bad { color:var(--wi-active); font-family:var(--wi-font-head); letter-spacing:.05em; }
+  .lp-foot { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:8px; font-size:.74rem; color:var(--wi-ink-faint); flex-wrap:wrap; }
+  .lp-foot button { padding:3px 9px; font-size:.74rem; }
+
+  /* transport: step buttons, step slider with phase bar (as on the other animation pages) */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:16px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; }
+  input.scrub { -webkit-appearance:none; appearance:none; display:block; width:100%; height:16px; margin:2px 0 0; background:transparent; cursor:pointer; }
+  input.scrub::-webkit-slider-runnable-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; box-sizing:border-box; width:16px; height:16px; margin-top:-6px; border-radius:50%; background:var(--wi-accent); border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  input.scrub::-moz-range-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-moz-range-thumb { box-sizing:border-box; width:16px; height:16px; border-radius:50%; background:var(--wi-accent); border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  .prep { font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.05em; color:var(--wi-ink-faint); white-space:nowrap; padding-top:3px; min-width:12em; }
+  .prep.ready { color:var(--wi-relax); }
+  .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint); white-space:nowrap; text-align:right; padding-top:2px; min-width:6ch; }
+  .phasebar { display:flex; margin:6px 8px 0; height:1.55rem; }
+  .phasebtn { flex:1 1 0; position:relative; overflow:hidden; padding:0; min-width:0; height:100%; font-size:.68rem; line-height:1.55rem; font-family:var(--wi-font-head);
+              letter-spacing:.02em; text-align:center; background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-left-width:0; border-radius:0;
+              color:var(--wi-ink-faint); cursor:pointer; white-space:nowrap; text-overflow:ellipsis; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3; border-right:1px solid var(--wi-accent-soft); }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+  /* code panel: the pseudocode of the slides */
+  .codebox { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  .codebox > .sim-title { padding:10px 15px 0; }
+  .codescroll { position:relative; overflow:auto; padding:0 6px 6px; }
+  .cline { display:flex; gap:10px; padding:1px 9px; font-size:.84rem; line-height:1.7; color:var(--wi-ink-strong); border-left:3px solid transparent; align-items:center; transition:opacity .2s; }
+  .cline .ln { color:var(--wi-ink-faint); min-width:1.3em; text-align:right; user-select:none; flex:none; font-size:.8em; align-self:flex-start; padding-top:.2em; }
+  .cline .tx { white-space:nowrap; }
+  .cline .cm { color:var(--wi-ink-faint); font-style:italic; }
+  .cline .tt { font-family:var(--wi-font-mono); font-size:.86em; }
+  .cline.caller { background:#f3ebdd; border-left-color:var(--wi-accent-soft); }
+  .cline.on { background:#f6e6df; border-left-color:var(--wi-active); }
+  .cline.dim { opacity:.4; }
+  .codenote { font-size:.74rem; color:var(--wi-ink-faint); padding:2px 15px 12px; line-height:1.45; }
+  /* the algebra: the dictionary of the current basis */
+  .alg { font-size:.95rem; overflow-x:auto; }
+  .alg .gen { font-size:.82rem; color:var(--wi-ink-soft); margin:0 0 4px; }
+  .alg .sets { font-size:.88rem; margin:0 0 8px; color:var(--wi-ink-strong); }
+  .alg .gnote { font-size:.78rem; color:var(--wi-ink-faint); }
+  .alg .mrow { margin:6px 0; }
+  .algflex { display:flex; flex-wrap:wrap; gap:10px 26px; align-items:flex-start; }
+  .algflex > .alg { flex:1 1 360px; min-width:0; }
+  .lpblk { flex:none; font-size:.86rem; padding:2px 16px 4px 0; border-right:1px solid var(--wi-border-soft); max-width:100%; overflow-x:auto; }
+  .lpblk .gnote { margin:0 0 3px; }
+  table.dict { border-collapse:collapse; }
+  table.dict td { padding:2px 8px; white-space:nowrap; text-align:left; border-radius:3px; }
+  table.dict td.c0 { text-align:right; }
+  table.dict td.bv { padding-left:2px; }
+  table.dict td.bv .sw { width:9px; height:9px; border-radius:2px; display:inline-block; margin-right:7px; vertical-align:1px; }
+  table.dict .dname { font-size:.72rem; color:var(--wi-ink-faint); margin-left:.5em; }
+  table.dict tr.objrow td { border-top:1.5px solid var(--wi-border); padding-top:5px; border-radius:0; }
+  table.dict td.neg { color:var(--wi-active); }
+  table.dict td.pick { cursor:pointer; box-shadow:inset 0 0 0 1px var(--wi-accent-soft); }
+  table.dict td.pick:hover { background:#f6e6df; box-shadow:inset 0 0 0 1.5px var(--wi-active); }
+  table.dict td.ent { background:#f3e6d6; }
+  table.dict td.old { background:#eee6da; }
+  table.dict tr.leave td { background:#f6e0d8; }
+  table.dict tr.leave td.rt.min { color:var(--wi-accent); font-weight:bold; }
+  table.dict tr.fresh td.bv { background:#f3e6d6; }
+  table.dict td.rt { padding-left:16px; color:var(--wi-ink-soft); font-size:.9em; }
+  .gwrap { overflow-x:auto; }
+  .sv-gv { font-family:var(--wi-font-body); font-size:12px; fill:var(--wi-ink-soft); }
+  .sv-gv.bad { fill:var(--wi-active); }
+
+  /* the collapsed explanation under the algebra */
+  details.explain { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.explain > summary { cursor:pointer; padding:10px 14px; font-family:var(--wi-font-head); font-size:.76rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  details.explain[open] > summary { border-bottom:1px solid var(--wi-border-soft); color:var(--wi-accent); }
+  .num-body { padding:6px 10px 10px; font-size:.86rem; overflow-x:auto; }
+  .nsec { display:grid; grid-template-columns:9.5em minmax(0,1fr); gap:4px 14px; padding:7px 8px; border-left:3px solid transparent; border-radius:3px; }
+  .nsec + .nsec { border-top:1px solid var(--wi-border-soft); }
+  .nsec.now { background:#f6e6df; border-left-color:var(--wi-active); }
+  .nsec.later .nval { color:var(--wi-ink-faint); }
+  .nlab { font-family:var(--wi-font-head); font-size:.7rem; letter-spacing:.06em; color:var(--wi-ink-soft); padding-top:.35em; }
+  .nsec.now .nlab { color:var(--wi-accent); }
+  .nval { min-width:0; overflow-x:auto; line-height:1.9; }
+  .nnote { font-size:.76rem; color:var(--wi-ink-faint); line-height:1.4; }
+  .nrows > div { margin:2px 0; }
+  .explain-body { padding:4px 16px 12px; font-size:.86rem; line-height:1.55; color:var(--wi-ink); max-width:92ch; }
+  .explain-body h4 { font-family:var(--wi-font-head); font-weight:normal; font-size:.8rem; letter-spacing:.06em; color:var(--wi-accent); margin:12px 0 3px; }
+  .explain-body p { margin:0 0 5px; }
+  .explain-body p.disp { text-align:center; margin:6px 0 8px; overflow-x:auto; }
+  .explain-body .here { color:var(--wi-ink-soft); font-style:italic; }
+
+  /* input editor */
+  details.editor { margin-top:16px; background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:11px 16px; font-family:var(--wi-font-head); font-size:.78rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,430px) 1fr; gap:16px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  textarea { width:100%; height:250px; font-family:var(--wi-font-mono); font-size:.76rem; background:var(--wi-panel-2);
+             color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.78rem; color:var(--wi-ink-soft); line-height:1.55; }
+  .hint code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; font-family:var(--wi-font-mono); }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+
+  .tooltip { position:fixed; z-index:40; pointer-events:none; background:var(--wi-panel-2);
+             border:1px solid var(--wi-border-strong); border-radius:var(--wi-radius);
+             padding:6px 9px; font-size:.78rem; color:var(--wi-ink-strong);
+             box-shadow:0 3px 10px rgba(0,0,0,.12); max-width:290px; display:none; line-height:1.45; }
+  .tooltip .tt-h { font-family:var(--wi-font-head); letter-spacing:.04em; color:var(--wi-accent); }
+  .tooltip .tt-s { color:var(--wi-ink-faint); }
+
+  .placeholder { font-size:.9rem; color:var(--wi-ink-soft); line-height:1.6; max-width:80ch; }
+
+  /* SVG text */
+  .sv-tick { font-family:var(--wi-font-body); font-size:12.5px; fill:var(--wi-ink-soft); }
+  .sv-lab  { font-family:var(--wi-font-body); font-size:14px; fill:var(--wi-ink-strong); }
+  .sv-name { font-family:var(--wi-font-body); font-size:13.5px; paint-order:stroke; stroke:var(--wi-bg); stroke-width:4px; stroke-linejoin:round; }
+  .sv-z    { font-family:var(--wi-font-body); font-size:13.5px; fill:var(--t-obj-dark); paint-order:stroke; stroke:var(--wi-bg); stroke-width:4px; stroke-linejoin:round; }
+  .sv-note { font-family:var(--wi-font-body); font-size:14px; fill:var(--wi-ink-faint); font-style:italic; }
+  .sv-small{ font-family:var(--wi-font-head); font-size:10.5px; letter-spacing:.06em; fill:var(--wi-ink-faint); text-anchor:middle; }
+  .sv-small.halo { fill:var(--t-obj-dark); font-size:11px; paint-order:stroke; stroke:var(--wi-bg); stroke-width:3.5px; stroke-linejoin:round; }
+  .hit { cursor:pointer; }
+  .grab { cursor:grab; }
+
+  /* presentation view */
+  .only-p { display:none !important; }
+  body.present .only-p { display:inline-flex !important; }
+  body.present .hide-p { display:none !important; }
+  body.present h1 { font-size:1.9rem; }
+  .exitp { position:fixed; bottom:10px; right:12px; z-index:20; font-size:.75rem; opacity:.5; }
+  .exitp:hover, .exitp:focus-visible { opacity:1; }
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls { gap:8px 12px; padding:10px 12px; }
+    .seg button { padding:5px 9px; font-size:.74rem; }
+  }
+  button.spinbtn.on { background:var(--wi-accent); color:var(--wi-panel-2); border-color:var(--wi-accent); }
+  button.spinbtn.on:hover:not(:disabled) { background:var(--wi-accent-dark); color:var(--wi-panel-2); border-color:var(--wi-accent-dark); }
+  @media (prefers-reduced-motion:reduce) { * { animation-duration:.001ms !important; transition-duration:.001ms !important; } }
+  /* ---- this page ---- */
+  .sv-bar { font-family:var(--wi-font-body); font-size:12.5px; }
+  .sv-reg { font-family:var(--wi-font-head); font-size:10.5px; letter-spacing:.05em; fill:var(--wi-ink-soft); text-anchor:middle; }
+  .placeholder { font-size:.95rem; color:var(--wi-ink-soft); padding:30px 24px; text-align:center; }
+  #cbWrap svg, #cbBarWrap svg { display:block; }
+  #cbSvg { cursor:grab; } #cbSvg .hit { cursor:pointer; } #cbSvg #cbKnob { cursor:grab; }
+  #cbStatus { height:11.8em; }
+  #cbDualLP { font-size:.9rem; }
+  #cbDualLP .dnote { margin:4px 0 6px; font-size:.84rem; color:var(--wi-ink-soft); line-height:1.5; }
+  #cbDualLP .dlp { overflow-x:auto; padding:2px 0 4px; }
+  @media (max-width:760px) { #cbStatus { height:15em; } }
+  .gridwrap { overflow-x:auto; padding-bottom:4px; }
+  .lpgrid { display:grid; align-items:center; justify-content:start; column-gap:2px; row-gap:0; font-size:.9rem; margin:0 auto; width:max-content; }
+  .lpgrid > div { min-height:30px; display:flex; align-items:center; }
+  .lpgrid .gt { justify-content:flex-end; padding:0 4px; }
+  .lpgrid .gr { justify-content:center; padding:0 6px; }
+  .lpgrid .gb { justify-content:flex-start; padding:0 4px; }
+  .lpgrid .gn { padding-left:8px; }
+  .lpgrid .gl { justify-content:flex-end; padding-right:10px; }
+  .lpgrid .gt.nonneg { justify-content:flex-start; }
+  .lpgrid .nm { font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.07em; text-transform:uppercase; color:var(--wi-ink-faint); }
+  .lpgrid .gst { min-height:20px; font-size:.82rem; color:var(--wi-ink-faint); font-style:italic; padding-left:4px; }
+  .lpgrid .gsep { min-height:34px; justify-content:space-between; gap:16px; border-top:1px dashed var(--wi-border); margin-top:6px; font-family:var(--wi-font-head); font-size:.68rem; letter-spacing:.07em; text-transform:uppercase; color:var(--wi-ink-faint); }
+  .lpgrid .gsep .chk { text-transform:none; letter-spacing:0; font-family:var(--wi-font-body); font-size:.82rem; }
+  .lpgrid .grule { min-height:0; height:0; border-top:1.5px solid #6b675c; margin:3px 0; }
+  .lpgrid.noscl .scl { display:none; }
+  .lpgrid .glab { font-family:var(--wi-font-head); font-size:.7rem; letter-spacing:.07em; text-transform:uppercase; color:var(--wi-ink-soft); }
+  .lpgrid .glab.small { font-size:.62rem; color:var(--wi-ink-faint); }
+  .lpgrid .glab.obj { color:#a85808; }
+  .lpgrid .cmp { min-height:24px; }
+  .lpgrid .gt.cmp { justify-content:center; }
+  .lpgrid .rot { display:inline-block; transform:rotate(-90deg); }
+  .lpgrid .gchain { min-height:38px; gap:10px; flex-wrap:wrap; border-top:1px dashed var(--wi-border); margin-top:6px; padding-top:4px; }
+  .lpgrid .chainlab { font-size:.84rem; color:var(--wi-ink-soft); }
+  .lpgrid .knob { gap:6px; border-radius:5px; padding:1px 8px 1px 2px; }
+  .lpgrid .hot { background:rgba(224,123,16,.09); }
+  .lpgrid .knob .kname { min-width:1.8em; }
+  .lpgrid .knob .kr { width:130px; }
+  .lpgrid .knob .kv { width:4.6em; font:inherit; font-size:.86rem; padding:1px 5px; border:1px solid var(--wi-border); border-radius:5px; background:var(--wi-panel-2); text-align:right; font-variant-numeric:tabular-nums; }
+  .lpgrid .knob .kv.bad, .lpgrid .knob.wrong .kv { border-color:#cc2f22; color:#cc2f22; }
+  .lpgrid .knob .kdot { color:var(--wi-ink-faint); }
+  .lpgrid .knob.zero .kv { color:var(--wi-ink-faint); }
+  .mh { vertical-align:middle; }
+  .spinbtn.on, button.spinbtn.on { background:var(--wi-accent); color:var(--wi-panel-2); border-color:var(--wi-accent); }
+  button.spinbtn.on:hover:not(:disabled) { background:var(--wi-accent-dark); color:var(--wi-panel-2); border-color:var(--wi-accent-dark); }
+  @media (max-width:760px) { .lpgrid .knob .kr { width:90px; } }
+  .lpgrid .rno { color:var(--wi-ink-faint); font-size:.82rem; margin-right:6px; }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption { font-family: var(--wi-font-head); letter-spacing: .05em; }
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar hide-p">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1>Dual linear programs</h1>
+  <span class="ctl" style="gap:14px">
+    <span class="seg" id="modeSeg" role="tablist">
+      <button data-mode="combine" class="on" role="tab" title="Bound the optimum by adding up multiples of the constraints">Combine the constraints</button>
+      <button data-mode="pd" role="tab" title="The LP and its dual side by side: equal optima, complementary slackness">Primal and dual</button>
+      <button data-mode="schema" role="tab" title="An approximation algorithm that builds a solution and its dual bound together">Primal–dual schema</button>
+    </span>
+  </span>
+  <span class="ctl hide-p"><button id="presBtn" title="A clutter-free view for the lecture (Esc to leave)">Presentation view</button></span>
+</div>
+<button id="exitPres" class="only-p exitp" title="Leave the presentation view (Esc)">✕ leave presentation</button>
+
+<div id="tabCombine">
+  <p class="subtitle hide-p">How good can a solution of an LP be? Every constraint is a true statement about every feasible point; so is every sum of multiples of them.
+    Choose a multiplier for each constraint and add up: if the sum compares with the objective column by column, it bounds the optimum — no solving needed.</p>
+  <div class="controls hide-p">
+    <div class="ctl"><label for="cbInst">LP</label><select id="cbInst"></select></div>
+    <div class="ctl hidden" id="cbPicSeg"><span class="lbl">Picture</span><span class="seg">
+      <button data-p="dual" title="The space of the multipliers: one point per choice of y">multipliers</button>
+      <button data-p="primal" title="The feasible region of the LP, with the summed constraint">feasible region</button></span></div>
+    <div class="ctl"><span class="lbl">View</span>
+      <button id="cbZoomOut" class="icon" title="Zoom out" aria-label="Zoom out">−</button>
+      <button id="cbZoomIn" class="icon" title="Zoom in" aria-label="Zoom in">+</button>
+      <button id="cbResetV" title="Back to the initial view">reset</button>
+      <button id="cbSpin" class="hidden spinbtn" title="Let the drawing turn slowly about the vertical axis (dragging still works)">⟳ rotate</button></div>
+    <label class="chk"><input type="checkbox" id="cbReveal" checked> show the optimum</label>
+  </div>
+  <div class="stage" id="stageCB">
+    <div class="col-main">
+      <div class="sim-box">
+        <div class="sim-title"><span>Picture</span><span class="rhs" id="cbMeta"></span></div>
+        <div id="cbWrap"><svg id="cbSvg" class="stagesvg"></svg></div>
+        <div class="vhandle hide-p" id="cbVH" role="separator" aria-orientation="horizontal" tabindex="0"
+             title="Drag to change the height of the drawing (double-click: back to the default)"></div>
+        <div class="legend hide-p" id="cbLegend"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>The LP, a multiplier at every constraint</span><span class="rhs"><button id="cbZero" title="All multipliers 0">all 0</button> <button id="cbBest" title="Optimal multipliers: an optimal solution of the dual LP">best y</button></span></div>
+        <div class="gridwrap"><div class="lpgrid" id="cbGrid"></div></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>What the multipliers prove</span></div>
+        <div id="cbBarWrap"><svg id="cbBarSvg"></svg></div>
+      </div>
+    </div>
+    <div class="splitter" id="cbSplit" role="separator" aria-orientation="vertical" tabindex="0"
+         title="Drag to share the width between drawing and side panel (double-click: back to the default)"></div>
+    <div class="col-side">
+      <div class="sim-box">
+        <div class="sim-title"><span>What you see</span><span class="rhs" id="cbState"></span></div>
+        <div class="status" id="cbStatus"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>The best multipliers: the dual LP</span></div>
+        <div id="cbDualLP"></div>
+      </div>
+      <details class="explain hide-p"><summary>Weak duality, signs, strong duality</summary><div class="explain-body" id="cbExplain"></div></details>
+    </div>
+  </div>
+</div>
+
+<div id="tabPD" class="hidden"><div class="sim-box placeholder">The LP and its dual side by side — the next stage.</div></div>
+<div id="tabSchema" class="hidden"><div class="sim-box placeholder">The primal–dual schema, step by step — a later stage.</div></div>
+
+<details class="editor hide-p" id="editorBox">
+  <summary>Input as text</summary>
+  <div class="editor-body">
+    <div>
+      <textarea id="inputText" spellcheck="false"></textarea>
+      <div style="margin-top:8px; display:flex; gap:8px"><button class="pri" id="loadBtn">Load</button><button id="curBtn" title="Put the input currently shown into the text box">current input</button></div>
+      <div class="err" id="parseErr"></div>
+    </div>
+    <div class="hint" id="formatHint"></div>
+  </div>
+</details>
+<div class="tooltip" id="tip"></div>
+
+<script>
+"use strict";
+/* ==========================================================================
+   ENGINE (exact arithmetic).  Pure functions, no DOM; tested against the
+   Python reference implementation line by line.
+
+     Frac                       rational numbers on BigInt
+     lpMin(c, A, b)             min cᵀx  s.t.  Ax ≤ b, x ≥ 0   (tableau simplex, Bland's rule, Phase I)
+     ilpBrute(c, A, b, box)     the same over the grid points of a box
+     branchAndBound(c, A, b, o) the procedure of the branch-and-bound tab, recording every node
+     graphLP(kind, n, edges)    Vertex Cover / Independent Set as (c, A, b), always in min form
+
+   Everything is in MIN form; a max problem is passed as min of −c and the caller negates.
+   ========================================================================== */
+const babs = a => a < 0n ? -a : a;
+function bgcd(a, b) { a = babs(a); b = babs(b); while (b) { const t = a % b; a = b; b = t; } return a; }
+class Frac {
+  constructor(p, q) {
+    if (q === undefined) q = 1n;
+    if (q === 0n) throw new Error("division by zero");
+    if (q < 0n) { p = -p; q = -q; }
+    const g = bgcd(p, q);
+    if (g > 1n) { p /= g; q /= g; }
+    this.p = p; this.q = q;
+  }
+  static of(x) {
+    if (x instanceof Frac) return x;
+    if (typeof x === "bigint") return new Frac(x, 1n);
+    if (typeof x === "number") {
+      if (!isFinite(x)) throw new Error("not a finite number");
+      return Number.isInteger(x) ? new Frac(BigInt(x), 1n) : Frac.parse(String(x));
+    }
+    return Frac.parse(String(x));
+  }
+  /* exact decimal, also "3/20", "-1.5e2" */
+  static parse(s) {
+    s = s.trim();
+    const sl = s.indexOf("/");
+    if (sl >= 0) return Frac.parse(s.slice(0, sl)).div(Frac.parse(s.slice(sl + 1)));
+    const m = /^([+-]?)(\d*)(?:\.(\d*))?(?:e([+-]?\d+))?$/i.exec(s);
+    if (!m || (!m[2] && !m[3])) throw new Error("not a number: “" + s + "”");
+    const fr = m[3] || "";
+    let p = BigInt((m[2] || "0") + fr), q = 10n ** BigInt(fr.length);
+    const e = m[4] ? parseInt(m[4], 10) : 0;
+    if (e > 0) p *= 10n ** BigInt(e); else if (e < 0) q *= 10n ** BigInt(-e);
+    return new Frac(m[1] === "-" ? -p : p, q);
+  }
+  add(o) { o = Frac.of(o); return new Frac(this.p * o.q + o.p * this.q, this.q * o.q); }
+  sub(o) { o = Frac.of(o); return new Frac(this.p * o.q - o.p * this.q, this.q * o.q); }
+  mul(o) { o = Frac.of(o); return new Frac(this.p * o.p, this.q * o.q); }
+  div(o) { o = Frac.of(o); return new Frac(this.p * o.q, this.q * o.p); }
+  neg() { return new Frac(-this.p, this.q); }
+  abs() { return this.p < 0n ? this.neg() : this; }
+  get sign() { return this.p > 0n ? 1 : this.p < 0n ? -1 : 0; }
+  cmp(o) { o = Frac.of(o); const d = this.p * o.q - o.p * this.q; return d > 0n ? 1 : d < 0n ? -1 : 0; }
+  eq(o) { return this.cmp(o) === 0; }
+  lt(o) { return this.cmp(o) < 0; }
+  le(o) { return this.cmp(o) <= 0; }
+  gt(o) { return this.cmp(o) > 0; }
+  ge(o) { return this.cmp(o) >= 0; }
+  isZero() { return this.p === 0n; }
+  isInt() { return this.q === 1n; }
+  floor() { let f = this.p / this.q; if (this.p < 0n && f * this.q !== this.p) f -= 1n; return new Frac(f, 1n); }
+  ceil() { const f = this.floor(); return f.eq(this) ? f : new Frac(f.p + 1n, 1n); }
+  toNumber() { return Number(this.p) / Number(this.q); }
+  toString() { return this.q === 1n ? String(this.p) : this.p + "/" + this.q; }
+}
+const F0 = new Frac(0n), F1 = new Frac(1n), FM1 = new Frac(-1n);
+const fsum = xs => xs.reduce((s, x) => s.add(x), F0);
+const fdot = (a, x) => { let s = F0; for (let i = 0; i < a.length; i++) if (!a[i].isZero() && !x[i].isZero()) s = s.add(a[i].mul(x[i])); return s; };
+
+/* min cᵀx  s.t.  Ax ≤ b, x ≥ 0.   Returns { status: "optimal"|"infeasible"|"unbounded", z, x }.
+   A literal port of lp_min in ilp_reference.py: the columns are the variables, the slacks and one
+   artificial variable x0 (in this order); the entering variable is the one of smallest index with
+   negative reduced cost, the leaving one has the smallest ratio, ties broken by the smallest basis index. */
+function lpMin(c, A, b) {
+  c = c.map(Frac.of); b = b.map(Frac.of);
+  const m = A.length, n = c.length, N = n + m + 1;
+  const T = [];
+  for (let i = 0; i < m; i++) {
+    const r = new Array(N + 1);
+    for (let j = 0; j < n; j++) r[j] = Frac.of(A[i][j]);
+    for (let k = 0; k < m; k++) r[n + k] = i === k ? F1 : F0;
+    r[n + m] = FM1; r[N] = b[i];
+    T.push(r);
+  }
+  const basis = [], inB = new Array(N).fill(false);
+  for (let i = 0; i < m; i++) { basis.push(n + i); inB[n + i] = true; }
+  const pivot = (r, col) => {
+    const p = T[r][col], row = T[r].map(v => v.div(p));
+    T[r] = row;
+    for (let i = 0; i < m; i++) {
+      if (i === r) continue;
+      const f = T[i][col];
+      if (f.isZero()) continue;
+      T[i] = T[i].map((v, j) => row[j].isZero() ? v : v.sub(f.mul(row[j])));
+    }
+    inB[basis[r]] = false; basis[r] = col; inB[col] = true;
+  };
+  const run = (cost, ncols) => {
+    for (let guard = 0; guard < 100000; guard++) {
+      let e = -1;
+      for (let j = 0; j < ncols && e < 0; j++) {
+        if (inB[j]) continue;
+        let red = cost[j];
+        for (let i = 0; i < m; i++) { const cb = cost[basis[i]]; if (!cb.isZero() && !T[i][j].isZero()) red = red.sub(cb.mul(T[i][j])); }
+        if (red.sign < 0) e = j;
+      }
+      if (e < 0) return "optimal";
+      let r = -1, rat = null;
+      for (let i = 0; i < m; i++) {
+        if (T[i][e].sign <= 0) continue;
+        const q = T[i][N].div(T[i][e]);
+        if (r < 0) { r = i; rat = q; continue; }
+        const cm = q.cmp(rat);
+        if (cm < 0 || (cm === 0 && (basis[i] < basis[r] || (basis[i] === basis[r] && i < r)))) { r = i; rat = q; }
+      }
+      if (r < 0) return "unbounded";
+      pivot(r, e);
+    }
+    throw new Error("simplex did not terminate");
+  };
+  if (m && b.some(v => v.sign < 0)) {
+    let r = 0;
+    for (let i = 1; i < m; i++) if (b[i].lt(b[r])) r = i;
+    pivot(r, n + m);
+    const cost1 = new Array(N).fill(F0); cost1[n + m] = F1;
+    run(cost1, N);
+    if (inB[n + m]) {
+      const i = basis.indexOf(n + m);
+      if (T[i][N].sign > 0) return { status: "infeasible", z: null, x: null };
+      for (let j = 0; j < n + m; j++) if (!T[i][j].isZero() && !inB[j]) { pivot(i, j); break; }
+    }
+  }
+  const cost = c.concat(new Array(m + 1).fill(F0));
+  if (run(cost, n + m) === "unbounded") return { status: "unbounded", z: null, x: null };
+  const x = new Array(n).fill(F0);
+  basis.forEach((j, i) => { if (j < n) x[j] = T[i][N]; });
+  return { status: "optimal", z: fdot(c, x), x };
+}
+
+function feasibleAt(A, b, x) {
+  x = x.map(Frac.of);
+  if (x.some(v => v.sign < 0)) return false;
+  for (let i = 0; i < A.length; i++) if (fdot(A[i].map(Frac.of), x).gt(Frac.of(b[i]))) return false;
+  return true;
+}
+
+/* all grid points of box = [[lo, hi], …] (first coordinate outermost, as itertools.product) */
+function ilpBrute(c, A, b, box, cap) {
+  c = c.map(Frac.of); b = b.map(Frac.of); A = A.map(r => r.map(Frac.of));
+  const n = c.length, total = box.reduce((s, [lo, hi]) => s * Math.max(0, hi - lo + 1), 1);
+  if (total > (cap || 1e6)) return { tooMany: true, total };
+  let best = null, arg = [], cnt = 0;
+  const x = box.map(([lo]) => lo);
+  const rec = d => {
+    if (d === n) {
+      const xf = x.map(v => new Frac(BigInt(v)));
+      for (let i = 0; i < A.length; i++) if (fdot(A[i], xf).gt(b[i])) return;
+      cnt++;
+      const z = fdot(c, xf);
+      if (best === null || z.lt(best)) { best = z; arg = [x.slice()]; }
+      else if (z.eq(best)) arg.push(x.slice());
+      return;
+    }
+    for (let v = box[d][0]; v <= box[d][1]; v++) { x[d] = v; rec(d + 1); }
+  };
+  rec(0);
+  return { z: best, arg, cnt, total };
+}
+
+/* Branch and bound, MIN form.  o = { order: "dfs"|"best", varRule: "first"|"most", roundBound, first: "down"|"up",
+   isInt: [bool] (default all), maxNodes }.  Returns { zBest, xBest, nodes, stopped }.  A literal port of
+   branch_and_bound in ilp_reference.py: nodes are processed in this order; each node holds its LP result and verdict. */
+function branchAndBound(c, A, b, o) {
+  o = Object.assign({ order: "dfs", varRule: "first", roundBound: false, first: "down", maxNodes: 200 }, o || {});
+  c = c.map(Frac.of); b = b.map(Frac.of); A = A.map(r => r.map(Frac.of));
+  const n = c.length, isInt = o.isInt || new Array(n).fill(true);
+  const lpOf = N => lpMin(c, A.concat(N.extra.map(e => e.a)), b.concat(N.extra.map(e => e.b)));
+  const nodes = []; let zBest = null, xBest = null, nid = 1, stopped = null;
+  const open = [{ id: 0, parent: null, extra: [], bnd: null, depth: 0 }];
+  while (open.length) {
+    if (nodes.length >= o.maxNodes) { stopped = "maxNodes"; break; }
+    let N;
+    if (o.order === "dfs") N = open.pop();
+    else {
+      for (const nd of open) if (!nd.lp) nd.lp = lpOf(nd);
+      const cand = open.filter(nd => nd.lp.status === "optimal");
+      N = cand.length ? cand.reduce((a, q) => (q.lp.z.lt(a.lp.z) || (q.lp.z.eq(a.lp.z) && q.id < a.id)) ? q : a) : open[0];
+      open.splice(open.indexOf(N), 1);
+    }
+    const r = N.lp || lpOf(N);
+    N.lp = r; N.status = r.status; N.z = r.z; N.x = r.x;
+    N.openAfter = null;
+    nodes.push(N);
+    if (r.status === "infeasible") { N.verdict = "infeasible"; continue; }
+    if (r.status === "unbounded") { N.verdict = "unbounded"; stopped = "unbounded"; break; }
+    const zb = o.roundBound ? r.z.ceil() : r.z;
+    if (zBest !== null && zb.ge(zBest)) { N.verdict = "bound"; continue; }
+    const frac = [];
+    for (let i = 0; i < n; i++) if (isInt[i] && !r.x[i].isInt()) frac.push(i);
+    if (!frac.length) { zBest = r.z; xBest = r.x; N.verdict = "incumbent"; continue; }
+    let i = frac[0];
+    if (o.varRule === "most") {
+      const half = new Frac(1n, 2n), d = k => r.x[k].sub(r.x[k].floor()).sub(half).abs();
+      for (const k of frac) if (d(k).lt(d(i))) i = k;
+    }
+    if (o.pick && o.pick[N.id] !== undefined && frac.includes(o.pick[N.id])) i = o.pick[N.id];
+    N.verdict = "branch"; N.bvar = i; N.frac = frac;
+    const lo = r.x[i].floor(), hi = r.x[i].ceil();
+    const e = new Array(n).fill(F0); e[i] = F1;
+    const down = { id: nid, parent: N.id, extra: N.extra.concat([{ a: e, b: lo }]), bnd: { i, dir: "<=", k: lo }, depth: N.depth + 1 };
+    const up = { id: nid + 1, parent: N.id, extra: N.extra.concat([{ a: e.map(v => v.neg()), b: hi.neg() }]), bnd: { i, dir: ">=", k: hi }, depth: N.depth + 1 };
+    nid += 2;
+    const kids = o.first === "down" ? [down, up] : [up, down];
+    if (o.order === "dfs") open.push(kids[1], kids[0]); else open.push(kids[0], kids[1]);
+  }
+  return { zBest, xBest, nodes, stopped };
+}
+
+/* The grid points of a box, column by column: for every integer prefix (x_1, …, x_{n−1}) the integer
+   interval of x_n, computed exactly from the rows.  Same results as ilpBrute (z, all optimal points, count),
+   but fast enough for boxes with hundreds of thousands of points; the columns are kept for drawing. */
+function ilpColumns(c, A, b, box, cap) {
+  c = c.map(Frac.of); b = b.map(Frac.of); A = A.map(r => r.map(Frac.of));
+  const n = c.length, last = n - 1;
+  let prefixes = 1; for (let i = 0; i < last; i++) prefixes *= Math.max(0, box[i][1] - box[i][0] + 1);
+  if (prefixes > (cap || 2e5) || box.some(([lo, hi]) => hi < lo)) return { tooMany: prefixes > (cap || 2e5), z: null, arg: [], cnt: 0, cols: [] };
+  const cols = []; let best = null, arg = [], cnt = 0;
+  const pre = box.slice(0, last).map(([lo]) => lo);
+  const lo0 = new Frac(BigInt(box[last][0])), hi0 = new Frac(BigInt(box[last][1]));
+  const column = () => {
+    let lo = lo0, hi = hi0;
+    for (let i = 0; i < A.length; i++) {
+      let rest = b[i];
+      for (let j = 0; j < last; j++) if (!A[i][j].isZero() && pre[j]) rest = rest.sub(A[i][j].mul(pre[j]));
+      const a = A[i][last];
+      if (a.sign > 0) { const t = rest.div(a); if (t.lt(hi)) hi = t; }
+      else if (a.sign < 0) { const t = rest.div(a); if (t.gt(lo)) lo = t; }
+      else if (rest.sign < 0) return;
+    }
+    const t0 = lo.ceil(), t1 = hi.floor();
+    if (t0.gt(t1)) return;
+    const a0 = Number(t0.p), a1 = Number(t1.p);
+    cols.push({ pre: pre.slice(), lo: a0, hi: a1 });
+    cnt += a1 - a0 + 1;
+    let base = F0; for (let j = 0; j < last; j++) if (pre[j]) base = base.add(c[j].mul(pre[j]));
+    const cl = c[last], ts = cl.sign > 0 ? [a0] : cl.sign < 0 ? [a1] : null;
+    const val = t => base.add(cl.mul(t));
+    const consider = t => {
+      const z = val(t);
+      if (best === null || z.lt(best)) { best = z; arg = [pre.concat([t])]; }
+      else if (z.eq(best) && arg.length < 5000) arg.push(pre.concat([t]));
+    };
+    if (ts) consider(ts[0]);
+    else { const z = val(a0); if (best === null || z.le(best)) for (let t = a0; t <= a1; t++) consider(t); }
+  };
+  const rec = d => {
+    if (d === last) { column(); return; }
+    for (let v = box[d][0]; v <= box[d][1]; v++) { pre[d] = v; rec(d + 1); }
+  };
+  rec(0);
+  return { z: best, arg, cnt, cols };
+}
+
+/* Vertex Cover: min Σx, x_u + x_v ≥ 1 (one row per edge, in input order), x_v ≤ 1.
+   Independent Set: max Σx (returned as min −Σx), x_u + x_v ≤ 1, x_v ≤ 1. */
+function graphLP(kind, n, edges) {
+  const A = [], b = [];
+  for (const [u, v] of edges) {
+    const row = new Array(n).fill(F0);
+    if (kind === "vc") { row[u] = FM1; row[v] = FM1; A.push(row); b.push(FM1); }
+    else { row[u] = F1; row[v] = F1; A.push(row); b.push(F1); }
+  }
+  for (let v = 0; v < n; v++) { const row = new Array(n).fill(F0); row[v] = F1; A.push(row); b.push(F1); }
+  return { c: new Array(n).fill(kind === "vc" ? F1 : FM1), A, b };
+}
+/* ===== ENGINE END ===== */
+
+/* ==========================================================================
+   Small helpers, numbers, input formats
+   ========================================================================== */
+const el  = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const M = s => "\\(" + s + "\\)";
+const f1 = x => x.toFixed(1);
+const PALETTE = { red: "#c62f22", blue: "#2c5aa0", green: "#3d7b2c", teal: "#2a6a63", purple: "#7d3f8f",
+                  brown: "#8b5a2b", pink: "#b0446e", olive: "#6f7a1f", gray: "#7d786b", grey: "#7d786b", orange: "#e07b10" };
+const AUTO = ["red", "blue", "green", "teal", "purple", "brown", "pink", "olive"];
+/* the colours of the drawings: integer solutions blue (the grid points of the slides), the LP red, the optimum green */
+const C_INT = "#2c5aa0", C_INT_SOFT = "#d4e0f1", C_LP = "#c62f22", C_OPT = "#3d7b2c", C_ERR = "#cc2f22", C_OBJ = "#e07b10";
+
+/* ---------- numbers: exact where the value is a small fraction ---------- */
+function ratApprox(x, maxQ) {
+  let h0 = 0, h1 = 1, k0 = 1, k1 = 0, b = x;
+  const tol = 1e-9 * Math.max(1, Math.abs(x));
+  for (let it = 0; it < 30; it++) {
+    const a = Math.floor(b), h2 = a * h1 + h0, k2 = a * k1 + k0;
+    if (k2 > maxQ) break;
+    h0 = h1; h1 = h2; k0 = k1; k1 = k2;
+    if (Math.abs(x - h1 / k1) <= tol) return [h1, k1];
+    const fr = b - a; if (fr < 1e-13) break; b = 1 / fr;
+  }
+  return null;
+}
+function groupInt(s, tex) {
+  if (s.length < 5) return s;
+  const sep = tex ? "\\," : " ";
+  let out = ""; for (let i = 0; i < s.length; i++) { if (i && (s.length - i) % 3 === 0) out += sep; out += s[i]; }
+  return out;
+}
+/* { tex, plain, exact } for a number or a Frac; repeating decimals with an overline (533.\overline3) */
+function num(x) {
+  let neg, ax, r;
+  if (x instanceof Frac) {
+    neg = x.sign < 0; const a = x.abs();
+    if (a.q <= 1000000n && a.p < 1000000000000000n) { r = [Number(a.p), Number(a.q)]; ax = r[0] / r[1]; }
+    else { ax = a.toNumber(); r = ratApprox(ax, 1000); }
+  } else {
+    if (!isFinite(x)) return { tex: x > 0 ? "\\infty" : "-\\infty", plain: x > 0 ? "∞" : "−∞", exact: true };
+    if (Math.abs(x) < 1e-9) x = 0;
+    neg = x < 0; ax = Math.abs(x); r = ratApprox(ax, 1000);
+  }
+  const sg = s => (neg ? "-" : "") + s, sgp = s => (neg ? "−" : "") + s;
+  if (r) {
+    const [p, q] = r, I = Math.floor(p / q); let rem = p - I * q;
+    const intS = String(I);
+    if (rem === 0) return { tex: sg(groupInt(intS, true)), plain: sgp(groupInt(intS, false)), exact: true };
+    const digits = [], seen = new Map();
+    let start = -1;
+    while (rem && digits.length < 12) {
+      if (seen.has(rem)) { start = seen.get(rem); break; }
+      seen.set(rem, digits.length); rem *= 10; digits.push(Math.floor(rem / q)); rem %= q;
+    }
+    if (!rem && digits.length <= 4) { const d = digits.join(""); return { tex: sg(groupInt(intS, true) + "." + d), plain: sgp(groupInt(intS, false) + "." + d), exact: true }; }
+    if (start >= 0 && digits.length <= 5) {
+      const pre = digits.slice(0, start).join(""), per = digits.slice(start).join("");
+      const VF = { "1/2": "½", "1/3": "⅓", "2/3": "⅔", "1/4": "¼", "3/4": "¾", "1/6": "⅙", "5/6": "⅚", "1/7": "⅐", "1/9": "⅑" };
+      const fr = VF[(p - I * q) + "/" + q];
+      return { tex: sg(groupInt(intS, true) + "." + pre + "\\overline{" + per + "}"),
+               plain: sgp(fr ? (I ? groupInt(intS, false) : "") + fr : groupInt(intS, false) + "." + pre + per + "…"), exact: true };
+    }
+  }
+  let s = ax >= 100 ? ax.toFixed(1) : ax >= 1 ? ax.toFixed(2) : ax.toPrecision(3);
+  if (s.includes(".")) s = s.replace(/0+$/, "").replace(/\.$/, "");
+  const [ip, fp] = s.split(".");
+  const t = groupInt(ip, true) + (fp ? "." + fp : ""), pl = groupInt(ip, false) + (fp ? "." + fp : "");
+  return { tex: sg(t), plain: sgp(pl), exact: false };
+}
+const numT = x => num(x).tex, numP = x => num(x).plain;
+/* a Frac as a TeX fraction: 1/2 -> \tfrac12 (for the entries of a solution vector) */
+function fracT(f) {
+  f = Frac.of(f);
+  if (f.isInt()) return String(f.p).replace("-", "-");
+  return (f.sign < 0 ? "-" : "") + "\\tfrac{" + babs(f.p) + "}{" + f.q + "}";
+}
+function fracP(f) {
+  f = Frac.of(f);
+  if (f.isInt()) return String(f.p).replace("-", "−");
+  const VF = { "1/2": "½", "1/3": "⅓", "2/3": "⅔", "1/4": "¼", "3/4": "¾" }, a = babs(f.p) + "/" + f.q;
+  return (f.sign < 0 ? "−" : "") + (VF[a] || a);
+}
+const binom = (n, k) => { if (k < 0 || k > n) return 0; let r = 1; for (let i = 1; i <= k; i++) r = r * (n - k + i) / i; return Math.round(r); };
+
+/* ---------- the LP text format (as on the page with the simplex method), exact ---------- */
+const OPS = /(<=|>=|=<|=>|≤|≥|==|=|<|>)/;
+const opNorm = o => (o === "<=" || o === "=<" || o === "≤" || o === "<") ? "<=" : (o === ">=" || o === "=>" || o === "≥" || o === ">") ? ">=" : "=";
+function parseLin(str, vars, lineNo) {
+  const s = str.replace(/\s+/g, "").replace(/−/g, "-").replace(/·|×/g, "*");
+  const co = vars.map(() => F0); let k = F0, first = null;
+  if (!s.length) throw new Error("line " + lineNo + ": an empty side");
+  const terms = s.replace(/([^eE*\/])-/g, "$1+-").replace(/^\+/, "").split("+").filter(t => t.length);
+  for (let t of terms) {
+    let sign = 1;
+    while (t[0] === "-" || t[0] === "+") { if (t[0] === "-") sign = -sign; t = t.slice(1); }
+    const m = /^((?:\d+\.?\d*|\.\d+)(?:\/(?:\d+\.?\d*))?)?\*?([A-Za-z_][A-Za-z0-9_]*)?$/.exec(t);
+    if (!m || (!m[1] && !m[2])) throw new Error("line " + lineNo + ": cannot read the term “" + t + "”");
+    let cf = m[1] ? Frac.parse(m[1]) : F1;
+    if (sign < 0) cf = cf.neg();
+    if (m[2]) {
+      const vi = vars.indexOf(m[2]);
+      if (vi < 0) throw new Error("line " + lineNo + ": unknown variable “" + m[2] + "” (declared: " + vars.join(", ") + ")");
+      co[vi] = co[vi].add(cf); if (first === null) first = "v";
+    } else { k = k.add(cf); if (first === null) first = "k"; }
+  }
+  return { co, k, kFirst: first === "k" };
+}
+/* LP text.  Besides the format of the simplex page: “int x y” (integer variables; default all),
+   the flag “cut” after “|” (a cutting plane, starts switched off), “explore down|up|best”.
+   All variables are ≥ 0; lines like “x, y >= 0” are accepted and need not be given. */
+function parseLP(text) {
+  const lp = { kind: "lp", title: "", vars: null, labels: {}, unit: "", sense: "max", c: null, cons: [], view: null, int: null, explore: "down", src: text };
+  const pend = [];
+  text.split(/\r?\n/).forEach((raw, i) => {
+    const line = raw.trim(), no = i + 1;
+    if (!line || line.startsWith("#") || line.startsWith("//")) return;
+    const m = /^(\w+)\b\s*(.*)$/.exec(line), kw = m ? m[1].toLowerCase() : "", rest = m ? m[2] : "";
+    if (kw === "title") { lp.title = rest; return; }
+    if (kw === "vars" || kw === "variables") {
+      lp.vars = rest.split(/[\s,]+/).filter(x => x);
+      if (lp.vars.length < 1 || lp.vars.length > 8) throw new Error("line " + no + ": between one and eight variables, please");
+      lp.vars.forEach(v => { if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(v)) throw new Error("line " + no + ": “" + v + "” is not a variable name"); });
+      if (new Set(lp.vars).size !== lp.vars.length) throw new Error("line " + no + ": a variable twice");
+      return;
+    }
+    if (kw === "label") { const mm = /^(\w+)\s+(.*)$/.exec(rest); if (!mm) throw new Error("line " + no + ": label <variable> <text>"); lp.labels[mm[1]] = mm[2]; return; }
+    if (kw === "unit") { lp.unit = rest; return; }
+    if (kw === "stretch") { lp.stretch = true; return; }
+    if (kw === "explore") {
+      if (!/^(down|up|best)$/.test(rest.trim())) throw new Error("line " + no + ": explore down, up or best");
+      lp.explore = rest.trim(); return;
+    }
+    if (kw === "view") {
+      const v = rest.split(/[\s,]+/).filter(x => x).map(Number);
+      if (v.some(x => !isFinite(x)) || (v.length !== 4 && v.length !== 6)) throw new Error("line " + no + ": view needs 4 (2D) or 6 (3D) numbers");
+      lp.view = v; return;
+    }
+    if (!lp.vars && kw !== "") {
+      if (/^(max|min|maximize|minimize|maximise|minimise|nonneg|int)$/.test(kw) || OPS.test(line)) throw new Error("line " + no + ": declare the variables first (vars …)");
+    }
+    if (kw === "int" || kw === "integer") {
+      const vs = rest.split(/[\s,]+/).filter(x => x);
+      lp.int = lp.vars.map(() => false);
+      for (const v of vs) { const vi = lp.vars.indexOf(v); if (vi < 0) throw new Error("line " + no + ": unknown variable “" + v + "”"); lp.int[vi] = true; }
+      return;
+    }
+    if (/^(max|maximize|maximise|min|minimize|minimise)$/.test(kw)) {
+      lp.sense = kw.startsWith("max") ? "max" : "min";
+      const e = parseLin(rest, lp.vars, no);
+      if (e.co.every(x => x.isZero())) throw new Error("line " + no + ": the objective has no variable");
+      lp.c = e.co; return;
+    }
+    if (kw === "nonneg") return;
+    const parts = line.split("|").map(x => x.trim()), body = parts[0];
+    let name = parts[1] || "", color = "", on = true, cut = false;
+    for (const f of parts.slice(2)) for (const tok of f.split(/\s+/).filter(x => x)) {
+      if (tok.toLowerCase() === "off") on = false;
+      else if (tok.toLowerCase() === "cut") { cut = true; on = false; }
+      else if (PALETTE[tok.toLowerCase()]) color = PALETTE[tok.toLowerCase()];
+      else if (/^#[0-9a-fA-F]{3,6}$/.test(tok)) color = tok;
+      else throw new Error("line " + no + ": “" + tok + "” is neither a colour nor “off” or “cut”");
+    }
+    const seg = body.split(OPS);
+    if (seg.length < 3) throw new Error("line " + no + ": neither a keyword nor a constraint");
+    if (seg.length === 3 && seg[0].includes(",")) {
+      const vs = seg[0].split(",").map(x => x.trim()), op = opNorm(seg[1]), r = parseLin(seg[2], lp.vars, no);
+      if (r.co.some(x => !x.isZero())) throw new Error("line " + no + ": “x, y >= …” needs a number on the right");
+      for (const v of vs) {
+        const vi = lp.vars.indexOf(v); if (vi < 0) throw new Error("line " + no + ": unknown variable “" + v + "”");
+        const nonneg = op === ">=" && r.k.isZero();
+        pend.push({ a: lp.vars.map((w, j) => j === vi ? F1 : F0), op, b: r.k, name, color, on, cut, nonneg });
+      }
+      return;
+    }
+    for (let q = 0; q + 2 < seg.length; q += 2) {
+      const L = parseLin(seg[q], lp.vars, no), R = parseLin(seg[q + 2], lp.vars, no), op = opNorm(seg[q + 1]);
+      let a = L.co.map((x, j) => x.sub(R.co[j])), b = R.k.sub(L.k);
+      if (a.every(x => x.isZero())) throw new Error("line " + no + ": a constraint without a variable");
+      let op2 = op;
+      if (L.co.every(x => x.isZero()) && R.co.some(x => !x.isZero())) { a = a.map(x => x.neg()); b = b.neg(); op2 = op === "<=" ? ">=" : op === ">=" ? "<=" : "="; }
+      const nz = a.map((x, j) => x.isZero() ? -1 : j).filter(j => j >= 0);
+      const nonneg = nz.length === 1 && b.isZero() && ((op2 === ">=" && a[nz[0]].sign > 0) || (op2 === "<=" && a[nz[0]].sign < 0));
+      const both = L.co.some(x => !x.isZero()) && R.co.some(x => !x.isZero());
+      pend.push({ a, op: op2, b, name, color, on, cut, nonneg, disp: both ? { L, R, op } : null });
+    }
+  });
+  if (!lp.vars) throw new Error("no variables declared (vars x y)");
+  if (!lp.c) throw new Error("no objective (max … or min …)");
+  if (lp.view && lp.view.length !== 2 * lp.vars.length) throw new Error("view: " + 2 * lp.vars.length + " numbers for " + lp.vars.length + " variables");
+  let ai = 0;
+  pend.forEach(p => { if (!p.color) p.color = p.nonneg ? PALETTE.gray : PALETTE[AUTO[ai++ % AUTO.length]]; });
+  lp.cons = pend;
+  lp.d = lp.vars.length;
+  if (!lp.int) lp.int = lp.vars.map(() => true);
+  if (!lp.title) lp.title = "custom LP";
+  return lp;
+}
+/* the rows A x ≤ b of the switched-on constraints, in order (x ≥ 0 is implied); the objective in MIN form */
+function lpRows(lp, on) {
+  const A = [], b = [], src = [];
+  lp.cons.forEach((k, i) => {
+    if (k.nonneg || !(on ? on[i] : k.on)) return;
+    if (k.op === "<=" || k.op === "=") { A.push(k.a); b.push(k.b); src.push(i); }
+    if (k.op === ">=" || k.op === "=") { A.push(k.a.map(x => x.neg())); b.push(k.b.neg()); src.push(i); }
+  });
+  const sg = lp.sense === "max" ? -1 : 1;
+  return { c: lp.c.map(x => sg < 0 ? x.neg() : x), A, b, src, sg };
+}
+
+/* ---------- TeX of linear expressions and constraints (Frac coefficients) ---------- */
+function varT(v) {
+  const m = /^([A-Za-z]+)_?(\d+)$/.exec(v);
+  if (m) return (m[1].length > 1 ? "\\mathit{" + m[1] + "}" : m[1]) + "_{" + m[2] + "}";
+  return v.length > 1 ? "\\mathit{" + v.replace(/_/g, "\\_") + "}" : v;
+}
+function exprT(co, vars) {
+  let s = "";
+  co.forEach((c, j) => {
+    c = Frac.of(c);
+    if (c.isZero()) return;
+    const a = c.abs(), t = (a.eq(F1) ? "" : num(a).tex) + varT(vars[j]);
+    s += s ? (c.sign < 0 ? " - " : " + ") + t : (c.sign < 0 ? "-" : "") + t;
+  });
+  return s || "0";
+}
+function sideT(e, vars) {
+  if (!e.co.some(x => !x.isZero())) return numT(e.k);
+  let s = exprT(e.co, vars);
+  if (!e.k.isZero()) s = e.kFirst ? numT(e.k) + (s[0] === "-" ? " " + s.replace(/^-/, "- ") : " + " + s) : s + (e.k.sign < 0 ? " - " : " + ") + numT(e.k.abs());
+  return s;
+}
+const REL = { "<=": "\\;\\le\\;", ">=": "\\;\\ge\\;", "=": "\\;=\\;" };
+const consT = (k, vars) => k.disp ? sideT(k.disp.L, vars) + REL[k.disp.op] + sideT(k.disp.R, vars) : exprT(k.a, vars) + REL[k.op] + numT(k.b);
+function exprP(co, vars) {
+  let s = "";
+  co.forEach((c, j) => {
+    c = Frac.of(c); if (c.isZero()) return;
+    const a = c.abs(), t = (a.eq(F1) ? "" : numP(a)) + vars[j];
+    s += s ? (c.sign < 0 ? " − " : " + ") + t : (c.sign < 0 ? "−" : "") + t;
+  });
+  return s || "0";
+}
+
+/* ---------- the graph text format (algs4 Graph), with optional coordinates ---------- */
+function isLPText(text) { return /^\s*(vars|variables)\b/im.test(text); }
+function parseGraphText(text) {
+  let problem = null, title = "";
+  const toks = [];
+  text.split(/\r?\n/).forEach((raw, i) => {
+    const line = raw.replace(/#.*$/, "").trim();
+    if (!line) return;
+    const m = /^(problem|title)\b\s*(.*)$/i.exec(line);
+    if (m) {
+      if (m[1].toLowerCase() === "title") { title = m[2]; return; }
+      const p = m[2].trim().toLowerCase();
+      if (p !== "vc" && p !== "is") throw new Error("line " + (i + 1) + ": problem vc (Vertex Cover) or problem is (Independent Set)");
+      problem = p; return;
+    }
+    for (const t of line.split(/[\s,]+/).filter(x => x)) toks.push({ t, no: i + 1 });
+  });
+  let k = 0;
+  const int = what => {
+    if (k >= toks.length) throw new Error("the input ends early: expected " + what);
+    const { t, no } = toks[k++];
+    if (!/^\d+$/.test(t)) throw new Error("line " + no + ": expected " + what + ", found “" + t + "”");
+    return parseInt(t, 10);
+  };
+  const V = int("the number of vertices V"), E = int("the number of edges E");
+  if (V < 1 || V > 14) throw new Error("between 1 and 14 vertices, please (every subset is tried by brute force)");
+  const edges = [];
+  for (let e = 0; e < E; e++) {
+    const u = int("edge " + (e + 1)), v = int("edge " + (e + 1));
+    if (u >= V || v >= V) throw new Error("line " + toks[k - 1].no + ": vertex out of range 0…" + (V - 1));
+    if (u === v) throw new Error("line " + toks[k - 1].no + ": a self-loop " + u + "–" + v);
+    edges.push([u, v]);
+  }
+  const rest = toks.length - k;
+  let pos = null;
+  if (rest) {
+    if (rest !== 2 * V) throw new Error("after the edges: either nothing or exactly " + V + " lines “x y” with coordinates (found " + rest + " numbers)");
+    pos = [];
+    for (let v = 0; v < V; v++) {
+      const x = Number(toks[k++].t), y = Number(toks[k++].t);
+      if (!isFinite(x) || !isFinite(y)) throw new Error("line " + toks[k - 1].no + ": coordinates must be numbers");
+      pos.push([x, y]);
+    }
+  }
+  return { kind: "graph", V, edges, pos, problem, title, src: text };
+}
+function graphToText(g, problem) {
+  const L = [];
+  if (g.title) L.push("title " + g.title);
+  L.push("problem " + problem, String(g.V), String(g.edges.length));
+  for (const [u, v] of g.edges) L.push(u + " " + v);
+  for (const [x, y] of g.pos) L.push((+x.toFixed(3)) + " " + (+y.toFixed(3)));
+  return L.join("\n") + "\n";
+}
+
+/* ==========================================================================
+   MathJax: one queue, a cache of typeset results; TeX labels inside the SVG drawings
+   ========================================================================== */
+const mjReady = () => !!(window.MathJax && MathJax.typesetPromise && MathJax.startup && MathJax.startup.document);
+/* All typesetting goes through one queue (MathJax does not like overlapping calls).
+   Every result is cached by its source, so a formula that was typeset once — e.g. ahead of time,
+   in the background — is shown instantly and without MathJax afterwards. */
+const MJC = new Map();
+const MJQ = { hi: [], lo: [], busy: false };
+function mjRun() {
+  if (MJQ.busy || !mjReady()) return;
+  const job = MJQ.hi.shift() || MJQ.lo.shift();
+  if (!job) return;
+  MJQ.busy = true;
+  Promise.resolve().then(job).catch(() => {}).finally(() => { MJQ.busy = false; setTimeout(mjRun, 0); });
+}
+function mjTypeset(html, ctx) {
+  if (MJC.has(html)) return Promise.resolve(MJC.get(html));
+  const tmp = document.createElement("div"), cs = getComputedStyle(ctx || document.body);
+  tmp.className = "mj-buf"; tmp.style.fontSize = cs.fontSize; tmp.style.fontFamily = cs.fontFamily; tmp.innerHTML = html;
+  document.body.appendChild(tmp);
+  return MathJax.typesetPromise([tmp]).then(() => {
+    const out = tmp.innerHTML; MJC.set(html, out);
+    if (MathJax.typesetClear) MathJax.typesetClear([tmp]);
+    return out;
+  }).finally(() => tmp.remove());
+}
+function setMath(node, html) {
+  node._want = html;
+  if (MJC.has(html)) { if (node._shown !== html) { node.innerHTML = MJC.get(html); node._shown = html; } return; }
+  if (!mjReady()) { if (node._shown !== html) { node.innerHTML = html; node._shown = html; node._raw = true; } return; }
+  if (node._queued) return;
+  node._queued = true;
+  MJQ.hi.push(() => {
+    node._queued = false;
+    const want = node._want;
+    return mjTypeset(want, node).then(out => { if (node._want === want) { node.innerHTML = out; node._shown = want; node._raw = false; } else setMath(node, node._want); });
+  });
+  mjRun();
+}
+/* typeset in place (static parts of the page), through the same queue */
+function mjInPlace(nodes) { MJQ.hi.push(() => MathJax.typesetPromise(nodes)); mjRun(); }
+/* background: typeset these sources (each with the element it will go to, for the font) */
+function mjPrepare(items, onProgress, alive) {
+  const todo = items.filter(it => !MJC.has(it[0])).filter((it, i, arr) => arr.findIndex(q => q[0] === it[0]) === i);
+  let done = 0; const total = todo.length;
+  onProgress(done, total);
+  for (const [html, ctx] of todo) MJQ.lo.push(() => { if (!alive()) return; return mjTypeset(html, ctx).then(() => { done++; onProgress(done, total); }); });
+  mjRun();
+}
+const MJL = new Map(); let mjAgain = 0;
+function mjSvg(tex) {
+  const c = MJL.get(tex);
+  if (c) return c === 1 ? null : c;
+  if (!mjReady()) return null;
+  MJL.set(tex, 1);
+  MJQ.hi.push(() => MathJax.tex2svgPromise(tex, { display: false }).then(node => {
+    const sv = node.querySelector("svg");
+    MJL.set(tex, { vb: sv.getAttribute("viewBox").split(/[\s,]+/).map(Number), inner: sv.innerHTML });
+    if (!mjAgain) mjAgain = requestAnimationFrame(() => { mjAgain = 0; render(); });
+  }).catch(() => MJL.delete(tex)));
+  mjRun();
+  return null;
+}
+let MEASURE = null;
+const BODYFONT = () => getComputedStyle(document.body).fontFamily;
+function textW(s, font) {
+  if (!MEASURE) MEASURE = document.createElement("canvas").getContext("2d");
+  MEASURE.font = font; return MEASURE.measureText(s).width;
+}
+function mathAt(tex, x, y, fs, anchor, color, plain) {
+  const c = mjSvg(tex);
+  if (!c) {
+    const w = textW(plain, "italic " + fs + "px " + BODYFONT());
+    return { w, svg: '<text x="' + f1(x) + '" y="' + f1(y) + '" style="font:italic ' + fs + 'px var(--wi-font-body);fill:' + color + ';text-anchor:' + (anchor || "start") + '">' + esc(plain) + "</text>" };
+  }
+  const [, vy, vw, vh] = c.vb, w = vw / 1000 * fs, h = vh / 1000 * fs;
+  const left = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w : x;
+  return { w, svg: '<svg x="' + f1(left) + '" y="' + f1(y + vy / 1000 * fs) + '" width="' + f1(w) + '" height="' + f1(h) +
+                   '" viewBox="' + c.vb.join(" ") + '" overflow="visible" style="color:' + color + '">' + c.inner + "</svg>" };
+}
+
+/* ==========================================================================
+   The bound bar: what is known about the optimum.  One horizontal value axis.
+   For a minimization problem, from left to right: values that are ruled out
+   (no solution can be this good), the open interval, and values that are no
+   longer interesting (we already have a solution at least this good).
+   For a maximization problem the same, mirrored in meaning.
+
+   o = { sense, lo, hi,
+         lp: Frac|null, round: bool (objective values are integers),
+         search: number|null (a bound proved by exhaustive search),
+         best: number|null, bestLabel, earlier: [numbers],
+         opt: number|null, optShown, words: { out: [..], worse: [..] } }
+   ========================================================================== */
+function barBounds(o) {
+  const min = o.sense === "min";
+  const lpv = o.lp ? o.lp.toNumber() : null;
+  const rnd = o.lp && o.round ? (min ? o.lp.ceil() : o.lp.floor()).toNumber() : null;
+  let bound = rnd !== null ? rnd : lpv;
+  if (o.search !== null && o.search !== undefined)
+    bound = bound === null ? o.search : (min ? Math.max(bound, o.search) : Math.min(bound, o.search));
+  const proved = o.best !== null && o.best !== undefined && bound !== null && Math.abs(o.best - bound) < 1e-9;
+  return { lpv, rnd, bound, proved };
+}
+function drawBar(svg, wrap, o) {
+  const W = Math.max(300, wrap.clientWidth), H = 128, pl = 22, pr = 22;
+  const span = (o.hi - o.lo) || 1, X = v => pl + (v - o.lo) / span * (W - pl - pr);
+  const yT = 54, yA = 74;                     /* band from yT to the axis yA */
+  const min = o.sense === "min", B = barBounds(o), FS = 13.5;
+  let defs = '<defs><pattern id="hatchOpen" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+             '<rect width="7" height="7" fill="#f7f0e2"/><line x1="0" y1="0" x2="0" y2="7" stroke="#c9a56c" stroke-width="2"/></pattern></defs>';
+  let s = "";
+  /* the three regions */
+  const regions = [];
+  const best = o.best === undefined ? null : o.best;
+  if (min) {
+    if (B.bound !== null) regions.push({ a: o.lo, b: B.bound, kind: "out" });
+    regions.push({ a: B.bound !== null ? B.bound : o.lo, b: best !== null ? best : o.hi, kind: "open" });
+    if (best !== null) regions.push({ a: best, b: o.hi, kind: "worse" });
+  } else {
+    if (best !== null) regions.push({ a: o.lo, b: best, kind: "worse" });
+    regions.push({ a: best !== null ? best : o.lo, b: B.bound !== null ? B.bound : o.hi, kind: "open" });
+    if (B.bound !== null) regions.push({ a: B.bound, b: o.hi, kind: "out" });
+  }
+  const regFont = "10.5px " + getComputedStyle(document.documentElement).getPropertyValue("--wi-font-head");
+  for (const r of regions) {
+    const x0 = X(Math.max(o.lo, Math.min(r.a, r.b))), x1 = X(Math.min(o.hi, Math.max(r.a, r.b)));
+    if (x1 - x0 < 0.5) continue;
+    const fill = r.kind === "out" ? "#ecd3cc" : r.kind === "worse" ? "#e7e1d4" : "url(#hatchOpen)";
+    s += '<rect x="' + f1(x0) + '" y="' + yT + '" width="' + f1(x1 - x0) + '" height="' + (yA - yT) + '" fill="' + fill + '"/>';
+    const opts = r.kind === "out" ? o.words.out : r.kind === "worse" ? o.words.worse : (B.bound === null ? ["open: no bound yet", "open"] : ["open", ""]);
+    const lab = opts.find(t => textW(t, regFont) + 10 <= x1 - x0);
+    if (lab) s += '<text class="sv-reg" x="' + f1((x0 + x1) / 2) + '" y="' + (yT + 13.5) + '"' + (r.kind === "open" ? ' style="fill:#7a5a22"' : "") + ">" + esc(lab) + "</text>";
+  }
+  s += '<rect x="' + f1(X(o.lo)) + '" y="' + yT + '" width="' + f1(X(o.hi) - X(o.lo)) + '" height="' + (yA - yT) + '" fill="none" stroke="var(--wi-border-soft)"/>';
+  /* axis and ticks */
+  s += '<line x1="' + f1(X(o.lo)) + '" x2="' + f1(X(o.hi)) + '" y1="' + yA + '" y2="' + yA + '" stroke="#6b675c" stroke-width="1.3"/>';
+  const stepT = span <= 16 ? 1 : niceStep(span, Math.max(4, (W - pl - pr) / 60));
+  const marks = [o.best, o.optShown ? o.opt : null].filter(v => v !== null && v !== undefined).map(X);
+  for (let v = Math.ceil(o.lo / stepT) * stepT; v <= o.hi + 1e-9; v += stepT) {
+    const x = X(v);
+    if (marks.some(m => Math.abs(m - x) < 7)) continue;
+    s += '<line x1="' + f1(x) + '" x2="' + f1(x) + '" y1="' + yA + '" y2="' + (yA + 4) + '" stroke="#6b675c" stroke-width="1"/>' +
+         '<text class="sv-tick" x="' + f1(x) + '" y="' + (yA + 16) + '" text-anchor="middle" style="paint-order:stroke;stroke:var(--wi-bg);stroke-width:3px">' + esc(numP(+v.toPrecision(10))) + "</text>";
+  }
+  const place = (m, x, anchor) => {            /* keep a label inside the drawing */
+    let ax = x, an = anchor;
+    if (an === "middle") { if (x - m.w / 2 < 2) { ax = 2; an = "start"; } else if (x + m.w / 2 > W - 2) { ax = W - 2; an = "end"; } }
+    else if (an === "end" && x - m.w < 2) { ax = 2; an = "start"; }
+    else if (an === "start" && x + m.w > W - 2) { ax = W - 2; an = "end"; }
+    return [ax, an];
+  };
+  const tex = (t, x, y, anchor, color, plain) => {
+    const m0 = mathAt(t, 0, 0, FS, "start", color, plain), [ax, an] = place(m0, x, anchor);
+    return mathAt(t, ax, y, FS, an, color, plain).svg;
+  };
+  const txt = (t, x, y, anchor, color, bold) => {
+    const font = (bold ? "bold " : "") + "12.5px " + BODYFONT(), w = textW(t, font), [ax, an] = place({ w }, x, anchor);
+    return '<text class="sv-bar" x="' + f1(ax) + '" y="' + y + '" text-anchor="' + an + '" style="fill:' + color + (bold ? ";font-weight:bold" : "") + '">' + esc(t) + "</text>";
+  };
+  /* the LP bound: red, above the band */
+  const lpSide = min ? "end" : "start", rndSide = min ? "start" : "end";
+  if (B.lpv !== null) {
+    const x = X(B.lpv), sep = B.rnd !== null && Math.abs(B.rnd - B.lpv) > 1e-9;
+    s += '<line x1="' + f1(x) + '" x2="' + f1(x) + '" y1="26" y2="' + yA + '" stroke="' + C_LP + '" stroke-width="2"/>' +
+         '<path d="M' + f1(x - 5) + ',' + (yT - 9) + 'L' + f1(x + 5) + ',' + (yT - 9) + 'L' + f1(x) + ',' + (yT - 1) + 'Z" fill="' + C_LP + '"/>';
+    const LT = o.lpTex || "z_{\\mathrm{LP}}", LP_ = o.lpPlain || "z_LP";
+    s += tex(LT + " = " + numT(o.lp), x + (sep ? (min ? -6 : 6) : 0), 18, sep ? lpSide : "middle", C_LP, LP_ + " = " + numP(o.lp));
+    if (sep) {
+      const xr = X(B.rnd);
+      s += '<line x1="' + f1(xr) + '" x2="' + f1(xr) + '" y1="32" y2="' + yA + '" stroke="' + C_LP + '" stroke-width="1.6" stroke-dasharray="4 3"/>';
+      s += tex((min ? "\\lceil " + LT + "\\rceil" : "\\lfloor " + LT + "\\rfloor") + " = " + numT(B.rnd), xr + (min ? 6 : -6), 40, rndSide, C_LP, (min ? "⌈" + LP_ + "⌉ = " : "⌊" + LP_ + "⌋ = ") + numP(B.rnd));
+    }
+  }
+  /* a bound from exhaustive search: dark, in the band */
+  if (o.search !== null && o.search !== undefined) {
+    const x = X(o.search);
+    s += '<line x1="' + f1(x) + '" x2="' + f1(x) + '" y1="' + (B.lpv === null ? 26 : 44) + '" y2="' + yA + '" stroke="#38362e" stroke-width="1.8" stroke-dasharray="2 2"/>';
+    const t = "search: " + (min ? "≥ " : "≤ ") + numP(o.search);
+    if (B.lpv === null) s += txt(t, x, 18, "middle", "#38362e");
+    else if (B.rnd === null || Math.abs(B.rnd - o.search) > 1e-9) s += txt(t, x + (min ? -6 : 6), 40, min ? "end" : "start", "#38362e");
+  }
+  /* solutions: blue, below the axis */
+  for (const v of o.earlier || []) {
+    const x = X(v);
+    s += '<line x1="' + f1(x) + '" x2="' + f1(x) + '" y1="' + (yA - 6) + '" y2="' + (yA + 8) + '" stroke="' + C_INT + '" stroke-width="1.5" opacity=".35"/>';
+  }
+  const optShown = o.optShown && o.opt !== null && o.opt !== undefined;
+  if (best !== null) {
+    const x = X(best), col = B.proved ? C_OPT : C_INT;
+    s += '<line x1="' + f1(x) + '" x2="' + f1(x) + '" y1="' + yT + '" y2="' + (yA + 24) + '" stroke="' + col + '" stroke-width="2.4"/>' +
+         '<path d="M' + f1(x - 5.5) + ',' + (yA + 31) + 'L' + f1(x + 5.5) + ',' + (yA + 31) + 'L' + f1(x) + ',' + (yA + 22) + 'Z" fill="' + col + '"/>';
+    let t = o.bestLabel + ": " + numP(best);
+    if (B.proved) t += " — optimal, proved";
+    else if (optShown && Math.abs(o.opt - best) < 1e-9) t += " = the optimum";
+    const sepOpt = optShown && Math.abs(o.opt - best) > 1e-9;
+    s += txt(t, x + (sepOpt ? (min ? 6 : -6) : 0), H - 6, sepOpt ? (min ? "start" : "end") : "middle", col, B.proved);
+  }
+  if (optShown && (best === null || Math.abs(o.opt - best) > 1e-9)) {
+    const x = X(o.opt);
+    s += '<path d="M' + f1(x) + ',' + (yA - 7) + 'L' + f1(x + 7) + ',' + yA + 'L' + f1(x) + ',' + (yA + 7) + 'L' + f1(x - 7) + ',' + yA + 'Z" fill="' + C_OPT + '" stroke="var(--wi-panel-2)" stroke-width="1.2"/>';
+    s += txt("optimum: " + numP(o.opt), x + (best !== null ? (min ? -6 : 6) : 0), H - 6, best !== null ? (min ? "end" : "start") : "middle", C_OPT);
+  }
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.innerHTML = defs + s;
+  return B;
+}
+function niceStep(range, n) {
+  const raw = range / Math.max(1, n), p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+  return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
+}
+
+/* ==========================================================================
+   Geometry for drawing (floating point): half-planes, vertices, clipping
+   ========================================================================== */
+const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
+const norm = a => Math.sqrt(dot(a, a));
+const sub = (a, b) => a.map((x, i) => x - b[i]);
+const add = (a, b) => a.map((x, i) => x + b[i]);
+const mul = (a, k) => a.map(x => x * k);
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const OBJ = "#e07b10", OBJD = "#a85808";
+
+/* ---------- geometry for drawing (floating point, from the simplex page) ---------- */
+function solve(A, b) {
+  const d = A.length;
+  if (d === 2) {
+    const det = A[0][0] * A[1][1] - A[0][1] * A[1][0];
+    if (Math.abs(det) <= 1e-11 * norm(A[0]) * norm(A[1])) return null;
+    return [(b[0] * A[1][1] - A[0][1] * b[1]) / det, (A[0][0] * b[1] - b[0] * A[1][0]) / det];
+  }
+  const c12 = cross(A[1], A[2]), det = dot(A[0], c12);
+  if (Math.abs(det) <= 1e-11 * norm(A[0]) * norm(A[1]) * norm(A[2])) return null;
+  const c20 = cross(A[2], A[0]), c01 = cross(A[0], A[1]);
+  return [0, 1, 2].map(i => (b[0] * c12[i] + b[1] * c20[i] + b[2] * c01[i]) / det);
+}
+const tolOf = (h, x) => 1e-9 * (Math.abs(h.b) + norm(h.a) * norm(x) + 1);
+const sat = (h, x) => dot(h.a, x) <= h.b + tolOf(h, x);
+const tightOn = (h, x) => Math.abs(dot(h.a, x) - h.b) <= tolOf(h, x) * 10;
+function vertices(H, d) {
+  const out = [], n = H.length;
+  const push = p => {
+    for (const h of H) if (!sat(h, p)) return;
+    const sc = 1e-7 * (1 + norm(p));
+    for (const q of out) if (norm(sub(q.p, p)) <= sc) return;
+    out.push({ p });
+  };
+  if (d === 2) { for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const p = solve([H[i].a, H[j].a], [H[i].b, H[j].b]); if (p) push(p); } }
+  else { for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) for (let k = j + 1; k < n; k++) { const p = solve([H[i].a, H[j].a, H[k].a], [H[i].b, H[j].b, H[k].b]); if (p) push(p); } }
+  for (const v of out) {
+    v.tight = []; H.forEach((h, i) => { if (tightOn(h, v.p)) v.tight.push(i); });
+    v.real = v.tight.every(i => !H[i].box);
+  }
+  return out;
+}
+function boxH(lo, hi) {
+  const d = lo.length, H = [];
+  for (let i = 0; i < d; i++) {
+    const e = new Array(d).fill(0); e[i] = 1;
+    H.push({ a: e, b: hi[i], box: true, ci: -1 });
+    H.push({ a: mul(e, -1), b: -lo[i], box: true, ci: -1 });
+  }
+  return H;
+}
+function orderPoly(pts, nrm) {
+  if (pts.length < 3) return pts.slice();
+  const d = pts[0].length, c = pts.reduce((s, p) => add(s, p), new Array(d).fill(0)).map(x => x / pts.length);
+  let ang;
+  if (d === 2) ang = p => Math.atan2(p[1] - c[1], p[0] - c[0]);
+  else {
+    const n = mul(nrm, 1 / norm(nrm)), t = Math.abs(n[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+    const u = cross(n, t), un = mul(u, 1 / norm(u)), v = cross(n, un);
+    ang = p => { const q = sub(p, c); return Math.atan2(dot(q, v), dot(q, un)); };
+  }
+  return pts.slice().sort((p, q) => ang(p) - ang(q));
+}
+function clipLine(n, z, H) {
+  const nn = dot(n, n), p0 = mul(n, z / nn), dv = [-n[1], n[0]];
+  let lo = -Infinity, hi = Infinity;
+  for (const h of H) {
+    const ad = dot(h.a, dv), r = h.b - dot(h.a, p0);
+    if (Math.abs(ad) < 1e-14 * norm(h.a) * norm(dv)) { if (r < -tolOf(h, p0)) return null; continue; }
+    const t = r / ad; if (ad > 0) hi = Math.min(hi, t); else lo = Math.max(lo, t);
+  }
+  if (!(lo <= hi + 1e-12 * (Math.abs(lo) + Math.abs(hi) + 1))) return null;
+  return [add(p0, mul(dv, lo)), add(p0, mul(dv, hi))];
+}
+
+/* graph helpers */
+const poly = (n, r, rot) => [...Array(n)].map((_, i) => { const a = (rot === undefined ? -Math.PI / 2 : rot) + 2 * Math.PI * i / n; return [(r || 1) * Math.cos(a), (r || 1) * Math.sin(a)]; });
+function piePath(cx, cy, r, f) {
+  if (f >= 1) return '<circle cx="' + f1(cx) + '" cy="' + f1(cy) + '" r="' + r + '"';
+  const a = 2 * Math.PI * f, ex = cx + r * Math.sin(a), ey = cy - r * Math.cos(a);
+  return '<path d="M' + f1(cx) + "," + f1(cy) + "L" + f1(cx) + "," + f1(cy - r) + "A" + r + "," + r + " 0 " + (f > 0.5 ? 1 : 0) + " 1 " + f1(ex) + "," + f1(ey) + 'Z"';
+}
+
+/* ==========================================================================
+   Tab “Combine the constraints”: one multiplier y_i per constraint, the
+   weighted sum of the constraints, and the column-by-column comparison
+   with the objective.  If every scaled row points the right way and every
+   column fits, the right-hand side of the sum is a bound: weak duality.
+   Exact rationals decide; floating point only draws.
+   ========================================================================== */
+const VAR_COLORS = ["#2a6a63", "#7d3f8f", "#8a5a1c", "#4d6b1f", "#b0306a", "#3b5998", "#6b675c", "#a85808"];
+
+const CB_PRESETS = {
+  small: { name: "a small LP (min, three variables)", text:
+`title a small LP
+vars x1 x2 x3
+min 7x1 + x2 + 5x3
+x1 - x2 + 3x3 >= 10     | | red
+5x1 + 2x2 - x3 >= 6     | | blue
+` },
+  hessy: { name: "Hessy James's apple farm (max)", text:
+`title Hessy James's apple farm
+vars s k
+label s #Sossenheimer Roter trees
+label k #Korbacher Edelrenette trees
+unit €
+max 195s + 255k
+4s + 4k <= 5000     | Orchard     | red
+6s + 4.5k <= 3000   | Fertilizer  | green
+s + 3k <= 1700      | Harvest     | blue
+view -30 1450 -30 950
+` },
+  textbook: { name: "a small example (max, two variables)", text:
+`title a small example
+vars x y
+max 5x + 4y
+x + y <= 5      | | red
+10x + 6y <= 45  | | blue
+view -0.5 6.5 -0.5 6
+` },
+  mixed: { name: "a ≤ in a min problem", text:
+`title a ≤ in a min problem
+vars x y
+min x + 2y
+x + y >= 4      | | red
+x - y <= 2      | | blue
+view -0.5 7 -0.5 6
+` },
+  equation: { name: "an equation (min)", text:
+`title an equation
+vars x y
+min 3x + 2y
+x + 2y >= 4     | | red
+x - y = 1       | | blue
+view -0.5 6 -0.5 5
+` },
+  cover2d: { name: "a covering problem (min, two variables)", text:
+`title a covering problem
+vars x y
+min 2x + 5y
+2x + 2y >= 15   | | red
+x + 3y >= 21    | | blue
+2x - y <= 6     | | green
+view -0.6 12 -0.6 10
+` }
+};
+const CB_GRAPHS = {
+  four:     { name: "Vertex Cover: 4 vertices, 5 edges", V: 4, edges: [[0, 1], [0, 2], [2, 3], [0, 3], [1, 3]], pos: [[0, 0], [1, 0], [0, 1], [1, 1]] },
+  triangle: { name: "Vertex Cover: triangle", V: 3, edges: [[0, 1], [0, 2], [1, 2]], pos: poly(3) },
+  cycle5:   { name: "Vertex Cover: 5-cycle", V: 5, edges: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 0]], pos: poly(5) },
+  path4:    { name: "Vertex Cover: path, 4 vertices", V: 4, edges: [[0, 1], [1, 2], [2, 3]], pos: [[0, 0], [1, 0.45], [2, 0], [3, 0.45]] },
+  grid23:   { name: "Vertex Cover: grid 2 × 3 (bipartite)", V: 6, edges: [[0, 1], [1, 2], [3, 4], [4, 5], [0, 3], [1, 4], [2, 5]], pos: [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1]] },
+  hubtri:   { name: "Vertex Cover: a star with three triangles", V: 10,
+              edges: [[0, 1], [0, 2], [0, 3], [0, 6], [3, 4], [4, 5], [3, 5], [6, 7], [7, 8], [6, 8], [7, 9], [8, 9]],
+              pos: [[0, 0], [-0.55, -1.05], [0.55, -1.05], [-1.15, 0.45], [-2.25, 0.15], [-1.85, 1.3], [1.15, 0.45], [2.25, 0.15], [1.85, 1.3], [2.95, 1.05]] },
+  petersen: { name: "Vertex Cover: Petersen graph", V: 10,
+              edges: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 0], [0, 5], [1, 6], [2, 7], [3, 8], [4, 9], [5, 7], [6, 8], [7, 9], [8, 5], [9, 6]],
+              pos: poly(5).concat(poly(5, 0.5)) }
+};
+
+const CB = { inst: null, y: [], pic: "dual", reveal: true, H: 430, Hdef: 430, split: 0.6, view: null, dview: null, gview: { z: 1, dx: 0, dy: 0 }, range: null, hover: -1,
+             yaw: 215, pitch: 22, zoom3: 1, spin: false, dragging: false, scaled: true };
+
+/* ---------- instances ---------- */
+function cbFromLP(key, lp) {
+  const rows = lp.cons.filter(k => !k.nonneg && k.on && !k.cut).map(k => ({ a: k.a, op: k.op, b: k.b, name: k.name, color: k.color, k }));
+  if (!rows.length) throw new Error("no constraints (besides x ≥ 0)");
+  if (rows.length > 16) throw new Error("at most 16 constraints, please");
+  const vt = lp.vars.map(varT);
+  return { kind: "lp", key, lp, vars: lp.vars, vt, rows, c: lp.c, sense: lp.sense, title: lp.title, unit: lp.unit || "", n: lp.vars.length, m: rows.length };
+}
+function cbFromGraph(key, g) {
+  if (g.edges.length > 24) throw new Error("at most 24 edges, please");
+  const vars = [...Array(g.V)].map((_, i) => "x" + (i + 1)), vt = vars.map(varT);
+  const rows = g.edges.map(([u, v], j) => ({ a: vars.map((_, i) => i === u || i === v ? F1 : F0), op: ">=", b: F1, name: "e" + (j + 1), color: PALETTE[AUTO[j % AUTO.length]] }));
+  return { kind: "graph", key, g, vars, vt, rows, c: vars.map(() => F1), sense: "min", title: g.title || "a graph", unit: "", n: g.V, m: rows.length };
+}
+const cbWant = I => I.sense === "min" ? ">=" : "<=";
+/* the sign a multiplier must have: +1 (keeps the direction), −1 (flips a row that points the wrong way), 0 (an equation: any sign) */
+const cbReq = (I, r) => r.op === "=" ? 0 : r.op === cbWant(I) ? 1 : -1;
+
+function cbLoad(inst, keepY) {
+  CB.inst = inst;
+  cbExact();
+  if (!keepY || CB.y.length !== inst.m) CB.y = inst.rows.map(() => F0);
+  const avail = cbPics();
+  CB.pic = inst.kind === "graph" ? "graph" : inst.m === 2 ? "dual" : inst.n === 2 ? "primal" : avail[0] || "none";
+  CB.scaled = inst.m <= 6;
+  CB.yaw = 215; CB.pitch = 22; CB.zoom3 = 1;
+  CB.range = null;
+  cbKnobRange();
+  cbFitViews();
+  CB.gview = { z: 1, dx: 0, dy: 0 };
+  cbBuildGrid();
+  setMath(el("cbDualLP"), cbDualLPHtml());
+  el("cbPicSeg").classList.toggle("hidden", avail.length < 2);
+  el("cbPicSeg").querySelectorAll("button").forEach(b => { b.classList.toggle("hidden", !avail.includes(b.dataset.p)); b.classList.toggle("on", b.dataset.p === CB.pic); });
+}
+function cbPics() {
+  const I = CB.inst, out = [];
+  if (I.kind === "graph") return ["graph"];
+  if (I.m === 2 || I.m === 3) out.push("dual");
+  if (I.n === 2 || I.n === 3) out.push("primal");
+  return out;
+}
+
+/* ---------- exact optima: the LP, and the best multipliers (the dual LP) ---------- */
+function cbExact() {
+  const I = CB.inst;
+  /* the primal: rows as  A x ≤ b  for lpMin */
+  const A = [], b = [];
+  for (const r of I.rows) {
+    if (r.op === "<=" || r.op === "=") { A.push(r.a); b.push(r.b); }
+    if (r.op === ">=" || r.op === "=") { A.push(r.a.map(x => x.neg())); b.push(r.b.neg()); }
+  }
+  const sg = I.sense === "max" ? -1 : 1, res = lpMin(I.c.map(x => sg < 0 ? x.neg() : x), A, b);
+  I.primal = { status: res.status, z: res.status === "optimal" ? (sg < 0 ? res.z.neg() : res.z) : null, x: res.x };
+  /* the dual: y_i = σ_i u  (σ = ±1), or u⁺ − u⁻ for an equation; u ≥ 0 */
+  const cols = [];                     /* for each u: [row i, sign] */
+  I.rows.forEach((r, i) => { const q = cbReq(I, r); if (q === 0) { cols.push([i, 1], [i, -1]); } else cols.push([i, q]); });
+  const max = I.sense === "max";
+  const obj = cols.map(([i, s]) => { const v = I.rows[i].b.mul(s); return max ? v : v.neg(); });      /* min: maximize b·y; max: minimize b·y */
+  const DA = [], Db = [];
+  for (let j = 0; j < I.n; j++) {
+    const row = cols.map(([i, s]) => I.rows[i].a[j].mul(s));
+    if (max) { DA.push(row.map(x => x.neg())); Db.push(I.c[j].neg()); } else { DA.push(row); Db.push(I.c[j]); }
+  }
+  const dr = lpMin(obj, DA, Db);
+  I.dual = { status: dr.status };
+  if (dr.status === "optimal") {
+    const y = I.rows.map(() => F0);
+    cols.forEach(([i, s], k) => { y[i] = y[i].add(dr.x[k].mul(s)); });
+    I.dual.y = y; I.dual.z = cbB(I, y);
+  }
+}
+const cbB = (I, y) => y.reduce((s, v, i) => s.add(v.mul(I.rows[i].b)), F0);
+function cbAnalyse(y) {
+  const I = CB.inst, max = I.sense === "max";
+  y = y || CB.y;
+  const s = I.vars.map((_, j) => y.reduce((acc, v, i) => acc.add(v.mul(I.rows[i].a[j])), F0));
+  const B = cbB(I, y);
+  const rowOK = I.rows.map((r, i) => { const q = cbReq(I, r); return y[i].isZero() || q === 0 || y[i].sign === q; });
+  const colOK = s.map((v, j) => max ? v.ge(I.c[j]) : v.le(I.c[j]));
+  const zero = y.every(v => v.isZero());
+  const valid = rowOK.every(x => x) && colOK.every(x => x);
+  const tight = valid && I.primal.z !== null && B.eq(I.primal.z);
+  return { s, B, rowOK, colOK, zero, valid, tight };
+}
+
+/* ---------- the multipliers: range of the sliders ---------- */
+function cbKnobRange() {
+  const I = CB.inst;
+  if (I.kind === "graph") { CB.kr = { lo: -1, hi: 2, step: 0.25 }; return; }
+  const big = I.dual.y ? Math.max(...I.dual.y.map(v => Math.abs(v.toNumber()))) : 1;
+  const R = niceUp(Math.max(2, 2.2 * big));
+  const step = [1 / 16, 1 / 8, 1 / 4, 1 / 2, 1, 2, 5, 10, 20].filter(s => s <= R / 30).pop() || 1 / 16;
+  CB.kr = { lo: -R, hi: R, step };
+}
+function niceUp(x) { const p = Math.pow(10, Math.floor(Math.log10(x))), f = x / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; }
+const cbFracOf = v => Frac.parse(String(+(+v).toPrecision(12)));
+const cbValP = f => { f = Frac.of(f); if (f.isInt()) return String(f.p); const n = num(f); return n.exact && !/overline/.test(n.tex) ? n.plain.replace("−", "-") : f.toString(); };
+function cbSetY(y) { CB.y = y.map(Frac.of); cbChanged(); }
+function cbChanged() { renderCB(); writeHash(); }
+
+/* ---------- formulas as small inline SVGs (cached MathJax, plain text until ready) ---------- */
+function mh(tex, plain, color, fs, cls) {
+  fs = fs || 16;
+  const m = mathAt(tex, 0, 0, fs, "start", color || "currentColor", plain || tex), w = Math.max(1, m.w) + 2, h = Math.round(fs * 1.55), base = Math.round(fs * 1.1);
+  return '<svg class="mh' + (cls ? " " + cls : "") + '" width="' + f1(w) + '" height="' + h + '" viewBox="0 0 ' + f1(w) + " " + h + '" overflow="visible">' +
+         mathAt(tex, 1, base, fs, "start", color || "currentColor", plain || tex).svg + "</svg>";
+}
+function cfT(f) { f = Frac.of(f).abs(); if (f.isInt()) return String(f.p); const n = num(f); return n.exact && !/overline/.test(n.tex) ? n.tex : "\\tfrac{" + f.p + "}{" + f.q + "}"; }
+const cfP = f => { f = Frac.of(f).abs(); if (f.isInt()) return String(f.p); const n = num(f); return n.exact && !/overline/.test(n.tex) ? n.plain : f.p + "/" + f.q; };
+const valT = f => (Frac.of(f).sign < 0 ? "-" : "") + cfT(f), valP = f => (Frac.of(f).sign < 0 ? "−" : "") + cfP(f);
+function termT(c, vt, vp, first) {
+  c = Frac.of(c);
+  const a = c.abs(), co = a.eq(F1) ? "" : cfT(a), cop = a.eq(F1) ? "" : cfP(a);
+  if (a.isZero()) return { tex: first ? "0" : "+\\,0", plain: first ? "0" : "+ 0", zero: true };
+  return { tex: (first ? (c.sign < 0 ? "-" : "") : (c.sign < 0 ? "-\\," : "+\\,")) + co + vt, plain: (first ? (c.sign < 0 ? "−" : "") : (c.sign < 0 ? "− " : "+ ")) + cop + vp, zero: false };
+}
+const RELT = { "<=": "\\le", ">=": "\\ge", "=": "=" };
+const RELP = { "<=": "≤", ">=": "≥", "=": "=" };
+const flipOp = o => o === "<=" ? ">=" : o === ">=" ? "<=" : "=";
+const yName = i => "y_{" + (i + 1) + "}";
+const yCol = i => CB.inst.rows[i].color;
+const texCol = (hex, t) => { const h = hex.replace("#", ""), v = [0, 2, 4].map(k => parseInt(h.substr(k, 2), 16)); return "{\\color[RGB]{" + v.join(",") + "}" + t + "}"; };
+const yColT = i => texCol(yCol(i), yName(i));
+
+/* ---------- the LP with the sliders at its constraints, the scaled rows, the sum, the comparison ---------- */
+function cbBuildGrid() {
+  const I = CB.inst, kr = CB.kr, n = I.n, g = el("cbGrid");
+  g.style.gridTemplateColumns = "auto " + "auto ".repeat(n) + "auto auto auto";
+  const C = (cls, id, span, html) => '<div class="' + cls + '"' + (id ? ' id="' + id + '"' : "") + (span ? ' style="grid-column:' + span + '"' : "") + ">" + (html || "") + "</div>";
+  const full = "1 / -1", terms = "2 / span " + n;
+  let h = "";
+  /* the objective */
+  h += C("gl sense", "", "", "") + [...Array(n)].map((_, j) => C("gt", "gO" + j)).join("") + C("gr", "") + C("gb", "") + C("gn", "");
+  h += C("gst", "", full, "subject to");
+  I.rows.forEach((r, i) => {
+    h += '<div class="gl knob" data-i="' + i + '"><span class="kname" id="gKN' + i + '"></span>' +
+         '<input type="range" class="kr" min="' + kr.lo + '" max="' + kr.hi + '" step="' + kr.step + '" value="0" aria-label="y' + (i + 1) + '" style="accent-color:' + r.color + '">' +
+         '<input type="text" class="kv" value="0" aria-label="value of y' + (i + 1) + '" spellcheck="false"><span class="kdot">·</span></div>';
+    h += [...Array(n)].map((_, j) => C("gt", "gA" + i + "_" + j)).join("") + C("gr", "gAR" + i) + C("gb", "gAB" + i) + C("gn", "gAN" + i);
+  });
+  h += C("gl", "", "", "") + C("gt nonneg", "gNN", terms) + C("gr", "") + C("gb", "") + C("gn", "");
+  h += C("gsep", "", full, '<span>times the multipliers, added up</span><label class="chk"><input type="checkbox" id="cbScaled"> show the scaled rows</label>');
+  I.rows.forEach((r, i) => {
+    h += C("gl scl", "gSL" + i) + [...Array(n)].map((_, j) => C("gt scl", "gS" + i + "_" + j)).join("") + C("gr scl", "gSR" + i) + C("gb scl", "gSB" + i) + C("gn scl", "");
+  });
+  h += C("grule", "", full);
+  h += C("gl sum", "gUL") + [...Array(n)].map((_, j) => C("gt sum", "gU" + j)).join("") + C("gr sum", "gUR") + C("gb sum", "gUB") + C("gn", "");
+  h += C("gl cmp", "gCL") + [...Array(n)].map((_, j) => C("gt cmp", "gC" + j)).join("") + C("gr", "") + C("gb", "") + C("gn", "");
+  h += C("gl obj", "gOL") + [...Array(n)].map((_, j) => C("gt obj", "gB" + j)).join("") + C("gr", "") + C("gb", "") + C("gn", "");
+  h += C("gchain", "gCH", full);
+  g.innerHTML = h;
+  g.querySelectorAll(".knob").forEach(k => {
+    const i = +k.dataset.i, rg = k.querySelector(".kr"), tx = k.querySelector(".kv");
+    rg.oninput = () => { CB.y[i] = cbFracOf(rg.value); tx.value = cbValP(CB.y[i]); tx.classList.remove("bad"); cbChanged(); };
+    const commit = () => { try { CB.y[i] = Frac.parse(tx.value.trim().replace("−", "-")); tx.classList.remove("bad"); cbChanged(); } catch (e) { tx.classList.add("bad"); } };
+    tx.onchange = commit; tx.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); commit(); } };
+  });
+  g.querySelectorAll("[data-i], [id^=gA], [id^=gS]").forEach(c => {
+    const m = /^g[AS]R?B?N?(\d+)/.exec(c.id || ""), i = c.dataset.i !== undefined ? +c.dataset.i : m ? +m[1] : -1;
+    if (i < 0) return;
+    c.addEventListener("mouseenter", () => { if (CB.hover !== i) { CB.hover = i; renderCB(); } });
+    c.addEventListener("mouseleave", () => { if (CB.hover === i) { CB.hover = -1; renderCB(); } });
+  });
+  el("cbScaled").checked = CB.scaled;
+  el("cbScaled").onchange = () => { CB.scaled = el("cbScaled").checked; renderCB(); };
+  CB._gsig = null;
+}
+function setCell(id, html) { const c = el(id); if (c && c._h !== html) { c.innerHTML = html; c._h = html; } }
+function cbUpdateGrid() {
+  const I = CB.inst, A = CB.A, n = I.n, max = I.sense === "max", ink = "var(--wi-ink-strong)", faint = "#b6b1a1";
+  /* the LP itself */
+  el("cbGrid").querySelector(".sense").innerHTML = mh(max ? "\\max" : "\\min", max ? "max" : "min", ink);
+  for (let j = 0; j < n; j++) { const t = termT(I.c[j], I.vt[j], I.vars[j], j === 0); setCell("gO" + j, mh(t.tex, t.plain, t.zero ? faint : OBJD)); }
+  I.rows.forEach((r, i) => {
+    setCell("gKN" + i, mh(yName(i), "y" + (i + 1), r.color, 16));
+    for (let j = 0; j < n; j++) { const t = termT(r.a[j], I.vt[j], I.vars[j], j === 0); setCell("gA" + i + "_" + j, mh(t.tex, t.plain, t.zero ? faint : ink)); }
+    setCell("gAR" + i, mh(RELT[r.op], RELP[r.op], ink));
+    setCell("gAB" + i, mh(valT(r.b), valP(r.b), ink));
+    setCell("gAN" + i, '<span class="rno">(' + (i + 1) + ")</span>" + (r.name && I.kind !== "graph" ? '<span class="nm">' + esc(r.name) + "</span>" : I.kind === "graph" ? '<span class="nm">' + mh("e_{" + (i + 1) + "}", "e" + (i + 1), "#8b8779", 13) + "</span>" : ""));
+    const k = el("cbGrid").querySelector('.knob[data-i="' + i + '"]'), rg = k.querySelector(".kr"), tx = k.querySelector(".kv"), v = CB.y[i];
+    if (document.activeElement !== tx) tx.value = cbValP(v);
+    if (document.activeElement !== rg) rg.value = v.toNumber();
+    k.classList.toggle("wrong", !A.rowOK[i]); k.classList.toggle("zero", v.isZero());
+  });
+  el("cbGrid").querySelectorAll("[id^=gA], .knob").forEach(c => { const m = /^gA[RBN]?(\d+)/.exec(c.id || ""), i = c.dataset.i !== undefined ? +c.dataset.i : m ? +m[1] : -1; c.classList.toggle("hot", i === CB.hover); });
+  setCell("gNN", mh(I.vt.join(",") + " \\ge 0", I.vars.join(", ") + " ≥ 0", ink));
+  /* the scaled rows */
+  I.rows.forEach((r, i) => {
+    const y = CB.y[i], zero = y.isZero(), wrong = !A.rowOK[i], col = zero ? faint : wrong ? C_ERR : ink, op = zero ? "=" : y.sign < 0 ? flipOp(r.op) : r.op;
+    setCell("gSL" + i, mh(valT(y) + "\\cdot(" + (i + 1) + ")", valP(y) + "·(" + (i + 1) + ")", zero ? faint : r.color, 15));
+    for (let j = 0; j < n; j++) { const t = termT(r.a[j].mul(y), I.vt[j], I.vars[j], j === 0); setCell("gS" + i + "_" + j, mh(t.tex, t.plain, t.zero ? faint : col)); }
+    setCell("gSR" + i, mh(RELT[op], RELP[op], zero ? faint : wrong ? C_ERR : ink));
+    setCell("gSB" + i, mh(valT(r.b.mul(y)), valP(r.b.mul(y)), col));
+  });
+  el("cbGrid").classList.toggle("noscl", !CB.scaled);
+  /* the sum, the column comparison (rotated signs), the objective */
+  const allOK = A.rowOK.every(x => x), want = cbWant(I);
+  setCell("gUL", '<span class="glab">sum</span>');
+  for (let j = 0; j < n; j++) { const t = termT(A.s[j], I.vt[j], I.vars[j], j === 0); setCell("gU" + j, mh(t.tex, t.plain, t.zero ? faint : ink)); }
+  setCell("gUR", mh(allOK ? RELT[want] : "?", allOK ? RELP[want] : "?", allOK ? ink : C_ERR));
+  setCell("gUB", mh(valT(A.B), valP(A.B), allOK ? ink : C_ERR));
+  setCell("gCL", '<span class="glab small">' + (I.kind === "graph" ? "load ≤ 1" : "column by column") + "</span>");
+  for (let j = 0; j < n; j++) {
+    const ok = A.colOK[j], sym = ok ? (max ? "\\le" : "\\ge") : (max ? ">" : "<");     /* objective (below) vs. sum (above) */
+    setCell("gC" + j, '<span class="rot" title="' + (ok ? "fits" : "does not fit") + '">' + mh(sym, ok ? (max ? "≤" : "≥") : (max ? ">" : "<"), ok ? C_OPT : C_ERR, 17) + "</span>");
+  }
+  setCell("gOL", '<span class="glab obj">objective</span>');
+  for (let j = 0; j < n; j++) { const t = termT(I.c[j], I.vt[j], I.vars[j], j === 0); setCell("gB" + j, mh(t.tex, t.plain, t.zero ? faint : OBJD)); }
+  /* the chain: objective ≥ sum ≥ bound (min), mirrored for max */
+  const obj = I.c.map((v, j) => termT(v, I.vt[j], I.vars[j], j === 0)), sum = A.s.map((v, j) => termT(v, I.vt[j], I.vars[j], j === 0));
+  const cOK = A.colOK.every(x => x), r1 = max ? (cOK ? "\\le" : "\\not\\le") : (cOK ? "\\ge" : "\\not\\ge"), r2 = allOK ? RELT[want] : "\\;?\\;";
+  const tex = texCol(OBJD, obj.map(t => t.tex).join("")) + "\\;" + r1 + "\\;" + sum.map(t => t.tex).join("") + "\\;" + r2 + "\\;" + valT(A.B);
+  const ok = cOK && allOK && !A.zero;
+  setCell("gCH", '<span class="chainlab">' + (ok ? "for every feasible " + mh("\\mathbf x", "x", ink, 15) + ":" : A.zero ? "all multipliers 0:" : "no bound:") + "</span>" +
+                 mh(tex, obj.map(t => t.plain).join(" ") + " … " + valP(A.B), ok ? ink : A.zero ? faint : C_ERR, 16));
+}
+
+/* ---------- pictures, 2D ---------- */
+const CPAD = { l: 52, r: 14, t: 12, b: 60 };
+function effV(v, W, H) {
+  const pw = W - CPAD.l - CPAD.r, ph = H - CPAD.t - CPAD.b;
+  const k = Math.min(pw / (v.hi[0] - v.lo[0]), ph / (v.hi[1] - v.lo[1])), cx = (v.lo[0] + v.hi[0]) / 2, cy = (v.lo[1] + v.hi[1]) / 2;
+  return { lo: [cx - pw / 2 / k, cy - ph / 2 / k], hi: [cx + pw / 2 / k, cy + ph / 2 / k], k, pw, ph };
+}
+function gridAxes(E, W, H, X, Y, labs) {
+  let g = "";
+  const sx = niceStep(E.hi[0] - E.lo[0], E.pw / 85), sy = niceStep(E.hi[1] - E.lo[1], E.ph / 60);
+  for (let x = Math.ceil(E.lo[0] / sx) * sx; x <= E.hi[0] + 1e-9; x += sx) { const xx = X(x); g += '<line x1="' + f1(xx) + '" x2="' + f1(xx) + '" y1="' + CPAD.t + '" y2="' + f1(H - CPAD.b) + '" stroke="' + (Math.abs(x) < 1e-9 ? "#8b8779" : "#e2d5c2") + '"' + (Math.abs(x) < 1e-9 ? ' stroke-width="1.6"' : "") + '/><text class="sv-tick" x="' + f1(xx) + '" y="' + f1(H - CPAD.b + 16) + '" text-anchor="middle">' + esc(numP(+x.toPrecision(10))) + "</text>"; }
+  for (let y = Math.ceil(E.lo[1] / sy) * sy; y <= E.hi[1] + 1e-9; y += sy) { const yy = Y(y); g += '<line x1="' + CPAD.l + '" x2="' + f1(W - CPAD.r) + '" y1="' + f1(yy) + '" y2="' + f1(yy) + '" stroke="' + (Math.abs(y) < 1e-9 ? "#8b8779" : "#e2d5c2") + '"' + (Math.abs(y) < 1e-9 ? ' stroke-width="1.6"' : "") + '/><text class="sv-tick" x="' + (CPAD.l - 6) + '" y="' + f1(yy + 4) + '" text-anchor="end">' + esc(numP(+y.toPrecision(10))) + "</text>"; }
+  g += '<rect x="' + CPAD.l + '" y="' + CPAD.t + '" width="' + f1(E.pw) + '" height="' + f1(E.ph) + '" fill="none" stroke="var(--wi-border)"/>';
+  g += mathAt(labs[0], CPAD.l + E.pw / 2, H - CPAD.b + 36, 15, "middle", "var(--wi-ink-strong)", labs[0]).svg;
+  g += '<g transform="translate(16,' + f1(CPAD.t + E.ph / 2) + ') rotate(-90)">' + mathAt(labs[1], 0, 0, 15, "middle", "var(--wi-ink-strong)", labs[1]).svg + "</g>";
+  return g;
+}
+const lineSeg = (P, seg, at) => { const [p, q] = seg.map(P); return '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" ' + at + "/>"; };
+function hatchSide(P, seg, nrm, id) {
+  const [p, q] = seg.map(P), ns = [nrm[0], -nrm[1]], ln = norm(ns) || 1, o = [ns[0] / ln * 9, ns[1] / ln * 9];
+  return '<path d="M' + f1(p[0]) + "," + f1(p[1]) + "L" + f1(q[0]) + "," + f1(q[1]) + "L" + f1(q[0] + o[0]) + "," + f1(q[1] + o[1]) + "L" + f1(p[0] + o[0]) + "," + f1(p[1] + o[1]) + 'Z" fill="url(#' + id + ')"/>';
+}
+function labelOnLine(P, seg, tex, plain, col, at, dy) {
+  const [p, q] = seg.map(P), [a, b] = p[0] < q[0] - 1 ? [p, q] : [q, p];
+  return mathAt(tex, a[0] + (b[0] - a[0]) * at, a[1] + (b[1] - a[1]) * at + (dy || -7), 14, "middle", col, plain).svg;
+}
+function patterns(cols) {
+  return cols.map(([id, c, w]) => '<pattern id="' + id + '" width="' + (w || 6) + '" height="' + (w || 6) + '" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="' + (w || 6) + '" stroke="' + c + '" stroke-width="1.5" opacity=".7"/></pattern>').join("");
+}
+/* the set of valid multipliers: sign conditions and one condition per column (variable) */
+function dualHalfplanes() {
+  const I = CB.inst, max = I.sense === "max", H = [], m = I.m;
+  I.rows.forEach((r, i) => { const q = cbReq(I, r); if (q !== 0) { const a = new Array(m).fill(0); a[i] = -q; H.push({ a, b: 0, sign: i }); } });
+  for (let j = 0; j < I.n; j++) {
+    const a = I.rows.map(r => r.a[j].toNumber()), c = I.c[j].toNumber();
+    H.push(max ? { a: a.map(x => -x), b: -c, col: j } : { a, b: c, col: j });
+  }
+  return H;
+}
+function primalHalfplanes() {
+  const I = CB.inst, H = [];
+  for (const r of I.rows) {
+    const a = r.a.map(x => x.toNumber()), b = r.b.toNumber();
+    if (r.op === "<=" || r.op === "=") H.push({ a, b, row: r });
+    if (r.op === ">=" || r.op === "=") H.push({ a: a.map(x => -x), b: -b, row: r });
+  }
+  for (let j = 0; j < I.n; j++) { const a = new Array(I.n).fill(0); a[j] = -1; H.push({ a, b: 0, nonneg: j }); }
+  return H;
+}
+function cbFitViews() {
+  const I = CB.inst;
+  if (I.kind !== "lp") return;
+  if (I.n === 2 || I.n === 3) CB.view = I.n === 2 && I.lp.view ? { lo: [I.lp.view[0], I.lp.view[2]], hi: [I.lp.view[1], I.lp.view[3]] } : cbFit(primalHalfplanes(), I.n, I.primal.x ? I.primal.x.map(v => v.toNumber()) : null, I.n === 3);
+  if (I.m === 2 || I.m === 3) CB.dview = cbFit(dualHalfplanes(), I.m, I.dual.y ? I.dual.y.map(v => v.toNumber()) : null, I.m === 3);
+}
+function cbFit(H, d, extra, three) {
+  const big = 1e6, V = vertices(H.concat(boxH(new Array(d).fill(-big), new Array(d).fill(big))), d).filter(v => v.real).map(v => v.p);
+  const pts = V.concat([new Array(d).fill(0)]); if (extra) pts.push(extra);
+  let lo = [...Array(d)].map((_, i) => Math.min(...pts.map(p => p[i]))), hi = [...Array(d)].map((_, i) => Math.max(...pts.map(p => p[i])));
+  const sp = Math.max(...hi.map((x, i) => x - lo[i]), 2);
+  if (three) { lo = lo.map(x => Math.min(x, 0) - 0.06 * sp); hi = hi.map((x, i) => Math.max(x, lo[i] + 0.3 * sp) + 0.35 * sp); return { lo, hi }; }
+  return { lo: lo.map(x => x - 0.3 * sp), hi: hi.map(x => x + 0.3 * sp) };
+}
+function cbStar(x, y, r, fill, stroke) {
+  let d = "";
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; d += (i ? "L" : "M") + f1(x + rr * Math.cos(a)) + "," + f1(y + rr * Math.sin(a)); }
+  return '<path d="' + d + 'Z" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.2"/>';
+}
+function svgSet(svg, W, H, inner) { svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H); svg.innerHTML = inner; }
+const ARR = '<marker id="aB" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="' + OBJD + '"/></marker>' +
+            '<marker id="aK" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker>' +
+            '<marker id="aI" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6b675c"/></marker>';
+function renderDual2() {
+  const I = CB.inst, A = CB.A, svg = el("cbSvg"), W = Math.max(320, el("cbWrap").clientWidth), H = CB.H, E = effV(CB.dview, W, H); CB.E = E;
+  const X = x => CPAD.l + (x - E.lo[0]) * E.k, Y = y => H - CPAD.b - (y - E.lo[1]) * E.k, P = p => [X(p[0]), Y(p[1])];
+  const Hv = boxH(E.lo, E.hi), HD = dualHalfplanes(), max = I.sense === "max";
+  let body = "", lines = "", top = "";
+  const defs = "<defs>" + patterns(I.vars.map((_, j) => ["dh" + j, VAR_COLORS[j % VAR_COLORS.length]]).concat([["dhs", "#8b8779"]])) + ARR +
+               '<clipPath id="cbClip"><rect x="' + CPAD.l + '" y="' + CPAD.t + '" width="' + f1(E.pw) + '" height="' + f1(E.ph) + '"/></clipPath></defs>';
+  const grid = gridAxes(E, W, H, X, Y, [yColT(0), yColT(1)]);
+  const RV = vertices(HD.concat(Hv), 2), pg = orderPoly(RV.map(v => v.p));
+  if (pg.length >= 3) body += '<path d="M' + pg.map(p => P(p).map(f1).join(",")).join("L") + 'Z" fill="' + C_OPT + '" fill-opacity=".13"/>';
+  HD.forEach(h => {
+    const seg = clipLine(h.a, h.b, Hv); if (!seg) return;
+    const col = h.col !== undefined ? VAR_COLORS[h.col % VAR_COLORS.length] : "#8b8779";
+    body += hatchSide(P, seg, h.a, h.col !== undefined ? "dh" + h.col : "dhs");
+    lines += lineSeg(P, seg, 'stroke="' + col + '" stroke-width="' + (h.col !== undefined ? 1.8 : 1.2) + '"');
+    if (h.col !== undefined) top += labelOnLine(P, seg, "\\text{column } " + I.vt[h.col], "column " + I.vars[h.col], col, 0.12 + 0.76 * ((h.col * 0.37) % 1));
+  });
+  const y = CB.y.map(v => v.toNumber()), bvec = I.rows.map(r => r.b.toNumber());
+  if (norm(bvec) > 0) {
+    const seg = clipLine(bvec, A.B.toNumber(), Hv);
+    if (seg) { lines += lineSeg(P, seg, 'stroke="' + OBJ + '" stroke-width="1.8" stroke-dasharray="7 5"'); top += labelOnLine(P, seg, "\\mathbf b^{\\mathsf T}\\mathbf y = " + valT(A.B), "bound " + valP(A.B), OBJD, 0.85, 17); }
+    const g = max ? -1 : 1, d = [g * bvec[0], -g * bvec[1]], dl = norm(d), p = P(y);
+    top += '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(p[0] + d[0] / dl * 42) + '" y2="' + f1(p[1] + d[1] / dl * 42) + '" stroke="' + OBJD + '" stroke-width="2" marker-end="url(#aB)"/>' +
+           '<text class="sv-small halo" x="' + f1(p[0] + d[0] / dl * 58) + '" y="' + f1(p[1] + d[1] / dl * 58 + 4) + '">better bound</text>';
+  }
+  RV.forEach(v => { if (!v.real) return; const a = P(v.p); top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="2.8" fill="#38362e"/>'; });
+  if (CB.reveal && I.dual.y) { const a = P(I.dual.y.map(v => v.toNumber())); top += cbStar(a[0], a[1], 9, C_OPT, "#1f4a16"); }
+  const p = P(y), okc = A.valid ? C_OPT : C_ERR;
+  top += '<circle id="cbKnob" class="grab" cx="' + f1(p[0]) + '" cy="' + f1(p[1]) + '" r="9" fill="' + okc + '" fill-opacity=".35" stroke="' + okc + '" stroke-width="2.2"/>' +
+         '<circle cx="' + f1(p[0]) + '" cy="' + f1(p[1]) + '" r="2.5" fill="' + okc + '" pointer-events="none"/>';
+  const note = '<text class="sv-small" x="' + (W - CPAD.r - 4) + '" y="' + (H - 6) + '" style="text-anchor:end">' + (W < 620 ? "drag the point" : "drag the point (or click) to choose y · wheel to zoom · double-click to reset") + "</text>";
+  svgSet(svg, W, H, defs + grid + '<g clip-path="url(#cbClip)">' + body + lines + top + "</g>" + note);
+}
+/* the feasible region; the zone where the objective would beat the bound (empty of feasible points);
+   the summed constraint, whose allowed side contains the region; and, in the corner, the vectors */
+function renderPrimal2() {
+  const I = CB.inst, A = CB.A, svg = el("cbSvg"), W = Math.max(320, el("cbWrap").clientWidth), H = CB.H, E = effV(CB.view, W, H); CB.E = E;
+  const X = x => CPAD.l + (x - E.lo[0]) * E.k, Y = y => H - CPAD.b - (y - E.lo[1]) * E.k, P = p => [X(p[0]), Y(p[1])];
+  const Hv = boxH(E.lo, E.hi), HP = primalHalfplanes(), max = I.sense === "max", g = max ? 1 : -1;  /* g·(c·x) > g·B is the ruled-out side */
+  const quad = [{ a: [-1, 0], b: 0 }, { a: [0, -1], b: 0 }];
+  const poly = H => { const pg = orderPoly(vertices(H.concat(Hv), 2).map(v => v.p)); return pg.length >= 3 ? "M" + pg.map(p => P(p).map(f1).join(",")).join("L") + "Z" : ""; };
+  let body = "", lines = "", top = "";
+  const valid = A.valid && !A.zero, s = A.s.map(v => v.toNumber()), B = A.B.toNumber(), c = I.c.map(v => v.toNumber());
+  const defs = "<defs>" + patterns(I.rows.map((r, i) => ["ph" + i, r.color]).concat([["phn", "#8b8779"], ["phs", C_OPT], ["phx", C_ERR, 8]])) + ARR +
+               '<clipPath id="cbClip"><rect x="' + CPAD.l + '" y="' + CPAD.t + '" width="' + f1(E.pw) + '" height="' + f1(E.ph) + '"/></clipPath></defs>';
+  const grid = gridAxes(E, W, H, X, Y, [I.vt[0], I.vt[1]]);
+  /* the zone where c·x would beat the bound: within x ≥ 0 */
+  if (valid) { const d = poly(quad.concat([{ a: c.map(x => -g * x), b: -g * B }])); if (d) body += '<path d="' + d + '" fill="url(#phx)" opacity=".75"/><path d="' + d + '" fill="' + C_ERR + '" fill-opacity=".06"/>'; }
+  const pr = poly(HP); if (pr && I.primal.status !== "infeasible") body += '<path d="' + pr + '" fill="var(--t-region)" opacity=".95"/>';
+  HP.forEach(h => {
+    const seg = clipLine(h.a, h.b, Hv); if (!seg) return;
+    if (h.nonneg !== undefined) { body += hatchSide(P, seg, h.a.map(x => -x), "phn"); return; }
+    const r = h.row, i = I.rows.indexOf(r), w = CB.y[i].isZero() ? 1.2 : 2.6;
+    if (r.op !== "=") body += hatchSide(P, seg, h.a.map(x => -x), "ph" + i);
+    if (CB.hover === i) lines += lineSeg(P, seg, 'stroke="' + r.color + '" stroke-width="9" opacity=".2" stroke-linecap="round"');
+    lines += lineSeg(P, seg, 'stroke="' + r.color + '" stroke-width="' + w + '"');
+    if (r.name) top += labelOnLine(P, seg, "\\text{" + r.name + "}", r.name, r.color, 0.12);
+  });
+  /* the summed constraint (valid for every feasible point) */
+  if (norm(s) > 1e-12 && A.rowOK.every(x => x) && !A.zero) {
+    const seg = clipLine(s, B, Hv), col = A.colOK.every(x => x) ? C_OPT : C_ERR;
+    if (seg) { lines += lineSeg(P, seg, 'stroke="' + col + '" stroke-width="2.4" stroke-dasharray="9 5"'); body += hatchSide(P, seg, max ? s : s.map(x => -x), "phs"); top += labelOnLine(P, seg, "\\text{sum} = " + valT(A.B), "sum = " + valP(A.B), col, 0.62, 16); }
+  }
+  if (valid) {
+    const seg = clipLine(c, B, Hv);
+    if (seg) { lines += lineSeg(P, seg, 'stroke="' + OBJ + '" stroke-width="2"'); top += labelOnLine(P, seg, "\\mathbf c^{\\mathsf T}\\mathbf x = " + valT(A.B), "objective = " + valP(A.B), OBJD, 0.86); }
+  }
+  if (CB.reveal && I.primal.status === "optimal") {
+    const a = P(I.primal.x.map(v => v.toNumber()));
+    top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="6.5" fill="' + C_LP + '" stroke="#5a120c" stroke-width="1.6"/>';
+  }
+  /* the vectors: y_i·a_i tip to tail give the sum vector s; s must dominate c coordinate-wise */
+  let ins = "";
+  if (!A.zero && W >= 520) {
+    const vecs = I.rows.map((r, i) => r.a.map(x => x.toNumber() * CB.y[i].toNumber()));
+    const pts = [[0, 0]]; vecs.forEach(v => pts.push(add(pts[pts.length - 1], v)));
+    const all = pts.concat([c]);
+    const lo = [0, 1].map(k => Math.min(...all.map(p => p[k]))), hi = [0, 1].map(k => Math.max(...all.map(p => p[k])));
+    const bw = 170, bh = 110, S = Math.min(bw / Math.max(1e-9, hi[0] - lo[0]), bh / Math.max(1e-9, hi[1] - lo[1]));
+    const bx = CPAD.l + E.pw - bw - 30, by = CPAD.t + 10, ox = bx + 12 - lo[0] * S + (bw - (hi[0] - lo[0]) * S) / 2, oy = by + 12 + hi[1] * S + (bh - (hi[1] - lo[1]) * S) / 2;
+    const Q = p => [ox + p[0] * S, oy - p[1] * S], cq = Q(c), sq = Q(pts[pts.length - 1]), okc = A.colOK.every(x => x);
+    ins += '<rect x="' + f1(bx) + '" y="' + f1(by) + '" width="' + (bw + 24) + '" height="' + (bh + 46) + '" rx="6" fill="var(--wi-panel-2)" fill-opacity=".94" stroke="var(--wi-border-soft)"/>';
+    ins += '<clipPath id="cbClipI"><rect x="' + f1(bx + 2) + '" y="' + f1(by + 2) + '" width="' + (bw + 20) + '" height="' + (bh + 20) + '"/></clipPath><g clip-path="url(#cbClipI)">';
+    const dir = max ? 1 : -1;
+    ins += '<rect x="' + f1(dir > 0 ? cq[0] : cq[0] - 400) + '" y="' + f1(dir > 0 ? cq[1] - 400 : cq[1]) + '" width="400" height="400" fill="' + C_OPT + '" fill-opacity=".15"/>';
+    ins += '<line x1="' + f1(cq[0]) + '" y1="' + f1(cq[1]) + '" x2="' + f1(cq[0] + dir * 400) + '" y2="' + f1(cq[1]) + '" stroke="' + C_OPT + '" stroke-width="1" stroke-dasharray="3 3"/>' +
+           '<line x1="' + f1(cq[0]) + '" y1="' + f1(cq[1]) + '" x2="' + f1(cq[0]) + '" y2="' + f1(cq[1] - dir * 400) + '" stroke="' + C_OPT + '" stroke-width="1" stroke-dasharray="3 3"/>';
+    ins += '<line x1="' + f1(bx) + '" y1="' + f1(oy) + '" x2="' + f1(bx + bw + 24) + '" y2="' + f1(oy) + '" stroke="#d4c5b4"/><line x1="' + f1(ox) + '" y1="' + f1(by) + '" x2="' + f1(ox) + '" y2="' + f1(by + bh + 24) + '" stroke="#d4c5b4"/>';
+    vecs.forEach((v, i) => { if (CB.y[i].isZero()) return; const a = Q(pts[i]), b = Q(pts[i + 1]); ins += '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" stroke="' + I.rows[i].color + '" stroke-width="2.2" marker-end="url(#aK)"/>'; });
+    ins += '<line x1="' + f1(ox) + '" y1="' + f1(oy) + '" x2="' + f1(cq[0]) + '" y2="' + f1(cq[1]) + '" stroke="' + OBJ + '" stroke-width="2.4" marker-end="url(#aB)"/>';
+    ins += '<circle cx="' + f1(sq[0]) + '" cy="' + f1(sq[1]) + '" r="4.5" fill="' + (okc ? C_OPT : C_ERR) + '" stroke="var(--wi-panel-2)"/>';
+    ins += mathAt("\\mathbf c", cq[0] + 6, cq[1] + 14, 13, "start", OBJD, "c").svg + "</g>";
+    ins += '<text class="sv-small" x="' + f1(bx + bw / 2 + 12) + '" y="' + f1(by + bh + 33) + '">scaled normals, added up: the dot</text>' +
+           '<text class="sv-small" x="' + f1(bx + bw / 2 + 12) + '" y="' + f1(by + bh + 44) + '">valid: dot in the green corner of c</text>';
+  }
+  const note = '<text class="sv-small" x="' + (W - CPAD.r - 4) + '" y="' + (H - 6) + '" style="text-anchor:end">' + (W < 620 ? "drag · wheel to zoom" : "drag to move · wheel to zoom · double-click to reset") + "</text>";
+  svgSet(svg, W, H, defs + grid + '<g clip-path="url(#cbClip)">' + body + lines + top + "</g>" + ins + note);
+}
+
+/* ---------- pictures, 3D ---------- */
+function cam3(v3, W, H) {
+  const ctr = v3.lo.map((x, i) => (x + v3.hi[i]) / 2), rad = 0.5 * norm(sub(v3.hi, v3.lo)), k = CB.zoom3 * 0.46 * Math.min(W, H) / rad;
+  const th = CB.yaw * Math.PI / 180, ph = CB.pitch * Math.PI / 180, ct = Math.cos(th), st = Math.sin(th), cp = Math.cos(ph), sp = Math.sin(ph);
+  return { Pj: p => { const x = p[0] - ctr[0], y = p[1] - ctr[1], z = p[2] - ctr[2], u = x * ct - y * st, t = x * st + y * ct; return [W / 2 + u * k, H / 2 - (z * cp + t * sp) * k, -t * cp + z * sp]; },
+           toV: [-st * cp, -ct * cp, sp] };
+}
+function faces3(H) {
+  const RV = vertices(H, 3), faces = [];
+  H.forEach((h, hi) => {
+    const on = RV.filter(v => v.tight.includes(hi)); if (on.length < 3) return;
+    const key = on.map(v => RV.indexOf(v)).sort((a, b) => a - b).join(","); if (faces.some(f => f.key === key)) return;
+    faces.push({ key, h, vs: orderPoly(on.map(v => v.p), h.a) });
+  });
+  return { faces, RV };
+}
+function plane3(a, b, Hclip) {
+  const pts = vertices(Hclip.concat([{ a, b, box: true }, { a: a.map(x => -x), b: -b, box: true }]), 3).map(v => v.p);
+  return pts.length >= 3 ? orderPoly(pts, a) : null;
+}
+function render3(kind) {
+  const I = CB.inst, A = CB.A, svg = el("cbSvg"), W = Math.max(320, el("cbWrap").clientWidth), H = CB.H, max = I.sense === "max";
+  const v3 = kind === "dual" ? CB.dview : CB.view, C = cam3(v3, W, H), Pj = C.Pj, Hb = boxH(v3.lo, v3.hi);
+  const pts = p => p.map(q => { const r = Pj(q); return f1(r[0]) + "," + f1(r[1]); }).join(" ");
+  const ln = (a, b, at) => '<line x1="' + f1(a[0]) + '" y1="' + f1(a[1]) + '" x2="' + f1(b[0]) + '" y2="' + f1(b[1]) + '" ' + at + "/>";
+  let back = "", front = "", top = "";
+  const names = kind === "dual" ? [0, 1, 2].map(yColT) : I.vt;
+  for (let i = 0; i < 3; i++) {
+    const p0 = [0, 0, 0], p1 = [0, 0, 0]; p0[i] = Math.max(v3.lo[i], 0); p1[i] = v3.hi[i];
+    const a = Pj(p0), b = Pj(p1), dx = b[0] - a[0], dy = b[1] - a[1], dl = Math.hypot(dx, dy) || 1;
+    back += ln(a, b, 'stroke="#6b675c" stroke-width="1.3" marker-end="url(#aI)"');
+    top += mathAt(names[i], b[0] + dx / dl * 14, b[1] + dy / dl * 14 + 5, 15, "middle", "var(--wi-ink-strong)", names[i]).svg;
+  }
+  const drawFaces = (F, colOf, op) => {
+    for (const f of F.faces) {
+      const fr = dot(f.h.a, C.toV) > 0, col = colOf(f.h), bx = !!f.h.box, o = bx ? 0.03 : op;
+      if (!col) continue;
+      const s = '<polygon points="' + pts(f.vs) + '" fill="' + col + '" fill-opacity="' + (fr ? o : o * 0.45) + '" stroke="' + col + '" stroke-opacity="' + (bx ? 0.35 : fr ? 0.9 : 0.35) + '" stroke-width="' + (fr && !bx ? 1.3 : 0.9) + '"' + (fr && !bx ? "" : ' stroke-dasharray="4 3"') + "/>";
+      if (fr) front += s; else back += s;
+    }
+  };
+  const quad = [0, 1, 2].map(j => { const a = [0, 0, 0]; a[j] = -1; return { a, b: 0, box: true }; });
+  const planeAt = (a, b, col, op, dash, tex, plain) => {
+    const pg = plane3(a, b, Hb.concat(quad)); if (!pg) return;
+    back = '<polygon points="' + pts(pg) + '" fill="' + col + '" fill-opacity="' + op + '" stroke="' + col + '" stroke-width="1.6"' + (dash ? ' stroke-dasharray="' + dash + '"' : "") + "/>" + back;
+    if (tex) { const cpt = pg.reduce((s, p) => add(s, p), [0, 0, 0]).map(x => x / pg.length), q = Pj(cpt); top += mathAt(tex, q[0], q[1], 14, "middle", col === OBJ ? OBJD : col, plain).svg; }
+  };
+  if (kind === "dual") {
+    const F = faces3(dualHalfplanes().map(h => Object.assign({}, h)).concat(Hb));
+    drawFaces(F, h => h.col !== undefined ? VAR_COLORS[h.col % VAR_COLORS.length] : h.sign !== undefined ? "#8b8779" : (h.box ? C_OPT : null), 0.32);
+    const bvec = I.rows.map(r => r.b.toNumber());
+    if (norm(bvec) > 0) {
+      const pg = plane3(bvec, A.B.toNumber(), Hb);
+      if (pg) back = '<polygon points="' + pts(pg) + '" fill="' + OBJ + '" fill-opacity=".1" stroke="' + OBJ + '" stroke-width="1.5" stroke-dasharray="7 5"/>' + back;
+    }
+    if (CB.reveal && I.dual.y) { const a = Pj(I.dual.y.map(v => v.toNumber())); top += cbStar(a[0], a[1], 9, C_OPT, "#1f4a16"); }
+    const y = CB.y.map(v => v.toNumber()), p = Pj(y), okc = A.valid ? C_OPT : C_ERR, fl = Pj([y[0], y[1], Math.max(0, v3.lo[2])]);
+    top += ln(p, fl, 'stroke="' + okc + '" stroke-width="1" stroke-dasharray="2 3"') + '<circle cx="' + f1(p[0]) + '" cy="' + f1(p[1]) + '" r="7" fill="' + okc + '" fill-opacity=".45" stroke="' + okc + '" stroke-width="2"/>';
+  } else {
+    const F = faces3(primalHalfplanes().concat(Hb));
+    drawFaces(F, h => h.row ? h.row.color : h.nonneg !== undefined ? "#8b8779" : "#9a6a96", 0.22);
+    const valid = A.valid && !A.zero, s = A.s.map(v => v.toNumber()), c = I.c.map(v => v.toNumber());
+    if (valid) planeAt(c, A.B.toNumber(), OBJ, 0.16, "", "\\mathbf c^{\\mathsf T}\\mathbf x = " + valT(A.B), "objective = " + valP(A.B));
+    if (norm(s) > 1e-12 && A.rowOK.every(x => x) && !A.zero && !(A.colOK.every(x => x) && s.every((x, j) => Math.abs(x - c[j]) < 1e-12)))
+      planeAt(s, A.B.toNumber(), A.colOK.every(x => x) ? C_OPT : C_ERR, 0.08, "8 5", "", "");
+    if (CB.reveal && I.primal.status === "optimal") { const a = Pj(I.primal.x.map(v => v.toNumber())); top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="6.5" fill="' + C_LP + '" stroke="#5a120c" stroke-width="1.6"/>'; }
+  }
+  const note = '<text class="sv-small" x="' + (W - 10) + '" y="' + (H - 8) + '" style="text-anchor:end">' + (W < 620 ? "drag to rotate" : "drag to rotate · wheel to zoom · double-click to reset" + (kind === "dual" ? " · the point moves with the sliders" : "")) + "</text>";
+  svgSet(svg, W, H, "<defs>" + ARR + "</defs>" + back + front + top + note);
+}
+function renderGraphPic() {
+  const I = CB.inst, g = I.g, svg = el("cbSvg"), W = Math.max(320, el("cbWrap").clientWidth), H = CB.H, R = clamp(Math.min(W, H) / 17, 15, 22);
+  const xs = g.pos.map(p => p[0]), ys = g.pos.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const pad = R * 3, v = CB.gview, sc = Math.min((W - 2 * pad) / Math.max(1e-9, x1 - x0), (H - 2 * pad) / Math.max(1e-9, y1 - y0), 260);
+  const P = p => [W / 2 + (p[0] - (x0 + x1) / 2) * sc * v.z + v.dx, H / 2 + (p[1] - (y0 + y1) / 2) * sc * v.z + v.dy];
+  const load = [...Array(g.V)].map(() => F0);
+  g.edges.forEach(([a, b], j) => { load[a] = load[a].add(CB.y[j]); load[b] = load[b].add(CB.y[j]); });
+  let E = "", V = "", L = "", hits = "";
+  g.edges.forEach(([a, b], j) => {
+    const p = P(g.pos[a]), q = P(g.pos[b]), y = CB.y[j], yn = y.toNumber(), hot = CB.hover === j;
+    const neg = y.sign < 0, wdt = 1.6 + Math.min(9, 7 * Math.abs(yn));
+    if (hot) E += '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="' + OBJ + '" stroke-width="' + f1(wdt + 9) + '" opacity=".25" stroke-linecap="round"/>';
+    E += '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="' + (y.isZero() ? "#b6b1a1" : neg ? C_ERR : C_INT) + '" stroke-width="' + f1(wdt) + '"' + (neg ? ' stroke-dasharray="6 4"' : "") + ' stroke-linecap="round"/>';
+    const mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2, dx = q[0] - p[0], dy = q[1] - p[1], dl = Math.hypot(dx, dy) || 1, nx = -dy / dl, ny = dx / dl;
+    L += mathAt("e_{" + (j + 1) + "}", mx + nx * 13, my + ny * 13 + 5, 12.5, "middle", "#8b8779", "e" + (j + 1)).svg;
+    if (!y.isZero()) L += mathAt(fracT(y), mx - nx * 15, my - ny * 15 + 5, 15, "middle", neg ? C_ERR : C_INT, fracP(y)).svg;
+    hits += '<line class="hit cbedge" data-j="' + j + '" x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="transparent" stroke-width="18"/>';
+  });
+  for (let i = 0; i < g.V; i++) {
+    const [x, y] = P(g.pos[i]), ld = load[i], over = ld.gt(F1), f = clamp(ld.toNumber(), 0, 1);
+    V += '<circle cx="' + f1(x) + '" cy="' + f1(y) + '" r="' + f1(R) + '" fill="var(--wi-panel-2)" stroke="' + (over ? C_ERR : "#38362e") + '" stroke-width="' + (over ? 3 : 1.4) + '"/>';
+    if (f > 1e-9) V += piePath(x, y, R - 1.5, f) + ' fill="' + (over ? C_ERR : C_OPT) + '" fill-opacity=".55"/>';
+    V += mathAt("v_{" + (i + 1) + "}", x, y + 5, 14, "middle", "var(--wi-ink-strong)", "v" + (i + 1)).svg;
+    const dx = g.pos[i][0] - (x0 + x1) / 2, dy = g.pos[i][1] - (y0 + y1) / 2, dl = Math.hypot(dx, dy) || 1;
+    L += mathAt((over ? "" : "") + fracT(ld) + (over ? " > 1" : ""), x + dx / dl * (R + 16), y + dy / dl * (R + 12) + 5, 13.5, "middle", over ? C_ERR : "#6b675c", fracP(ld)).svg;
+  }
+  const note = '<text class="sv-small" x="' + (W - 10) + '" y="' + (H - 8) + '" style="text-anchor:end">' + (W < 620 ? "click an edge: 0 → ½ → 1" : "click an edge: y = 0 → ½ → 1 → 0 · shaded: the load of a vertex, at most 1 · wheel to zoom · drag to move") + "</text>";
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.innerHTML = E + V + L + hits + note;
+}
+
+/* ---------- texts ---------- */
+function cbStatus() {
+  const I = CB.inst, A = CB.A, max = I.sense === "max", gr = I.kind === "graph";
+  const bw = max ? "an upper" : "a lower";
+  if (I.primal.status === "infeasible") return "<b>The LP has no feasible point.</b> Then every combination “proves” every bound — the statement is about the empty set.";
+  if (A.zero) return "<b>All multipliers are " + M("0") + ".</b> The sum reads " + M("0 " + (max ? "\\le" : "\\ge") + " 0") + ": true, but it bounds nothing. " +
+                     (gr ? "Put weight on the edges (sliders, or click an edge): every edge constraint says “at least one end is in the cover”." : "Move the sliders at the constraints: each multiplier scales one constraint, and the scaled constraints are added up.");
+  const wrongRows = I.rows.map((r, i) => A.rowOK[i] ? -1 : i).filter(i => i >= 0);
+  if (wrongRows.length) {
+    const r0 = I.rows[wrongRows[0]];
+    return "<b>A row points the wrong way.</b> Multiplying " + wrongRows.map(i => "row " + (i + 1)).join(", ") + " by a " + (cbReq(I, r0) > 0 ? "negative" : "positive") + " number turns its " +
+           M(RELT[r0.op]) + " into " + M(RELT[flipOp(r0.op)]) + " (red). Inequalities that point in different directions cannot be added up: no bound. " +
+           (cbReq(I, r0) < 0 ? "This row points the other way to begin with: it needs a <i>non-positive</i> multiplier." : "");
+  }
+  const badCols = A.colOK.map((ok, j) => ok ? -1 : j).filter(j => j >= 0);
+  if (badCols.length) {
+    if (gr) return "<b>Overloaded: " + badCols.map(j => M("v_{" + (j + 1) + "}")).join(", ") + ".</b> The sum of the edge constraints counts " + (badCols.length > 1 ? "these vertices" : "this vertex") +
+                   " more than once, the objective only once: the sum can exceed " + M("\\sum_v x_v") + ". Every vertex may carry total weight at most " + M("1") + ".";
+    return "<b>The sum has " + (max ? "too little" : "too much") + " of " + badCols.map(j => M(I.vt[j])).join(", ") + ".</b> Its coefficient there is " + (max ? "smaller" : "larger") +
+           " than in the objective (red sign), and since the variable can be large, the sum can " + (max ? "fall below" : "exceed") + " the objective: the chain breaks, no bound.";
+  }
+  let t = "<b>A valid bound.</b> Every scaled row points the right way, so the sum is a true statement. Column by column, the objective has " + (max ? "at most" : "at least") +
+          " the sum’s coefficient, and with " + M("\\mathbf x \\ge \\mathbf 0") + " the first link of the chain follows. Together: " + bw + " bound for <i>every</i> feasible " + M("\\mathbf x") + ", so also for the optimum.";
+  if (gr) t = "<b>A fractional matching.</b> Non-negative weights on the edges, at most " + M("1") + " at every vertex. Adding up the edge constraints with these weights gives a lower bound on every (fractional) vertex cover.";
+  if (A.tight) t += " <b>The best possible:</b> it equals the optimum of the LP. These multipliers are an optimal solution of the dual LP — strong duality.";
+  return t;
+}
+function cbDualLPHtml() {
+  const I = CB.inst, max = I.sense === "max", m = I.m;
+  const ys = I.rows.map((_, i) => yColT(i));
+  const lin = coef => { let s = ""; coef.forEach((c, i) => { if (c.isZero()) return; const a = c.abs(), t = (a.eq(F1) ? "" : cfT(a)) + ys[i]; s += s ? (c.sign < 0 ? " - " : " + ") + t : (c.sign < 0 ? "-" : "") + t; }); return s || "0"; };
+  const pos = [], neg = [], free = [];
+  I.rows.forEach((r, i) => { const q = cbReq(I, r); (q > 0 ? pos : q < 0 ? neg : free).push(ys[i]); });
+  const signs = [];
+  if (pos.length) signs.push(pos.join(",") + " \\ge 0");
+  if (neg.length) signs.push(neg.join(",") + " \\le 0");
+  if (free.length) signs.push(free.join(",") + "\\ \\text{free}");
+  let h = '<p class="dnote">The best bound is again an LP: make the bound ' + (max ? "as small" : "as large") + " as possible under the conditions checked on the left — " +
+          "one condition per column (per variable of the LP) and one sign condition per constraint.</p>";
+  if (m > 8 || I.n > 8) h += '<p class="dnote">' + (I.kind === "graph" ? "Here: maximize " + M("\\sum_e y_e") + " subject to " + M("\\sum_{e \\ni v} y_e \\le 1") + " for every vertex " + M("v") + ", " + M("y \\ge 0") + ": the fractional matching LP." : "(too large to write out)") + "</p>";
+  else {
+    const rows = [[(max ? "\\min" : "\\max"), lin(I.rows.map(r => r.b))]];
+    I.vars.forEach((v, j) => rows.push([j ? "" : "\\text{s.t.}", lin(I.rows.map(r => r.a[j])) + (max ? " \\ge " : " \\le ") + numT(I.c[j]) + "\\qquad \\text{(column } " + I.vt[j] + ")"]));
+    rows.push(["", signs.join(",\\quad ")]);
+    h += '<div class="dlp">' + M("\\begin{array}{ll}" + rows.map(r => r[0] + " & " + r[1]).join(" \\\\[2pt] ") + "\\end{array}") + "</div>";
+  }
+  if (CB.reveal || I.primal.status !== "optimal")
+    h += '<p class="dnote">' + (I.primal.status === "optimal" ? "Optimum of both: " + M(numT(I.primal.z)) + (I.dual.y ? ", at " + M("\\mathbf y^* = (" + I.dual.y.map(v => fracT(v)).join(",\\,") + ")") : "") + "."
+                                                              : I.primal.status === "unbounded" ? "The LP is unbounded — no multipliers are valid: the dual is infeasible." : "The LP is infeasible — the dual is unbounded (or infeasible).") + "</p>";
+  return h;
+}
+const CB_EXPLAIN =
+  "<h4>Why the combination is a bound</h4><p>For a minimization problem with constraints " + M("\\mathbf A\\mathbf x \\ge \\mathbf b") + " and " + M("\\mathbf x \\ge \\mathbf 0") + ": take " +
+  M("\\mathbf y \\ge \\mathbf 0") + " with " + M("\\mathbf A^{\\mathsf T}\\mathbf y \\le \\mathbf c") + " (column by column). Then for every feasible " + M("\\mathbf x") + ": " +
+  M("\\mathbf c^{\\mathsf T}\\mathbf x \\ge (\\mathbf y^{\\mathsf T}\\mathbf A)\\,\\mathbf x = \\mathbf y^{\\mathsf T}(\\mathbf A\\mathbf x) \\ge \\mathbf y^{\\mathsf T}\\mathbf b") +
+  ". The first step needs " + M("\\mathbf x \\ge \\mathbf 0") + ", the second " + M("\\mathbf y \\ge \\mathbf 0") + ". This is <i>weak duality</i>.</p>" +
+  "<h4>Signs</h4><p>Multiplying an inequality by a negative number turns it around. So a constraint that already points the right way needs " + M("y_i \\ge 0") +
+  ", one that points the other way needs " + M("y_i \\le 0") + ", and an equation allows any sign.</p>" +
+  "<h4>The pictures</h4><p><i>Multipliers:</i> each point is a choice of " + M("\\mathbf y") + "; the shaded set are the valid ones (sign conditions and one condition per column), the dashed line joins all " +
+  M("\\mathbf y") + " with the same bound. <i>Feasible region:</i> the summed constraint is again a constraint, so the region lies on its allowed side (green, dashed). " +
+  "Because the objective dominates the sum column by column on " + M("\\mathbf x \\ge \\mathbf 0") + ", every point allowed by the sum has objective value at least the bound: the red zone, " +
+  "where the objective would be better than the bound, contains no feasible point. The inset shows the same with vectors: the scaled constraint normals add up to the sum vector, " +
+  "which must lie in the shaded quadrant at the objective vector. At the best " + M("\\mathbf y") + " the sum <i>is</i> the objective, and the red zone touches the region at the optimum.</p>" +
+  "<h4>The best bound</h4><p>Making " + M("\\mathbf b^{\\mathsf T}\\mathbf y") + " as large as possible under these conditions is again an LP, the <i>dual</i>. " +
+  "<i>Strong duality</i>: if the LP has an optimum, the best bound equals it. For a maximization problem everything is mirrored: the multipliers give upper bounds, the dual is a minimization problem.</p>" +
+  "<h4>Vertex Cover</h4><p>For the Vertex Cover LP, the multipliers sit on the edges, and the column of a vertex " + M("v") + " says " + M("\\sum_{e \\ni v} y_e \\le 1") +
+  ": the dual is the fractional matching LP. Every (fractional) matching bounds every (fractional) vertex cover from below.</p>";
+
+/* ---------- render ---------- */
+function cbLegend() {
+  const it = (svg, t) => '<span class="item">' + svg + t + "</span>", I = CB.inst, max = I.sense === "max";
+  const sw = (fill, op, stroke) => '<svg width="24" height="12"><rect x="1" y="1" width="22" height="10" rx="2" fill="' + fill + '" fill-opacity="' + op + '"' + (stroke ? ' stroke="' + stroke + '"' : "") + "/></svg>";
+  const ln = (col, dash, w) => '<svg width="26" height="12"><line x1="2" y1="6" x2="24" y2="6" stroke="' + col + '" stroke-width="' + (w || 2) + '"' + (dash ? ' stroke-dasharray="' + dash + '"' : "") + "/></svg>";
+  if (CB.pic === "graph") return it('<svg width="26" height="12"><line x1="2" y1="6" x2="24" y2="6" stroke="' + C_INT + '" stroke-width="5" stroke-linecap="round"/></svg>', "edge weight " + M("y_e") + " (thicker: larger)") +
+    it('<svg width="16" height="16"><circle cx="8" cy="8" r="6.5" fill="var(--wi-panel-2)" stroke="#38362e"/><path d="M8,8L8,1.5A6.5,6.5 0 0 1 14.5,8Z" fill="' + C_OPT + '" fill-opacity=".55"/></svg>', "load " + M("\\sum_{e \\ni v} y_e") + " of a vertex") +
+    it('<svg width="16" height="16"><circle cx="8" cy="8" r="6.5" fill="none" stroke="' + C_ERR + '" stroke-width="2.4"/></svg>', "overloaded (more than " + M("1") + ")");
+  if (CB.pic === "dual") return it(sw(C_OPT, 0.2), "valid multipliers") + it(ln(VAR_COLORS[0]), "one condition per column") + it(ln(OBJ, "6 4"), "equal bound " + M("\\mathbf b^{\\mathsf T}\\mathbf y")) +
+    (CB.reveal ? it('<svg width="18" height="18">' + cbStar(9, 9, 8, C_OPT, "#1f4a16") + "</svg>", "best " + M("\\mathbf y")) : "");
+  if (CB.pic === "primal") return it(sw("#b98fb4", 0.5), "feasible region") + it(ln(C_OPT, "7 4", 2.4), "summed constraint (the region is on its allowed side)") +
+    it(ln(OBJ), M("\\mathbf c^{\\mathsf T}\\mathbf x") + " = bound") + it(sw(C_ERR, 0.25, C_ERR), "objective " + (max ? "above" : "below") + " the bound: no feasible point");
+  return "";
+}
+function renderCB() {
+  if (!CB.inst) return;
+  const I = CB.inst;
+  CB.A = cbAnalyse();
+  const three = CB.pic === "dual" ? I.m === 3 : CB.pic === "primal" ? I.n === 3 : false;
+  if (CB.pic === "graph") renderGraphPic();
+  else if (CB.pic === "dual") { if (three) render3("dual"); else renderDual2(); }
+  else if (CB.pic === "primal") { if (three) render3("primal"); else renderPrimal2(); }
+  else svgSet(el("cbSvg"), Math.max(320, el("cbWrap").clientWidth), 90, '<text class="sv-note" x="' + Math.max(320, el("cbWrap").clientWidth) / 2 + '" y="50" text-anchor="middle">' + I.n + " variables and " + I.m + " constraints: no picture — the LP below says it all.</text>");
+  el("cbVH").classList.toggle("hidden", CB.pic === "none");
+  el("cbSpin").classList.toggle("hidden", !three);
+  cbUpdateGrid();
+  /* the bar */
+  const A = CB.A, z = I.primal.z, vals = [0];
+  if (z !== null) vals.push(z.toNumber());
+  if (A.valid) vals.push(A.B.toNumber());
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (CB.range) { lo = Math.min(lo, CB.range[0]); hi = Math.max(hi, CB.range[1]); }
+  CB.range = [lo, hi];
+  const pad = Math.max((hi - lo) * 0.1, 0.5);
+  drawBar(el("cbBarSvg"), el("cbBarWrap"), { sense: I.sense, lo: lo - pad, hi: hi + pad, lp: A.valid && !A.zero ? A.B : null, round: false, lpTex: "\\mathbf b^{\\mathsf T}\\mathbf y", lpPlain: "bᵀy",
+    best: CB.reveal && z !== null ? z.toNumber() : null, bestLabel: "optimum of the LP", earlier: [], opt: null, optShown: false,
+    words: { out: ["ruled out by your multipliers", "ruled out", ""], worse: ["not better than the optimum", "", ""] } });
+  setMath(el("cbStatus"), cbStatus());
+  el("cbState").textContent = A.zero ? "all zero" : !A.rowOK.every(x => x) ? "wrong direction" : !A.colOK.every(x => x) ? (I.kind === "graph" ? "a vertex overloaded" : max_(I) ? "a column too small" : "a column too large") : A.tight ? "optimal bound" : "valid bound";
+  el("cbMeta").textContent = I.title + (three ? " · 3D" : "");
+  if (el("cbLegend")._k !== CB.pic + I.key + CB.reveal) { el("cbLegend")._k = CB.pic + I.key + CB.reveal; setMath(el("cbLegend"), cbLegend()); }
+  el("cbReveal").checked = CB.reveal;
+}
+const max_ = I => I.sense === "max";
+
+/* ---------- pointer ---------- */
+function initCBPointer() {
+  const svg = el("cbSvg");
+  let drag = null;
+  const local = e => { const r = svg.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const is3 = () => (CB.pic === "dual" && CB.inst.m === 3) || (CB.pic === "primal" && CB.inst.n === 3);
+  const toPlane = (x, y) => { const E = CB.E; return [E.lo[0] + (x - CPAD.l) / E.k, E.lo[1] + (CB.H - CPAD.b - y) / E.k]; };
+  const setFromPlane = (x, y) => {
+    let p = toPlane(x, y);
+    const I = CB.inst, Vs = vertices(dualHalfplanes().concat(boxH(CB.E.lo, CB.E.hi)), 2).filter(v => v.real);
+    for (const v of (I.dual.y ? [{ p: I.dual.y.map(t => t.toNumber()), exact: I.dual.y }] : []).concat(Vs)) if (Math.hypot((v.p[0] - p[0]) * CB.E.k, (v.p[1] - p[1]) * CB.E.k) < 9) {
+      if (v.exact) { cbSetY(v.exact); return; }
+      p = v.p; break;
+    }
+    const st = CB.kr.step;
+    cbSetY(p.map(t => cbFracOf(Math.round(t / st) * st)));
+  };
+  const zoomAt = (f, px, py) => {
+    if (CB.pic === "graph") { const v = CB.gview, W = svg.clientWidth, H = CB.H, z = clamp(v.z / f, 0.3, 6), k = z / v.z; CB.gview = { z, dx: (v.dx - (px - W / 2)) * k + (px - W / 2), dy: (v.dy - (py - H / 2)) * k + (py - H / 2) }; }
+    else if (is3()) CB.zoom3 = clamp(CB.zoom3 / f, 0.25, 8);
+    else if (CB.pic === "dual" || CB.pic === "primal") { const key = CB.pic === "dual" ? "dview" : "view", w = toPlane(px, py), v = CB[key]; CB[key] = { lo: v.lo.map((x, i) => w[i] + (x - w[i]) * f), hi: v.hi.map((x, i) => w[i] + (x - w[i]) * f) }; }
+    renderCB();
+  };
+  CB.zoomAt = zoomAt;
+  svg.addEventListener("wheel", e => { if (CB.pic === "none") return; e.preventDefault(); const [x, y] = local(e); const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1) * (e.ctrlKey ? 2.5 : 1); zoomAt(Math.exp(clamp(dy, -300, 300) * 0.0015), x, y); }, { passive: false });
+  svg.addEventListener("dblclick", e => { e.preventDefault(); cbResetView(); });
+  svg.addEventListener("pointerdown", e => {
+    if (e.button !== 0) return;
+    const [x, y] = local(e), t = e.target;
+    if (CB.pic === "graph" && t.classList && t.classList.contains("cbedge")) {
+      const j = +t.dataset.j, cyc = [F0, new Frac(1n, 2n), F1], k = cyc.findIndex(v => v.eq(CB.y[j]));
+      CB.y[j] = cyc[(k + 1) % 3]; cbChanged(); return;
+    }
+    if (is3()) { drag = { kind: "rot", x, y, yaw: CB.yaw, pitch: CB.pitch }; CB.dragging = true; }
+    else if (CB.pic === "dual") drag = t.id === "cbKnob" ? { kind: "knob" } : { kind: "maybe", x, y, v: { lo: CB.dview.lo.slice(), hi: CB.dview.hi.slice() } };
+    else drag = { kind: "pan", x, y, v: CB.pic === "primal" ? { lo: CB.view.lo.slice(), hi: CB.view.hi.slice() } : null, gv: Object.assign({}, CB.gview) };
+    svg.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  svg.addEventListener("pointermove", e => {
+    const [x, y] = local(e);
+    if (!drag) {
+      const t = e.target, j = t.classList && t.classList.contains("cbedge") ? +t.dataset.j : -1;
+      if (j !== CB.hover && CB.pic === "graph") { CB.hover = j; renderCB(); }
+      return;
+    }
+    if (drag.kind === "rot") { CB.yaw = drag.yaw - (x - drag.x) * 0.5; CB.pitch = clamp(drag.pitch + (y - drag.y) * 0.5, -85, 85); renderCB(); return; }
+    if (drag.kind === "knob") { setFromPlane(x, y); return; }
+    if (drag.kind === "maybe") { if (Math.hypot(x - drag.x, y - drag.y) < 4) return; drag.kind = "dpan"; }
+    if (drag.kind === "dpan") { const k = CB.E.k, dx = (x - drag.x) / k, dy = (y - drag.y) / k; CB.dview = { lo: [drag.v.lo[0] - dx, drag.v.lo[1] + dy], hi: [drag.v.hi[0] - dx, drag.v.hi[1] + dy] }; renderCB(); return; }
+    if (drag.kind === "pan") {
+      if (CB.pic === "graph") CB.gview = { z: drag.gv.z, dx: drag.gv.dx + x - drag.x, dy: drag.gv.dy + y - drag.y };
+      else if (CB.pic === "primal") { const k = CB.E.k, dx = (x - drag.x) / k, dy = (y - drag.y) / k; CB.view = { lo: [drag.v.lo[0] - dx, drag.v.lo[1] + dy], hi: [drag.v.hi[0] - dx, drag.v.hi[1] + dy] }; }
+      renderCB();
+    }
+  });
+  const end = e => { if (drag && drag.kind === "maybe") { const [x, y] = local(e); setFromPlane(x, y); } drag = null; CB.dragging = false; };
+  svg.addEventListener("pointerup", end); svg.addEventListener("pointercancel", () => { drag = null; CB.dragging = false; });
+  svg.addEventListener("pointerleave", () => { if (!drag && CB.hover !== -1 && CB.pic === "graph") { CB.hover = -1; renderCB(); } });
+}
+function cbResetView() {
+  if (CB.pic === "graph") CB.gview = { z: 1, dx: 0, dy: 0 };
+  else { cbFitViews(); CB.yaw = 215; CB.pitch = 22; CB.zoom3 = 1; }
+  renderCB();
+}
+function spinToggle(S, btn, active, draw) {
+  const label = on => { btn.innerHTML = on ? "❚❚&#xFE0E; stop" : "⟳ rotate"; btn.classList.toggle("on", on); };
+  if (S.spin) { S.spin = false; label(false); return; }
+  S.spin = true; label(true);
+  let last = performance.now();
+  const step = now => {
+    if (!S.spin) return;
+    if (!active()) { S.spin = false; label(false); return; }
+    const dt = Math.min(100, now - last); last = now;
+    if (!S.dragging) { S.yaw = (S.yaw - dt * 0.02) % 360; draw(); }
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+function cbApply(sel) {
+  if (sel.startsWith("lp:")) { const k = sel.slice(3); cbLoad(cbFromLP(k, parseLP(CB_PRESETS[k].text))); }
+  else { const k = sel.slice(2), g = CB_GRAPHS[k]; cbLoad(cbFromGraph(k, { V: g.V, edges: g.edges.map(e => e.slice()), pos: g.pos.map(p => p.slice()), title: g.name.replace(/^Vertex Cover: /, "") })); }
+  el("cbInst").value = sel;
+}
+function cbCurrentText() { const I = CB.inst; return I.kind === "graph" ? graphToText(I.g, "vc") : I.lp.src; }
+function initCB() {
+  el("cbInst").innerHTML = '<optgroup label="Linear programs">' + Object.entries(CB_PRESETS).map(([k, p]) => '<option value="lp:' + k + '">' + esc(p.name) + "</option>").join("") + "</optgroup>" +
+    '<optgroup label="Graphs (Vertex Cover LP)">' + Object.entries(CB_GRAPHS).map(([k, g]) => '<option value="g:' + k + '">' + esc(g.name.replace(/^Vertex Cover: /, "")) + "</option>").join("") + "</optgroup>" +
+    '<option value="custom">custom (from the text box)</option>';
+  el("cbInst").onchange = () => { const v = el("cbInst").value; if (v === "custom") return; cbApply(v); renderCB(); writeHash(); };
+  el("cbPicSeg").querySelectorAll("button").forEach(b => b.onclick = () => { CB.pic = b.dataset.p; el("cbPicSeg").querySelectorAll("button").forEach(q => q.classList.toggle("on", q === b)); renderCB(); writeHash(); });
+  el("cbZero").onclick = () => cbSetY(CB.inst.rows.map(() => F0));
+  el("cbBest").onclick = () => { if (CB.inst.dual.y) cbSetY(CB.inst.dual.y); };
+  el("cbReveal").onchange = () => { CB.reveal = el("cbReveal").checked; setMath(el("cbDualLP"), cbDualLPHtml()); renderCB(); writeHash(); };
+  el("cbZoomIn").onclick = () => CB.zoomAt(1 / 1.25, el("cbSvg").clientWidth / 2, CB.H / 2);
+  el("cbZoomOut").onclick = () => CB.zoomAt(1.25, el("cbSvg").clientWidth / 2, CB.H / 2);
+  el("cbResetV").onclick = cbResetView;
+  el("cbSpin").onclick = () => spinToggle(CB, el("cbSpin"), () => MODE === "combine" && ((CB.pic === "dual" && CB.inst.m === 3) || (CB.pic === "primal" && CB.inst.n === 3)), renderCB);
+  initCBPointer();
+  initSplit(CB, "cbSplit", "stageCB", "cbVH", renderCB);
+  setMath(el("cbExplain"), CB_EXPLAIN);
+  cbApply("lp:small");
+}
+
+/* ==========================================================================
+   Tabs, presentation view, splitters, address, text input, start
+   ========================================================================== */
+let MODE = "combine";
+const TABS = [["tabCombine", "combine"], ["tabPD", "pd"], ["tabSchema", "schema"]];
+function render() { if (MODE === "combine") renderCB(); }
+function setMode(m) {
+  MODE = m;
+  el("modeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+  for (const [id, mm] of TABS) el(id).classList.toggle("hidden", mm !== m);
+  render(); writeHash();
+}
+function setPresent(on) { document.body.classList.toggle("present", on); requestAnimationFrame(render); writeHash(); }
+function initSplit(T, splitId, stageId, vhId, gfx) {
+  const sp = el(splitId), st = el(stageId);
+  const set = (f, quiet) => { T.split = clamp(f, 0.35, 0.8); st.style.setProperty("--lf", (100 * T.split).toFixed(2) + "fr"); st.style.setProperty("--rf", (100 * (1 - T.split)).toFixed(2) + "fr"); if (!quiet) render(); };
+  set(T.split, true);
+  let drag = false, raf = 0;
+  const moveTo = x => { const r = st.getBoundingClientRect(); cancelAnimationFrame(raf); raf = requestAnimationFrame(() => set((x - r.left) / (r.width || 1))); };
+  sp.addEventListener("pointerdown", e => { drag = true; sp.classList.add("drag"); sp.setPointerCapture(e.pointerId); e.preventDefault(); });
+  sp.addEventListener("pointermove", e => { if (drag) moveTo(e.clientX); });
+  sp.addEventListener("pointerup", () => { drag = false; sp.classList.remove("drag"); });
+  sp.addEventListener("dblclick", () => set(0.56));
+  sp.addEventListener("keydown", e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); e.stopPropagation(); set(T.split + (e.key === "ArrowLeft" ? -0.03 : 0.03)); } });
+  const vh = el(vhId);
+  let vd = null;
+  vh.addEventListener("pointerdown", e => { vd = { y: e.clientY, h: T.H }; vh.classList.add("drag"); vh.setPointerCapture(e.pointerId); e.preventDefault(); });
+  vh.addEventListener("pointermove", e => { if (!vd) return; T.H = clamp(vd.h + e.clientY - vd.y, 200, 1400); gfx(); });
+  vh.addEventListener("pointerup", () => { vd = null; vh.classList.remove("drag"); });
+  vh.addEventListener("dblclick", () => { T.H = T.Hdef; gfx(); });
+  vh.addEventListener("keydown", e => { if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); T.H = clamp(T.H + (e.key === "ArrowDown" ? 30 : -30), 200, 1400); gfx(); } });
+}
+function tipShow(e, html) { const t = el("tip"); t.innerHTML = html; t.style.display = "block"; t.style.left = (e.clientX + 14) + "px"; t.style.top = (e.clientY + 12) + "px"; }
+function tipHide() { el("tip").style.display = "none"; }
+
+/* ---------- the address: #combine&lp=hessy&y=0,220/9,145/3&pic=primal&opt&present ---------- */
+function writeHash() {
+  const h = [];
+  if (MODE !== "combine") h.push(MODE);
+  if (MODE === "combine" && CB.inst) {
+    const I = CB.inst;
+    if (I.key === "custom") h.push("src=" + encodeURIComponent(cbCurrentText()));
+    else if (I.kind === "lp") { if (I.key !== "small") h.push("lp=" + I.key); }
+    else h.push("g=" + I.key);
+    if (CB.y.some(v => !v.isZero())) h.push("y=" + CB.y.map(String).join(","));
+    if (CB.pic !== cbPics()[0] && CB.pic !== "none") h.push("pic=" + CB.pic);
+    if (!CB.reveal) h.push("noopt");
+  }
+  if (document.body.classList.contains("present")) h.push("present");
+  const s = h.length ? "#" + h.join("&") : location.pathname + location.search;
+  try { history.replaceState(null, "", s); } catch (e) { /* sandboxed preview */ }
+}
+function readHash() {
+  const q = new URLSearchParams(location.hash.replace(/^#/, ""));
+  for (const [, m] of TABS) if (q.has(m)) MODE = m;
+  try {
+    if (q.get("src")) { cbLoadText(q.get("src")); }
+    else if (q.get("g") && CB_GRAPHS[q.get("g")]) cbApply("g:" + q.get("g"));
+    else if (CB_PRESETS[q.get("lp")]) cbApply("lp:" + q.get("lp"));
+    const y = (q.get("y") || "").split(",").filter(x => x).map(x => Frac.parse(x));
+    if (y.length === CB.inst.m) CB.y = y;
+    if (["dual", "primal"].includes(q.get("pic")) && cbPics().includes(q.get("pic"))) { CB.pic = q.get("pic"); el("cbPicSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.p === CB.pic)); }
+    CB.reveal = !q.has("noopt");
+    setMath(el("cbDualLP"), cbDualLPHtml());
+  } catch (e) { /* a broken link: keep the default */ }
+  return q.has("present");
+}
+function cbLoadText(txt) {
+  if (isLPText(txt)) { const lp = parseLP(txt); cbLoad(cbFromLP("custom", lp)); }
+  else { const g = parseGraphText(txt); if (!g.pos) g.pos = poly(g.V); g.title = g.title || "a graph"; cbLoad(cbFromGraph("custom", g)); }
+  CB.inst.key = "custom"; el("cbInst").value = "custom";
+}
+
+const FORMAT_HINT =
+  "<b>A linear program</b>: <code>vars x y</code>, <code>max 2x + 3y</code> or <code>min …</code>, then one constraint per line with <code>&lt;=</code>, <code>&gt;=</code> or <code>=</code>, e.g. " +
+  "<code>4x + 4y &lt;= 50 | Orchard | red</code> (name and colour optional). All variables are non-negative; each other constraint gets one multiplier. " +
+  "<code>view x0 x1 y0 y1</code> sets the window of the feasible region (two variables)." +
+  "<br><br><b>A graph</b>, for its Vertex Cover LP " + "(one multiplier per edge), in the format of the algs4 <code>Graph</code> class: the number of vertices <code>V</code>, the number of edges <code>E</code>, " +
+  "then <code>E</code> lines <code>v w</code> with vertices <code>0 … V−1</code> (shown as " + "<i>v</i><sub>1</sub> … <i>v</i><sub>V</sub>), optionally <code>V</code> more lines <code>x y</code> with coordinates (<i>y</i> grows downwards)." +
+  "<br><br>The address keeps the state: e.g. <code>#lp=hessy&amp;y=0,220/9,145/3</code>, <code>#g=four&amp;noopt</code>, <code>&amp;present</code> for the presentation view.";
+
+function init() {
+  el("modeSeg").querySelectorAll("button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+  el("presBtn").onclick = () => setPresent(true);
+  el("exitPres").onclick = () => setPresent(false);
+  el("loadBtn").onclick = () => {
+    const txt = el("inputText").value;
+    try { cbLoadText(txt); el("parseErr").textContent = ""; if (MODE !== "combine") setMode("combine"); else renderCB(); writeHash(); }
+    catch (e) { el("parseErr").textContent = e.message; }
+  };
+  el("curBtn").onclick = () => { el("inputText").value = cbCurrentText(); };
+  el("formatHint").innerHTML = FORMAT_HINT;
+  document.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("input[type=text], input[type=number], textarea, select")) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "Escape" && document.body.classList.contains("present")) { e.preventDefault(); setPresent(false); }
+  });
+  let rz = null;
+  window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(render, 80); });
+  initCB();
+  const present = readHash();
+  el("inputText").value = cbCurrentText();
+  if (present) document.body.classList.add("present");
+  setMode(MODE);
+  const hook = () => {
+    if (!(window.MathJax && MathJax.startup && MathJax.startup.promise)) return;
+    MathJax.startup.promise.then(() => {
+      mjInPlace([...document.querySelectorAll(".subtitle, .placeholder")]);
+      el("cbLegend")._k = null;
+      for (const id of ["cbStatus", "cbDualLP", "cbExplain", "cbLegend"]) { const nd = el(id); const w = nd._want; nd._shown = null; nd._queued = false; if (w) setMath(nd, w); }
+      render();
+    }).catch(() => {});
+  };
+  if (document.readyState === "complete") hook(); else window.addEventListener("load", hook);
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+
+</script>
+</body>
+</html>

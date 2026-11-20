@@ -291,7 +291,8 @@
   #cbDualLP .dlp { overflow-x:auto; padding:2px 0 4px; }
   @media (max-width:760px) { #cbStatus { height:15em; } }
   .gridwrap { overflow-x:auto; padding-bottom:4px; }
-  .lpgrid { display:grid; align-items:center; justify-content:start; column-gap:2px; row-gap:0; font-size:.9rem; margin:0 auto; width:max-content; }
+  .lpgrid { display:grid; align-items:center; justify-content:start; column-gap:2px; row-gap:0; font-size:.9rem; margin:0; width:max-content; }
+  .lpgrid > div { overflow:visible; white-space:nowrap; }
   .lpgrid > div { min-height:30px; display:flex; align-items:center; }
   .lpgrid .gt { justify-content:flex-end; padding:0 4px; }
   .lpgrid .gr { justify-content:center; padding:0 6px; }
@@ -326,6 +327,26 @@
   button.spinbtn.on:hover:not(:disabled) { background:var(--wi-accent-dark); color:var(--wi-panel-2); border-color:var(--wi-accent-dark); }
   @media (max-width:760px) { .lpgrid .knob .kr { width:90px; } }
   .lpgrid .rno { color:var(--wi-ink-faint); font-size:.82rem; margin-right:6px; }
+
+  /* tab: primal and dual */
+  .pdt { table-layout:fixed; border-collapse:collapse; font-size:.9rem; margin:0 0 10px; }
+  .pdt th { font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.07em; text-transform:uppercase; color:var(--wi-ink-faint); font-weight:normal; text-align:left; padding:2px 4px 4px; border-bottom:1px solid var(--wi-border); white-space:nowrap; }
+  .pdt td { padding:0 4px; height:32px; white-space:nowrap; overflow:visible; }
+  .pdt tr.hot td { background:rgba(224,123,16,.10); }
+  .pdt tr.viol td:last-child { background:rgba(217,130,43,.12); }
+  .pdt .kv { width:4.8em; font:inherit; font-size:.86rem; padding:1px 5px; border:1px solid var(--wi-border); border-radius:5px; background:var(--wi-panel-2); text-align:right; font-variant-numeric:tabular-nums; }
+  .pdt .kv.bad { border-color:#cc2f22; color:#cc2f22; }
+  .pdt .ok { color:#3d7b2c; font-size:.85rem; }
+  .pdt .bad, .pdgap .bad { color:#b5651d; font-size:.8rem; }
+  .pdt .rno { color:var(--wi-ink-faint); font-size:.82rem; }
+  .pdgap { display:flex; align-items:center; gap:10px; flex-wrap:wrap; min-height:38px; border-top:1.5px solid #6b675c; padding-top:6px; width:max-content; min-width:100%; }
+  .pdgap .glab { font-family:var(--wi-font-head); font-size:.7rem; letter-spacing:.07em; text-transform:uppercase; color:var(--wi-ink-soft); }
+  .pdgap .ok { font-family:var(--wi-font-head); font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:#3d7b2c; }
+  .pdlp { display:flex; flex-wrap:wrap; gap:6px 22px; align-items:flex-start; overflow-x:auto; }
+  .pdlp .pdh { font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.07em; text-transform:uppercase; color:var(--wi-ink-faint); margin-bottom:2px; }
+  #pdLPs .dnote { margin:6px 0 2px; font-size:.84rem; color:var(--wi-ink-soft); line-height:1.5; }
+  #pdStatus { height:11.8em; }
+  .pdchain { overflow-x:auto; padding:4px 0 2px; }
 </style>
 <style>
 /* wild-inter.net: re-assert the site type stack over the page's own styles */
@@ -402,7 +423,53 @@ body { font-family: var(--wi-font-body); }
   </div>
 </div>
 
-<div id="tabPD" class="hidden"><div class="sim-box placeholder">The LP and its dual side by side — the next stage.</div></div>
+<div id="tabPD" class="hidden">
+  <p class="subtitle hide-p">Take any feasible solution \(\mathbf x\) of the LP and any feasible solution \(\mathbf y\) of its dual. Their values differ by a sum of products, one per constraint and one per variable;
+    each product is \(\ge 0\). Both are optimal exactly when all products are \(0\): a multiplier is positive only on a tight constraint, a variable only where its dual condition is tight.</p>
+  <div class="controls hide-p">
+    <div class="ctl"><label for="pdInst">LP</label><select id="pdInst"></select></div>
+    <div class="ctl hidden" id="pdPicSeg"><span class="lbl">Picture</span><span class="seg">
+      <button data-p="primal" title="The feasible region of the LP: choose x">feasible region (x)</button>
+      <button data-p="dual" title="The feasible region of the dual: choose y">dual region (y)</button></span></div>
+    <div class="ctl"><span class="lbl">x</span><button id="pdXopt" title="An optimal solution of the LP">optimal</button><button id="pdX0" title="All variables 0">all 0</button></div>
+    <div class="ctl"><span class="lbl">y</span><button id="pdYopt" title="An optimal solution of the dual">optimal</button><button id="pdY0" title="All multipliers 0">all 0</button></div>
+  </div>
+  <div class="stage" id="stagePD">
+    <div class="col-main">
+      <div class="sim-box">
+        <div class="sim-title"><span>Picture</span><span class="rhs" id="pdMeta"></span></div>
+        <div id="pdWrap"><svg id="pdSvg" class="stagesvg"></svg></div>
+        <div class="vhandle hide-p" id="pdVH" role="separator" aria-orientation="horizontal" tabindex="0"
+             title="Drag to change the height of the drawing (double-click: back to the default)"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>Products: slack times partner</span><span class="rhs">type values into the boxes; hover a row to find it in the picture</span></div>
+        <div class="gridwrap"><div id="pdTabs"></div></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>The two values</span></div>
+        <div id="pdBarWrap"><svg id="pdBarSvg"></svg></div>
+      </div>
+    </div>
+    <div class="splitter" id="pdSplit" role="separator" aria-orientation="vertical" tabindex="0"
+         title="Drag to share the width between drawing and side panel (double-click: back to the default)"></div>
+    <div class="col-side">
+      <div class="sim-box">
+        <div class="sim-title"><span>What you see</span><span class="rhs" id="pdState"></span></div>
+        <div class="status" id="pdStatus"></div>
+      </div>
+      <div class="sim-box hidden" id="pdChainBox">
+        <div class="sim-title"><span>Matchings and vertex covers</span></div>
+        <div id="pdChain" class="pdchain"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>The LP and its dual</span></div>
+        <div id="pdLPs"></div>
+      </div>
+      <details class="explain hide-p"><summary>The gap identity, complementary slackness</summary><div class="explain-body" id="pdExplain"></div></details>
+    </div>
+  </div>
+</div>
 <div id="tabSchema" class="hidden"><div class="sim-box placeholder">The primal–dual schema, step by step — a later stage.</div></div>
 
 <details class="editor hide-p" id="editorBox">
@@ -1135,7 +1202,7 @@ function drawBar(svg, wrap, o) {
   s += '<rect x="' + f1(X(o.lo)) + '" y="' + yT + '" width="' + f1(X(o.hi) - X(o.lo)) + '" height="' + (yA - yT) + '" fill="none" stroke="var(--wi-border-soft)"/>';
   /* axis and ticks */
   s += '<line x1="' + f1(X(o.lo)) + '" x2="' + f1(X(o.hi)) + '" y1="' + yA + '" y2="' + yA + '" stroke="#6b675c" stroke-width="1.3"/>';
-  const stepT = span <= 16 ? 1 : niceStep(span, Math.max(4, (W - pl - pr) / 60));
+  const digits = Math.max(String(Math.round(Math.abs(o.lo))).length, String(Math.round(Math.abs(o.hi))).length), stepT = span <= 16 ? 1 : niceStep(span, Math.max(4, (W - pl - pr) / Math.max(60, digits * 8 + 24)));
   const marks = [o.best, o.optShown ? o.opt : null].filter(v => v !== null && v !== undefined).map(X);
   for (let v = Math.ceil(o.lo / stepT) * stepT; v <= o.hi + 1e-9; v += stepT) {
     const x = X(v);
@@ -1408,6 +1475,7 @@ function cbLoad(inst, keepY) {
   setMath(el("cbDualLP"), cbDualLPHtml());
   el("cbPicSeg").classList.toggle("hidden", avail.length < 2);
   el("cbPicSeg").querySelectorAll("button").forEach(b => { b.classList.toggle("hidden", !avail.includes(b.dataset.p)); b.classList.toggle("on", b.dataset.p === CB.pic); });
+  pdOnLoad();
 }
 function cbPics() {
   const I = CB.inst, out = [];
@@ -1476,8 +1544,12 @@ function cbSetY(y) { CB.y = y.map(Frac.of); cbChanged(); }
 function cbChanged() { renderCB(); writeHash(); }
 
 /* ---------- formulas as small inline SVGs (cached MathJax, plain text until ready) ---------- */
+/* MH_OK turns false while building a cell if one of its formulas is not typeset yet; setCell then keeps the
+   old content until MathJax is done (the page renders again then), so values never flicker into plain text */
+let MH_OK = true;
 function mh(tex, plain, color, fs, cls) {
   fs = fs || 16;
+  if (!mjSvg(tex)) MH_OK = false;
   const m = mathAt(tex, 0, 0, fs, "start", color || "currentColor", plain || tex), w = Math.max(1, m.w) + 2, h = Math.round(fs * 1.55), base = Math.round(fs * 1.1);
   return '<svg class="mh' + (cls ? " " + cls : "") + '" width="' + f1(w) + '" height="' + h + '" viewBox="0 0 ' + f1(w) + " " + h + '" overflow="visible">' +
          mathAt(tex, 1, base, fs, "start", color || "currentColor", plain || tex).svg + "</svg>";
@@ -1502,12 +1574,13 @@ const yColT = i => texCol(yCol(i), yName(i));
 /* ---------- the LP with the sliders at its constraints, the scaled rows, the sum, the comparison ---------- */
 function cbBuildGrid() {
   const I = CB.inst, kr = CB.kr, n = I.n, g = el("cbGrid");
-  g.style.gridTemplateColumns = "auto " + "auto ".repeat(n) + "auto auto auto";
+  /* fixed column widths: moving a slider must not move anything else */
+  g.style.gridTemplateColumns = "268px " + (I.kind === "graph" ? "66px " : "92px ").repeat(n) + "34px 96px auto";
   const C = (cls, id, span, html) => '<div class="' + cls + '"' + (id ? ' id="' + id + '"' : "") + (span ? ' style="grid-column:' + span + '"' : "") + ">" + (html || "") + "</div>";
   const full = "1 / -1", terms = "2 / span " + n;
   let h = "";
   /* the objective */
-  h += C("gl sense", "", "", "") + [...Array(n)].map((_, j) => C("gt", "gO" + j)).join("") + C("gr", "") + C("gb", "") + C("gn", "");
+  h += C("gl sense", "gSense", "", "") + [...Array(n)].map((_, j) => C("gt", "gO" + j)).join("") + C("gr", "") + C("gb", "") + C("gn", "");
   h += C("gst", "", full, "subject to");
   I.rows.forEach((r, i) => {
     h += '<div class="gl knob" data-i="' + i + '"><span class="kname" id="gKN' + i + '"></span>' +
@@ -1542,11 +1615,16 @@ function cbBuildGrid() {
   el("cbScaled").onchange = () => { CB.scaled = el("cbScaled").checked; renderCB(); };
   CB._gsig = null;
 }
-function setCell(id, html) { const c = el(id); if (c && c._h !== html) { c.innerHTML = html; c._h = html; } }
+function setCell(id, html) {
+  const ok = MH_OK; MH_OK = true;
+  const c = el(id); if (!c || c._h === html) return;
+  if (!ok && c._h && mjReady()) return;            /* keep the old formula until the new one is typeset */
+  c.innerHTML = html; c._h = html;
+}
 function cbUpdateGrid() {
   const I = CB.inst, A = CB.A, n = I.n, max = I.sense === "max", ink = "var(--wi-ink-strong)", faint = "#b6b1a1";
   /* the LP itself */
-  el("cbGrid").querySelector(".sense").innerHTML = mh(max ? "\\max" : "\\min", max ? "max" : "min", ink);
+  setCell("gSense", mh(max ? "\\max" : "\\min", max ? "max" : "min", ink));
   for (let j = 0; j < n; j++) { const t = termT(I.c[j], I.vt[j], I.vars[j], j === 0); setCell("gO" + j, mh(t.tex, t.plain, t.zero ? faint : OBJD)); }
   I.rows.forEach((r, i) => {
     setCell("gKN" + i, mh(yName(i), "y" + (i + 1), r.color, 16));
@@ -2081,11 +2159,368 @@ function initCB() {
 }
 
 /* ==========================================================================
+   Tab “Primal and dual”: a solution x of the LP and a solution y of the dual,
+   side by side.  The gap between their values is a sum of products, one per
+   pair (constraint i, multiplier y_i) and (variable x_j, dual condition j):
+   both optimal  ⟺  every product is 0  (complementary slackness).
+   ========================================================================== */
+const PD = { x: [], y: [], pic: "none", H: 400, Hdef: 400, split: 0.58, view: null, dview: null, gview: { z: 1, dx: 0, dy: 0 }, hover: null, key: null };
+
+function pdOnLoad() {
+  const I = CB.inst;
+  PD.x = I.primal.x ? I.primal.x.slice() : I.vars.map(() => F0);
+  PD.y = I.dual.y ? I.dual.y.slice() : I.rows.map(() => F0);
+  PD.pic = I.kind === "graph" ? "graph" : I.n === 2 ? "primal" : I.m === 2 ? "dual" : "none";
+  PD.view = CB.view; PD.dview = CB.dview; PD.gview = { z: 1, dx: 0, dy: 0 };
+  PD.ints = I.kind === "graph" ? pdGraphInts(I.g) : null;
+  if (el("pdTabs")) pdBuild();
+}
+/* integer optima of the graph: minimum vertex cover, maximum matching (small graphs: exhaustive) */
+function pdGraphInts(g) {
+  const n = g.V, adj = [...Array(n)].map(() => 0);
+  g.edges.forEach(([u, v]) => { adj[u] |= 1 << v; adj[v] |= 1 << u; });
+  let tau = n;
+  for (let m = 0; m < (1 << n); m++) {
+    let pc = 0, t = m; while (t) { pc += t & 1; t >>= 1; }
+    if (pc >= tau) continue;
+    if (g.edges.every(([u, v]) => ((m >> u) & 1) || ((m >> v) & 1))) tau = pc;
+  }
+  const memo = new Map();
+  const nu = mask => {                       /* max matching among the vertices in mask */
+    if (!mask) return 0;
+    if (memo.has(mask)) return memo.get(mask);
+    let v = 0; while (!((mask >> v) & 1)) v++;
+    const rest = mask & ~(1 << v);
+    let best = nu(rest);
+    for (let w = 0; w < n; w++) if (((rest >> w) & 1) && ((adj[v] >> w) & 1)) best = Math.max(best, 1 + nu(rest & ~(1 << w)));
+    memo.set(mask, best); return best;
+  };
+  return { tau, nu: nu((1 << n) - 1) };
+}
+
+/* ---------- the arithmetic: feasibility, slacks, the products, the gap ---------- */
+function pdAnalyse() {
+  const I = CB.inst, max = I.sense === "max", x = PD.x, y = PD.y;
+  const ax = I.rows.map(r => fdot(r.a, x));
+  const rowOK = I.rows.map((r, i) => r.op === "<=" ? ax[i].le(r.b) : r.op === ">=" ? ax[i].ge(r.b) : ax[i].eq(r.b));
+  const xOK = x.map(v => v.sign >= 0);
+  const s = I.vars.map((_, j) => y.reduce((acc, v, i) => acc.add(v.mul(I.rows[i].a[j])), F0));
+  const colOK = s.map((v, j) => max ? v.ge(I.c[j]) : v.le(I.c[j]));
+  const signOK = I.rows.map((r, i) => { const q = cbReq(I, r); return y[i].isZero() || q === 0 || y[i].sign === q; });
+  const pFeas = rowOK.every(t => t) && xOK.every(t => t), dFeas = colOK.every(t => t) && signOK.every(t => t);
+  const pv = fdot(I.c, x), dv = I.rows.reduce((acc, r, i) => acc.add(y[i].mul(r.b)), F0);
+  const rs = I.rows.map((r, i) => max ? r.b.sub(ax[i]) : ax[i].sub(r.b));          /* row slack, oriented */
+  const cs = I.c.map((c, j) => max ? s[j].sub(c) : c.sub(s[j]));                     /* column slack, oriented */
+  const rp = rs.map((v, i) => v.mul(y[i])), cp = cs.map((v, j) => v.mul(x[j]));
+  const gap = rp.concat(cp).reduce((a, b) => a.add(b), F0);
+  return { ax, rowOK, xOK, s, colOK, signOK, pFeas, dFeas, pv, dv, rs, cs, rp, cp, gap };
+}
+
+/* ---------- the tables ---------- */
+function pdBuild() {
+  const I = CB.inst, n = I.n, m = I.m, max = I.sense === "max";
+  const inp = (kind, k) => '<input type="text" class="kv pdv" data-k="' + kind + '" data-i="' + k + '" spellcheck="false" aria-label="' + (kind === "x" ? I.vars[k] : "y" + (k + 1)) + '">';
+  /* fixed column widths, so that nothing moves while values change */
+  const nz = v => v.filter(c => !c.isZero()).length;
+  const wR = I.kind === "graph" ? 10 : 7.5 + 2.9 * Math.max(...I.rows.map(r => nz(r.a))), wC = I.kind === "graph" ? 10 : 7.5 + 2.9 * Math.max(...I.vars.map((_, j) => nz(I.rows.map(r => r.a[j]))));
+  const w1 = Math.max(wR, wC, 14), ws = [3.2, w1, 5, 4.6, 5.4, 6.2], tw = ws.reduce((a, b) => a + b, 0);
+  const cg = '<colgroup>' + ws.map(w => '<col style="width:' + w.toFixed(1) + 'em">').join("") + "</colgroup>";
+  let h = '<table class="pdt" style="width:' + tw.toFixed(1) + 'em">' + cg +
+          '<thead><tr><th></th><th>constraint of the LP</th><th>slack</th><th colspan="2">its multiplier</th><th>product</th></tr></thead><tbody>';
+  I.rows.forEach((r, i) => {
+    h += '<tr data-r="' + i + '"><td class="pn" id="pdRN' + i + '"></td><td id="pdRC' + i + '"></td><td id="pdRS' + i + '"></td><td id="pdRY' + i + '"></td><td>' + inp("y", i) + '</td><td id="pdRP' + i + '"></td></tr>';
+  });
+  h += "</tbody></table>";
+  h += '<table class="pdt" style="width:' + tw.toFixed(1) + 'em">' + cg +
+       '<thead><tr><th></th><th>constraint of the dual</th><th>slack</th><th colspan="2">its variable</th><th>product</th></tr></thead><tbody>';
+  I.vars.forEach((v, j) => {
+    h += '<tr data-c="' + j + '"><td class="pn" id="pdCN' + j + '"></td><td id="pdCC' + j + '"></td><td id="pdCS' + j + '"></td><td id="pdCX' + j + '"></td><td>' + inp("x", j) + '</td><td id="pdCP' + j + '"></td></tr>';
+  });
+  h += '</tbody></table><div class="pdgap" id="pdGap"></div>';
+  el("pdTabs").innerHTML = h;
+  el("pdTabs").querySelectorAll(".pdv").forEach(t => {
+    const commit = () => {
+      try { const v = Frac.parse(t.value.trim().replace("−", "-")); (t.dataset.k === "x" ? PD.x : PD.y)[+t.dataset.i] = v; t.classList.remove("bad"); renderPD(); writeHash(); }
+      catch (e) { t.classList.add("bad"); }
+    };
+    t.onchange = commit; t.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); commit(); } };
+  });
+  el("pdTabs").querySelectorAll("tr[data-r], tr[data-c]").forEach(tr => {
+    const h = tr.dataset.r !== undefined ? { kind: "r", i: +tr.dataset.r } : { kind: "c", i: +tr.dataset.c };
+    tr.onmouseenter = () => { PD.hover = h; renderPD(); };
+    tr.onmouseleave = () => { PD.hover = null; renderPD(); };
+  });
+  setMath(el("pdLPs"), pdLPsHtml());
+  el("pdPicSeg").classList.toggle("hidden", !(I.kind === "lp" && I.n === 2 && I.m === 2));
+  el("pdPicSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.p === PD.pic));
+  el("pdInst").value = el("cbInst").value;
+}
+/* the two LPs written out, with the pairs in matching colours */
+function pdLPsHtml() {
+  const I = CB.inst, max = I.sense === "max", ys = I.rows.map((_, i) => yColT(i));
+  const xs = I.vars.map((v, j) => texCol(VAR_COLORS[j % VAR_COLORS.length], I.vt[j]));
+  const big = I.m > 8 || I.n > 8;
+  if (big && I.kind === "graph")
+    return '<div class="pdlp"><div><div class="pdh">the LP: fractional vertex cover</div>' + M("\\begin{array}{ll}\\min & \\sum_v x_v \\\\ \\text{s.t.} & x_u + x_v \\ge 1 \\quad (\\text{every edge } uv) \\\\ & x \\ge 0\\end{array}") + "</div>" +
+           '<div><div class="pdh">the dual: fractional matching</div>' + M("\\begin{array}{ll}\\max & \\sum_e y_e \\\\ \\text{s.t.} & \\sum_{e \\ni v} y_e \\le 1 \\quad (\\text{every vertex } v) \\\\ & y \\ge 0\\end{array}") + "</div></div>";
+  const lin = (coef, names) => { let s = ""; coef.forEach((c, k) => { if (c.isZero()) return; const a = c.abs(), t = (a.eq(F1) ? "" : cfT(a)) + names[k]; s += s ? (c.sign < 0 ? " - " : " + ") + t : (c.sign < 0 ? "-" : "") + t; }); return s || "0"; };
+  const P = [[(max ? "\\max" : "\\min"), lin(I.c, xs), ""]];
+  I.rows.forEach((r, i) => P.push([i ? "" : "\\text{s.t.}", lin(r.a, xs) + " " + RELT[r.op] + " " + numT(r.b), "\\quad " + ys[i]]));
+  P.push(["", xs.join(",") + " \\ge 0", ""]);
+  const D = [[(max ? "\\min" : "\\max"), lin(I.rows.map(r => r.b), ys), ""]];
+  I.vars.forEach((v, j) => D.push([j ? "" : "\\text{s.t.}", lin(I.rows.map(r => r.a[j]), ys) + (max ? " \\ge " : " \\le ") + numT(I.c[j]), "\\quad " + xs[j]]));
+  const pos = [], neg = [], free = [];
+  I.rows.forEach((r, i) => { const q = cbReq(I, r); (q > 0 ? pos : q < 0 ? neg : free).push(ys[i]); });
+  const sg = []; if (pos.length) sg.push(pos.join(",") + " \\ge 0"); if (neg.length) sg.push(neg.join(",") + " \\le 0"); if (free.length) sg.push(free.join(",") + "\\ \\text{free}");
+  D.push(["", sg.join(",\\ "), ""]);
+  const arr = R => M("\\begin{array}{lll}" + R.map(r => r.join(" & ")).join(" \\\\[2pt] ") + "\\end{array}");
+  return '<div class="pdlp"><div><div class="pdh">the LP (primal)</div>' + arr(P) + '</div><div><div class="pdh">its dual</div>' + arr(D) + "</div></div>" +
+         '<p class="dnote">Each constraint of the LP has its multiplier (same colour), each variable of the LP its condition in the dual.</p>';
+}
+function pdUpdateTables(A) {
+  const I = CB.inst, max = I.sense === "max", ink = "var(--wi-ink-strong)", faint = "#b6b1a1", hv = PD.hover;
+  const prodCell = v => v.isZero() ? mh("0", "0", C_OPT, 15) + ' <span class="ok">✓</span>' : mh(valT(v), valP(v), "#b5651d", 15) + ' <span class="bad">≠ 0</span>';
+  I.rows.forEach((r, i) => {
+    setCell("pdRN" + i, '<span class="rno">(' + (I.kind === "graph" ? r.name : i + 1) + ")</span>");
+    const t = (I.kind === "graph" ? "x_{" + (I.g.edges[i][0] + 1) + "} + x_{" + (I.g.edges[i][1] + 1) + "}" : exprT(r.a, I.vars)) + " = " + valT(A.ax[i]) + "\\ " + (A.rowOK[i] ? RELT[r.op] : "\\not" + RELT[r.op]) + "\\ " + numT(r.b);
+    setCell("pdRC" + i, mh(t, "", A.rowOK[i] ? ink : C_ERR, 15));
+    setCell("pdRS" + i, mh(valT(A.rs[i]), valP(A.rs[i]), A.rs[i].isZero() ? C_OPT : ink, 15));
+    setCell("pdRY" + i, mh(yName(i) + " =", "y" + (i + 1) + " =", A.signOK[i] ? r.color : C_ERR, 15));
+    setCell("pdRP" + i, prodCell(A.rp[i]));
+    const tr = el("pdRC" + i).parentNode; tr.classList.toggle("hot", !!hv && hv.kind === "r" && hv.i === i); tr.classList.toggle("viol", !A.rp[i].isZero());
+  });
+  I.vars.forEach((v, j) => {
+    const col = VAR_COLORS[j % VAR_COLORS.length];
+    setCell("pdCN" + j, '<span class="rno">(' + I.vars[j] + ")</span>");
+    const t = (I.kind === "graph" ? "\\sum_{e \\ni v_{" + (j + 1) + "}} y_e" : exprT(I.rows.map(r => r.a[j]), I.rows.map((_, i) => "y" + (i + 1)))) + " = " + valT(A.s[j]) + "\\ " + (A.colOK[j] ? (max ? "\\ge" : "\\le") : (max ? "\\not\\ge" : "\\not\\le")) + "\\ " + numT(I.c[j]);
+    setCell("pdCC" + j, mh(t, "", A.colOK[j] ? ink : C_ERR, 15));
+    setCell("pdCS" + j, mh(valT(A.cs[j]), valP(A.cs[j]), A.cs[j].isZero() ? C_OPT : ink, 15));
+    setCell("pdCX" + j, mh(I.vt[j] + " =", I.vars[j] + " =", A.xOK[j] ? col : C_ERR, 15));
+    setCell("pdCP" + j, prodCell(A.cp[j]));
+    const tr = el("pdCC" + j).parentNode; tr.classList.toggle("hot", !!hv && hv.kind === "c" && hv.i === j); tr.classList.toggle("viol", !A.cp[j].isZero());
+  });
+  el("pdTabs").querySelectorAll(".pdv").forEach(t => {
+    const v = (t.dataset.k === "x" ? PD.x : PD.y)[+t.dataset.i];
+    if (document.activeElement !== t) t.value = cbValP(v);
+  });
+  const both = A.pFeas && A.dFeas;
+  const gl = max ? "\\mathbf b^{\\mathsf T}\\mathbf y - \\mathbf c^{\\mathsf T}\\mathbf x" : "\\mathbf c^{\\mathsf T}\\mathbf x - \\mathbf b^{\\mathsf T}\\mathbf y";
+  const big = max ? A.dv : A.pv, small = max ? A.pv : A.dv, par = v => v.sign < 0 ? "(" + valT(v) + ")" : valT(v);
+  setCell("pdGap", '<span class="glab">sum of all products</span>' + mh("= " + gl + " = " + valT(big) + " - " + par(small) + " = " + valT(A.gap),
+          "gap = " + valP(A.gap), A.gap.isZero() && both ? C_OPT : ink, 16) + (both ? (A.gap.isZero() ? ' <span class="ok">both optimal</span>' : ' <span class="glab">≥ 0: weak duality</span>') : ' <span class="bad">(not both feasible)</span>'));
+}
+
+/* ---------- pictures ---------- */
+function pdGraphPic(A) {
+  const I = CB.inst, g = I.g, svg = el("pdSvg"), W = Math.max(320, el("pdWrap").clientWidth), H = PD.H, R = clamp(Math.min(W, H) / 17, 15, 22);
+  const xs = g.pos.map(p => p[0]), ys = g.pos.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const pad = R * 3, v = PD.gview, sc = Math.min((W - 2 * pad) / Math.max(1e-9, x1 - x0), (H - 2 * pad) / Math.max(1e-9, y1 - y0), 260);
+  const P = p => [W / 2 + (p[0] - (x0 + x1) / 2) * sc * v.z + v.dx, H / 2 + (p[1] - (y0 + y1) / 2) * sc * v.z + v.dy];
+  let E = "", V = "", L = "", hits = "";
+  g.edges.forEach(([a, b], j) => {
+    const p = P(g.pos[a]), q = P(g.pos[b]), y = PD.y[j], yn = y.toNumber(), wdt = 1.6 + Math.min(9, 7 * Math.abs(yn));
+    const uncovered = !A.rowOK[j], viol = !A.rp[j].isZero(), hot = PD.hover && PD.hover.kind === "r" && PD.hover.i === j;
+    if (hot) E += '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="' + OBJ + '" stroke-width="' + f1(wdt + 10) + '" opacity=".25" stroke-linecap="round"/>';
+    E += '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="' + (uncovered ? C_ERR : y.isZero() ? "#b6b1a1" : viol ? "#d9822b" : C_INT) + '" stroke-width="' + f1(uncovered && y.isZero() ? 2.4 : wdt) + '"' + (uncovered ? ' stroke-dasharray="6 4"' : "") + ' stroke-linecap="round"/>';
+    const mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2, dx = q[0] - p[0], dy = q[1] - p[1], dl = Math.hypot(dx, dy) || 1, nx = -dy / dl, ny = dx / dl;
+    if (!y.isZero()) L += mathAt(fracT(y), mx - nx * 15, my - ny * 15 + 5, 15, "middle", viol ? "#b5651d" : C_INT, fracP(y)).svg;
+    hits += '<line class="hit pdedge" data-j="' + j + '" x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="transparent" stroke-width="16"/>';
+  });
+  for (let i = 0; i < g.V; i++) {
+    const [x, y] = P(g.pos[i]), xv = PD.x[i], f = clamp(xv.toNumber(), 0, 1), over = !A.colOK[i], viol = !A.cp[i].isZero();
+    const hot = PD.hover && PD.hover.kind === "c" && PD.hover.i === i;
+    if (hot) V += '<circle cx="' + f1(x) + '" cy="' + f1(y) + '" r="' + f1(R + 9) + '" fill="' + OBJ + '" opacity=".25"/>';
+    V += '<circle cx="' + f1(x) + '" cy="' + f1(y) + '" r="' + f1(R) + '" fill="var(--wi-panel-2)" stroke="' + (over ? C_ERR : viol ? "#d9822b" : "#38362e") + '" stroke-width="' + (over || viol ? 3 : 1.4) + '"' + (viol && !over ? ' stroke-dasharray="4 3"' : "") + "/>";
+    if (f > 1e-9) V += piePath(x, y, R - 1.5, f) + ' fill="' + C_LP + '" fill-opacity=".55"/>';
+    V += mathAt("v_{" + (i + 1) + "}", x, y + 5, 14, "middle", "var(--wi-ink-strong)", "v" + (i + 1)).svg;
+    const dx = g.pos[i][0] - (x0 + x1) / 2, dy = g.pos[i][1] - (y0 + y1) / 2, dl = Math.hypot(dx, dy) || 1;
+    L += mathAt("x = " + fracT(xv), x + dx / dl * (R + 20), y + dy / dl * (R + 13) + 5, 13.5, "middle", xv.isZero() ? "#a29d8e" : C_LP, "x=" + fracP(xv)).svg;
+    hits += '<circle class="hit pdvert" data-i="' + i + '" cx="' + f1(x) + '" cy="' + f1(y) + '" r="' + f1(R + 2) + '" fill="transparent"/>';
+  }
+  const note = '<text class="sv-small" x="' + (W - 10) + '" y="' + (H - 8) + '" style="text-anchor:end">' + (W < 620 ? "click vertices and edges" : "click a vertex: x = 0 → ½ → 1 · click an edge: y = 0 → ½ → 1 · orange: a product ≠ 0") + "</text>";
+  svgSet(svg, W, H, E + V + L + hits + note);
+}
+/* exact intersection of two lines a·p = b (Frac) */
+function solve2(a1, b1, a2, b2) {
+  const det = a1[0].mul(a2[1]).sub(a1[1].mul(a2[0]));
+  if (det.isZero()) return null;
+  return [b1.mul(a2[1]).sub(a1[1].mul(b2)).div(det), a1[0].mul(b2).sub(b1.mul(a2[0])).div(det)];
+}
+/* the vertices of a polygon given by exact half-planes {a, b} (a·p ≤ b), exactly */
+function exactVertices(HE) {
+  const out = [];
+  for (let i = 0; i < HE.length; i++) for (let j = i + 1; j < HE.length; j++) {
+    const p = solve2(HE[i].a, HE[i].b, HE[j].a, HE[j].b); if (!p) continue;
+    if (!HE.every(h => fdot(h.a, p).le(h.b))) continue;
+    if (out.some(q => q[0].eq(p[0]) && q[1].eq(p[1]))) continue;
+    out.push(p);
+  }
+  return out;
+}
+function pdPrimalHE() {
+  const I = CB.inst, H = [];
+  for (const r of I.rows) { if (r.op !== ">=") H.push({ a: r.a, b: r.b }); if (r.op !== "<=") H.push({ a: r.a.map(x => x.neg()), b: r.b.neg() }); }
+  H.push({ a: [FM1, F0], b: F0 }, { a: [F0, FM1], b: F0 });
+  return H;
+}
+function pdDualHE() {
+  const I = CB.inst, max = I.sense === "max", H = [];
+  I.rows.forEach((r, i) => { const q = cbReq(I, r); if (q !== 0) { const a = [F0, F0]; a[i] = q > 0 ? FM1 : F1; H.push({ a, b: F0 }); } });
+  for (let j = 0; j < I.n; j++) { const a = I.rows.map(r => r.a[j]); H.push(max ? { a: a.map(x => x.neg()), b: I.c[j].neg() } : { a, b: I.c[j] }); }
+  return H;
+}
+function pdPlanePic(A, kind) {
+  const I = CB.inst, svg = el("pdSvg"), W = Math.max(320, el("pdWrap").clientWidth), H = PD.H, E = effV(kind === "primal" ? PD.view : PD.dview, W, H); PD.E = E;
+  const X = x => CPAD.l + (x - E.lo[0]) * E.k, Y = y => H - CPAD.b - (y - E.lo[1]) * E.k, P = p => [X(p[0]), Y(p[1])];
+  const Hv = boxH(E.lo, E.hi);
+  let body = "", lines = "", top = "", hits = "";
+  const pts = kind === "primal" ? exactVertices(pdPrimalHE()) : exactVertices(pdDualHE());
+  const Hf = kind === "primal" ? primalHalfplanes() : dualHalfplanes();
+  const defs = "<defs>" + patterns(I.rows.map((r, i) => ["qh" + i, r.color]).concat(I.vars.map((_, j) => ["qc" + j, VAR_COLORS[j % VAR_COLORS.length]]), [["qn", "#8b8779"]])) +
+               '<clipPath id="pdClip"><rect x="' + CPAD.l + '" y="' + CPAD.t + '" width="' + f1(E.pw) + '" height="' + f1(E.ph) + '"/></clipPath></defs>';
+  const grid = gridAxes(E, W, H, X, Y, kind === "primal" ? [I.vt[0], I.vt[1]] : [yColT(0), yColT(1)]);
+  const pg = orderPoly(vertices(Hf.concat(Hv), 2).map(v => v.p));
+  if (pg.length >= 3) body += '<path d="M' + pg.map(p => P(p).map(f1).join(",")).join("L") + 'Z" fill="' + (kind === "primal" ? "var(--t-region)" : C_OPT) + '"' + (kind === "primal" ? ' opacity=".95"' : ' fill-opacity=".13"') + "/>";
+  Hf.forEach(h => {
+    const seg = clipLine(h.a, h.b, Hv); if (!seg) return;
+    let col, id, idx, tight = false, partner = null, lab = null;
+    if (kind === "primal") {
+      if (h.nonneg !== undefined) { col = "#8b8779"; id = "qn"; idx = -1; }
+      else { idx = I.rows.indexOf(h.row); col = h.row.color; id = "qh" + idx; tight = A.rs[idx].isZero(); partner = PD.y[idx]; lab = { t: yName(idx) + " = " + valT(partner), p: "y" + (idx + 1) + " = " + valP(partner) }; }
+    } else {
+      if (h.sign !== undefined) { col = "#8b8779"; id = "qn"; idx = -1; }
+      else { idx = h.col; col = VAR_COLORS[idx % VAR_COLORS.length]; id = "qc" + idx; tight = A.cs[idx].isZero(); partner = PD.x[idx]; lab = { t: I.vt[idx] + " = " + valT(partner), p: I.vars[idx] + " = " + valP(partner) }; }
+    }
+    const eq = kind === "primal" && h.row && h.row.op === "=";
+    if (!eq) body += hatchSide(P, seg, kind === "primal" ? h.a.map(x => -x) : h.a, id);
+    else if (h.a.some((v, k) => v !== h.row.a[k].toNumber())) return;   /* an equation gives two half-planes: draw it once */
+    const viol = partner && !partner.isZero() && !tight;
+    const hot = PD.hover && idx >= 0 && ((kind === "primal" && PD.hover.kind === "r") || (kind === "dual" && PD.hover.kind === "c")) && PD.hover.i === idx;
+    if (hot) lines += lineSeg(P, seg, 'stroke="' + OBJ + '" stroke-width="10" opacity=".25" stroke-linecap="round"');
+    lines += lineSeg(P, seg, 'stroke="' + col + '" stroke-width="' + (tight ? 3 : 1.3) + '"' + (viol ? ' stroke-dasharray="7 4"' : ""));
+    if (lab && partner && !partner.isZero()) top += labelOnLine(P, seg, lab.t, lab.p, viol ? "#b5651d" : col, 0.15 + 0.6 * ((idx * 0.37) % 1));
+  });
+  const cur = kind === "primal" ? PD.x : PD.y;
+  pts.forEach(p => {
+    const a = P(p.map(v => v.toNumber())), on = p[0].eq(cur[0]) && p[1].eq(cur[1]);
+    top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="' + (on ? 7.5 : 4.5) + '" fill="' + (on ? (kind === "primal" ? C_LP : C_OPT) : "#38362e") + '" stroke="var(--wi-panel-2)" stroke-width="1.4"/>';
+    hits += '<circle class="hit pdpt" data-v="' + p.map(String).join(",") + '" cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="11" fill="transparent"/>';
+  });
+  const c = cur.map(v => v.toNumber());
+  if (!pts.some(p => p[0].eq(cur[0]) && p[1].eq(cur[1]))) { const a = P(c); top += '<circle cx="' + f1(a[0]) + '" cy="' + f1(a[1]) + '" r="7" fill="' + (kind === "primal" ? C_LP : C_OPT) + '" stroke="var(--wi-panel-2)" stroke-width="1.4"/>'; }
+  const note = '<text class="sv-small" x="' + (W - CPAD.r - 4) + '" y="' + (H - 6) + '" style="text-anchor:end">' + (W < 620 ? "click a corner" : "click a corner to take it as " + (kind === "primal" ? "x" : "y") + " · thick: tight · dashed: a product ≠ 0") + "</text>";
+  svgSet(svg, W, H, defs + grid + '<g clip-path="url(#pdClip)">' + body + lines + top + hits + "</g>" + note);
+}
+
+/* ---------- texts ---------- */
+function pdStatus(A) {
+  const I = CB.inst, gr = I.kind === "graph", max = I.sense === "max";
+  const xb = I.rows.map((r, i) => A.rowOK[i] ? -1 : i).filter(i => i >= 0), xn = A.xOK.map((ok, j) => ok ? -1 : j).filter(j => j >= 0);
+  const yb = A.colOK.map((ok, j) => ok ? -1 : j).filter(j => j >= 0), ysn = A.signOK.map((ok, i) => ok ? -1 : i).filter(i => i >= 0);
+  if (!A.pFeas || !A.dFeas) {
+    let t = "";
+    if (!A.pFeas) t += "<b>" + M("\\mathbf x") + " is not feasible:</b> " + (gr ? (xb.length ? "edge" + (xb.length > 1 ? "s " : " ") + xb.map(i => M("e_{" + (i + 1) + "}")).join(", ") + " not covered (" + M("x_u + x_v < 1") + ")" : "a negative value") : (xb.length ? "constraint " + xb.map(i => "(" + (i + 1) + ")").join(", ") + " violated" : "a negative variable")) + ". ";
+    if (!A.dFeas) t += "<b>" + M("\\mathbf y") + " is not feasible for the dual:</b> " + (gr ? (yb.length ? "vertex " + yb.map(j => M("v_{" + (j + 1) + "}")).join(", ") + " carries more than " + M("1") : "a negative weight") : (yb.length ? "the condition of " + yb.map(j => M(I.vt[j])).join(", ") + " fails" : "a multiplier with the wrong sign")) + ". ";
+    return t + "The products still add up to the difference of the two values, but only for feasible solutions does that difference say something.";
+  }
+  const bad = I.rows.map((r, i) => A.rp[i].isZero() ? -1 : i).filter(i => i >= 0), badc = A.cp.map((v, j) => v.isZero() ? -1 : j).filter(j => j >= 0);
+  if (A.gap.isZero())
+    return "<b>Both optimal.</b> " + (gr ? "The fractional vertex cover and the fractional matching have the same size " + M(numT(A.pv)) + ". " : "The two values agree: " + M(numT(A.pv)) + ". ") +
+           "Every product is " + M("0") + ": a positive multiplier sits only on a tight constraint, and a positive variable only where its dual condition is tight — " +
+           "<i>complementary slackness</i>. Each solution certifies the optimality of the other.";
+  return "<b>Both feasible, but not both optimal.</b> " + M((max ? "\\mathbf b^{\\mathsf T}\\mathbf y \\ge \\mathbf c^{\\mathsf T}\\mathbf x" : "\\mathbf c^{\\mathsf T}\\mathbf x \\ge \\mathbf b^{\\mathsf T}\\mathbf y")) +
+         " (weak duality), and the gap " + M(numT(A.gap)) + " is exactly the sum of the non-zero products: " +
+         (bad.length ? (gr ? "edge" + (bad.length > 1 ? "s " : " ") + bad.map(i => M("e_{" + (i + 1) + "}")).join(", ") + " carr" + (bad.length > 1 ? "y" : "ies") + " weight but " + (bad.length > 1 ? "are" : "is") + " covered more than once"
+                           : "multiplier" + (bad.length > 1 ? "s " : " ") + bad.map(i => M(yName(i))).join(", ") + " on a constraint that is not tight") : "") +
+         (bad.length && badc.length ? "; " : "") +
+         (badc.length ? (gr ? "vertex " + badc.map(j => M("v_{" + (j + 1) + "}")).join(", ") + " is in the cover, but its edges carry less than " + M("1")
+                            : "variable" + (badc.length > 1 ? "s " : " ") + badc.map(j => M(I.vt[j])).join(", ") + " positive although its dual condition is not tight") : "") + ".";
+}
+const PD_EXPLAIN =
+  "<h4>The gap is a sum of products</h4><p>For a minimization problem, any " + M("\\mathbf x") + " and " + M("\\mathbf y") + " satisfy " +
+  M("\\mathbf c^{\\mathsf T}\\mathbf x - \\mathbf b^{\\mathsf T}\\mathbf y = \\sum_j x_j\\,\\bigl(c_j - \\textstyle\\sum_i a_{ij}y_i\\bigr) + \\sum_i y_i\\,\\bigl(\\textstyle\\sum_j a_{ij}x_j - b_i\\bigr)") +
+  " — expand both sides. If both are feasible, every product is " + M("\\ge 0") + " (weak duality).</p>" +
+  "<h4>Complementary slackness</h4><p>So the two values agree exactly when every product is " + M("0") + ": for every " + M("j") + ", " +
+  M("x_j = 0 \\lor \\sum_i a_{ij} y_i = c_j") + ", and for every " + M("i") + ", " + M("y_i = 0 \\lor \\sum_j a_{ij} x_j = b_i") +
+  ". By strong duality optimal solutions with this property exist; and feasible " + M("\\mathbf x, \\mathbf y") + " with it are both optimal.</p>" +
+  "<h4>Vertex Cover and Matching</h4><p>The dual of the fractional vertex cover LP is the fractional matching LP. With the integral optima: " +
+  M("\\nu(G) \\le \\text{fractional matching} = \\text{fractional vertex cover} \\le \\tau(G)") + ". In bipartite graphs the incidence matrix is totally unimodular and all four agree; " +
+  "in a triangle they are " + M("1 \\le \\tfrac32 = \\tfrac32 \\le 2") + ".</p>";
+
+/* ---------- render ---------- */
+function renderPD() {
+  if (!CB.inst || !el("pdTabs").firstChild) return;
+  const I = CB.inst, A = pdAnalyse();
+  if (PD.pic === "graph") pdGraphPic(A);
+  else if (PD.pic === "primal" || PD.pic === "dual") pdPlanePic(A, PD.pic);
+  else svgSet(el("pdSvg"), Math.max(320, el("pdWrap").clientWidth), 80, '<text class="sv-note" x="' + Math.max(320, el("pdWrap").clientWidth) / 2 + '" y="45" text-anchor="middle">no picture for ' + I.n + " variables and " + I.m + " constraints — the tables below say it all</text>");
+  el("pdVH").classList.toggle("hidden", PD.pic === "none");
+  pdUpdateTables(A);
+  /* the bar: the value of x (a solution) and of y (a bound) */
+  const z = I.primal.z, vals = [0, A.pv.toNumber(), A.dv.toNumber()].concat(z !== null ? [z.toNumber()] : []);
+  const lo = Math.min(...vals), hi = Math.max(...vals), pad = Math.max((hi - lo) * 0.1, 0.5);
+  drawBar(el("pdBarSvg"), el("pdBarWrap"), { sense: I.sense, lo: lo - pad, hi: hi + pad, lp: A.dFeas ? A.dv : null, round: false, lpTex: "\\mathbf b^{\\mathsf T}\\mathbf y", lpPlain: "bᵀy",
+    best: A.pFeas ? A.pv.toNumber() : null, bestLabel: "your x: cᵀx", earlier: [], opt: null, optShown: false,
+    words: { out: ["ruled out by y", "ruled out", ""], worse: ["not better than x", "", ""] } });
+  setMath(el("pdStatus"), pdStatus(A));
+  el("pdState").textContent = !A.pFeas ? "x infeasible" : !A.dFeas ? "y infeasible" : A.gap.isZero() ? "both optimal" : "gap " + valP(A.gap);
+  el("pdMeta").textContent = I.title;
+  el("pdInst").value = el("cbInst").value;
+  if (I.kind === "graph" && PD.ints) {
+    const z2 = I.primal.z;
+    setMath(el("pdChain"), M("\\underbrace{" + PD.ints.nu + "}_{\\text{max. matching}} \\;\\le\\; \\underbrace{" + numT(z2) + "}_{\\text{fractional matching}} \\;=\\; \\underbrace{" + numT(z2) +
+            "}_{\\text{fractional vertex cover}} \\;\\le\\; \\underbrace{" + PD.ints.tau + "}_{\\text{min. vertex cover}}"));
+    el("pdChainBox").classList.remove("hidden");
+  } else el("pdChainBox").classList.add("hidden");
+}
+function initPD() {
+  el("pdInst").innerHTML = el("cbInst").innerHTML;
+  el("pdInst").onchange = () => { const v = el("pdInst").value; if (v === "custom") return; cbApply(v); renderPD(); writeHash(); };
+  el("pdXopt").onclick = () => { if (CB.inst.primal.x) { PD.x = CB.inst.primal.x.slice(); renderPD(); writeHash(); } };
+  el("pdYopt").onclick = () => { if (CB.inst.dual.y) { PD.y = CB.inst.dual.y.slice(); renderPD(); writeHash(); } };
+  el("pdX0").onclick = () => { PD.x = CB.inst.vars.map(() => F0); renderPD(); writeHash(); };
+  el("pdY0").onclick = () => { PD.y = CB.inst.rows.map(() => F0); renderPD(); writeHash(); };
+  el("pdPicSeg").querySelectorAll("button").forEach(b => b.onclick = () => { PD.pic = b.dataset.p; el("pdPicSeg").querySelectorAll("button").forEach(q => q.classList.toggle("on", q === b)); renderPD(); });
+  const svg = el("pdSvg");
+  let drag = null;
+  const local = e => { const r = svg.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const cyc = v => { const C3 = [F0, new Frac(1n, 2n), F1], k = C3.findIndex(q => q.eq(v)); return C3[(k + 1) % 3]; };
+  svg.addEventListener("pointerdown", e => {
+    if (e.button !== 0) return;
+    const t = e.target, [x, y] = local(e);
+    if (t.classList && t.classList.contains("pdvert")) { const i = +t.dataset.i; PD.x[i] = cyc(PD.x[i]); renderPD(); writeHash(); return; }
+    if (t.classList && t.classList.contains("pdedge")) { const j = +t.dataset.j; PD.y[j] = cyc(PD.y[j]); renderPD(); writeHash(); return; }
+    if (t.classList && t.classList.contains("pdpt")) { const v = t.dataset.v.split(",").map(s => Frac.parse(s)); if (PD.pic === "primal") PD.x = v; else PD.y = v; renderPD(); writeHash(); return; }
+    drag = { x, y, v: PD.pic === "primal" ? { lo: PD.view.lo.slice(), hi: PD.view.hi.slice() } : PD.pic === "dual" ? { lo: PD.dview.lo.slice(), hi: PD.dview.hi.slice() } : null, gv: Object.assign({}, PD.gview) };
+    svg.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  svg.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const [x, y] = local(e);
+    if (PD.pic === "graph") PD.gview = { z: drag.gv.z, dx: drag.gv.dx + x - drag.x, dy: drag.gv.dy + y - drag.y };
+    else if (drag.v) { const k = PD.E.k, dx = (x - drag.x) / k, dy = (y - drag.y) / k, nv = { lo: [drag.v.lo[0] - dx, drag.v.lo[1] + dy], hi: [drag.v.hi[0] - dx, drag.v.hi[1] + dy] }; if (PD.pic === "primal") PD.view = nv; else PD.dview = nv; }
+    renderPD();
+  });
+  svg.addEventListener("pointerup", () => { drag = null; }); svg.addEventListener("pointercancel", () => { drag = null; });
+  svg.addEventListener("wheel", e => {
+    if (PD.pic === "none") return; e.preventDefault();
+    const [px, py] = local(e), f = Math.exp(clamp(e.deltaY * (e.deltaMode === 1 ? 16 : 1), -300, 300) * 0.0015);
+    if (PD.pic === "graph") { const v = PD.gview, W = svg.clientWidth, H = PD.H, z = clamp(v.z / f, 0.3, 6), k = z / v.z; PD.gview = { z, dx: (v.dx - (px - W / 2)) * k + (px - W / 2), dy: (v.dy - (py - H / 2)) * k + (py - H / 2) }; }
+    else { const E = PD.E, w = [E.lo[0] + (px - CPAD.l) / E.k, E.lo[1] + (PD.H - CPAD.b - py) / E.k], key = PD.pic === "primal" ? "view" : "dview", v = PD[key]; PD[key] = { lo: v.lo.map((x, i) => w[i] + (x - w[i]) * f), hi: v.hi.map((x, i) => w[i] + (x - w[i]) * f) }; }
+    renderPD();
+  }, { passive: false });
+  svg.addEventListener("dblclick", e => { e.preventDefault(); PD.view = CB.view; PD.dview = CB.dview; PD.gview = { z: 1, dx: 0, dy: 0 }; renderPD(); });
+  initSplit(PD, "pdSplit", "stagePD", "pdVH", renderPD);
+  setMath(el("pdExplain"), PD_EXPLAIN);
+  pdOnLoad();
+}
+
+/* ==========================================================================
    Tabs, presentation view, splitters, address, text input, start
    ========================================================================== */
 let MODE = "combine";
 const TABS = [["tabCombine", "combine"], ["tabPD", "pd"], ["tabSchema", "schema"]];
-function render() { if (MODE === "combine") renderCB(); }
+function render() { if (MODE === "combine") renderCB(); else if (MODE === "pd") renderPD(); }
 function setMode(m) {
   MODE = m;
   el("modeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
@@ -2119,14 +2554,21 @@ function tipHide() { el("tip").style.display = "none"; }
 function writeHash() {
   const h = [];
   if (MODE !== "combine") h.push(MODE);
-  if (MODE === "combine" && CB.inst) {
+  if ((MODE === "combine" || MODE === "pd") && CB.inst) {
     const I = CB.inst;
     if (I.key === "custom") h.push("src=" + encodeURIComponent(cbCurrentText()));
     else if (I.kind === "lp") { if (I.key !== "small") h.push("lp=" + I.key); }
     else h.push("g=" + I.key);
-    if (CB.y.some(v => !v.isZero())) h.push("y=" + CB.y.map(String).join(","));
-    if (CB.pic !== cbPics()[0] && CB.pic !== "none") h.push("pic=" + CB.pic);
-    if (!CB.reveal) h.push("noopt");
+    if (MODE === "combine") {
+      if (CB.y.some(v => !v.isZero())) h.push("y=" + CB.y.map(String).join(","));
+      if (CB.pic !== cbPics()[0] && CB.pic !== "none") h.push("pic=" + CB.pic);
+      if (!CB.reveal) h.push("noopt");
+    } else {
+      const I = CB.inst, same = (a, b) => !!b && a.length === b.length && a.every((v, k) => v.eq(b[k]));
+      if (!same(PD.x, I.primal.x)) h.push("x=" + PD.x.map(String).join(","));
+      if (!same(PD.y, I.dual.y)) h.push("y=" + PD.y.map(String).join(","));
+      if (I.kind === "lp" && PD.pic === "dual" && I.n === 2) h.push("pic=dual");
+    }
   }
   if (document.body.classList.contains("present")) h.push("present");
   const s = h.length ? "#" + h.join("&") : location.pathname + location.search;
@@ -2140,7 +2582,9 @@ function readHash() {
     else if (q.get("g") && CB_GRAPHS[q.get("g")]) cbApply("g:" + q.get("g"));
     else if (CB_PRESETS[q.get("lp")]) cbApply("lp:" + q.get("lp"));
     const y = (q.get("y") || "").split(",").filter(x => x).map(x => Frac.parse(x));
-    if (y.length === CB.inst.m) CB.y = y;
+    const x = (q.get("x") || "").split(",").filter(x => x).map(x => Frac.parse(x));
+    if (MODE === "pd") { if (y.length === CB.inst.m) PD.y = y; if (x.length === CB.inst.n) PD.x = x; if (q.get("pic") === "dual" && CB.inst.m === 2) PD.pic = "dual"; pdBuild(); }
+    else if (y.length === CB.inst.m) CB.y = y;
     if (["dual", "primal"].includes(q.get("pic")) && cbPics().includes(q.get("pic"))) { CB.pic = q.get("pic"); el("cbPicSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.p === CB.pic)); }
     CB.reveal = !q.has("noopt");
     setMath(el("cbDualLP"), cbDualLPHtml());
@@ -2167,7 +2611,7 @@ function init() {
   el("exitPres").onclick = () => setPresent(false);
   el("loadBtn").onclick = () => {
     const txt = el("inputText").value;
-    try { cbLoadText(txt); el("parseErr").textContent = ""; if (MODE !== "combine") setMode("combine"); else renderCB(); writeHash(); }
+    try { cbLoadText(txt); el("parseErr").textContent = ""; if (MODE === "schema") setMode("combine"); else render(); writeHash(); }
     catch (e) { el("parseErr").textContent = e.message; }
   };
   el("curBtn").onclick = () => { el("inputText").value = cbCurrentText(); };
@@ -2180,6 +2624,7 @@ function init() {
   let rz = null;
   window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(render, 80); });
   initCB();
+  initPD();
   const present = readHash();
   el("inputText").value = cbCurrentText();
   if (present) document.body.classList.add("present");
@@ -2189,7 +2634,7 @@ function init() {
     MathJax.startup.promise.then(() => {
       mjInPlace([...document.querySelectorAll(".subtitle, .placeholder")]);
       el("cbLegend")._k = null;
-      for (const id of ["cbStatus", "cbDualLP", "cbExplain", "cbLegend"]) { const nd = el(id); const w = nd._want; nd._shown = null; nd._queued = false; if (w) setMath(nd, w); }
+      for (const id of ["cbStatus", "cbDualLP", "cbExplain", "cbLegend", "pdStatus", "pdLPs", "pdExplain", "pdChain"]) { const nd = el(id); const w = nd._want; nd._shown = null; nd._queued = false; if (w) setMath(nd, w); }
       render();
     }).catch(() => {});
   };

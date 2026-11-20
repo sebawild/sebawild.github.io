@@ -129,7 +129,8 @@
              border-radius:var(--wi-radius-lg); padding:12px 15px; min-width:0; }
   .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em;
                color:var(--wi-ink-faint); margin:0 0 9px; display:flex; justify-content:space-between;
-               align-items:baseline; gap:10px; }
+               align-items:baseline; gap:6px 10px; flex-wrap:wrap; }
+  .sim-title .seg.mini button { display:inline-flex; align-items:center; }
   .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--wi-font-mono);
                     font-size:.9em; color:var(--wi-ink-soft); }
   .view { position:relative; height:var(--stageh); }
@@ -303,6 +304,34 @@
   .t-b.pend.sel .bagbox { stroke:var(--wi-accent-dark); stroke-width:3; fill:var(--p0l); }
   .pendq { font-family:var(--wi-font-head); font-size:14px; fill:var(--wi-ink-soft); text-anchor:middle; dominant-baseline:central; pointer-events:none; }
   .undoctl { gap:4px; }
+  /* bags: inner group (for popping in), arriving ones invisible until they land */
+  .t-b.arriving, .te.arriving { opacity:0; }
+  .t-b { transition:opacity .18s; }
+  .tarrow { fill:var(--wi-border-strong); }
+  .te.hov { stroke:var(--wi-accent-soft); stroke-width:5; }
+  .mbe { stroke:var(--wi-border); stroke-width:1.7; opacity:.8; }
+  .mbe.fill { stroke:var(--wi-examine); stroke-dasharray:4 3; opacity:.9; }
+  .mbe.hov { stroke:var(--wi-active); stroke-width:3; opacity:1; }
+  .mbe-hit { stroke:transparent; stroke-width:9; }
+  /* graph effects */
+  .fx-late { animation:fxIn .3s ease both; }
+  .fx-out { animation:fxOut .45s ease both; }
+  .fx-vanish { animation:fxVanish .5s ease-in both; transform-box:fill-box; transform-origin:center; pointer-events:none; }
+  .fx-draw { fill:none; stroke:var(--wi-examine); stroke-width:3.4; stroke-dasharray:1 1; stroke-dashoffset:1;
+             animation-name:fxDraw, fxOut; animation-timing-function:ease-out, linear; animation-fill-mode:both, forwards; pointer-events:none; }
+  @keyframes fxIn { from { opacity:0; } to { opacity:1; } }
+  @keyframes fxOut { from { opacity:1; } to { opacity:0; } }
+  @keyframes fxVanish { from { opacity:1; transform:none; } to { opacity:0; transform:scale(.2); } }
+  @keyframes fxDraw { from { stroke-dashoffset:1; } to { stroke-dashoffset:0; } }
+  /* a bag flying from the graph into the tree */
+  #flyLayer { position:fixed; left:0; top:0; width:100vw; height:100vh; pointer-events:none; z-index:45; overflow:visible; }
+  .fly-box { fill:var(--wi-panel-2); fill-opacity:.93; stroke:var(--wi-active); stroke-width:2.4; }
+  .fly-e { stroke:var(--wi-border-strong); stroke-width:1.8; }
+  .fly-e.fill { stroke:var(--wi-examine); stroke-dasharray:5 4; }
+  .fly-v { fill:var(--wi-panel-2); stroke:var(--wi-border); stroke-width:1.6; }
+  .fly-v.own { fill:var(--wi-ink-soft); stroke:var(--wi-ink-soft); }
+  .fly-l { font-family:var(--wi-font-body); fill:var(--wi-ink-strong); text-anchor:middle; dominant-baseline:central; }
+  .fly-l.own { fill:var(--wi-panel-2); }
   #rain { position:fixed; inset:0; width:100vw; height:100vh; pointer-events:none; z-index:50; display:none; }
   #cheer { position:fixed; left:50%; top:22%; transform:translate(-50%,-10px) scale(.96); z-index:51; pointer-events:none;
            font-family:var(--wi-font-head); letter-spacing:.06em; font-size:1.15rem; color:var(--wi-ink-strong);
@@ -385,8 +414,8 @@ body { font-family: var(--wi-font-body); }
     <span class="seg tabs" id="tabSeg">
       <button data-tab="def" class="on">Definition</button>
       <button data-tab="sep">Separators</button>
-      <button data-tab="elim">Elimination</button>
       <button data-tab="dp">Dynamic programming</button>
+      <button data-tab="elim">Elimination</button>
       <button data-tab="cops">Cops &amp; robber</button>
     </span>
   </div>
@@ -403,10 +432,12 @@ body { font-family: var(--wi-font-body); }
       <button class="small pri" id="addBagBtn" title="a new empty bag below the selected one  (Enter)">Next bag ⏎</button>
       <button class="small" id="delBagBtn" title="remove the selected bag; its neighbours move to its parent">Delete bag</button>
       <button class="small" id="scratchBtn" title="start again from a single empty bag">Start over</button>
-      <button class="small" id="recomputeBtn" title="replace by an optimal decomposition">Optimal one</button>
+      <button class="small" id="recomputeBtn" title="replace what you built by an optimal decomposition">Optimal one</button>
       <span class="ctl undoctl"><button class="small undo" title="Undo (Ctrl+Z)">↶ Undo</button><button class="small redo" title="Redo (Ctrl+Shift+Z)">↷ Redo</button></span>
+      <button class="small" id="adoptDefBtn" title="make the decomposition you built the current one, for the other tabs">Use this decomposition</button>
     </span>
-    <span class="opnote" id="defNote">Arrow keys step through the three conditions.</span>
+    <span class="ctl" id="defWatchCtl"><button class="small" id="optimalBtn" title="make an optimal decomposition the current one">Optimal one</button>
+    <span class="opnote" id="defNote">Arrow keys step through the three conditions.</span></span>
   </div>
   <!-- separators -->
   <div class="grp" data-tab="sep">
@@ -480,7 +511,7 @@ body { font-family: var(--wi-font-body); }
     </span>
     <span class="stepno" id="stepNo">— / —</span>
     <span class="ctl" style="gap:6px">
-      <span class="lbl">Speed</span>
+      <span class="lbl">Delay</span>
       <input type="range" id="speed" min="60" max="1600" value="700" style="width:88px" aria-label="delay per step">
       <span class="stepno" id="speedVal">700ms</span>
     </span>
@@ -502,6 +533,7 @@ body { font-family: var(--wi-font-body); }
     <div class="sim-box">
       <div class="sim-title"><span id="tTitle">Tree decomposition</span>
         <span class="seg mini" id="layoutSeg" title="how the bags are placed"><button data-l="tidy" title="tree growing downwards">tree ↓</button><button data-l="right" title="tree growing to the right">tree →</button><button data-l="geo" title="each bag where its vertices are drawn">where their vertices are</button></span>
+        <span class="seg mini" id="bagStyleSeg" title="how a bag is drawn"><button data-s="list" title="a bag lists its vertices"><svg width="22" height="11" viewBox="0 0 22 11" aria-hidden="true"><rect x=".7" y=".7" width="20.6" height="9.6" rx="4.8" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="6" cy="5.5" r="2" fill="currentColor"/><circle cx="11" cy="5.5" r="2" fill="currentColor"/><circle cx="16" cy="5.5" r="2" fill="currentColor"/></svg></button><button data-s="mini" title="a bag is a small drawing: its vertices where they are in G, with the edges between them"><svg width="16" height="13" viewBox="0 0 16 13" aria-hidden="true"><rect x=".7" y=".7" width="14.6" height="11.6" rx="3" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M4.5 9 L8 3.8 L11.5 9 Z" fill="none" stroke="currentColor" stroke-width="1"/><circle cx="4.5" cy="9" r="1.8" fill="currentColor"/><circle cx="8" cy="3.8" r="1.8" fill="currentColor"/><circle cx="11.5" cy="9" r="1.8" fill="currentColor"/></svg></button></span>
         <span class="rhs" id="tMeta"></span></div>
       <div class="view"><svg id="tSvg" class="stagesvg"></svg>
         <div class="zoomctl"><button data-z="in" title="zoom in">+</button><button data-z="out" title="zoom out">−</button><button data-z="fit" title="fit (double-click the background)">⤢</button><button data-z="move" aria-pressed="false"><svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><path d="M6.5 1v11M1 6.5h11M6.5 1l-2 2M6.5 1l2 2M6.5 12l-2-2M6.5 12l2-2M1 6.5l2-2M1 6.5l2 2M12 6.5l-2-2M12 6.5l-2 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button><button data-z="lock" aria-pressed="false"></button></div>
@@ -1908,7 +1940,8 @@ const S = {
   tab: "def", steps: [], phases: [], cur: 0, timer: null,
   tree: null,                   /* the tree currently drawn: {nodes:[{id,x,y,bag,tag,tagCls,label}], edges:[[p,c]]} */
   hoverV: -1, hoverB: -1, hoverRow: null,
-  cache: {}                     /* per-tab computed data, cleared on every change of G or TD */
+  cache: {},                    /* per-tab computed data, cleared on every change of G or TD */
+  geom: new Map(), posVersion: 0, bagStyle: "list"
 };
 
 /* ---------------------------------------------------------------- zoomable views */
@@ -1992,12 +2025,12 @@ class View {
           try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
           svg.classList.add("panning");
         }
-        if (gest.moved) { this.tx = gest.tx + dx; this.ty = gest.ty + dy; this.user = true; this.apply(); }
+        if (gest.moved) { this.stopAnim(); this.whole = false; this.tx = gest.tx + dx; this.ty = gest.ty + dy; this.user = true; this.apply(); }
       } else {
         const [a, b] = [...pts.values()];
         const [mx, my] = local((a.x + b.x) / 2, (a.y + b.y) / 2);
         const s2 = clampS(gest.s * Math.hypot(a.x - b.x, a.y - b.y) / gest.d);
-        this.s = s2; this.tx = mx - gest.wx * s2; this.ty = my - gest.wy * s2; this.user = true; this.apply();
+        this.stopAnim(); this.whole = false; this.s = s2; this.tx = mx - gest.wx * s2; this.ty = my - gest.wy * s2; this.user = true; this.apply();
       }
     });
     const up = ev => {
@@ -2010,7 +2043,11 @@ class View {
       pts.delete(ev.pointerId);
       if (gest && gest.moved) this.justPanned = true;
       if (pts.size) begin();                            /* one finger left: continue panning from here, no jump */
-      else { gest = null; svg.classList.remove("panning"); svg.classList.remove("dragging"); S.dragging = false; }
+      else {
+        const wasDrag = gest && gest.mode === "drag" && gest.moved;
+        gest = null; svg.classList.remove("panning"); svg.classList.remove("dragging"); S.dragging = false;
+        if (wasDrag && this.onDragEnd) this.onDragEnd();
+      }
     };
     /* on the window: a release outside the drawing must not leave a pointer behind */
     window.addEventListener("pointerup", up); window.addEventListener("pointercancel", up);
@@ -2027,10 +2064,10 @@ class View {
       ev.preventDefault();
       if (!sg || pts.size >= 2) return;
       const s2 = clampS(sg.s * ev.scale);
-      this.s = s2; this.tx = sg.mx - sg.wx * s2; this.ty = sg.my - sg.wy * s2; this.user = true; this.apply();
+      this.stopAnim(); this.whole = false; this.s = s2; this.tx = sg.mx - sg.wx * s2; this.ty = sg.my - sg.wy * s2; this.user = true; this.apply();
     });
     svg.addEventListener("gestureend", ev => { if (!this.locked) ev.preventDefault(); sg = null; });
-    svg.addEventListener("dblclick", ev => { if (!this.locked && !ev.target.closest("[data-v],[data-b]")) { this.user = false; this.fit(); } });
+    svg.addEventListener("dblclick", ev => { if (!this.locked && !ev.target.closest("[data-v],[data-b]")) this.fitWhole(); });
     const ctl = svg.parentNode.querySelector(".zoomctl");
     if (ctl) ctl.addEventListener("click", ev => {
       const btn = ev.target.closest("[data-z]"), z = btn && btn.dataset.z; if (!z) return;
@@ -2038,7 +2075,7 @@ class View {
       if (z === "move") { this.setMove(!this.moveMode); return; }
       if (this.locked) return;
       const r = svg.getBoundingClientRect();
-      if (z === "fit") { this.user = false; this.fit(); }
+      if (z === "fit") { this.fitWhole(); }
       else this.zoomAt(r.width / 2, r.height / 2, z === "in" ? 1.25 : 0.8);
     });
   }
@@ -2067,7 +2104,9 @@ class View {
       ctl.querySelectorAll('[data-z]:not([data-z="lock"])').forEach(x => x.disabled = on);
     }
   }
+  fitWhole() { this.whole = true; this.user = false; this.fit(null, 250); }
   zoomAt(mx, my, f) {
+    this.stopAnim(); this.whole = false;
     const s2 = Math.max(0.15, Math.min(4, this.s * f)); f = s2 / this.s;
     this.tx = mx - (mx - this.tx) * f; this.ty = my - (my - this.ty) * f; this.s = s2; this.user = true; this.apply();
   }
@@ -2078,39 +2117,56 @@ class View {
     const changed = key !== this.key;
     this.world = world; this.key = key;
     if (changed) this.user = false;                 /* a new drawing is always fitted, even when locked */
-    if (!this.user) { this.fit(opts.focus); if (this.locked) this.user = true; }
+    if (!this.user) { this.fit(opts.focus, opts.dur || 0, opts.delay || 0); if (this.locked) this.user = true; }
+  }
+  /* the transform the view is heading to (or has) */
+  goalT() { return this.anim ? this.anim.goal : { s: this.s, tx: this.tx, ty: this.ty }; }
+  stopAnim() { if (this.anim) { cancelAnimationFrame(this.anim.raf); this.anim = null; } }
+  go(goal, dur, delay) {
+    this.stopAnim();
+    if (!(dur > 0) || !this.shown) { this.s = goal.s; this.tx = goal.tx; this.ty = goal.ty; this.apply(); this.shown = true; return; }
+    const A = this.anim = { goal, from: { s: this.s, tx: this.tx, ty: this.ty }, t0: performance.now() };
+    const step = now => {
+      const k = ease((now - A.t0 - (delay || 0)) / dur);
+      this.s = lerp(A.from.s, A.goal.s, k); this.tx = lerp(A.from.tx, A.goal.tx, k); this.ty = lerp(A.from.ty, A.goal.ty, k); this.apply();
+      if (k < 1) A.raf = requestAnimationFrame(step); else this.anim = null;
+    };
+    A.raf = requestAnimationFrame(step);
   }
   dims() {
     if (!this.W || !this.H) { const r = this.svg.getBoundingClientRect(); this.W = r.width; this.H = r.height; }
     return [this.W || 600, this.H || 400];
   }
-  fit(focus) {
+  fit(focus, dur, delay) {
     const [W, H] = this.dims(), M = 18;
     const w = this.world; if (!w) return;
     const bw = Math.max(40, w.x1 - w.x0), bh = Math.max(40, w.y1 - w.y0);
     let s = Math.min((W - 2 * M) / bw, (H - 2 * M) / bh, this.maxScale);
-    if (s < this.minScale) s = this.minScale;
-    this.s = s;
-    this.tx = (W - s * (w.x0 + w.x1)) / 2; this.ty = (H - s * (w.y0 + w.y1)) / 2;
-    if (s * bh > H - 2 * M) this.ty = M - s * w.y0;             /* too tall: start at the top */
-    if (s * bw > W - 2 * M) this.tx = M - s * w.x0;
-    if (focus && (s * bh > H - 2 * M || s * bw > W - 2 * M)) this.show(focus, true);
-    this.apply();
+    if (s < this.minScale && !this.whole) s = this.minScale;
+    const g = { s, tx: (W - s * (w.x0 + w.x1)) / 2, ty: (H - s * (w.y0 + w.y1)) / 2 };
+    if (s * bh > H - 2 * M) g.ty = M - s * w.y0;                /* too tall: start at the top */
+    if (s * bw > W - 2 * M) g.tx = M - s * w.x0;
+    if (focus && (s * bh > H - 2 * M || s * bw > W - 2 * M)) Object.assign(g, this.panned(g, focus, true) || {});
+    this.go(g, dur, delay);
   }
   /* pan (without zooming) so that the world point p is well inside the view */
+  /* the pan (of transform g) that brings the world point p well inside the view, or null */
+  panned(g, p, force) {
+    const [W, H] = this.dims();
+    const x = g.tx + g.s * p.x, y = g.ty + g.s * p.y, mx = W * 0.22, my = H * 0.25;
+    if (!(force || x < mx || x > W - mx || y < my || y > H - my)) return null;
+    const w = this.world, s = g.s;
+    let tx = W / 2 - s * p.x, ty = H / 2 - s * p.y;
+    /* do not pan beyond the drawing */
+    if (s * (w.x1 - w.x0) > W) tx = Math.min(18 - s * w.x0, Math.max(W - 18 - s * w.x1, tx)); else tx = g.tx;
+    if (s * (w.y1 - w.y0) > H) ty = Math.min(18 - s * w.y0, Math.max(H - 18 - s * w.y1, ty)); else ty = g.ty;
+    return { tx, ty };
+  }
   show(p, force) {
     if (this.locked) return;
-    const [W, H] = this.dims();
-    const x = this.tx + this.s * p.x, y = this.ty + this.s * p.y, mx = W * 0.22, my = H * 0.25;
-    if (force || x < mx || x > W - mx || y < my || y > H - my) {
-      const w = this.world, s = this.s;
-      let tx = W / 2 - s * p.x, ty = H / 2 - s * p.y;
-      /* do not pan beyond the drawing */
-      if (s * (w.x1 - w.x0) > W) tx = Math.min(18 - s * w.x0, Math.max(W - 18 - s * w.x1, tx)); else tx = this.tx;
-      if (s * (w.y1 - w.y0) > H) ty = Math.min(18 - s * w.y0, Math.max(H - 18 - s * w.y1, ty)); else ty = this.ty;
-      this.tx = tx; this.ty = ty;
-      this.apply();
-    }
+    if (this.anim) { const q = this.panned(this.anim.goal, p, force); if (q) Object.assign(this.anim.goal, q); return; }
+    const q = this.panned({ s: this.s, tx: this.tx, ty: this.ty }, p, force);
+    if (q) { this.tx = q.tx; this.ty = q.ty; this.apply(); }
   }
   apply() { this.g.setAttribute("transform", "translate(" + this.tx.toFixed(1) + "," + this.ty.toFixed(1) + ") scale(" + this.s.toFixed(4) + ")"); }
 }
@@ -2124,64 +2180,111 @@ const UNLOCK_SVG = '<svg width="12" height="13" viewBox="0 0 12 13" aria-hidden=
 const BAG_H = 30, MD = 22;
 function bagWidth(k) { return Math.max(40, 12 + MD * k); }
 
+/* the shape of a bag: a pill with its vertices in a row ("list"), or a small drawing with the
+   vertices where they are in G ("mini"); pts are the disc centres relative to the bag's centre */
+function listGeom(bag) {
+  const k = bag.length;
+  return { w: bagWidth(k), h: BAG_H, rx: 15, pts: bag.map((v, i) => ({ v, x: -(k - 1) * MD / 2 + i * MD, y: 0 })) };
+}
+const MINI_S = 0.36, MINI_MAX = 150, MINI_PAD = 15, MINI_SEP = 21;
+function miniGeom(bag) {
+  const P = S.G.pos, k = bag.length;
+  if (k <= 1) return listGeom(bag);
+  let x0 = INF, y0 = INF, x1 = -INF, y1 = -INF;
+  for (const v of bag) { x0 = Math.min(x0, P[v].x); x1 = Math.max(x1, P[v].x); y0 = Math.min(y0, P[v].y); y1 = Math.max(y1, P[v].y); }
+  const ext = Math.max(x1 - x0, y1 - y0, 1), s = Math.min(MINI_S, MINI_MAX / ext), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const pts = bag.map(v => ({ v, x: (P[v].x - cx) * s, y: (P[v].y - cy) * s }));
+  for (let it = 0; it < 80; it++) {                    /* keep the discs apart */
+    let moved = false;
+    for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) {
+      let dx = pts[j].x - pts[i].x, dy = pts[j].y - pts[i].y, d = Math.hypot(dx, dy);
+      if (d >= MINI_SEP) continue;
+      if (d < 1e-6) { dx = (j - i) % 2 ? 1 : -1; dy = 0.3; d = Math.hypot(dx, dy); }
+      const push = (MINI_SEP - d) / 2 + 0.1;
+      pts[i].x -= dx / d * push; pts[i].y -= dy / d * push; pts[j].x += dx / d * push; pts[j].y += dy / d * push;
+      moved = true;
+    }
+    if (!moved) break;
+  }
+  let bx0 = INF, by0 = INF, bx1 = -INF, by1 = -INF;
+  for (const q of pts) { bx0 = Math.min(bx0, q.x); bx1 = Math.max(bx1, q.x); by0 = Math.min(by0, q.y); by1 = Math.max(by1, q.y); }
+  const mx = (bx0 + bx1) / 2, my = (by0 + by1) / 2;
+  for (const q of pts) { q.x -= mx; q.y -= my; }
+  return { w: Math.max(30, bx1 - bx0 + 2 * MINI_PAD), h: Math.max(30, by1 - by0 + 2 * MINI_PAD), rx: 11, pts, mini: true };
+}
+function nodeGeom(n) {
+  const mini = S.bagStyle === "mini" && !n.text;
+  const key = (mini ? "m" : "l") + n.bag.join(",") + "|" + (mini ? S.posVersion : 0);
+  let g = S.geom.get(key);
+  if (!g) { g = mini ? miniGeom(n.bag) : listGeom(n.bag); S.geom.set(key, g); }
+  return g;
+}
+
 /* nodes: [{id, bag, tag}], parent[id] (−1 for roots); children in array order */
 function layoutForest(nodes, parent, opts) {
   opts = opts || {};
-  const dy = opts.dy || 64, gap = opts.gap || 16, tagW = opts.tagW || 0;
+  const gapY = (opts.dy || 64) - BAG_H, gap = opts.gap || 16, tagW = opts.tagW || 0;
   const byId = new Map(nodes.map(n => [n.id, n])), ch = new Map(nodes.map(n => [n.id, []]));
   const roots = [];
   for (const n of nodes) { const p = parent[n.id]; if (p >= 0 && ch.has(p)) ch.get(p).push(n.id); else roots.push(n.id); }
-  const w = id => bagWidth(byId.get(id).bag.length) + tagW, sw = new Map();
+  const depth = new Map(), maxH = [];
+  const setD = (x, d) => { depth.set(x, d); maxH[d] = Math.max(maxH[d] || 0, nodeGeom(byId.get(x)).h); ch.get(x).forEach(c => setD(c, d + 1)); };
+  roots.forEach(r => setD(r, 0));
+  const ys = [];
+  maxH.forEach((h, d) => ys[d] = d ? ys[d - 1] + maxH[d - 1] / 2 + gapY + h / 2 : 0);
+  const w = id => nodeGeom(byId.get(id)).w + tagW, sw = new Map();
   const measure = x => {
     const cs = ch.get(x);
     let s = 0; cs.forEach((c, i) => { s += measure(c) + (i ? gap : 0); });
     const v = Math.max(w(x), s); sw.set(x, v); return v;
   };
   const pos = new Map();
-  const place = (x, left, depth) => {
-    const cs = ch.get(x), p = { y: depth * dy };
+  const place = (x, left) => {
+    const cs = ch.get(x), p = { y: ys[depth.get(x)] };
     pos.set(x, p);
-    if (!cs.length) { p.x = left + sw.get(x) / 2; return; }
+    if (!cs.length) { p.x = left + sw.get(x) / 2 + tagW / 2; return; }
     const s = cs.reduce((a, c, i) => a + sw.get(c) + (i ? gap : 0), 0);
     let l = left + (sw.get(x) - s) / 2;
-    for (const c of cs) { place(c, l, depth + 1); l += sw.get(c) + gap; }
+    for (const c of cs) { place(c, l); l += sw.get(c) + gap; }
     p.x = (pos.get(cs[0]).x + pos.get(cs[cs.length - 1]).x) / 2;
   };
   let left = 0;
-  for (const r of roots) { measure(r); place(r, left, 0); left += sw.get(r) + gap * 2; }
+  for (const r of roots) { measure(r); place(r, left); left += sw.get(r) + gap * 2; }
   const out = nodes.map(n => Object.assign({}, n, pos.get(n.id)));
   const edges = [];
   for (const n of nodes) if (parent[n.id] >= 0 && byId.has(parent[n.id])) edges.push([parent[n.id], n.id]);
-  let x0 = INF, x1 = -INF, y0 = INF, y1 = -INF;
-  for (const n of out) {
-    const hw = bagWidth(n.bag.length) / 2;
-    x0 = Math.min(x0, n.x - hw - tagW); x1 = Math.max(x1, n.x + hw); y0 = Math.min(y0, n.y - 26); y1 = Math.max(y1, n.y + 20);
-  }
-  return { nodes: out, edges, byId: new Map(out.map(n => [n.id, n])), world: { x0: x0 - 8, y0: y0 - 8, x1: x1 + 8, y1: y1 + 8 } };
+  const T = { nodes: out, edges, byId: new Map(out.map(n => [n.id, n])) };
+  T.world = treeWorld(T);
+  return T;
 }
 
-/* the same tree growing to the right: depth along x (pills left-aligned per column), siblings stacked */
+/* the same tree growing to the right: depth along x (bags left-aligned per column), siblings stacked */
 function layoutRight(nodes, parent, opts) {
   opts = opts || {};
-  const gapX = opts.gapX || 22, rowH = opts.rowH || (BAG_H + 18);
+  const gapX = opts.gapX || 22, gapY = (opts.rowH || (BAG_H + 18)) - BAG_H;
   const byId = new Map(nodes.map(n => [n.id, n])), ch = new Map(nodes.map(n => [n.id, []]));
   const roots = [];
   for (const n of nodes) { const p = parent[n.id]; if (p >= 0 && ch.has(p)) ch.get(p).push(n.id); else roots.push(n.id); }
   const depth = new Map(), maxW = [];
-  const setD = (x, d) => { depth.set(x, d); maxW[d] = Math.max(maxW[d] || 0, bagWidth(byId.get(x).bag.length)); ch.get(x).forEach(c => setD(c, d + 1)); };
+  const setD = (x, d) => { depth.set(x, d); maxW[d] = Math.max(maxW[d] || 0, nodeGeom(byId.get(x)).w); ch.get(x).forEach(c => setD(c, d + 1)); };
   roots.forEach(r => setD(r, 0));
   const colL = [0];
   for (let d = 1; d < maxW.length; d++) colL[d] = colL[d - 1] + maxW[d - 1] + gapX;
   const pos = new Map();
-  let row = 0;
-  const place = x => {
-    const cs = ch.get(x), d = depth.get(x), p = { x: colL[d] + bagWidth(byId.get(x).bag.length) / 2 };
+  const shift = (x, dy) => { pos.get(x).y += dy; ch.get(x).forEach(c => shift(c, dy)); };
+  /* place the subtree of x with nothing above `top`; returns its bottom (bags of different heights stay apart) */
+  const place = (x, top) => {
+    const cs = ch.get(x), d = depth.get(x), g = nodeGeom(byId.get(x)), p = { x: colL[d] + g.w / 2 };
     pos.set(x, p);
-    if (!cs.length) { p.y = row * rowH; row++; return; }
-    cs.forEach(place);
+    if (!cs.length) { p.y = top + g.h / 2; return top + g.h; }
+    let t = top, bot = top;
+    for (const c of cs) { bot = place(c, t); t = bot + gapY; }
     p.y = (pos.get(cs[0]).y + pos.get(cs[cs.length - 1]).y) / 2;
+    if (p.y - g.h / 2 < top) { const dy = top - (p.y - g.h / 2); shift(x, dy); bot += dy; }
+    return Math.max(bot, p.y + g.h / 2);
   };
-  for (const r of roots) { place(r); row += 0.5; }
+  let cur = 0;
+  for (const r of roots) cur = place(r, cur) + 2 * gapY;
   const out = nodes.map(n => Object.assign({}, n, pos.get(n.id)));
   const edges = [];
   for (const n of nodes) if (parent[n.id] >= 0 && byId.has(parent[n.id])) edges.push([parent[n.id], n.id]);
@@ -2203,8 +2306,9 @@ function bestLayout(cands, make) {
 function treeWorld(T) {
   let x0 = INF, x1 = -INF, y0 = INF, y1 = -INF;
   for (const n of T.nodes) {
-    const hw = bagWidth(n.bag.length) / 2, tag = n.tag && !T.right && !T.geo ? 36 : 0;
-    x0 = Math.min(x0, n.x - hw - tag); x1 = Math.max(x1, n.x + hw); y0 = Math.min(y0, n.y - 26); y1 = Math.max(y1, n.y + 20);
+    const g = nodeGeom(n), tag = n.tag && !T.right && !T.geo ? 36 : 0;
+    x0 = Math.min(x0, n.x - g.w / 2 - tag); x1 = Math.max(x1, n.x + g.w / 2);
+    y0 = Math.min(y0, n.y - g.h / 2 - 16); y1 = Math.max(y1, n.y + g.h / 2 + 5);
   }
   if (!Number.isFinite(x0)) return { x0: 0, y0: 0, x1: 100, y1: 100 };
   return { x0: x0 - 8, y0: y0 - 8, x1: x1 + 8, y1: y1 + 8 };
@@ -2228,12 +2332,12 @@ function layoutGeo(nodes, parent) {
     X[i] = nb.length ? { x: nb.reduce((s, p) => s + p.x, 0) / nb.length, y: nb.reduce((s, p) => s + p.y, 0) / nb.length } : { x: cx * SC, y: cy * SC };
   });
   const T = X.map(p => ({ x: p.x, y: p.y }));
-  const W = nodes.map(n => bagWidth(n.bag.length) + 10), H = BAG_H + 22;
+  const W = nodes.map(n => nodeGeom(n).w + 10), H = nodes.map(n => nodeGeom(n).h + 22);
   for (let it = 0; it < 260; it++) {
     let moved = false;
     for (let i = 0; i < X.length; i++) for (let j = i + 1; j < X.length; j++) {
       let dx = X[j].x - X[i].x, dy = X[j].y - X[i].y;
-      const ox = (W[i] + W[j]) / 2 - Math.abs(dx), oy = H - Math.abs(dy);
+      const ox = (W[i] + W[j]) / 2 - Math.abs(dx), oy = (H[i] + H[j]) / 2 - Math.abs(dy);
       if (ox <= 0 || oy <= 0) continue;
       moved = true;
       if (dx === 0 && dy === 0) { dx = (j - i) % 2 ? 1 : -1; dy = 0.5; }
@@ -2247,9 +2351,9 @@ function layoutGeo(nodes, parent) {
   const byId = new Map(out.map(n => [n.id, n]));
   const edges = [];
   for (const n of nodes) if (parent[n.id] >= 0 && byId.has(parent[n.id])) edges.push([parent[n.id], n.id]);
-  let x0 = INF, x1 = -INF, y0 = INF, y1 = -INF;
-  for (const n of out) { const hw = bagWidth(n.bag.length) / 2; x0 = Math.min(x0, n.x - hw); x1 = Math.max(x1, n.x + hw); y0 = Math.min(y0, n.y - 26); y1 = Math.max(y1, n.y + 20); }
-  return { nodes: out, edges, byId, geo: true, world: { x0: x0 - 8, y0: y0 - 8, x1: x1 + 8, y1: y1 + 8 } };
+  const Tr = { nodes: out, edges, byId, geo: true };
+  Tr.world = treeWorld(Tr);
+  return Tr;
 }
 /* the drawing of a decomposition: tidy tree, or bags where their vertices are */
 function layoutTD(nodes, parent, opts, which) {
@@ -2257,21 +2361,54 @@ function layoutTD(nodes, parent, opts, which) {
   return which === "geo" ? layoutGeo(nodes, parent) : which === "right" ? layoutRight(nodes, parent, opts) : layoutForest(nodes, parent, opts);
 }
 
-function tdTree(td) {
+function tdTree(td, name, ver) {
+  name = name || "cur"; if (ver === undefined) ver = S.tdVersion;
   const R = rootTree(td.tadj, 0);
   const nodes = R.order.map(t => ({ id: t, bag: td.bags[t], label: "t" + t }));
   nodes.sort((a, b) => a.id - b.id);
-  const key = S.tdVersion + ":" + S.layout + ":" + S.presetKey;
-  if (S._tdTreeKey !== key) {
-    const old = S._tdTree, sameKind = old && S._tdTreeBase === S.layout + ":" + S.presetKey;
-    S._tdTree = layoutTD(nodes, R.parent); S._tdTreeKey = key; S._tdTreeBase = S.layout + ":" + S.presetKey;
+  const slots = S._tdTrees || (S._tdTrees = {}), slot = slots[name] || (slots[name] = {});
+  const base = S.layout + ":" + S.presetKey + ":" + S.bagStyle + ":" + (S.bagStyle === "mini" ? S.posVersion : 0);
+  const key = ver + ":" + base;
+  if (slot.key !== key) {
+    const old = slot.tree, sameKind = old && slot.base === base;
+    slot.tree = layoutTD(nodes, R.parent); slot.key = key; slot.base = base; slot.tree.fam = "td-" + name;
     /* after an edit of the bags, bags placed by hand stay where they were put */
     if (sameKind) {
-      for (const n of S._tdTree.nodes) { const o = old.byId.get(n.id); if (o && o.moved) { n.x = o.x; n.y = o.y; n.moved = true; } }
-      S._tdTree.world = treeWorld(S._tdTree);
+      for (const n of slot.tree.nodes) { const o = old.byId.get(n.id); if (o && o.moved) { n.x = o.x; n.y = o.y; n.moved = true; } }
+      slot.tree.world = treeWorld(slot.tree);
     }
   }
-  return S._tdTree;
+  return slot.tree;
+}
+
+/* ---------------------------------------------------------------- animation helpers */
+
+const reducedMotion = () => !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+/* durations shrink while playing fast, so that an animation fits between two steps */
+function animScale(total) {
+  if (reducedMotion()) return 0;
+  if (!S.timer) return 1;
+  return Math.min(1, Number(el("speed").value) * 0.85 / Math.max(1, total));
+}
+const ease = t => t < 0 ? 0 : t > 1 ? 1 : t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const lerp = (a, b, t) => a + (b - a) * t;
+/* everything running is stopped by the next drawing */
+const FX = { raf: new Set(), timers: new Set(), stops: [] };
+function fxFrame(f) { const id = requestAnimationFrame(t => { FX.raf.delete(id); f(t); }); FX.raf.add(id); return id; }
+function fxLater(f, ms) { const id = setTimeout(() => { FX.timers.delete(id); f(); }, ms); FX.timers.add(id); return id; }
+function cancelFx() {
+  FX.raf.forEach(id => cancelAnimationFrame(id)); FX.raf.clear();
+  FX.timers.forEach(id => clearTimeout(id)); FX.timers.clear();
+  const st = FX.stops; FX.stops = []; st.forEach(f => f());
+}
+/* a page-wide layer for things that fly from one drawing to the other */
+function flyLayer() {
+  let L = el("flyLayer");
+  if (!L) {
+    L = document.createElementNS("http://www.w3.org/2000/svg", "svg"); L.id = "flyLayer";
+    document.body.appendChild(L);
+  }
+  return L;
 }
 
 /* ---------------------------------------------------------------- drawing the graph */
@@ -2291,8 +2428,19 @@ function drawGraph(spec) {
     out.push('<line class="e ' + c + '" data-gi="' + i + '" x1="' + P[u].x + '" y1="' + P[u].y + '" x2="' + P[v].x + '" y2="' + P[v].y + '"></line>');
   });
   /* extra edges (fill-in) are bent, so that one running past a vertex is not mistaken for two edges */
-  for (const e of spec.extra || [])
-    out.push('<path class="e ' + e.cls + '" d="' + arcPath(P[e.u], P[e.v], 0.16) + '"></path>');
+  const fx = spec.fx || {}, ms = t => Math.round(t) + "ms";
+  for (const e of spec.extra || []) {
+    const lateIn = e.late !== undefined ? ' style="animation-delay:' + ms(e.late) + '"' : "";
+    out.push('<path class="e ' + e.cls + (e.late !== undefined ? " fx-late" : "") + '" d="' + arcPath(P[e.u], P[e.v], 0.16) + '"' + lateIn + "></path>");
+  }
+  /* new edges are drawn from one end to the other */
+  for (const d of fx.drawIn || [])
+    out.push('<path class="fx-draw" pathLength="1" d="' + arcPath(P[d.u], P[d.v], 0.16) + '" style="animation-duration:' + ms(d.dur) + "," + ms(180) +
+             ";animation-delay:" + ms(d.delay) + "," + ms(d.delay + d.dur) + '"></path>');
+  /* edges of a vertex about to vanish fade out */
+  if (fx.vanish) for (const x of fx.vanish.nbrs)
+    out.push('<line class="e fx-out" x1="' + P[fx.vanish.v].x + '" y1="' + P[fx.vanish.v].y + '" x2="' + P[x].x + '" y2="' + P[x].y +
+             '" style="animation-delay:' + ms(fx.vanish.delay) + ";animation-duration:" + ms(fx.vanish.dur) + '"></line>');
   G.E.forEach(([u, v], i) => {
     out.push('<line class="e-hit" data-ge="' + i + '" x1="' + P[u].x + '" y1="' + P[u].y + '" x2="' + P[v].x + '" y2="' + P[v].y + '"></line>');
   });
@@ -2302,7 +2450,8 @@ function drawGraph(spec) {
     let f = (spec.vfill || [])[v]; const c = (spec.vcls || [])[v] || "";
     if (cops.robber === v) f = { fill: cops.caught ? "var(--wi-inert)" : "var(--wi-active)", stroke: "var(--wi-accent-dark)", inv: true, sw: 2.4 };
     const st = f ? ' style="fill:' + f.fill + (f.stroke ? ";stroke:" + f.stroke : "") + (f.dash ? ";stroke-dasharray:" + f.dash : "") + (f.sw ? ";stroke-width:" + f.sw : "") + '"' : "";
-    out.push('<g class="g-v ' + c + '" data-v="' + v + '">');
+    const lateV = fx.vanish && fx.vanish.v === v;
+    out.push('<g class="g-v ' + c + (lateV ? " fx-late" : "") + '" data-v="' + v + '"' + (lateV ? ' style="animation-delay:' + ms(fx.vanish.delay + fx.vanish.dur * 0.6) + '"' : "") + ">");
     if (cops.air && cops.air.includes(v)) out.push('<rect class="cop air" x="' + (P[v].x - 21) + '" y="' + (P[v].y - 21) + '" width="42" height="42" rx="8"></rect>');
     if (cops.at && cops.at.includes(v)) out.push('<rect class="cop" x="' + (P[v].x - 21) + '" y="' + (P[v].y - 21) + '" width="42" height="42" rx="8"></rect>');
     if (cops.plan && cops.plan.includes(v)) out.push('<rect class="cop plan" x="' + (P[v].x - 25) + '" y="' + (P[v].y - 25) + '" width="50" height="50" rx="10"></rect>');
@@ -2316,6 +2465,11 @@ function drawGraph(spec) {
     }
   }
   for (const r of spec.rings || []) out.push('<circle class="vring ' + r.cls + '" cx="' + P[r.v].x + '" cy="' + P[r.v].y + '" r="21"></circle>');
+  if (fx.vanish) {                                     /* the vertex as it was, shrinking away */
+    const q = P[fx.vanish.v], st = ' style="animation-delay:' + ms(fx.vanish.delay) + ";animation-duration:" + ms(fx.vanish.dur) + '"';
+    out.push('<g class="fx-vanish"' + st + '><circle class="vd" cx="' + q.x + '" cy="' + q.y + '" r="16" style="stroke:var(--wi-active);stroke-width:3"></circle>' +
+             '<text class="vl" x="' + q.x + '" y="' + q.y + '">' + fx.vanish.v + "</text></g>");
+  }
   if (cops.robber !== undefined && cops.robber !== null && cops.robber >= 0) {
     const p = P[cops.robber];
     out.push('<circle class="robber' + (cops.caught ? " caught" : "") + '" cx="' + (p.x - 13) + '" cy="' + (p.y - 14) + '" r="8"></circle>');
@@ -2340,55 +2494,127 @@ function graphWorld() {
 
 /* ---------------------------------------------------------------- drawing the tree */
 
+/* where a tree edge starts and ends (a = parent, b = child; positions pa, pb) */
+function treeEdgePath(T, a, pa, b, pb, directed) {
+  const ga = nodeGeom(a), gb = nodeGeom(b);
+  let A, B, curve = false;
+  if (T.right) { A = { x: pa.x + ga.w / 2, y: pa.y }; B = { x: pb.x - gb.w / 2, y: pb.y }; curve = true; }
+  else if (T.geo) {
+    const clip = (c, g, t) => {
+      const dx = t.x - c.x, dy = t.y - c.y;
+      if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return { x: c.x, y: c.y };
+      const f = Math.min(1, Math.min(g.w / 2 / Math.max(1e-6, Math.abs(dx)), g.h / 2 / Math.max(1e-6, Math.abs(dy))));
+      return { x: c.x + dx * f, y: c.y + dy * f };
+    };
+    A = clip(pa, ga, pb); B = clip(pb, gb, pa);
+  } else { A = { x: pa.x, y: pa.y + ga.h / 2 }; B = { x: pb.x, y: pb.y - gb.h / 2 }; }
+  const [P0, P1] = directed ? [B, A] : [A, B];            /* directed: from the child to its parent */
+  if (curve) { const xm = (P0.x + P1.x) / 2; return "M" + P0.x + " " + P0.y + " C" + xm + " " + P0.y + " " + xm + " " + P1.y + " " + P1.x + " " + P1.y; }
+  return "M" + P0.x + " " + P0.y + " L" + P1.x + " " + P1.y;
+}
+/* the edges of G (or of the filled graph) inside a bag, for drawn bags */
+function edgeIdx(a, b) {
+  if (S.eIdxFor !== S.G) { S.eIdx = new Map(S.G.E.map(([u, v], i) => [u * 4096 + v, i])); S.eIdxFor = S.G; }
+  const i = S.eIdx.get(Math.min(a, b) * 4096 + Math.max(a, b));
+  return i === undefined ? -1 : i;
+}
+function defaultBagEdges(id, bag) {
+  const out = [];
+  for (let i = 0; i < bag.length; i++) for (let j = i + 1; j < bag.length; j++) {
+    const ge = edgeIdx(bag[i], bag[j]); if (ge >= 0) out.push({ a: bag[i], b: bag[j], ge });
+  }
+  return out;
+}
+function treeFam() { return S.tab + "|" + S.presetKey + "|" + ((S.tree && S.tree.fam) || ""); }
+
 /* spec: { ncls: Map(id -> cls), boxFill: Map(id -> colour), mfill: (id, v) -> {fill, inv} | null,
-           ecls: Map("p-c" -> cls), fresh:Set, focus:id, note }                                     */
+           ecls: Map("p-c" -> cls), fresh: Set, focus: id, directed, bagEdges: (id, bag) -> [{a, b, ge, fill}],
+           arriving: Set (drawn invisible, see flyBag), tween: {dur, delay} }                              */
 function drawTree(spec) {
   const T = S.tree, out = [];
   spec = spec || {};
   S.lastTSpec = spec;
-  const ncls = spec.ncls || new Map(), ecls = spec.ecls || new Map();
+  cancelAnimationFrame(S.tweenRaf);
+  const ncls = spec.ncls || new Map(), ecls = spec.ecls || new Map(), arriving = spec.arriving || new Set();
+  const bagEdges = spec.bagEdges || defaultBagEdges;
+  /* where the nodes are shown now: the start of a smooth move to the new layout */
+  const fam = treeFam(), prev = S.treeShown && S.treeShown.fam === fam ? S.treeShown.pos : null;
+  const tw = spec.tween || {};
+  let dur = tw.dur !== undefined ? tw.dur : 420 * animScale(420);
+  const delay = tw.delay || 0;
+  if (S.dragging) dur = 0;
+  const target = new Map(), start = new Map();
+  let moving = false;
+  for (const n of T.nodes) {
+    target.set(n.id, { x: n.x, y: n.y });
+    const o = prev && prev.get(n.id);
+    if (o && dur > 0 && (Math.abs(o.x - n.x) > 0.5 || Math.abs(o.y - n.y) > 0.5)) moving = true;
+    start.set(n.id, o ? { x: o.x, y: o.y } : { x: n.x, y: n.y });
+  }
+  const at = moving ? start : target;
+  out.push('<defs><marker id="tArrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7.5" markerHeight="7.5" markerUnits="userSpaceOnUse" orient="auto">' +
+           '<path d="M0,0.8 L10,5 L0,9.2 z" class="tarrow"></path></marker></defs>');
+  const hidden = id => (ncls.get(id) || "").includes("hid");
   for (const [p, c] of T.edges) {
+    if (hidden(p) || hidden(c)) continue;
     const a = T.byId.get(p), b = T.byId.get(c);
     const k = ecls.get(p + "-" + c) || ecls.get(c + "-" + p) || "";
-    const hide = (ncls.get(p) || "").includes("hid") || (ncls.get(c) || "").includes("hid");
-    if (hide) continue;
-    let d;
-    if (T.right) {                                   /* from the parent's right end to the child's left end */
-      const xa = a.x + bagWidth(a.bag.length) / 2, xb = b.x - bagWidth(b.bag.length) / 2, xm = (xa + xb) / 2;
-      d = "M" + xa + " " + a.y + " C" + xm + " " + a.y + " " + xm + " " + b.y + " " + xb + " " + b.y;
-    } else {
-      const ya = T.geo ? a.y : a.y + BAG_H / 2, yb = T.geo ? b.y : b.y - BAG_H / 2;
-      d = "M" + a.x + " " + ya + " L" + b.x + " " + yb;
-    }
-    out.push('<path class="te ' + k + '" d="' + d + '"></path>');
-    if (spec.edgeHit) out.push('<path class="te-hit" data-te="' + p + "-" + c + '" d="' + d + '"></path>');
+    const d = treeEdgePath(T, a, at.get(p), b, at.get(c), spec.directed);
+    const late = arriving.has(p) || arriving.has(c) ? " arriving" : "";
+    out.push('<path class="te ' + k + late + '" data-pe="' + p + "-" + c + '" d="' + d + '"' + (spec.directed ? ' marker-end="url(#tArrow)"' : "") + "></path>");
+    if (spec.edgeHit) out.push('<path class="te-hit" data-pe="' + p + "-" + c + '" data-te="' + p + "-" + c + '" d="' + d + '"></path>');
   }
   for (const n of T.nodes) {
-    const c = ncls.get(n.id) || "", W = bagWidth(n.bag.length), x0 = n.x - W / 2, y0 = n.y - BAG_H / 2;
+    const c = ncls.get(n.id) || "", g = nodeGeom(n), x0 = -g.w / 2, y0 = -g.h / 2, q = at.get(n.id);
     const bf = spec.boxFill && spec.boxFill.get(n.id);
-    out.push('<g class="t-b ' + c + ((spec.fresh && spec.fresh.has(n.id)) ? " pop" : "") + '" data-b="' + n.id + '" data-bag="' + n.bag.join(" ") + '">');
-    out.push('<rect class="bagbox" x="' + x0 + '" y="' + y0 + '" width="' + W + '" height="' + BAG_H + '" rx="15"' + (bf ? ' style="fill:' + bf + '"' : "") + "></rect>");
-    if (n.text) out.push('<text class="pendq" x="' + n.x + '" y="' + n.y + '">' + n.text + "</text>");
-    else if (!n.bag.length) out.push('<text class="emptybag" x="' + n.x + '" y="' + n.y + '">∅</text>');
-    n.bag.forEach((v, i) => {
-      const cx = n.x - (n.bag.length - 1) * MD / 2 + i * MD;
-      const f = spec.mfill ? spec.mfill(n.id, v) : null;
-      out.push('<g class="m-v" data-v="' + v + '"><circle class="md" cx="' + cx + '" cy="' + n.y + '" r="9.5"' +
+    const pop = !arriving.has(n.id) && ((spec.fresh && spec.fresh.has(n.id)) || (prev && !prev.has(n.id) && !hidden(n.id)));
+    out.push('<g class="t-b ' + c + (arriving.has(n.id) ? " arriving" : "") + '" data-b="' + n.id + '" data-bag="' + n.bag.join(" ") +
+             '" transform="translate(' + q.x.toFixed(1) + "," + q.y.toFixed(1) + ')"><g class="t-in' + (pop ? " pop" : "") + '">');
+    out.push('<rect class="bagbox" x="' + x0 + '" y="' + y0 + '" width="' + g.w + '" height="' + g.h + '" rx="' + g.rx + '"' + (bf ? ' style="fill:' + bf + '"' : "") + "></rect>");
+    if (n.text) out.push('<text class="pendq" x="0" y="0">' + n.text + "</text>");
+    else if (!n.bag.length) out.push('<text class="emptybag" x="0" y="0">∅</text>');
+    if (g.mini) {
+      const P = new Map(g.pts.map(t => [t.v, t]));
+      for (const e of bagEdges(n.id, n.bag)) {
+        const A = P.get(e.a), B = P.get(e.b); if (!A || !B) continue;
+        const xy = '" x1="' + A.x.toFixed(1) + '" y1="' + A.y.toFixed(1) + '" x2="' + B.x.toFixed(1) + '" y2="' + B.y.toFixed(1) + '"';
+        out.push('<line class="mbe' + (e.fill ? " fill" : "") + '"' + (e.ge >= 0 ? ' data-ge="' + e.ge + '"' : "") + xy + "></line>");
+        if (e.ge >= 0) out.push('<line class="mbe-hit" data-ge="' + e.ge + xy + "></line>");
+      }
+    }
+    for (const t of g.pts) {
+      const f = spec.mfill ? spec.mfill(n.id, t.v) : null;
+      out.push('<g class="m-v" data-v="' + t.v + '"><circle class="md" cx="' + t.x.toFixed(1) + '" cy="' + t.y.toFixed(1) + '" r="9.5"' +
         (f ? ' style="fill:' + f.fill + (f.stroke ? ";stroke:" + f.stroke : "") + (f.dash ? ";stroke-dasharray:" + f.dash : "") + '"' : "") + '></circle>' +
-        '<text class="ml' + (f && f.inv ? " inv" : "") + '" x="' + cx + '" y="' + n.y + '">' + v + "</text></g>");
-    });
+        '<text class="ml' + (f && f.inv ? " inv" : "") + '" x="' + t.x.toFixed(1) + '" y="' + t.y.toFixed(1) + '">' + t.v + "</text></g>");
+    }
     if (n.label) out.push('<text class="bagid" x="' + (x0 + 4) + '" y="' + (y0 - 5) + '">' + n.label + "</text>");
-    if (n.tag) out.push(T.right
+    if (n.tag) out.push(T.right || T.geo
       ? '<text class="bagtag ' + (n.tagCls || "") + '" x="' + (x0 + 4) + '" y="' + (y0 - 5) + '">' + n.tag + "</text>"
-      : '<text class="bagtag ' + (n.tagCls || "") + '" x="' + (x0 - 6) + '" y="' + (n.y + 4) + '" text-anchor="end">' + n.tag + "</text>");
-    out.push("</g>");
+      : '<text class="bagtag ' + (n.tagCls || "") + '" x="' + (x0 - 6) + '" y="4" text-anchor="end">' + n.tag + "</text>");
+    out.push("</g></g>");
   }
   if (spec.note) out.push('<text class="treenote" x="' + T.world.x0 + '" y="' + (T.world.y1 + 18) + '">' + esc(spec.note) + "</text>");
   TV.g.innerHTML = out.join("");
+  S.treeShown = { fam, pos: new Map([...at].map(([k, v]) => [k, { x: v.x, y: v.y }])) };
+  /* the smooth move */
+  if (moving) {
+    const gs = new Map([...TV.g.querySelectorAll(".t-b")].map(e => [Number(e.dataset.b), e]));
+    const es = [...TV.g.querySelectorAll("[data-pe]")].map(e => { const [a, b] = e.dataset.pe.split("-").map(Number); return { e, a, b }; });
+    const t0 = performance.now();
+    const step = now => {
+      const k = ease((now - t0 - delay) / dur), pos = S.treeShown.pos;
+      for (const [id, s0] of start) { const t1 = target.get(id); pos.set(id, { x: lerp(s0.x, t1.x, k), y: lerp(s0.y, t1.y, k) }); }
+      for (const [id, e] of gs) { const q = pos.get(id); e.setAttribute("transform", "translate(" + q.x.toFixed(1) + "," + q.y.toFixed(1) + ")"); }
+      for (const o of es) o.e.setAttribute("d", treeEdgePath(T, T.byId.get(o.a), pos.get(o.a), T.byId.get(o.b), pos.get(o.b), spec.directed));
+      if (now - t0 < delay + dur) S.tweenRaf = requestAnimationFrame(step);
+    };
+    S.tweenRaf = requestAnimationFrame(step);
+  }
   let fid = spec.focus;
   if (fid === undefined || fid < 0) for (const [id, c] of ncls) if (/\bcur\b/.test(c)) { fid = id; break; }
   const focus = fid !== undefined && fid >= 0 ? T.byId.get(fid) : null;
-  TV.setWorld(T.world, S.treeKey + (T.geo ? "|geo" : T.right ? "|right" : "|tidy"), { minScale: T.geo ? 0 : 0.95, maxScale: T.geo ? 1.2 : 1.3, focus });
+  TV.setWorld(T.world, S.treeKey + (T.geo ? "|geo" : T.right ? "|right" : "|tidy"), { minScale: T.geo ? 0 : 0.95, maxScale: T.geo ? 1.2 : 1.3, focus, dur: moving ? dur : 0, delay });
   if (focus && !S.dragging && (S.tab === "dp" ? el("followChk").checked : !TV.user)) TV.show(focus);
   applyHover();
 }
@@ -2400,9 +2626,16 @@ function applyHover() {
   const hovering = S.hoverV >= 0 || S.hoverB >= 0 || S.hoverE >= 0;
   const P = !hovering && S.pin ? S.pin : { v: S.hoverV, b: S.hoverB, e: S.hoverE };
   const v = P.v, b = P.b, e = P.e;
+  /* the tree edges between two bags that both contain all of the given vertices: a connected piece of T */
+  const bagOf = new Map([...document.querySelectorAll("#tSvg .t-b")].map(g => [g.dataset.b, " " + g.dataset.bag + " "]));
+  const treeEdges = vs => document.querySelectorAll("#tSvg .te[data-pe]").forEach(x => {
+    const [a, c] = x.dataset.pe.split("-"), A = bagOf.get(a), C = bagOf.get(c);
+    if (A && C && vs.every(u => A.includes(" " + u + " ") && C.includes(" " + u + " "))) x.classList.add("hov");
+  });
   if (e >= 0 && S.G.E[e]) {
     const [p, q] = S.G.E[e];
-    document.querySelectorAll('#gSvg .e[data-gi="' + e + '"]').forEach(x => x.classList.add("hov"));
+    document.querySelectorAll('#gSvg .e[data-gi="' + e + '"], #tSvg .mbe[data-ge="' + e + '"]').forEach(x => x.classList.add("hov"));
+    treeEdges([p, q]);
     document.querySelectorAll('#gSvg .g-v[data-v="' + p + '"], #gSvg .g-v[data-v="' + q + '"]').forEach(x => x.classList.add("hov"));
     document.querySelectorAll("#tSvg .t-b").forEach(g => {
       const bag = " " + g.dataset.bag + " ";
@@ -2415,6 +2648,7 @@ function applyHover() {
   if (v >= 0) {
     document.querySelectorAll('#gSvg .g-v[data-v="' + v + '"], #tSvg .m-v[data-v="' + v + '"]').forEach(x => x.classList.add("hov"));
     document.querySelectorAll("#tSvg .t-b").forEach(g => { if ((" " + g.dataset.bag + " ").includes(" " + v + " ")) g.classList.add("hov"); });
+    treeEdges([v]);
     const g = document.querySelector('#gSvg .g-v[data-v="' + v + '"] .vd');
     if (g) { g.parentNode.classList.add("hov"); }
   }
@@ -2601,7 +2835,7 @@ function invalidFrame() {
   drawGraph({}); drawTree({});
   el("tMeta").textContent = S.TD.bags.length + " bags, invalid";
   setStatus('The current decomposition is <span class="bad">not valid</span>, so there is nothing to build on. ' +
-    "Fix it in the <b>Definition</b> tab (or press <i>Recompute</i> there).");
+    "Press <i>Optimal one</i> in the <b>Definition</b> tab, or build one there and use it.");
   setInfo("", ""); renderCode(S.invalidFor || "", [], null, "");
 }
 function twValue() { return S.exact ? S.exact.tw : S.twKnown; }
@@ -2628,32 +2862,31 @@ const DEF_CODE = [
 
 /* ---- try it yourself (Definition): the history of edits is the step list ---- */
 const cloneTD = td => ({ bags: td.bags.map(b => b.slice()), tadj: td.tadj.map(a => a.slice()) });
-function defStartHistory(scratch) {
-  const H = S.defHist = { states: [{ td: cloneTD(S.TD), sel: S.selBag >= 0 ? S.selBag : 0, label: "the given decomposition", ph: "given" }] };
-  if (scratch) H.states.push({ td: { bags: [[]], tadj: [[]] }, sel: 0, label: "start from scratch: one empty bag t0", ph: "t0" });
-  const h = H.states[H.states.length - 1];
-  S.TD = cloneTD(h.td); S.selBag = h.sel; H.td = S.TD; H.idx = H.states.length - 1;
+/* the history starts with one empty bag; the decomposition built here is S.defTD (with validity S.defV),
+   and it becomes the current one only by "Use this decomposition" */
+function defStartHistory() {
+  S.defHist = { states: [{ td: { bags: [[]], tadj: [[]] }, sel: 0, label: "start from scratch: one empty bag t0", ph: "t0" }], idx: -1 };
+  defRestore(0);
+}
+function defRestore(i) {
+  const H = S.defHist, h = H.states[i];
+  if (H.idx === i && S.defTD) return;
+  S.defTD = cloneTD(h.td); S.selBag = h.sel; H.idx = i;
+  S.defV = validity(S.G, S.defTD); S.defVer = (S.defVer || 0) + 1;
 }
 /* mut(td, sel) changes a copy of the decomposition; it returns false (nothing to do), or {td, sel} */
 function defEdit(mut, label, ph, quiet) {
-  const was = S.valid && S.valid.ok, wasW = S.valid ? S.valid.width : INF;
-  const td = cloneTD(S.TD), r = mut(td, S.selBag);
+  const was = S.defV.ok, wasW = S.defV.width;
+  const td = cloneTD(S.defTD), r = mut(td, S.selBag);
   if (r === false) return false;
   const nt = r && r.td ? r.td : td, sel = r && r.sel !== undefined ? r.sel : S.selBag, H = S.defHist;
   H.states.length = S.cur + 1;
   H.states.push({ td: cloneTD(nt), sel, label, ph: ph || ("t" + sel) });
-  S.TD = nt; S.selBag = sel; H.td = S.TD; H.idx = H.states.length - 1;
-  tdChanged(true);
+  H.idx = -1; defRestore(H.states.length - 1);
+  MODES.def.build(); S.cur = S.steps.length - 1; render();
   /* valid now, and it was not, or it got narrower */
-  if (!quiet && S.valid.ok && (!was || S.valid.width < wasW)) celebrate(S.valid.width);
+  if (!quiet && S.defV.ok && (!was || S.defV.width < wasW)) celebrate(S.defV.width);
   return true;
-}
-function defRestore(i) {
-  const H = S.defHist, h = H.states[i];
-  if (H.idx === i && H.td === S.TD) return;
-  S.TD = cloneTD(h.td); S.selBag = h.sel; H.td = S.TD; H.idx = i;
-  S.valid = validity(S.G, S.TD); S.tdVersion++; S.cache = {};
-  fillWalkStart(); updateReadout();
 }
 
 MODES.def = {
@@ -2666,11 +2899,11 @@ MODES.def = {
     const G = S.G, V = S.valid;
     S.steps = []; S.phases = [];
     if (S.edit) {
-      if (!S.defHist || S.defHist.td !== S.TD) defStartHistory(!S.defHist); /* new graph: from scratch; changed elsewhere: from there */
+      if (!S.defHist) defStartHistory();
       let last = null;
       S.defHist.states.forEach((h, i) => { if (h.ph !== last) { mkPhase(h.ph, true); last = h.ph; } add({ k: "hist", i }); });
       compactPhases();
-      S.tree = tdTree(S.TD); S.treeKey = "td" + S.layout + S.tdVersion;
+      S.tree = tdTree(S.defTD, "def", S.defVer); S.treeKey = "deftry" + S.layout;
       return;
     }
     S.tree = tdTree(S.TD); S.treeKey = "td" + S.layout + S.tdVersion;
@@ -2681,8 +2914,8 @@ MODES.def = {
     mkPhase("Width"); add({ k: "width" });
   },
   frame(st) {
-    if (st.k === "hist") { defRestore(st.i); S.tree = tdTree(S.TD); }
-    const G = S.G, td = S.TD, V = S.valid, gs = { rings: [], ecls: new Map(), vfill: [], halo: [] };
+    if (st.k === "hist") { defRestore(st.i); S.tree = tdTree(S.defTD, "def", S.defVer); }
+    const G = S.G, td = S.edit ? S.defTD : S.TD, V = S.edit ? S.defV : S.valid, gs = { rings: [], ecls: new Map(), vfill: [], halo: [] };
     const ts = { ncls: new Map(), boxFill: new Map(), ecls: new Map() };
     const mf = new Map();                 /* "bag,v" -> fill of the mini disc */
     let txt = "", act = new Set();
@@ -2764,6 +2997,10 @@ MODES.def = {
     ts.mfill = (t, v) => mf.get(t + "," + v) || null;
     drawGraph(gs); drawTree(ts);
     el("tMeta").textContent = td.bags.length + " bag" + (td.bags.length === 1 ? "" : "s") + ", width " + (V.width < 0 ? "—" : V.width);
+    if (S.edit) {
+      S.shown = { label: "your decomposition", unfinished: !V.ok, width: V.width, td: () => S.defTD };
+      el("adoptDefBtn").disabled = !V.ok || tdSig(S.defTD) === tdSig(S.TD);
+    }
     setStatus(txt, S.phases[st.ph] ? S.phases[st.ph].name : "");
     S.hint = "";
     const row = (key, ok, nm, good, bad) => '<li class="' + (act.has(key) ? "on" : "") + '"><span class="mark ' + (ok ? "ok" : "bad") + '">' + (ok ? "✓" : "✗") + '</span><span class="nm">' + nm + "</span><span>" + (ok ? good : bad) + "</span></li>";
@@ -2780,8 +3017,8 @@ MODES.def = {
   vertexClick(v) {
     if (!S.edit) return false;
     const sel = S.selBag;
-    if (sel < 0 || sel >= S.TD.bags.length) { S.hint = "Select a bag first (click it in the tree)."; render(); return true; }
-    const had = S.TD.bags[sel].includes(v);
+    if (sel < 0 || sel >= S.defTD.bags.length) { S.hint = "Select a bag first (click it in the tree)."; render(); return true; }
+    const had = S.defTD.bags[sel].includes(v);
     defEdit(td => { const b = td.bags[sel]; td.bags[sel] = had ? b.filter(x => x !== v) : sortU([...b, v]); },
       (had ? "take " + v + " out of t" : "put " + v + " into t") + sel);
     return true;
@@ -2789,7 +3026,7 @@ MODES.def = {
   bagClick(t, ev) {
     if (!S.edit) return false;
     if (ev.shiftKey && S.selBag >= 0 && S.selBag !== t) {
-      const R = rootTree(S.TD.tadj, 0), s = S.selBag;
+      const R = rootTree(S.defTD.tadj, 0), s = S.selBag;
       let x = t; while (x >= 0 && x !== s) x = R.parent[x];
       if (x === s || R.parent[s] < 0) { S.hint = x === s ? "A bag cannot hang below its own subtree." : "The root stays the root."; render(); return true; }
       const p = R.parent[s];
@@ -2800,12 +3037,12 @@ MODES.def = {
       }, "hang t" + s + " below t" + t);
       return true;
     }
-    const s0 = S.selBag, td = S.TD, last = td.bags.length - 1;
+    const s0 = S.selBag, td = S.defTD, last = td.bags.length - 1;
     if (s0 === last && s0 > 0 && t !== s0 && !td.bags[s0].length && td.tadj[s0].length === 1 && S.defHist) {
       const p = td.tadj[s0][0];
       td.bags.pop(); td.tadj.pop(); td.tadj[p] = td.tadj[p].filter(y => y !== s0);
       S.defHist.states[S.cur].td = cloneTD(td);
-      S.valid = validity(S.G, S.TD); S.tdVersion++; S.cache = {}; fillWalkStart(); updateReadout();
+      S.defV = validity(S.G, S.defTD); S.defVer++;
       MODES.def.build();
     }
     S.selBag = t;
@@ -2815,14 +3052,14 @@ MODES.def = {
   },
   nextBag() {
     const sel = S.selBag;
-    if (sel < 0 || sel >= S.TD.bags.length) { S.hint = "Select a bag first: the new one hangs below it."; render(); return; }
-    if (!S.TD.bags[sel].length) { S.hint = "The selected bag is still empty: click vertices of G to fill it."; render(); return; }
-    const t = S.TD.bags.length;
+    if (sel < 0 || sel >= S.defTD.bags.length) { S.hint = "Select a bag first: the new one hangs below it."; render(); return; }
+    if (!S.defTD.bags[sel].length) { S.hint = "The selected bag is still empty: click vertices of G to fill it."; render(); return; }
+    const t = S.defTD.bags.length;
     defEdit(td => { td.bags.push([]); td.tadj.push([sel]); td.tadj[sel].push(t); return { sel: t }; }, "new bag t" + t + " below t" + sel, "t" + t);
   },
   deleteBag() {
     const s = S.selBag;
-    if (s < 0 || S.TD.bags.length < 2) { S.hint = S.TD.bags.length < 2 ? "The last bag stays." : "Select a bag first."; render(); return; }
+    if (s < 0 || S.defTD.bags.length < 2) { S.hint = S.defTD.bags.length < 2 ? "The last bag stays." : "Select a bag first."; render(); return; }
     defEdit(td => {
       const R = rootTree(td.tadj, 0), keep = R.parent[s] >= 0 ? R.parent[s] : R.children[s][0];
       for (const y of td.tadj[s]) if (y !== keep) { td.tadj[y] = td.tadj[y].filter(z => z !== s); td.tadj[y].push(keep); td.tadj[keep].push(y); }
@@ -2929,7 +3166,7 @@ MODES.sep = {
     const nodes = T.bags.map((b, i) => ({ id: i, bag: b, label: "s" + i })), parent = {};
     T.par.forEach((p, i) => parent[i] = p);
     T.pending.forEach((Q, j) => { nodes.push({ id: 1000 + j, bag: [], at: Q.C, text: "?", label: "|C|=" + Q.C.length }); parent[1000 + j] = Q.par; });
-    S.tree = layoutTD(nodes, parent); S.treeKey = "septry" + S.layout + S.presetKey;
+    S.tree = layoutTD(nodes, parent); S.tree.fam = "septry"; S.treeKey = "septry" + S.layout + S.presetKey;
     T.pending.forEach((Q, j) => ts.ncls.set(1000 + j, "pend" + (j === T.cur ? " sel" : "")));
     if (ev.k === "split" || ev.k === "leaf") { ts.ncls.set(ev.id, "cur"); ts.fresh.add(ev.id); (ev.auto || []).forEach(i => ts.fresh.add(i)); }
     if (ev.S) ev.S.forEach(v => { if (ev.id !== undefined) mf.set(ev.id + "," + v, { fill: SEP_FILL, inv: true }); });
@@ -3067,7 +3304,7 @@ MODES.sep = {
     const sd = separatorDecomposition(G);
     S.conv = sd;
     const R = rootTree(sd.td.tadj, 0);
-    S.convTree = layoutTD(sd.td.bags.map((b, i) => ({ id: i, bag: b, label: "s" + i })), R.parent);
+    S.convTree = layoutTD(sd.td.bags.map((b, i) => ({ id: i, bag: b, label: "s" + i })), R.parent); S.convTree.fam = "conv";
     sd.calls.forEach((call, i) => {
       add({ k: "rec1", call, i });
       if (!call.leaf) add({ k: "rec2", call, i });
@@ -3219,6 +3456,69 @@ MODES.sep = {
 
 /* ============================================================== elimination orderings */
 
+/* the bags made by the first i eliminations; a bag whose parent is not made yet is a root */
+function elimForest(i) {
+  const rec = S.elimRec, key = i + "|" + S.elimOrder.slice(0, i).join(",") + "|" + S.layout + "|" + S.bagStyle + "|" + S.posVersion;
+  let T = S.elimForests.get(key);
+  if (!T) {
+    const nodes = [], parent = {};
+    for (let j = 0; j < i; j++) { nodes.push({ id: j, bag: rec[j].bag, label: "" }); parent[j] = rec[j].par >= 0 && rec[j].par < i ? rec[j].par : -1; }
+    T = layoutTD(nodes, parent); T.fam = "elim";
+    S.elimForests.set(key, T);
+  }
+  return T;
+}
+/* inside the bag of the j-th eliminated vertex: a clique of the filled graph (fill-in edges dashed) */
+function elimBagEdges(id, bag) {
+  const out = [];
+  for (let a = 0; a < bag.length; a++) for (let b = a + 1; b < bag.length; b++) {
+    const ge = edgeIdx(bag[a], bag[b]);
+    out.push({ a: bag[a], b: bag[b], ge, fill: ge < 0 });
+  }
+  return out;
+}
+/* the bag of v ∪ N lifts off the graph and flies into the tree, where it becomes node `id` */
+function flyBag(o) {
+  const L = flyLayer(), G = S.G, P = G.pos, node = S.tree.byId.get(o.id);
+  if (!node) return o.land();
+  const gr = GV.svg.getBoundingClientRect(), tr = TV.svg.getBoundingClientRect(), gg = GV.goalT();
+  const geo = nodeGeom(node), dstPts = new Map(geo.pts.map(q => [q.v, q]));
+  const src = new Map(node.bag.map(v => [v, { x: gr.left + gg.tx + gg.s * P[v].x, y: gr.top + gg.ty + gg.s * P[v].y }]));
+  let sx0 = INF, sy0 = INF, sx1 = -INF, sy1 = -INF;
+  for (const q of src.values()) { sx0 = Math.min(sx0, q.x); sx1 = Math.max(sx1, q.x); sy0 = Math.min(sy0, q.y); sy1 = Math.max(sy1, q.y); }
+  const pad = 26 * gg.s, sR = { x: sx0 - pad, y: sy0 - pad, w: sx1 - sx0 + 2 * pad, h: sy1 - sy0 + 2 * pad };
+  const edges = elimBagEdges(o.id, node.bag);
+  let stopped = false;
+  const stop = () => { stopped = true; L.innerHTML = ""; };
+  FX.stops.push(stop);
+  const t0 = performance.now(), total = o.pre + o.dur;
+  const frame = now => {
+    if (stopped) return;
+    const t = now - t0, a = Math.min(1, t / Math.max(1, o.pre * 0.6)), k = ease((t - o.pre) / o.dur);
+    const tg = TV.goalT();                              /* the tree view may still be moving */
+    const dst = v => { const q = dstPts.get(v); return { x: tr.left + tg.tx + tg.s * (node.x + q.x), y: tr.top + tg.ty + tg.s * (node.y + q.y) }; };
+    const dR = { x: tr.left + tg.tx + tg.s * (node.x - geo.w / 2), y: tr.top + tg.ty + tg.s * (node.y - geo.h / 2), w: tg.s * geo.w, h: tg.s * geo.h };
+    const R = { x: lerp(sR.x, dR.x, k), y: lerp(sR.y, dR.y, k), w: lerp(sR.w, dR.w, k), h: lerp(sR.h, dR.h, k) };
+    const rx = lerp(18 * gg.s, geo.rx * tg.s, k), r = lerp(16 * gg.s, 9.5 * tg.s, k), fs = lerp(15 * gg.s, 12.5 * tg.s, k);
+    const pos = new Map(node.bag.map(v => { const s0 = src.get(v), d1 = dst(v); return [v, { x: lerp(s0.x, d1.x, k), y: lerp(s0.y, d1.y, k) }]; }));
+    const edgeOp = geo.mini ? 0.75 : 0.75 * (1 - k);
+    let h = '<g style="opacity:' + a.toFixed(3) + '"><rect class="fly-box" x="' + R.x + '" y="' + R.y + '" width="' + R.w + '" height="' + R.h + '" rx="' + rx + '"></rect>';
+    for (const e of edges) {
+      const A = pos.get(e.a), B = pos.get(e.b);
+      h += '<line class="fly-e' + (e.fill ? " fill" : "") + '" style="opacity:' + edgeOp.toFixed(3) + '" x1="' + A.x + '" y1="' + A.y + '" x2="' + B.x + '" y2="' + B.y + '"></line>';
+    }
+    for (const v of node.bag) {
+      const q = pos.get(v), own = v === o.v;
+      h += '<circle class="fly-v' + (own ? " own" : "") + '" cx="' + q.x + '" cy="' + q.y + '" r="' + r + '"></circle>' +
+           '<text class="fly-l' + (own ? " own" : "") + '" x="' + q.x + '" y="' + q.y + '" style="font-size:' + fs.toFixed(1) + 'px">' + v + "</text>";
+    }
+    L.innerHTML = h + "</g>";
+    if (t < total) fxFrame(frame);
+    else { stop(); o.land(); }
+  };
+  fxFrame(frame);
+}
+
 const ELIM_CODE = [
   { label: "Tree decomposition from an elimination ordering π", numbered: true, lines: [
     { k: "for", t: K("for") + " i = 1, …, n:" },
@@ -3254,10 +3554,9 @@ MODES.elim = {
       r.par = p >= 0 ? pi : -1;
     });
     S.elimRec = rec;
-    const nodes = rec.map((r, i) => ({ id: i, bag: r.bag, label: "" })).reverse();
-    const parent = rec.map(r => r.par);
-    S.tree = layoutTD(nodes, parent);
-    S.treeKey = "elim" + S.layout + kind + S.presetKey + (kind === "click" ? ":" + order.length : "");
+    S.elimForests = new Map();
+    S.tree = elimForest(0);
+    S.treeKey = "elim" + S.layout + kind + S.presetKey;
     S.steps = []; S.phases = [];
     mkPhase("Start"); add({ k: "start" });
     rec.forEach((r, i) => { mkPhase(String(r.v), true); add({ k: "look", i }); add({ k: "elim", i }); });
@@ -3278,16 +3577,37 @@ MODES.elim = {
       if (gone.has(v)) gs.vcls[v] = "gone";
       else gs.badge[v] = [...H[v]].filter(x => !gone.has(x)).length;
     }
-    const ts = { ncls: new Map(), fresh: new Set() };
-    rec.forEach((r, j) => ts.ncls.set(j, j < i ? "" : "hid"));
+    S.tree = elimForest(i);
+    const ts = { ncls: new Map(), fresh: new Set(), directed: true, bagEdges: elimBagEdges };
     ts.focus = st.k === "look" ? st.i - 1 : st.k === "elim" ? st.i : st.k === "done" ? rec.length - 1 : -1;
     const owner = new Map(rec.map((r, j) => [j, r.v]));
     ts.mfill = (t, v) => owner.get(t) === v ? { fill: "var(--wi-ink-soft)", inv: true } : null;
+    /* one more elimination than shown so far (step or click): animate it */
+    const prefix = S.elimOrder.slice(0, i).join(","), sh = S.elimShown;
+    const anim = sh && sh.preset === S.presetKey && i === sh.i + 1 && (prefix + ",").startsWith(sh.prefix + (sh.prefix ? "," : "")) && i > 0;
+    S.elimShown = { i, prefix, preset: S.presetKey };
+    let fly = null;
+    if (anim) {
+      const r = rec[i - 1], nF = r.fill.length;
+      const f = animScale(nF ? 1500 : 1100);
+      if (f > 0) {
+        const fillDur = 380 * f, stag = 70 * f, fillEnd = nF ? fillDur + stag * (nF - 1) + 60 * f : 0;
+        const pre = 260 * f, flyDur = 700 * f, lift = fillEnd + pre;
+        gs.fx = { drawIn: r.fill.map(([a, b], q) => ({ u: a, v: b, delay: q * stag, dur: fillDur })),
+                  vanish: { v: r.v, nbrs: r.N, delay: lift + flyDur * 0.15, dur: 520 * f } };
+        const newF = new Set(r.fill.map(([a, b]) => Math.min(a, b) + "-" + Math.max(a, b)));
+        gs.extra.forEach(e => { if (newF.has(Math.min(e.u, e.v) + "-" + Math.max(e.u, e.v))) e.late = fillEnd - 60 * f; });
+        ts.arriving = new Set([i - 1]);
+        ts.tween = { dur: flyDur, delay: lift };
+        fly = { id: i - 1, v: r.v, pre: lift, dur: flyDur };
+      }
+    }
     let txt = "", act = new Set();
     const w = Math.max(-1, ...rec.slice(0, i).map(r => r.N.length));
     if (st.k === "start") {
       txt = "Eliminate the vertices one by one in the order " + (S.elimOrder.length ? S.elimOrder.join(", ") : "you click them") + ". " +
-        "The small numbers are the current degrees. Eliminating a vertex turns its neighbourhood into a clique, and that clique plus the vertex is a bag.";
+        "The small numbers are the current degrees. Eliminating a vertex turns its neighbourhood into a clique, and that clique plus the vertex is a new bag; " +
+        "it becomes the root above the earlier bags that point to it.";
     } else if (st.k === "look") {
       act.add("for"); act.add("look");
       const r = rec[st.i];
@@ -3298,12 +3618,12 @@ MODES.elim = {
     } else if (st.k === "elim") {
       act.add("fill"); act.add("bag"); act.add("hang");
       const r = rec[st.i];
-      ts.ncls.set(st.i, "cur"); ts.fresh.add(st.i);
+      ts.ncls.set(st.i, "cur");
       r.N.forEach(x => gs.halo[x] = pieceFill(1));
       const kids = rec.map((q, j) => j).filter(j => j < st.i && rec[j].par === st.i);
       txt = "Eliminate <b>" + r.v + "</b>: " + (r.fill.length ? r.fill.length + " fill-in edge" + (r.fill.length > 1 ? "s" : "") + " (dashed) make N a clique" : "N is already a clique") +
-        ", and the bag X<sub>" + r.v + "</sub> = " + vs(r.bag) + " is created" +
-        (kids.length ? "; the bags of " + kids.map(j => rec[j].v).join(", ") + " hang below it, since " + r.v + " is the first of their neighbours to go." : ".") +
+        ", and the bag X<sub>" + r.v + "</sub> = " + vs(r.bag) + " is created as a new root" +
+        (kids.length ? "; the bags of " + kids.map(j => rec[j].v).join(", ") + " now point to it, since " + r.v + " is the first of their neighbours to go." : ".") +
         " Width so far: <b>" + w + "</b>.";
     } else if (st.k === "done") {
       act.add("width");
@@ -3312,6 +3632,14 @@ MODES.elim = {
         '<span class="ans">' + (twValue() != null ? twText() + (twValue() === w ? ": this ordering is optimal." : ": a better ordering exists.") : "") + "</span>";
     }
     drawGraph(gs); drawTree(ts);
+    if (fly) {
+      fly.land = () => {
+        const g = document.querySelector('#tSvg .t-b[data-b="' + fly.id + '"]');
+        document.querySelectorAll("#tSvg .arriving").forEach(x => x.classList.remove("arriving"));
+        if (g) { const inn = g.querySelector(".t-in"); inn.classList.remove("pop"); void inn.offsetWidth; inn.classList.add("pop"); }
+      };
+      flyBag(fly);
+    }
     el("tMeta").textContent = i + " of " + rec.length + " bags, width " + (w < 0 ? "—" : w);
     S.shown = { label: "decomposition from the ordering", unfinished: S.elimOrder.length < G.n || i < G.n, width: Math.max(0, ...rec.map(r => r.N.length)),
                 td: () => (S.elimTDKey === S.elimOrder.join(",") ? S.elimTD : (S.elimTDKey = S.elimOrder.join(","), S.elimTD = tdFromOrder(G, S.elimOrder, true))) };
@@ -3322,6 +3650,7 @@ MODES.elim = {
       : '<div class="placeholder">Nothing yet. Every vertex will produce one bag; the tree grows from the bottom up.</div>',
       "width " + (w < 0 ? "—" : w));
     renderCode("Elimination orderings", ELIM_CODE, act,
+      "An arrow points from a bag to its parent, the bag made later by the first of its neighbours to go: the tree grows from the leaves to the root, one root at a time. " +
       "Try the star K<sub>1,6</sub>: eliminating the leaves first costs nothing (width 1); eliminating the centre first turns the six leaves into a clique (width 6). " +
       "Many redundant bags appear (contained in their parent); <i>Use this decomposition</i> merges them away.");
   },
@@ -3440,10 +3769,10 @@ MODES.dp = {
       S.cache.dp = { key, nice, T, VE, tb, total, ord, trees: {} };
     }
     const D = S.cache.dp, nice = D.nice;
-    const mk = c => D.trees[c] || (D.trees[c] = layoutTD(D.ord, nice.parent, { dy: 58, tagW: 34, gap: 14, gapX: 26 }, c));
+    const tk = c => c + "|" + S.bagStyle + "|" + (S.bagStyle === "mini" ? S.posVersion : 0);
+    const mk = c => D.trees[tk(c)] || (D.trees[tk(c)] = Object.assign(layoutTD(D.ord, nice.parent, { dy: 58, tagW: 34, gap: 14, gapX: 26 }, c), { fam: "dp" + key }));
     if (!S.dpChosen) { S.dpLayout = bestLayout(["tidy", "right"], mk); syncLayoutSeg(); }
-    if (!D.trees[S.dpLayout]) D.trees[S.dpLayout] = layoutTD(D.ord, nice.parent, { dy: 58, tagW: 34, gap: 14, gapX: 26 }, S.dpLayout);
-    S.tree = D.trees[S.dpLayout]; S.treeKey = "dp" + S.dpLayout + key;
+    S.tree = mk(S.dpLayout); S.treeKey = "dp" + S.dpLayout + key;
     const fineOK = D.total <= 6000;
     el("granSeg").querySelector('[data-g="1"]').disabled = !fineOK;
     const fine = S.gran === 1 && fineOK;
@@ -3882,6 +4211,7 @@ MODES.cops = {
 
 function render() {
   S.shown = null;
+  cancelFx();
   if (S.pinRow && (S.pinRow.cur !== S.cur || S.tab !== "dp")) { S.pinRow = null; S.hoverRow = null; }
   const st = S.steps[S.cur] || {};
   MODES[S.tab].frame(st);
@@ -3947,7 +4277,7 @@ function renderLegends() {
 
 function switchTab(tab, keepCur) {
   stopPlay();
-  S.tab = tab; S.hoverRow = null; S.pinRow = null;
+  S.tab = tab; S.hoverRow = null; S.pinRow = null; S.elimShown = null;
   if (S.pin && S.pin.b >= 0) S.pin = null;           /* bag numbers mean something else in another tab */
   document.querySelectorAll("#tabSeg button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
   document.querySelectorAll("#opbar .grp").forEach(g => g.classList.toggle("on", g.dataset.tab === tab));
@@ -4009,7 +4339,7 @@ function fillWalkStart() {
 }
 
 function loadGraph(G, td, key) {
-  S.G = G;
+  S.G = G; S.geom.clear(); S.posVersion++; S.elimShown = null; S.treeShown = null;
   S.exact = exactTreewidth(G);
   S.TD = td ? renumber(td, 0) : defaultTD(G);
   if (!S.layoutChosen) {
@@ -4106,6 +4436,17 @@ function init() {
     MODES[S.tab].build(); S.cur = Math.min(S.cur, S.steps.length - 1); render();
   });
   el("tabSeg").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b) switchTab(b.dataset.tab); });
+  const rebuild = () => { const c = S.cur; S.geom.clear(); MODES[S.tab].build(); S.cur = Math.min(c, S.steps.length - 1); render(); };
+  const syncBagStyle = () => el("bagStyleSeg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.s === S.bagStyle));
+  try { const bs = localStorage.getItem("wi-tw-bagstyle"); if (bs === "mini" || bs === "list") S.bagStyle = bs; } catch (e) {}
+  syncBagStyle();
+  el("bagStyleSeg").addEventListener("click", ev => {
+    const b = ev.target.closest("button"); if (!b || b.dataset.s === S.bagStyle) return;
+    S.bagStyle = b.dataset.s; syncBagStyle();
+    try { localStorage.setItem("wi-tw-bagstyle", S.bagStyle); } catch (e) {}
+    rebuild();
+  });
+  GV.onDragEnd = () => { S.posVersion++; if (S.bagStyle === "mini") rebuild(); else S.geom.clear(); };
   /* every tab with a "watch | try it yourself" switch */
   const modeSeg = (id, f) => el(id).addEventListener("click", ev => {
     const b = ev.target.closest("button"); if (!b || b.classList.contains("on")) return;
@@ -4115,13 +4456,18 @@ function init() {
   });
   modeSeg("defModeSeg", on => {
     S.edit = on; el("editBtns").style.display = on ? "" : "none";
-    el("defNote").style.display = on ? "none" : "";
-    if (on) defStartHistory(true);                    /* start from scratch; Undo brings back the given decomposition */
-    tdChanged(true);
+    el("defWatchCtl").style.display = on ? "none" : "";
+    if (on && !S.defHist) defStartHistory();          /* the current decomposition stays as it is */
+    MODES.def.build(); S.cur = on ? Math.max(0, S.defHist.idx) : 0; render();
   });
+  el("adoptDefBtn").addEventListener("click", () => {
+    S.TD = cloneTD(S.defTD); S.valid = validity(S.G, S.TD); S.tdVersion++; S.cache = {};
+    fillWalkStart(); render();
+  });
+  el("optimalBtn").addEventListener("click", () => { stopPlay(); S.TD = defaultTD(S.G); tdChanged(false); });
   el("addBagBtn").addEventListener("click", () => { stopPlay(); MODES.def.nextBag(); });
   el("delBagBtn").addEventListener("click", () => { stopPlay(); MODES.def.deleteBag(); });
-  el("scratchBtn").addEventListener("click", () => { stopPlay(); defEdit(() => ({ td: { bags: [[]], tadj: [[]] }, sel: 0 }), "start from scratch: one empty bag t0", "t0"); });
+  el("scratchBtn").addEventListener("click", () => { stopPlay(); defStartHistory(); MODES.def.build(); S.cur = 0; render(); });
   el("recomputeBtn").addEventListener("click", () => { stopPlay(); defEdit(() => ({ td: defaultTD(S.G), sel: 0 }), "an optimal decomposition", "optimal", true); });
 
   /* undo / redo (all tabs that have a history) */
@@ -4377,7 +4723,7 @@ function setPin(p) {
 }
 
 function vertexTip(v) {
-  const G = S.G, V = S.valid, B = V.where[v] || [];
+  const G = S.G, V = S.tab === "def" && S.edit ? S.defV : S.valid, B = V.where[v] || [];
   let h = '<span class="tt-h">vertex ' + v + "</span><br>degree " + G.adj[v].size + (S.tab === "dp" && S.prob === "mwis" ? ", weight " + G.w[v] : "") +
     "<br>in bags " + (B.length ? B.map(t => "t" + t).join(", ") : "none");
   if (V.pieces[v] && V.pieces[v].length > 1) h += '<br><span class="tt-s">these bags are not connected in T</span>';
@@ -4396,7 +4742,8 @@ function bagTip(t) {
   if (S.tab === "sep" && /^rec/.test(steps.k || "")) return '<span class="tt-h">bag s' + t + "</span><br>" + setStr(node.bag);
   if (S.tab === "sep" && steps.k === "try") return node.text ? '<span class="tt-h">a piece with ' + node.label.slice(4) + ' vertices</span><br><span class="tt-s">click to work on it</span>'
     : '<span class="tt-h">bag s' + t + "</span><br>" + setStr(node.bag) + ", size " + node.bag.length;
-  const td = S.TD;
+  const td = S.tab === "def" && S.edit ? S.defTD : S.TD;
+  if (!td.bags[t]) return "";
   return '<span class="tt-h">bag t' + t + "</span><br>X<sub>t</sub> = " + setStr(td.bags[t]) + ", size " + td.bags[t].length +
     "<br>tree neighbours " + td.tadj[t].map(y => "t" + y).join(", ") +
     (S.tab === "def" && S.edit ? '<br><span class="tt-s">click to select; shift-click to hang the selected bag here</span>' : "");

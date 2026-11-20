@@ -331,7 +331,7 @@ body { font-family: var(--wi-font-body); }
     <button id="spinGeo" class="hidden spinbtn" title="Let the drawing turn slowly about the vertical axis (dragging still works)">⟳ rotate</button>
   </div>
   <div class="ctl">
-    <label class="chk" id="hatchLab"><input type="checkbox" id="hatchChk" checked> hatch the forbidden side</label>
+    <label class="chk" id="hatchLab"><input type="checkbox" id="hatchChk" checked> hatch the allowed side</label>
     <label class="chk"><input type="checkbox" id="xiChk"> all intersection points</label>
   </div>
 </div>
@@ -1138,13 +1138,13 @@ function render2D() {
   const RV = A.opt.status === "infeasible" ? [] : vertices(A.H.concat(Hv), 2);
   const poly = orderPoly(RV.map(v => v.p));
   if (poly.length >= 3) body += '<path d="M' + poly.map(p => P(p).map(f1).join(",")).join("L") + 'Z" fill="var(--t-region)" stroke="none" opacity=".9"/>';
-  /* hatch bands on the forbidden side, constraint lines */
+  /* hatch bands on the allowed side, constraint lines */
   const iisSet = new Set(A.iis || []);
   lp.cons.forEach((k, i) => {
     const seg = clipLine(k.a, k.b, Hv); if (!seg) return;
     const [p, q] = seg.map(P), on = S.on[i], hot = S.hover === i || S.hl === i;
     if (on && S.hatch && k.op !== "=") {
-      const n = mul(k.a, k.op === "<=" ? 1 : -1), ns = [n[0], -n[1]], ln = norm(ns), o = [ns[0] / ln * 10, ns[1] / ln * 10];
+      const n = mul(k.a, k.op === "<=" ? -1 : 1), ns = [n[0], -n[1]], ln = norm(ns), o = [ns[0] / ln * 10, ns[1] / ln * 10];
       body += '<path d="M' + f1(p[0]) + "," + f1(p[1]) + "L" + f1(q[0]) + "," + f1(q[1]) + "L" + f1(q[0] + o[0]) + "," + f1(q[1] + o[1]) + "L" + f1(p[0] + o[0]) + "," + f1(p[1] + o[1]) + 'Z" fill="url(#hp' + S.cvId + i + ')"/>';
     }
     if (hot) lines += '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="' + k.color + '" stroke-width="9" opacity=".18" stroke-linecap="round"/>';
@@ -1472,7 +1472,7 @@ function legend() {
   const L = S.lp.d === 2 ? "line" : "plane";
   const sw = (fill, stroke, dash) => '<svg width="24" height="12"><rect x="1" y="1" width="22" height="10" rx="2" fill="' + fill + '" stroke="' + stroke + '"' + (dash ? ' stroke-dasharray="' + dash + '"' : "") + "/></svg>";
   let h = '<span class="item">' + sw("var(--t-region)", "none") + "feasible region</span>";
-  if (S.lp.d === 2) h += '<span class="item"><svg width="24" height="12"><defs><pattern id="lgh" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#6b675c" stroke-width="1.5"/></pattern></defs><rect x="1" y="1" width="22" height="10" fill="url(#lgh)"/></svg>forbidden side of a constraint</span>';
+  if (S.lp.d === 2) h += '<span class="item"><svg width="24" height="12"><defs><pattern id="lgh" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#6b675c" stroke-width="1.5"/></pattern></defs><rect x="1" y="1" width="22" height="10" fill="url(#lgh)"/></svg>allowed side of a constraint</span>';
   h += '<span class="item"><svg width="30" height="12"><line x1="1" x2="29" y1="6" y2="6" stroke="' + OBJ + '" stroke-width="2" stroke-dasharray="6 4"/></svg>' + L + " of constant " + M("z") + "</span>";
   h += '<span class="item"><svg width="30" height="12"><line x1="3" x2="27" y1="6" y2="6" stroke="' + OBJ + '" stroke-width="5" stroke-linecap="round"/></svg>its feasible part</span>';
   h += '<span class="item"><svg width="16" height="16"><circle cx="8" cy="8" r="6" fill="' + OBJ + '" stroke="#38362e" stroke-width="1.5"/></svg>optimal vertex</span>';

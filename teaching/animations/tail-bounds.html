@@ -1,0 +1,2315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="/fonts/pagella/stylesheet.css">
+<link rel="stylesheet" href="/fonts/epigrafica/stylesheet.css">
+<link rel="stylesheet" href="/css/animations.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tail bounds · Markov, Chebychev, Chernoff</title>
+<script>
+  /* MathJax: TeX in \( \), Euler letters, SVG output (also used for the labels inside the drawings) */
+  window.MathJax = {
+    tex: { inlineMath: [["\\(", "\\)"]],
+           macros: { Prob: ["\\mathbb{P}[#1]", 1], E: ["\\mathbb{E}[#1]", 1], Var: ["\\mathrm{Var}[#1]", 1],
+                     Bin: "\\mathrm{Bin}", N: "\\mathbb{N}" } },
+    svg: { fontCache: "none", mtextInheritFont: true },
+    output: { linebreaks: { inline: false } },
+    options: { enableMenu: false },
+    startup: { typeset: false }
+  };
+</script>
+<script src="/assets/mathjax/wi-mathjax.js" data-output="svg"></script>
+<script defer src="/assets/mathjax/v4/tex-svg.js"></script>
+<style>
+  /* Same token values as /css/animations.css, repeated so the page also works when opened directly. */
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#9c866d;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, "TeX Gyre Pagella", Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-font-mono:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    /* the bounds (validated as a categorical palette on the panel colour; each also has its own dash pattern) */
+    --c-exact:#38362e; --c-markov:#b07d18; --c-cheb:#008a7c; --c-cher:#a3261a; --c-hoeff:#3d63b8; --c-pow2:#5d8a1e;
+    --c-rect:#cc2f22;
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .wi-topbar { display:flex; align-items:baseline; justify-content:space-between; gap:1em; flex-wrap:wrap;
+               margin:0 0 1.1em; padding-bottom:.5em; border-bottom:1px solid var(--wi-border);
+               font-family:var(--wi-font-head); letter-spacing:.03em; }
+  .wi-topbar .wi-home { color:var(--wi-ink-strong); font-size:1.05em; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:14px 22px; flex-wrap:wrap; margin:0 0 6px; }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 14px; max-width:100ch; line-height:1.5; }
+
+  /* --- chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:11px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .lbl, .ctl > label:not(.chk) { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  .pl { font-style:italic; font-size:.92rem; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer; line-height:1.35;
+           transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); color:var(--wi-panel-2); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text; font-size:1.02rem; line-height:1.1;
+                padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  input[type=number] { width:4.6em; }
+  input.num { width:4.8em; }
+  input[type=range].plain { accent-color:var(--wi-accent); }
+  .seg { display:inline-flex; flex-wrap:wrap; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  .seg button.on:hover, .seg button.on:hover:not(:disabled) { background:var(--wi-accent-dark); color:var(--wi-panel-2); }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; }
+  label.chk input { accent-color:var(--wi-accent); margin:0; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+  .hidden { display:none !important; }
+
+  /* --- transport: slider + phase bar ---
+     The slider is custom-styled with an exactly 16px thumb; its centre travels
+     from 8px to width-8px, so the phase bar is inset by 8px on both sides and
+     the slider value is mapped piecewise-linearly onto the phase widths. */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:14px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; }
+  .progress input[type=range] { -webkit-appearance:none; appearance:none; display:block; width:100%; margin:0;
+       height:16px; background:transparent; cursor:pointer; }
+  .progress input[type=range]::-webkit-slider-runnable-track { height:6px; background:var(--wi-panel);
+       border:1px solid var(--wi-border-soft); border-radius:3px; }
+  .progress input[type=range]::-moz-range-track { height:6px; background:var(--wi-panel);
+       border:1px solid var(--wi-border-soft); border-radius:3px; }
+  .progress input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:16px; height:16px;
+       border-radius:50%; background:var(--wi-accent); border:2px solid var(--wi-panel-2); margin-top:-6px;
+       box-shadow:0 0 0 1px var(--wi-accent); box-sizing:border-box; }
+  .progress input[type=range]::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:var(--wi-accent);
+       border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); box-sizing:border-box; }
+  .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint);
+            white-space:nowrap; text-align:right; padding-top:1px; }
+  #aStepNo { display:inline-block; width:7em; }
+  .phasebar { display:flex; margin:5px 8px 0; width:calc(100% - 16px); }
+  .phasebtn { position:relative; overflow:hidden; flex:none; padding:3px 0; font-size:.68rem; line-height:1.3;
+              font-family:var(--wi-font-head); letter-spacing:.03em; text-align:center;
+              background:var(--wi-panel); border:1px solid var(--wi-border-soft);
+              border-left-width:0; border-radius:0; color:var(--wi-ink-faint); cursor:pointer; white-space:nowrap; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-soft); }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3;
+                    border-right:1px solid var(--wi-accent-soft); }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on, .phasebtn.on:hover:not(:disabled) { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
+
+  /* --- stage --- */
+  .stage { display:grid; grid-template-columns:minmax(0, var(--lf, 62fr)) 18px minmax(330px, var(--rf, 38fr)); gap:0; align-items:start; }
+  @media (max-width:980px) { .stage { grid-template-columns:1fr; gap:16px; } .splitter { display:none !important; } }
+  .splitter { align-self:stretch; min-height:200px; cursor:col-resize; touch-action:none; display:flex; justify-content:center; }
+  .splitter::before { content:""; width:4px; margin:30px 0; border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .splitter:hover::before, .splitter.drag::before, .splitter:focus-visible::before { background:var(--wi-accent-soft); }
+  .splitter:focus-visible { outline:none; }
+  .col-main, .col-side { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  @media (min-width:981px) { .col-side { position:sticky; top:10px; } }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); padding:11px 13px; min-width:0; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--wi-ink-faint);
+               margin:0 0 8px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--wi-font-body); font-size:1.15em; color:var(--wi-ink-soft); }
+  svg.stagesvg { display:block; background:var(--wi-bg); border-radius:var(--wi-radius); touch-action:none; user-select:none; -webkit-user-select:none; }
+  .vhandle { height:14px; cursor:row-resize; touch-action:none; display:flex; align-items:center; justify-content:center; }
+  .vhandle::before { content:""; height:4px; width:64px; border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .vhandle:hover::before, .vhandle.drag::before, .vhandle:focus-visible::before { background:var(--wi-accent-soft); }
+  .vhandle:focus-visible { outline:none; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:4px; font-size:.78rem; color:var(--wi-ink-soft); align-items:center; min-height:2.2em; }
+  .legend .item { display:inline-flex; align-items:center; gap:6px; }
+  .legend .sw { display:inline-block; width:14px; height:12px; border:1px solid var(--wi-ink-soft); border-radius:2px; }
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius);
+            padding:9px 13px; font-size:.88rem; color:var(--wi-ink-strong); height:12.8em; overflow-y:auto; line-height:1.55; }
+  .status b { font-family:var(--wi-font-head); font-weight:normal; letter-spacing:.04em; color:var(--wi-accent); }
+  .status p { margin:0 0 6px; }
+  .readout { font-size:.88rem; line-height:1.6; min-height:7.4em; }
+  .readout .row { white-space:nowrap; overflow-x:auto; overflow-y:hidden; padding:1px 0; }
+  .readout .muted { color:var(--wi-ink-faint); }
+  .readout .rule { color:var(--wi-ink-faint); font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; margin-top:4px; }
+  .readout .red { color:var(--c-rect); }
+  .readout .cur { background:rgba(204,47,34,.10); border-radius:3px; padding:0 2px; }
+  .about { font-size:.82rem; line-height:1.55; color:var(--wi-ink-soft); }
+  .about p { margin:0 0 6px; }
+  .about b { color:var(--wi-ink-strong); font-family:var(--wi-font-head); font-weight:normal; letter-spacing:.04em; font-size:.92em; }
+  mjx-container[jax="SVG"] { color:inherit; }
+  .mj-buf  { position:absolute; left:-10000px; top:0; visibility:hidden; }
+  .mfb { font-style:italic; }
+
+  details.explain { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.explain > summary { cursor:pointer; padding:9px 13px; font-family:var(--wi-font-head); font-size:.74rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .explain-body { padding:0 13px 11px; font-size:.84rem; line-height:1.55; color:var(--wi-ink); }
+  .explain-body h4 { font-family:var(--wi-font-head); font-weight:normal; font-size:.8rem; letter-spacing:.06em; color:var(--wi-accent); margin:12px 0 3px; }
+  .explain-body p { margin:0 0 5px; }
+
+  /* the table of bounds */
+  table.bt { border-collapse:collapse; width:100%; font-size:.86rem; }
+  table.bt td, table.bt th { padding:3px 5px; text-align:left; vertical-align:middle; border-bottom:1px solid var(--wi-border-soft); }
+  table.bt th { font-family:var(--wi-font-head); font-weight:normal; font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; color:var(--wi-ink-faint); }
+  table.bt td.v, table.bt th.v { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  table.bt tr.off td:not(:first-child) { opacity:.4; }
+  table.bt tr.best td.val { font-weight:bold; color:var(--wi-ink-strong); }
+  table.bt td.nm { white-space:nowrap; }
+  table.bt td.fm { white-space:nowrap; overflow:hidden; }
+  table.bt .triv { color:var(--wi-ink-faint); }
+  table.bt input { accent-color:var(--wi-accent); margin:0; cursor:pointer; }
+  table.bt tr:hover { background:#f3ebdd; }
+  .lsw { display:inline-block; vertical-align:middle; }
+  .tnote { font-size:.76rem; color:var(--wi-ink-soft); margin-top:6px; line-height:1.5; }
+
+  /* input editor */
+  details.editor { margin-top:16px; background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:11px 16px; font-family:var(--wi-font-head); font-size:.78rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; display:grid; grid-template-columns:minmax(0,430px) 1fr; gap:16px; align-items:start; }
+  @media (max-width:760px) { .editor-body { grid-template-columns:1fr; } }
+  textarea { width:100%; height:170px; font-family:var(--wi-font-mono); font-size:.76rem; background:var(--wi-panel-2);
+             color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius); padding:8px; resize:vertical; }
+  .hint { font-size:.78rem; color:var(--wi-ink-soft); line-height:1.55; }
+  .hint code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; font-family:var(--wi-font-mono); }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+
+  .tooltip { position:fixed; z-index:40; pointer-events:none; background:var(--wi-panel-2);
+             border:1px solid var(--wi-border-strong); border-radius:var(--wi-radius);
+             padding:6px 9px; font-size:.78rem; color:var(--wi-ink-strong);
+             box-shadow:0 3px 10px rgba(0,0,0,.12); max-width:300px; display:none; line-height:1.45; }
+  .tooltip .tt-h { font-family:var(--wi-font-head); letter-spacing:.04em; color:var(--wi-accent); }
+  .tooltip table td { padding:0 4px; }
+  .tooltip td.v { text-align:right; font-variant-numeric:tabular-nums; }
+
+  /* SVG text */
+  .sv-tick { font-family:var(--wi-font-body); font-size:12.5px; fill:var(--wi-ink-soft); }
+  .sv-lab  { font-family:var(--wi-font-body); font-size:14px; fill:var(--wi-ink-strong); }
+  .sv-small{ font-family:var(--wi-font-head); font-size:10.5px; letter-spacing:.06em; fill:var(--wi-ink-faint); }
+  .sv-red  { font-family:var(--wi-font-body); font-size:14px; fill:var(--c-rect); }
+  .grab { cursor:ew-resize; }
+
+  /* presentation view */
+  .only-p { display:none !important; }
+  body.present .only-p { display:inline-flex !important; }
+  body.present .hide-p { display:none !important; }
+  body.present h1 { font-size:1.9rem; }
+  .exitp { position:fixed; bottom:10px; right:12px; z-index:20; font-size:.75rem; opacity:.5; }
+  .exitp:hover, .exitp:focus-visible { opacity:1; }
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls { gap:8px 12px; padding:10px 12px; }
+    .seg button { padding:5px 9px; font-size:.74rem; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { animation-duration:.001ms !important; transition-duration:.001ms !important; } }
+</style>
+<style>
+/* wild-inter.net: re-assert the site type stack over the page's own styles */
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption { font-family: var(--wi-font-head); letter-spacing: .05em; }
+h1, h2, h3 { color: var(--wi-accent); }
+body { font-family: var(--wi-font-body); }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar hide-p">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+
+<div class="titlebar">
+  <h1>Tail bounds</h1>
+  <span class="ctl" style="gap:14px">
+    <span class="seg" id="modeSeg" role="tablist">
+      <button data-mode="markov" class="on" role="tab" title="Expectation as the area under the tail function; Markov's inequality as a rectangle under it">Markov</button>
+      <button data-mode="cheb" role="tab" title="The same picture for (X − E[X])²">Chebychev</button>
+      <button data-mode="chern" role="tab" title="The same picture for e^{t(X − a)}, and the choice of t">Chernoff</button>
+      <button data-mode="race" role="tab" title="Markov, Chebychev, Chernoff and Hoeffding against the exact tail of a binomial distribution">Bounds compared</button>
+      <button data-mode="small" role="tab" title="The same comparison for p = 1/n: one bin when n balls go into n bins">Small p</button>
+    </span>
+  </span>
+  <span class="ctl hide-p"><button id="presBtn" title="A clutter-free view for the lecture (Esc to leave)">Presentation view</button></span>
+</div>
+<button id="exitPres" class="only-p exitp" title="Leave the presentation view (Esc)">✕ leave presentation</button>
+
+<!-- ======================================================================
+     Tabs 1–3: Markov, Chebychev, Chernoff as areas (one drawing area, three states)
+     ====================================================================== -->
+<div id="tabArea">
+  <p class="subtitle hide-p" id="aSub"></p>
+  <div class="controls hide-p">
+    <div class="ctl"><label for="aDist">Distribution</label><select id="aDist"></select></div>
+    <div class="ctl" id="aParams"></div>
+    <span class="ctl hidden" id="aChernCtl" style="gap:10px 18px">
+      <span class="ctl"><span class="pl" title="the threshold: the event is X ≥ a (or drag the red marker on the left)">a</span><input type="text" class="num" id="aA" title="the threshold: the event is X ≥ a"></span>
+      <span class="ctl"><input type="range" class="plain" id="aT" min="0" max="1000" style="width:140px" title="the parameter t of e^{t(X−a)}"><span class="stepno" id="aTVal" style="width:4.6em;text-align:left">t =</span>
+        <button id="aTStar" title="the t with the smallest bound">\(t^*\)</button><button id="aTRel" title="the t of the usual proof, for which the estimate E[e^{tX}] ≤ e^{μ(e^t−1)} is smallest">\(\ln(1+\delta)\)</button>
+        <button id="aSweep" title="move t from 0 to its largest value and back to t*">sweep t</button></span>
+      <label class="chk hidden" title="also draw the weights of Markov and Chebychev"><input type="checkbox" id="aCmp"> compare weights</label>
+      <label class="chk" title="show only the lower part of the staircase, where its area is; the thin blocks above are summarized"><input type="checkbox" id="aZoom" checked> zoom in</label>
+    </span>
+  </div>
+  <div class="transport">
+    <div class="transport-row">
+      <span class="ctl" style="gap:6px">
+        <button id="aReset" class="icon" title="Back to the first step  (Home)" aria-label="Back to the first step">&#x21BA;</button>
+        <button id="aBack" class="icon" title="One step back  (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+        <button id="aStep" class="icon pri" title="One step forward  (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+        <button id="aPlay" class="icon" title="Play / pause  (space)" aria-label="Play">&#x25B6;&#xFE0E;</button>
+      </span>
+      <span class="progress">
+        <input type="range" id="aScrub" min="0" max="100000" step="1" value="0" aria-label="Step">
+        <div class="phasebar" id="aPhaseBar"></div>
+      </span>
+      <span class="stepno" id="aStepNo">— / —</span>
+      <span class="ctl" style="gap:6px">
+        <span class="lbl">Delay</span>
+        <input type="range" class="plain" id="aDelay" min="150" max="2000" value="900" style="width:88px">
+        <span class="stepno" id="aDelayVal" style="width:3.6em">900ms</span>
+      </span>
+    </div>
+  </div>
+  <div class="stage" id="stageA">
+    <div class="col-main">
+      <div class="sim-box">
+        <div class="sim-title"><span>Picture</span><span class="rhs" id="aMeta"></span></div>
+        <div id="aWrap"><svg id="aSvg" class="stagesvg"></svg></div>
+        <div class="vhandle hide-p" id="aVH" role="separator" aria-orientation="horizontal" tabindex="0"
+             title="Drag to change the height of the drawing (double-click: back to the default)"></div>
+        <div class="legend" id="aLegend"></div>
+      </div>
+    </div>
+    <div class="splitter" id="aSplit" role="separator" aria-orientation="vertical" tabindex="0"
+         title="Drag to share the width between drawing and side panel (double-click: back to the default)"></div>
+    <div class="col-side">
+      <div class="sim-box">
+        <div class="sim-title"><span>What you see</span><span class="rhs" id="aPhaseName"></span></div>
+        <div class="status" id="aStatus"></div>
+      </div>
+      <div class="sim-box hidden" id="aTBox">
+        <div class="sim-title"><span>The bound, as a function of <i style="text-transform:none;font-family:var(--wi-font-body);font-size:1.25em">t</i></span><span class="rhs hide-p">click or drag</span></div>
+        <div id="aTWrap"><svg id="aTSvg" class="stagesvg"></svg></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span id="aSumsTitle">The area, added up two ways</span></div>
+        <div class="readout" id="aSums"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span id="aRectTitle">The rectangle</span><span class="rhs hide-p" id="aRectHint">drag the red edge</span></div>
+        <div class="readout" id="aRect"></div>
+      </div>
+      <details class="explain hide-p"><summary>Why this works, and what else it shows</summary><div class="explain-body" id="aExplain"></div></details>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================================
+     Tabs 2 and 3: the bounds against the exact tail (built by makeRace)
+     ====================================================================== -->
+<div id="tabRace" class="hidden"></div>
+<div id="tabSmall" class="hidden"></div>
+
+<details class="editor hide-p" id="editorBox">
+  <summary>Input as text</summary>
+  <div class="editor-body">
+    <div>
+      <textarea id="inputText" spellcheck="false"></textarea>
+      <div style="margin-top:8px; display:flex; gap:8px"><button class="pri" id="loadBtn">Load</button><button id="curBtn" title="Put the input currently shown into the text box">current input</button></div>
+      <div class="err" id="parseErr"></div>
+    </div>
+    <div class="hint" id="formatHint"></div>
+  </div>
+</details>
+<div class="tooltip" id="tip"></div>
+
+<script>
+"use strict";
+/* ==========================================================================
+   Small helpers
+   ========================================================================== */
+const el = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const f1 = v => (Math.round(v * 10) / 10).toString();
+const ease = t => t < .5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
+const lerp = (a, b, t) => a + (b - a) * t;
+/* a decimal number with at most d decimals, trailing zeros dropped */
+function fnum(x, d = 3) {
+  if (!isFinite(x)) return String(x);
+  let s = x.toFixed(d);
+  if (s.includes(".")) s = s.replace(/0+$/, "").replace(/\.$/, "");
+  if (s === "-0") s = "0";
+  return s;
+}
+/* a probability for TeX: 0.25, 0.079, 5.3\cdot10^{-4} */
+function fP(p, d = 3) {
+  if (p === 0 || p >= Math.pow(10, -d)) return fnum(p, d);
+  let e = Math.floor(Math.log10(p)), m = p / Math.pow(10, e);
+  if (+m.toFixed(1) >= 10) { m = 1; e++; }
+  return m.toFixed(1) + "\\cdot10^{" + e + "}";
+}
+/* "3/4", "0.75", ".75" */
+function parseNum(s) {
+  s = String(s).trim();
+  const m = s.match(/^(-?[\d.]+)\s*\/\s*([\d.]+)$/);
+  const v = m ? +m[1] / +m[2] : Number(s);
+  if (s === "" || !isFinite(v)) throw new Error("not a number: “" + s + "”");
+  return v;
+}
+/* a probability given by its natural logarithm, as HTML: 0.67, 0.016, 3.7·10⁻⁶ */
+function fmtLn(l) {
+  if (l === -Infinity) return "0";
+  if (!isFinite(l)) return "—";
+  const L = l / Math.LN10;
+  if (L >= -2.5) { const v = Math.exp(l); return v >= 1 ? String(+v.toPrecision(3)) : String(+v.toPrecision(2)); }
+  let e = Math.floor(L), m = Math.pow(10, L - e);
+  if (+m.toFixed(1) >= 10) { m = 1; e++; }
+  return m.toFixed(1) + "·10<sup>−" + (-e) + "</sup>";
+}
+/* a ratio ≥ 1 (or < 1), as HTML */
+function fmtRatioLn(l) {
+  if (!isFinite(l)) return "—";
+  const L = l / Math.LN10;
+  if (Math.abs(L) < 3) return "× " + String(+Math.exp(l).toPrecision(2));
+  let e = Math.floor(L), m = Math.pow(10, L - e);
+  if (+m.toFixed(1) >= 10) { m = 1; e++; }
+  return "× " + m.toFixed(1) + "·10<sup>" + (e < 0 ? "−" + (-e) : e) + "</sup>";
+}
+function lse(a, b) { if (a === -Infinity) return b; if (b === -Infinity) return a; const m = Math.max(a, b); return m + Math.log(Math.exp(a - m) + Math.exp(b - m)); }
+/* "nice" tick step for a range */
+function niceStep(range, maxTicks, integer) {
+  const raw = range / Math.max(1, maxTicks), p = Math.pow(10, Math.floor(Math.log10(raw)));
+  for (const k of integer ? [1, 2, 5, 10] : [1, 2, 2.5, 5, 10]) if (k * p >= raw) return integer ? Math.max(1, Math.round(k * p)) : k * p;
+  return 10 * p;
+}
+/* a rough plain-text version of a TeX snippet (shown until MathJax is there) */
+function texPlain(t) {
+  return t.replace(/\\Prob\{([^{}]*)\}/g, "ℙ[$1]").replace(/\\E\{([^{}]*)\}/g, "𝔼[$1]").replace(/\\Var\{([^{}]*)\}/g, "Var[$1]")
+    .replace(/\\ge\b/g, "≥").replace(/\\le\b/g, "≤").replace(/\\cdot\b/g, "·").replace(/\\pm\b/g, "±").replace(/\\delta\b/g, "δ")
+    .replace(/\\mu\b/g, "μ").replace(/\\sum_\{[^}]*\}/g, "Σ").replace(/\\sum/g, "Σ").replace(/\\N\b/g, "ℕ").replace(/\\sqrt\{([^}]*)\}/g, "√$1")
+    .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, "($1)/($2)").replace(/\^\{([^}]*)\}/g, "^$1").replace(/\\[a-zA-Z]+/g, "").replace(/[{}]/g, "");
+}
+
+/* ==========================================================================
+   MathJax: one queue, a cache of typeset results; TeX labels inside the SVG drawings
+   ========================================================================== */
+const mjReady = () => !!(window.MathJax && MathJax.typesetPromise && MathJax.startup && MathJax.startup.document);
+const MJC = new Map();
+const MJQ = { hi: [], lo: [], busy: false };
+function mjRun() {
+  if (MJQ.busy || !mjReady()) return;
+  const job = MJQ.hi.shift() || MJQ.lo.shift();
+  if (!job) return;
+  MJQ.busy = true;
+  Promise.resolve().then(job).catch(() => {}).finally(() => { MJQ.busy = false; setTimeout(mjRun, 0); });
+}
+function mjTypeset(html, ctx) {
+  if (MJC.has(html)) return Promise.resolve(MJC.get(html));
+  const tmp = document.createElement("div"), cs = getComputedStyle(ctx || document.body);
+  tmp.className = "mj-buf"; tmp.style.fontSize = cs.fontSize; tmp.style.fontFamily = cs.fontFamily; tmp.innerHTML = html;
+  document.body.appendChild(tmp);
+  return MathJax.typesetPromise([tmp]).then(() => {
+    const out = tmp.innerHTML; MJC.set(html, out);
+    if (MathJax.typesetClear) MathJax.typesetClear([tmp]);
+    return out;
+  }).finally(() => tmp.remove());
+}
+/* a whole block of HTML with \( \) inside: typeset once, then from the cache */
+function setMath(node, html) {
+  node._want = html;
+  if (MJC.has(html)) { if (node._shown !== html) { node.innerHTML = MJC.get(html); node._shown = html; } return; }
+  if (!mjReady()) { if (node._shown !== html) { node.innerHTML = html.replace(/\\\((.*?)\\\)/g, (m, t) => '<span class="mfb">' + texPlain(t) + "</span>"); node._shown = html; } return; }
+  if (node._queued) return;
+  node._queued = true;
+  MJQ.hi.push(() => {
+    node._queued = false;
+    const want = node._want;
+    return mjTypeset(want, node).then(out => { if (node._want === want) { node.innerHTML = out; node._shown = want; } else if (node._want) setMath(node, node._want); });
+  });
+  mjRun();
+}
+function mjInPlace(nodes) { MJQ.hi.push(() => MathJax.typesetPromise(nodes)); mjRun(); }
+/* one inline formula as HTML: from the cache, or a plain fallback now and the real thing at the next render */
+const MHQ = new Set(); let mhAgain = 0;
+function mh(tex) {
+  const key = "\\(" + tex + "\\)";
+  if (MJC.has(key)) return MJC.get(key);
+  if (mjReady() && !MHQ.has(key)) {
+    MHQ.add(key);
+    MJQ.hi.push(() => mjTypeset(key, document.body).then(() => { if (!mhAgain) mhAgain = requestAnimationFrame(() => { mhAgain = 0; render(); }); }));
+    mjRun();
+  }
+  return '<span class="mfb">' + esc(texPlain(tex)) + "</span>";
+}
+const MJL = new Map(); let mjAgain = 0;
+function mjSvg(tex) {
+  const c = MJL.get(tex);
+  if (c) return c === 1 ? null : c;
+  if (!mjReady()) return null;
+  MJL.set(tex, 1);
+  MJQ.hi.push(() => MathJax.tex2svgPromise(tex, { display: false }).then(node => {
+    const sv = node.querySelector("svg");
+    MJL.set(tex, { vb: sv.getAttribute("viewBox").split(/[\s,]+/).map(Number), inner: sv.innerHTML });
+    if (!mjAgain) mjAgain = requestAnimationFrame(() => { mjAgain = 0; render(); });
+  }).catch(() => MJL.delete(tex)));
+  mjRun();
+  return null;
+}
+let MEASURE = null;
+const BODYFONT = () => getComputedStyle(document.body).fontFamily;
+function textW(s, font) {
+  if (!MEASURE) MEASURE = document.createElement("canvas").getContext("2d");
+  MEASURE.font = font; return MEASURE.measureText(s).width;
+}
+/* TeX at (x, y = baseline) in an SVG drawing; the plain version until MathJax is ready */
+function mathAt(tex, x, y, fs, anchor, color) {
+  const c = mjSvg(tex);
+  if (!c) {
+    const plain = texPlain(tex);
+    const w = textW(plain, "italic " + fs + "px " + BODYFONT());
+    return { w, svg: '<text x="' + f1(x) + '" y="' + f1(y) + '" style="font:italic ' + fs + 'px var(--wi-font-body);fill:' + color + ';text-anchor:' + (anchor || "start") + '">' + esc(plain) + "</text>" };
+  }
+  const [, vy, vw, vh] = c.vb, w = vw / 1000 * fs, h = vh / 1000 * fs;
+  const left = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w : x;
+  return { w, svg: '<svg x="' + f1(left) + '" y="' + f1(y + vy / 1000 * fs) + '" width="' + f1(w) + '" height="' + f1(h) +
+                   '" viewBox="' + c.vb.join(" ") + '" overflow="visible" style="color:' + color + '">' + c.inner + "</svg>" };
+}
+
+/* ==========================================================================
+   TABS 1–3 (Markov, Chebychev, Chernoff) — the model
+     pmf[n] = P[X = n] for n = 0..N (normalized)
+     each value n with mass p > 0 and weight v(n) > 0 is a LAYER of width v(n), height p:
+       Markov     v(n) = n                (n unit copies of the bar of n)
+       Chebychev  v(n) = (n − E[X])²      (one block of that width)
+       Chernoff   v(n) = e^{t(n − a)}     (one block; the threshold a gets width exactly 1)
+     layers are stacked by decreasing v from the bottom, so the stack is the
+     staircase s ↦ P[V ≥ s] and its area is E[V] = Σ v·p (rows) = Σ columns.
+   The three tabs share the drawing area; each keeps its own state object (AS[kind]).
+   ========================================================================== */
+/* orange, green, blue, red as on the slide; then teal, ochre, rose, slate, olive, tan (pastel fills with outlines, for up to 10 values) */
+const SLIDE_FILLS = ["#f9bb77", "#9faf8d", "#aba4be", "#d2a494", "#a9c9c3", "#e3cf86", "#e2a9b9", "#9fb6d6", "#c7c88c", "#cfae8f"];
+function rampFill(t) {
+  const a = [0xf3, 0xdd, 0xc4], b = [0xb3, 0x5a, 0x44];
+  return "#" + a.map((v, i) => Math.round(lerp(v, b[i], t)).toString(16).padStart(2, "0")).join("");
+}
+function binPmf(n, p) {
+  const w = [Math.pow(1 - p, n)];
+  for (let k = 0; k < n; k++) w.push(w[k] * (n - k) / (k + 1) * p / (1 - p));
+  return w;
+}
+const A_PRESETS = {
+  slide: { label: "Four values: 1, 2, 3, 4", par: [], make: () => [0, .25, .10, .40, .25], a: 3, ca: 4 },
+  nine:  { label: "Nine values: 0, …, 8", par: [], make: () => [.06, .16, .20, .10, .06, .12, .18, .08, .04], a: 6, ca: 7 },
+  geom:  { label: "Geometric", par: [["p", "p", "0.35", "success probability p: X = number of failures before the first success"]],
+           make: P => { const p = clamp(parseNum(P.p), 0.02, 0.98); const w = []; let q = 1;
+                        for (let n = 0; n <= 60; n++) { w.push(p * q); q *= 1 - p; if (q < 0.004 && n >= 3) break; } return w; } },
+  bin:   { label: "Binomial", par: [["n", "n", "12", "number of trials (1 … 100)"], ["p", "p", "1/2", "success probability"]],
+           make: P => binPmf(clamp(Math.round(parseNum(P.n)), 1, 100), clamp(parseNum(P.p), 0.01, 0.99)),
+           bin: P => ({ n: clamp(Math.round(parseNum(P.n)), 1, 100), p: clamp(parseNum(P.p), 0.01, 0.99) }) },
+  big:   { label: "Binomial: n = 100, p = 1/2", par: [], make: () => binPmf(100, 0.5), bin: () => ({ n: 100, p: 0.5 }), ca: 75 },
+  unif:  { label: "Uniform", par: [["N", "N", "6", "uniform on {0, …, N}, N ≤ 40"]],
+           make: P => { const N = clamp(Math.round(parseNum(P.N)), 1, 40); return new Array(N + 1).fill(1); } },
+  two:   { label: "Two-point: tight case", par: [["a", "a", "4", "X ∈ {0, a}"], ["q", "q", "0.4", "P[X = a]"]],
+           make: P => { const a = clamp(Math.round(parseNum(P.a)), 1, 40), q = clamp(parseNum(P.q), 0.01, 1); const w = new Array(a + 1).fill(0); w[0] = 1 - q; w[a] = q; return w; },
+           a: P => clamp(Math.round(parseNum(P.a)), 1, 40) },
+  custom: { label: "Your own (text input)", par: [], make: () => A.custom }
+};
+const PRESETS_ALL = ["nine", "slide", "geom", "bin", "unif", "two", "custom"];
+const PRESET_LIST = { markov: PRESETS_ALL, cheb: PRESETS_ALL, chern: PRESETS_ALL };
+/* the distribution is shared by the three tabs; ver counts its changes, so a tab notices on return */
+const DIST = { key: "nine", par: {}, custom: [0, .25, .10, .40, .25], ver: 0 };
+function newAState(kind) {
+  const st = { kind, aM: 3, bC: null, aC: null, t: null, cmp: false, zoom: true, hover: null, distVer: -1,
+               step: 0, tw: null, timer: null, raf: 0, M: null, PH: [], PHW: [], PHX: [] };
+  for (const k of ["key", "par", "custom"]) Object.defineProperty(st, k, { get: () => DIST[k], set: v => { DIST[k] = v; }, enumerable: true });
+  return st;
+}
+const AS = { markov: newAState("markov"), cheb: newAState("cheb"), chern: newAState("chern") };
+let A = AS.markov;
+const AL = { split: 0.62, H: 520, Hdef: 520 };          /* layout of the shared drawing area */
+const isArea = m => m === "markov" || m === "cheb" || m === "chern";
+const T_MIN = 0.02, T_CAP = 4;
+
+function aFillPar() {
+  const P = A_PRESETS[A.key];
+  for (const [k, , def] of P.par) if (A.par[k] === undefined) A.par[k] = (P.def && P.def[A.kind] && P.def[A.kind][k]) || def;
+}
+/* Chernoff: everything about the bound as a function of t, for threshold a */
+function chernStats(pmf, mu, a, P, par) {
+  const supp = pmf.map((p, n) => [n, p]).filter(([, p]) => p > 0);
+  const lb = t => supp.reduce((s, [n, p]) => lse(s, Math.log(p) + t * (n - a)), -Infinity);   /* ln E[e^{t(X−a)}] */
+  const tilt = t => { let z = -Infinity, m = -Infinity; for (const [n, p] of supp) { const l = Math.log(p) + t * (n - a); z = lse(z, l); if (n - a > 0) m = lse(m, l + Math.log(n - a)); }
+                      let mm = -Infinity; for (const [n, p] of supp) if (n - a < 0) mm = lse(mm, Math.log(p) + t * (n - a) + Math.log(a - n)); return Math.exp(m - z) - Math.exp(mm - z); };  /* d/dt lb */
+  let truth = 0; for (const [n, p] of supp) if (n >= a) truth += p;
+  let tStar;
+  if (mu >= a - 1e-12) tStar = 0;
+  else if (truth === 0) tStar = T_CAP;
+  else {
+    let lo = 0, hi = T_CAP;
+    if (tilt(hi) < 0) tStar = T_CAP;
+    else { for (let i = 0; i < 80; i++) { const mid = (lo + hi) / 2; if (tilt(mid) < 0) lo = mid; else hi = mid; } tStar = (lo + hi) / 2; }
+  }
+  const tMax = tStar > 0 ? clamp(2.2 * tStar, 1, T_CAP) : 1;
+  const bn = P.bin ? P.bin(par) : null;
+  let rel = null, tRel = null;
+  if (bn) { const m = bn.n * bn.p; rel = t => m * Math.expm1(t) - t * a; if (a > m) tRel = Math.log(a / m); }
+  return { lb, truthLn: truth > 0 ? Math.log(truth) : -Infinity, truth, tStar, tMax, rel, tRel, bn };
+}
+function chernDefaultA(P, pmf, mu) {
+  const N = pmf.length - 1;
+  if (P.ca) return clamp(P.ca, 1, Math.max(1, N));
+  let tail = 0; const tails = new Array(N + 2).fill(0);
+  for (let n = N; n >= 0; n--) { tail += pmf[n]; tails[n] = tail; }
+  for (let k = Math.max(1, Math.floor(mu) + 1); k <= N; k++) if (tails[k] <= 0.1) return k;
+  return Math.max(1, N);
+}
+function aBuildModel() {
+  aFillPar();
+  const P = A_PRESETS[A.key];
+  let w = P.make(A.par).map(v => Math.max(0, +v || 0));
+  while (w.length > 1 && w[w.length - 1] === 0) w.pop();
+  const s = w.reduce((x, y) => x + y, 0);
+  if (!(s > 0)) throw new Error("the weights add up to 0");
+  const pmf = w.map(v => v / s), N = pmf.length - 1;
+  A.distVer = DIST.ver;
+  let mu = 0; pmf.forEach((p, n) => mu += n * p);
+  let vr = 0; pmf.forEach((p, n) => vr += (n - mu) * (n - mu) * p);
+  const K = A.kind;
+  let C = null, vOf;
+  if (K === "chern") {
+    if (A.aC === null) A.aC = chernDefaultA(P, pmf, mu);
+    A.aC = clamp(Math.round(A.aC), 1, Math.max(1, N));
+    C = chernStats(pmf, mu, A.aC, P, A.par);
+    if (A.t === null) A.t = C.tStar > T_MIN ? +C.tStar.toFixed(2) : 0.5;
+    A.t = clamp(A.t, T_MIN, C.tMax);
+    const t = A.t, a = A.aC;
+    vOf = n => Math.exp(t * (n - a));
+  } else vOf = K === "cheb" ? n => (n - mu) * (n - mu) : n => n;
+  /* colour: one per value with positive mass, in increasing order of n */
+  const support = pmf.map((p, n) => n).filter(n => pmf[n] > 0);
+  const col = {};
+  const cat = support.length <= SLIDE_FILLS.length;
+  support.forEach((n, i) => col[n] = cat ? SLIDE_FILLS[i] : rampFill(support.length > 1 ? i / (support.length - 1) : 0));
+
+  const layers = [];
+  for (const n of support) { const v = vOf(n); if (K === "chern" ? v > 0 : v > 1e-12) layers.push({ n, p: pmf[n], v }); }
+  layers.sort((a, b) => b.v - a.v || a.n - b.n);
+  let y = 0; for (const L of layers) { L.y0 = y; y += L.p; L.y1 = y; }
+  const total = y;
+  /* the distinct widths (ascending) and the staircase height on (v_{i-1}, v_i] */
+  const vs = [];
+  for (const L of [...layers].reverse()) if (!vs.length || L.v - vs[vs.length - 1] > 1e-9 * Math.max(1, L.v)) vs.push(L.v);
+  const tail = t => layers.reduce((s, L) => s + (L.v >= t - 1e-9 * Math.max(1, t) ? L.p : 0), 0);
+  const steps = vs.map(v => ({ v, h: tail(v) }));
+  const EV = layers.reduce((s, L) => s + L.v * L.p, 0);
+  if (C) {
+    const tz = C.tStar > T_MIN ? C.tStar : 1, a = A.aC;
+    const ls = support.map(n => ({ p: pmf[n], w: Math.exp(tz * (n - a)), n })).sort((x, y) => y.n - x.n);
+    const Ez = ls.reduce((s2, l) => s2 + l.p * l.w, 0);
+    let above = Ez, cum = 0;
+    for (const l of ls) { if (above < 0.1 * Ez) break; cum += l.p; above -= l.p * l.w; }
+    C.zoomTop = Math.min(1, Math.max(cum, 2.5 * C.truth, 1e-200));
+  }
+  A.M = { pmf, N, mu, vr, kind: K, cheb: K === "cheb", chern: K === "chern", col, support, layers, L: layers.length, total, vs, steps, tail, EV,
+          vmax: vs.length ? vs[vs.length - 1] : 0, C };
+}
+/* steps: 0 = distribution, [1 = the map X -> Y (Chebychev, Chernoff)], then one step per layer, staircase, rectangle */
+const aOff = () => A.kind === "markov" ? 0 : 1;
+const aN = () => A.M.L + 3 + aOff();
+const aStairs = () => A.M.L + 1 + aOff();
+const aRect = () => A.M.L + 2 + aOff();
+function aBuildPhases() {
+  const L = A.M.L, K = A.kind, o = aOff();
+  A.PH = [{ label: "The distribution of X", short: "Distribution", start: 0, end: 1 }];
+  if (o) A.PH.push({ label: "The map from X to Y", short: "Map", start: 1, end: 2 });
+  if (L) A.PH.push({ label: K === "markov" ? "Copies, one value at a time" : "Blocks, one value at a time", short: K === "markov" ? "Copies" : "Blocks", start: 1 + o, end: 1 + o + L });
+  A.PH.push({ label: K === "chern" ? "The area" : "The staircase", short: K === "chern" ? "Area" : "Staircase", start: L + 1 + o, end: L + 2 + o });
+  const nm = { markov: "Markov", cheb: "Chebychev", chern: "Chernoff" }[K];
+  A.PH.push({ label: nm + "'s rectangle", short: nm, start: L + 2 + o, end: L + 3 + o });
+}
+/* default thresholds (Markov, Chebychev; Chernoff's a and t live in the model) */
+function aDefaultThresholds() {
+  const M = A.M, P = A_PRESETS[A.key];
+  if (M.kind === "markov") {
+    const vm = Math.max(1, Math.round(M.vmax));
+    A.aM = clamp(P.a ? (typeof P.a === "function" ? P.a(A.par) : P.a) : Math.round(Math.max(1, 1.6 * M.mu)), 1, vm);
+  } else if (M.kind === "cheb") {
+    /* the support value of Y closest to 2·Var */
+    let best = null;
+    for (const v of M.vs) if (best === null || Math.abs(v - 2 * M.vr) < Math.abs(best - 2 * M.vr)) best = v;
+    A.bC = best;
+  }
+}
+function aSnapThreshold() {
+  const M = A.M;
+  if (M.kind === "markov") A.aM = clamp(Math.round(A.aM || 1), 1, Math.max(1, Math.round(M.vmax)));
+  else if (M.kind === "cheb" && M.vs.length) { if (A.bC === null || !M.vs.some(v => Math.abs(v - A.bC) < 1e-9)) aDefaultThresholds(); }
+}
+
+/* ==========================================================================
+   TABS 1–3 — transport: phase bar (widths ∝ steps, ≥ MINW px by water filling), scrubber, play
+   ========================================================================== */
+const MINW = 30;
+function layoutPhases() {
+  const bar = el("aPhaseBar"), W = bar.clientWidth, PH = A.PH;
+  if (!W || !PH.length) return;
+  const cnt = PH.map(p => p.end - p.start), n = PH.length;
+  let w;
+  if (n * MINW >= W) w = new Array(n).fill(W / n);
+  else {
+    const fixed = new Set();
+    for (;;) {
+      const free = cnt.map((_, i) => i).filter(i => !fixed.has(i));
+      const lam = (W - fixed.size * MINW) / free.reduce((s, i) => s + cnt[i], 0);
+      let changed = false;
+      for (const i of free) if (cnt[i] * lam < MINW) { fixed.add(i); changed = true; }
+      if (!changed) { w = cnt.map((c, i) => fixed.has(i) ? MINW : c * lam); break; }
+    }
+  }
+  A.PHW = w; A.PHX = []; let x = 0; for (const v of w) { A.PHX.push(x); x += v; }
+  bar.innerHTML = "";
+  const ctx = document.createElement("canvas").getContext("2d");
+  PH.forEach((p, i) => {
+    const b = document.createElement("button");
+    b.className = "phasebtn"; b.style.width = w[i] + "px"; b.title = p.label;
+    b.innerHTML = '<span class="fill"></span><span class="lab"></span>';
+    bar.appendChild(b);
+    const cs = getComputedStyle(b);
+    ctx.font = `bold ${cs.fontSize} ${cs.fontFamily}`;
+    const cand = [p.label, p.short, p.short[0]];
+    const lab = b.querySelector(".lab");
+    let fit = cand.find(c => ctx.measureText(c).width + 6 <= w[i]) || "";
+    lab.textContent = fit;
+    b.classList.add("on");      /* measure in bold, as for the current phase */
+    /* the rendered width decides (the measurement above may predate the web fonts) */
+    for (let k = cand.indexOf(fit) + 1; fit && lab.getBoundingClientRect().width + 4 > w[i] && k <= cand.length; k++) { fit = cand[k] || ""; lab.textContent = fit; }
+    b.classList.remove("on");
+    b.addEventListener("click", () => { aStopPlay(); aGo(p.start); });
+  });
+  aSyncTransport();
+}
+const phaseOfPos = p => A.PH.findIndex(ph => p >= ph.start && p < ph.end);
+function posToX(p) { const j = phaseOfPos(p), ph = A.PH[j], c = ph.end - ph.start; return A.PHX[j] + (p - ph.start + 0.5) / c * A.PHW[j]; }
+function xToPos(x) {
+  let j = A.PHX.findIndex((x0, i) => x >= x0 && x < x0 + A.PHW[i]);
+  if (j < 0) j = x < 0 ? 0 : A.PH.length - 1;
+  const ph = A.PH[j], c = ph.end - ph.start;
+  return ph.start + Math.max(0, Math.min(c - 1, Math.floor((x - A.PHX[j]) / A.PHW[j] * c)));
+}
+function aSyncTransport() {
+  if (!A.PH.length || !A.PHW.length) return;
+  const Wb = el("aPhaseBar").clientWidth;
+  el("aScrub").value = Math.round(posToX(A.step) / Wb * 100000);
+  el("aStepNo").textContent = `${A.step + 1} / ${aN()}`;
+  const j = phaseOfPos(A.step);
+  [...el("aPhaseBar").children].forEach((b, i) => {
+    const ph = A.PH[i], f = b.querySelector(".fill");
+    b.classList.toggle("on", i === j); b.classList.toggle("past", i < j);
+    const frac = i < j ? 1 : i > j ? 0 : (A.step - ph.start + 1) / (ph.end - ph.start);
+    f.style.width = (frac * 100) + "%"; f.classList.toggle("empty", frac === 0);
+  });
+  el("aPhaseName").textContent = A.PH[j] ? A.PH[j].label : "";
+  el("aBack").disabled = A.step === 0; el("aStep").disabled = A.step >= aN() - 1;
+}
+/* go to step p; a single step inside the copies phase is animated */
+function aGo(p, animate) {
+  p = clamp(p, 0, aN() - 1);
+  const from = A.step;
+  A.step = p;
+  const L = A.M.L;
+  if (animate && Math.abs(p - from) === 1 && Math.max(p, from) >= 1 && Math.max(p, from) <= L + aOff() && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    A.tw = { from, to: p, t0: performance.now(), dur: clamp(0.8 * +el("aDelay").value, 250, 1100) };
+  } else A.tw = null;
+  aSyncTransport(); renderA(); writeHash();
+}
+function aStopPlay() { if (A.timer) { clearInterval(A.timer); A.timer = null; } el("aPlay").innerHTML = "&#x25B6;&#xFE0E;"; el("aPlay").setAttribute("aria-label", "Play"); }
+function aTogglePlay() {
+  if (A.timer) { aStopPlay(); return; }
+  if (A.step >= aN() - 1) aGo(0);
+  el("aPlay").innerHTML = "&#x23F8;&#xFE0E;"; el("aPlay").setAttribute("aria-label", "Pause");
+  A.timer = setInterval(() => { if (A.step >= aN() - 1) aStopPlay(); else aGo(A.step + 1, true); }, +el("aDelay").value);
+}
+
+/* ==========================================================================
+   TABS 1–3 — drawing
+   ========================================================================== */
+/* numbers as HTML (for texts that change with every move of t) */
+function fh(x) {
+  if (!isFinite(x)) return x > 0 ? "∞" : "—";
+  if (x === 0) return "0";
+  if (x >= 1e-3 && x < 1e5) return String(+x.toPrecision(3));
+  let e = Math.floor(Math.log10(x)), m = x / Math.pow(10, e);
+  if (+m.toFixed(1) >= 10) { m = 1; e++; }
+  return m.toFixed(1) + "·10<sup>" + (e < 0 ? "−" + (-e) : e) + "</sup>";
+}
+const fhLn = l => l === -Infinity ? "0" : fh(Math.exp(l));
+/* HTML with \( \) snippets, each typeset once and cached */
+const mhx = html => html.replace(/\\\((.*?)\\\)/g, (m, t) => mh(t));
+function setHTML(node, html) { if (node._html !== html) { node.innerHTML = html; node._html = html; node._want = null; node._shown = null; } }
+
+let aGeom = null;     /* the scales of the last drawing, for the pointer */
+function renderA() {
+  if (!isArea(MODE) || !A.M) return;
+  if (A.M.kind !== "markov") { renderAY(); return; }
+  const M = A.M, K = M.kind, svg = el("aSvg"), wrap = el("aWrap");
+  const W = Math.max(440, wrap.clientWidth), H = AL.H;
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const now = performance.now();
+  /* the running animation: layer animIdx (0-based) is in flight at fraction fl */
+  let animIdx = -1, fl = 1;
+  if (A.tw) {
+    const s = clamp((now - A.tw.t0) / A.tw.dur, 0, 1);
+    if (s >= 1) A.tw = null;
+    else { animIdx = Math.max(A.tw.from, A.tw.to) - 1; fl = A.tw.to > A.tw.from ? s : 1 - s; if (!A.raf) A.raf = requestAnimationFrame(() => { A.raf = 0; renderA(); }); }
+  }
+  const step = A.step, L = M.L, landed = Math.min(step, L), showStairs = step >= aStairs(), showRect = step >= aRect();
+
+  /* geometry: left the distribution (Chernoff: and the weights below it), right the staircase */
+  const T = 62, B = H - 58, L0 = 56, gap = 92, R1 = W - 22;
+  const Lw = L0 + (W - L0 - gap - 22) * (K === "markov" ? 0.36 : 0.4), R0 = Lw + gap;
+  const N = M.N, uL = (Lw - L0) / (N + 1), bw = Math.min(uL * 0.72, 54);
+  const xL = v => L0 + (v + 0.5) * uL;
+  const maxp = Math.max(...M.pmf);
+  const Bm = K === "chern" ? Math.round(T + (B - T) * 0.48) : B;      /* bottom of the distribution panel */
+  const Tw = Bm + 58;                                                  /* top of the weights panel (Chernoff) */
+  const ymaxL = K === "chern" ? maxp * 1.08 : Math.max(maxp, M.total, 1e-9) * 1.04;
+  const zoomed = K === "chern" && A.zoom && M.C.zoomTop < 0.8 * M.total;
+  const ymaxR = K === "chern" ? (zoomed ? M.C.zoomTop * 1.06 : Math.max(M.total, 1e-9) * 1.04) : ymaxL;
+  const YL = p => Bm - p / ymaxL * (Bm - T);
+  const Y = p => B - p / ymaxR * (B - T);
+  const xmaxR = K === "markov" ? Math.max(M.vmax, 1e-9) + 0.6 : K === "cheb" ? Math.max(M.vmax, 1e-9) * 1.05 : clamp(M.vmax, 1.3, 4) * 1.04;
+  const uR = (R1 - R0) / xmaxR, X = v => R0 + v * uR;
+  const xEdge = (R1 + 6 - R0) / uR, XC = v => X(Math.min(v, xEdge));
+  aGeom = { R0, R1, Lw, L0, uL, N, X, uR, B, T, bars: [], blocks: [] };
+  const hov = A.hover;
+  const ink = "var(--wi-ink-strong)", soft = "var(--wi-ink-soft)", faint = "var(--wi-ink-faint)", red = "var(--c-rect)";
+  let s = "";
+
+  /* grids and axes; tick labels in SVG text, small values as m·10^e */
+  const tickTxt = (v, st) => {
+    if (v === 0) return "0";
+    if (st >= 0.01) return fnum(v, 2);
+    let e = Math.floor(Math.log10(v) + 1e-9), m = v / Math.pow(10, e);
+    return fnum(m, 1) + "·10<tspan baseline-shift=\"super\" font-size=\"9\">−" + (-e) + "</tspan>";
+  };
+  const grid = (x0, x1, Yf, vmax, labels, labX) => {
+    const st = niceStep(vmax, 5);
+    for (let v = 0; v <= vmax + 1e-9; v += st) {
+      const y = Yf(v);
+      if (v > 0) s += `<line x1="${f1(x0)}" x2="${f1(x1)}" y1="${f1(y)}" y2="${f1(y)}" stroke="var(--wi-border-soft)" stroke-width="0.8"/>`;
+      s += `<line x1="${f1(x0 - 4)}" x2="${f1(x0)}" y1="${f1(y)}" y2="${f1(y)}" stroke="${soft}"/>`;
+      if (labels) s += `<text class="sv-tick" x="${f1(labX)}" y="${f1(y + 4)}" text-anchor="end">${tickTxt(v, st)}</text>`;
+    }
+  };
+  grid(L0 - 4, Lw + 4, YL, ymaxL, true, L0 - 9);
+  grid(X(0), R1, Y, ymaxR, K === "chern", X(0) - 7);
+  s += `<line x1="${L0 - 4}" x2="${Lw + 4}" y1="${Bm}" y2="${Bm}" stroke="${soft}"/><line x1="${L0 - 4}" x2="${L0 - 4}" y1="${Bm}" y2="${T - 6}" stroke="${soft}"/>`;
+  s += `<line x1="${X(0)}" x2="${R1 + 6}" y1="${B}" y2="${B}" stroke="${soft}"/><line x1="${X(0)}" x2="${X(0)}" y1="${B}" y2="${T - 6}" stroke="${soft}"/>`;
+  s += mathAt("\\Prob{X=n}", L0 - 4, T - 32, 15, "start", ink).svg;
+  s += mathAt(K === "markov" ? "\\Prob{X\\ge n}" : K === "cheb" ? "\\Prob{Y\\ge t}" : "\\Prob{Y\\ge s}", X(0), T - 32, 15, "start", ink).svg;
+
+  /* left: x labels */
+  const kL = Math.max(1, Math.ceil(20 / uL));
+  const xLabels = yb => { for (let n = 0; n <= N; n++) if (n % kL === 0) s += `<text class="sv-tick" x="${f1(xL(n))}" y="${yb + 17}" text-anchor="middle">${n}</text>`; s += mathAt("n", Lw + 8, yb + 17, 14, "start", soft).svg; };
+  xLabels(Bm);
+
+  /* left: the mean and the band (Chebychev) */
+  if (K === "cheb") {
+    const a = Math.sqrt(A.bC || 0);
+    if (showRect && A.bC !== null) {
+      const xa = Math.max(L0 - 4, xL(M.mu - a)), xb = Math.min(Lw + 4, xL(M.mu + a));
+      if (xb > xa) s += `<rect x="${f1(xa)}" y="${T - 6}" width="${f1(xb - xa)}" height="${f1(B - T + 6)}" fill="rgba(42,106,99,.10)"/>`;
+      for (const xx of [M.mu - a, M.mu + a]) if (xL(xx) >= L0 - 4 && xL(xx) <= Lw + 4)
+        s += `<line x1="${f1(xL(xx))}" x2="${f1(xL(xx))}" y1="${T - 6}" y2="${B}" stroke="${red}" stroke-dasharray="3 3"/>`;
+    }
+    s += `<line x1="${f1(xL(M.mu))}" x2="${f1(xL(M.mu))}" y1="${T - 10}" y2="${B + 4}" stroke="var(--wi-queue)" stroke-width="1.4" stroke-dasharray="5 3"/>`;
+    s += mathAt("\\E{X}", xL(M.mu) + 5, T - 12, 13.5, "start", "var(--wi-queue)").svg;
+  }
+  /* left: the threshold a (Chernoff) across both left panels */
+  if (K === "chern") {
+    const xa = L0 + A.aC * uL;
+    s += `<rect x="${f1(xa)}" y="${T - 6}" width="${f1(Lw + 4 - xa)}" height="${f1(Bm - T + 6)}" fill="rgba(204,47,34,.06)"/>`;
+    s += `<line x1="${f1(xa)}" x2="${f1(xa)}" y1="${T - 8}" y2="${B}" stroke="${red}" stroke-width="1.4" stroke-dasharray="4 3"/>`;
+    s += `<path d="M${f1(xa)},${T - 6} l-7,-12 h14 z" fill="${red}" class="grab"/>`;
+    s += mathAt("a=" + A.aC, xa + 10, T - 9, 14, "start", red).svg;
+  }
+  /* left: the PMF bars */
+  for (let n = 0; n <= N; n++) {
+    const p = M.pmf[n]; if (!(p > 0)) continue;
+    let hot = false;
+    if (K === "chern") hot = n >= A.aC;
+    else if (showRect) hot = K === "cheb" ? (n - M.mu) * (n - M.mu) >= A.bC - 1e-9 : n >= A.aM;
+    const isH = hov === n;
+    s += `<rect x="${f1(xL(n) - bw / 2)}" y="${f1(YL(p))}" width="${f1(bw)}" height="${f1(Bm - YL(p))}" fill="${M.col[n]}" stroke="${isH ? ink : hot ? red : soft}" stroke-width="${isH ? 2.6 : hot ? 2 : 1}"/>`;
+    aGeom.bars.push({ n, x0: xL(n) - Math.max(bw, 10) / 2, x1: xL(n) + Math.max(bw, 10) / 2, y0: Math.min(YL(p), Bm - 8), y1: Bm + 4 });
+  }
+  /* the value of Y for every bar, in a row under the n labels (Chebychev, Chernoff) */
+  if (K !== "markov") {
+    /* one line if there is room, else two staggered lines; skip labels only when even that is too tight */
+    const yb = B + 33, two = uL < 27, kY = Math.max(1, Math.ceil((two ? 13 : 27) / uL));
+    const yFmt = v => v === 0 ? "0" : v >= 100 ? String(Math.round(v)) : v >= 10 ? v.toFixed(1) : v >= 0.095 ? v.toFixed(2) : v >= 0.00095 ? String(+v.toPrecision(1)) : "≈0";
+    for (const n of M.support) {
+      if (n % kY !== 0 && hov !== n) continue;
+      const v = K === "cheb" ? (n - M.mu) * (n - M.mu) : Math.exp(A.t * (n - A.aC));
+      const ev = K === "cheb" ? showRect && v >= A.bC - 1e-9 : n >= A.aC;
+      const lineY = two && Math.round(n / kY) % 2 === 1 ? yb + 12 : yb;
+      s += `<text x="${f1(xL(n))}" y="${lineY}" text-anchor="middle" style="font:${hov === n ? "bold " : ""}${uL < 28 ? 10 : 11}px var(--wi-font-body);fill:${ev ? red : ink}">${yFmt(v)}</text>`;
+    }
+    s += mathAt("Y", L0 - 9, yb, 12.5, "end", soft).svg;
+  }
+
+  /* left, below (Chernoff): the weights e^{t(n−a)} against the step 1[n ≥ a] */
+  if (K === "chern") {
+    const gTop = 2.4, YW = g => B - g / gTop * (B - Tw), a = A.aC, t = A.t;
+    for (const g of [1, 2]) s += `<line x1="${L0 - 4}" x2="${Lw + 4}" y1="${f1(YW(g))}" y2="${f1(YW(g))}" stroke="var(--wi-border-soft)" stroke-width="0.8"/>`;
+    for (const g of [0, 1, 2]) s += `<text class="sv-tick" x="${L0 - 9}" y="${f1(YW(g) + 4)}" text-anchor="end">${g}</text><line x1="${L0 - 8}" x2="${L0 - 4}" y1="${f1(YW(g))}" y2="${f1(YW(g))}" stroke="${soft}"/>`;
+    s += `<line x1="${L0 - 4}" x2="${Lw + 4}" y1="${B}" y2="${B}" stroke="${soft}"/><line x1="${L0 - 4}" x2="${L0 - 4}" y1="${B}" y2="${Tw - 6}" stroke="${soft}"/>`;
+    s += mathAt("\\text{weight of }n", L0 - 4, Tw - 16, 14, "start", ink).svg;
+    s += `<path d="M${f1(xL(-0.5))},${f1(YW(0))} H${f1(L0 + a * uL)} V${f1(YW(1))} H${f1(xL(N + 0.5))}" fill="none" stroke="var(--wi-inert)" stroke-width="5" stroke-linejoin="miter"/>`;
+    const curve = (g, attrs) => {
+      let d = "", pen = false;
+      for (let px = xL(-0.5); px <= xL(N + 0.5) + 0.01; px += 1.5) {
+        const x = (px - L0) / uL - 0.5, v = g(x);
+        if (!isFinite(v) || v > gTop * 1.02 || v < -0.01) { pen = false; continue; }
+        d += (pen ? "L" : "M") + f1(px) + "," + f1(YW(v)); pen = true;
+      }
+      if (d) s += `<path d="${d}" fill="none" ${attrs}/>`;
+    };
+    if (A.cmp) {
+      curve(x => x >= 0 ? x / a : NaN, `stroke="var(--c-markov)" stroke-width="2" stroke-dasharray="9 4"`);
+      if (a > M.mu + 1e-9) curve(x => Math.pow((x - M.mu) / (a - M.mu), 2), `stroke="var(--c-cheb)" stroke-width="2.2" stroke-dasharray="2 3"`);
+    }
+    curve(x => Math.exp(t * (x - a)), `stroke="var(--c-cher)" stroke-width="2.2"`);
+    for (const n of M.support) {
+      const g = Math.exp(t * (n - a));
+      if (g > gTop) s += `<path d="M${f1(xL(n))},${f1(YW(gTop) - 2)} l-5,9 h10 z" fill="var(--c-cher)"/>`;
+      else s += `<circle cx="${f1(xL(n))}" cy="${f1(YW(g))}" r="${Math.min(4.5, Math.max(2.5, uL * 0.3))}" fill="${M.col[n]}" stroke="${soft}"/>`;
+    }
+    xLabels(B);
+  }
+
+  /* right: x labels */
+  if (K === "markov") {
+    const vm = Math.round(M.vmax), kR = Math.max(1, Math.ceil(20 / uR));
+    for (let j = 1; j <= vm; j++) {
+      s += `<line x1="${f1(X(j))}" x2="${f1(X(j))}" y1="${B}" y2="${B + 4}" stroke="${soft}"/>`;
+      if (j % kR === 0 || j === 1) s += `<text class="sv-tick" x="${f1(X(j - 0.5))}" y="${B + 17}" text-anchor="middle">${j}</text>`;
+    }
+    s += mathAt("n", R1 + 2, B + 17, 14, "end", soft).svg;
+  } else {
+    const tmax = xmaxR, ts = niceStep(tmax, Math.max(3, Math.floor((R1 - R0) / 70)));
+    for (let v = 0; v <= tmax + 1e-9; v += ts) {
+      s += `<line x1="${f1(X(v))}" x2="${f1(X(v))}" y1="${B}" y2="${B + 4}" stroke="${soft}"/>`;
+      s += `<text class="sv-tick" x="${f1(X(v))}" y="${B + 17}" text-anchor="middle">${fnum(v, 2)}</text>`;
+    }
+    s += mathAt(K === "cheb" ? "t" : "s", R1 + 9, B + 17, 14, "start", soft).svg;
+  }
+
+  /* right: the copies (Markov: v unit pieces; otherwise one block of width v) */
+  const arc = Math.min(40, (B - T) * 0.12);
+  const pieces = (Ly, f) => {
+    const out = [];
+    const cnt = K === "markov" ? Math.round(Ly.v) : 1;
+    const xs0 = xL(Ly.n) - bw / 2, y0s = YL(Ly.p), h0 = YL(0) - YL(Ly.p), y0e = Y(Ly.y1), h1 = Y(0) - Y(Ly.p);
+    for (let j = 1; j <= cnt; j++) {
+      const st = cnt > 1 ? 0.35 * (j - 1) / (cnt - 1) : 0;
+      const g = ease(clamp((f - st) / 0.65, 0, 1));
+      if (g <= 0) continue;
+      const xe = K === "markov" ? X(j - 1) : X(0), we = K === "markov" ? uR : XC(Ly.v) - X(0);
+      out.push({ x: lerp(xs0, xe, g), y: lerp(y0s, y0e, g) - Math.sin(Math.PI * g) * arc, w: lerp(bw, we, g), h: lerp(h0, h1, g), g });
+    }
+    return out;
+  };
+  let flying = "", landedS = "", axisMarks = "";
+  for (let i = 0; i < L; i++) {
+    const Ly = M.layers[i];
+    let f;
+    if (i === animIdx) f = fl;
+    else if (i < landed) f = 1;
+    else continue;
+    let part = "";
+    const isH = hov === Ly.n && i !== animIdx;
+    for (const q of pieces(Ly, f)) {
+      part += `<rect x="${f1(q.x)}" y="${f1(q.y)}" width="${f1(Math.max(0.5, q.w))}" height="${f1(Math.max(0, q.h))}" fill="${M.col[Ly.n]}" stroke="${isH ? ink : soft}" stroke-width="${isH ? 2.2 : K === "markov" ? 0.8 : M.L > 40 ? 0.4 : 1}"/>`;
+      if (K !== "markov" && i !== animIdx && q.h >= 12 && q.w >= 18) part += `<text x="${f1(q.x + q.w - 4)}" y="${f1(q.y + q.h / 2 + 4)}" text-anchor="end" style="font:italic ${isH ? "bold " : ""}11px var(--wi-font-body);fill:var(--wi-ink-strong)">${Ly.n}</text>`;
+      if (i !== animIdx) {
+        const hb = { n: Ly.n, x0: q.x, x1: Math.min(q.x + Math.max(3, q.w), R1 + 6), y0: q.y - (q.h < 4 ? 2 : 0), y1: q.y + Math.max(q.h, 2) };
+        if (zoomed) hb.y0 = Math.max(hb.y0, T - 8);           /* only the part inside the window */
+        if (hb.y1 > hb.y0) aGeom.blocks.push(hb);
+      }
+    }
+    if (K !== "markov" && i !== animIdx && Ly.v <= xEdge) axisMarks += `<path d="M${f1(X(Ly.v))},${B + 1} l-4.5,8 h9 z" fill="${M.col[Ly.n]}" stroke="${isH ? ink : soft}" stroke-width="${isH ? 1.6 : 0.8}"/>`;
+    if (i === animIdx) flying += part; else landedS += part;
+  }
+  if (zoomed) {
+    s += `<defs><clipPath id="aRclip"><rect x="${f1(X(0) - 2)}" y="${T - 8}" width="${f1(R1 + 16 - X(0))}" height="${f1(B - T + 8)}"/></clipPath></defs><g clip-path="url(#aRclip)">${landedS}</g>`;
+    /* the thin blocks above the window */
+    let up = 0; for (let i = 0; i < landed; i++) { const Ly = M.layers[i]; if (Ly.y1 > ymaxR) up += Math.min(Ly.v, xEdge) * (Ly.y1 - Math.max(Ly.y0, ymaxR)); }
+    s += `<line x1="${f1(X(0) - 6)}" x2="${f1(X(0) + 6)}" y1="${T - 12}" y2="${T - 4}" stroke="${soft}" stroke-width="1.4"/><line x1="${f1(X(0) - 6)}" x2="${f1(X(0) + 6)}" y1="${T - 7}" y2="${T + 1}" stroke="${soft}" stroke-width="1.4"/>`;
+    if (up > 0) s += `<text class="sv-tick" x="${f1(X(0))}" y="${B + 36}">+ ${fh(up).replace(/<sup>(.*?)<\/sup>/, '<tspan baseline-shift="super" font-size="9">$1</tspan>')} in the thin blocks above the window</text>`;
+  } else s += landedS;
+  /* Chernoff: blocks that run beyond the right edge */
+  let beyond = 0;
+  if (K === "chern") for (let i = 0; i < landed; i++) { const Ly = M.layers[i]; if (Ly.v > xEdge) beyond += Ly.p * (Ly.v - xEdge); }
+  if (beyond > 0) {
+    const hb = M.tail(xEdge);
+    let d = `M${f1(R1 + 6)},${f1(Y(0))}`, up = true;
+    for (let y = Y(0); y > Y(hb) + 0.5; y -= 5) { d += ` L${f1(R1 + (up ? 12 : 6))},${f1(Math.max(Y(hb), y - 5))}`; up = !up; }
+    s += `<path d="${d}" fill="none" stroke="${ink}" stroke-width="1.2"/>`;
+    if (showStairs) s += `<text class="sv-tick" x="${f1(R1 + 10)}" y="${f1(Math.min(Y(hb) - 8, B - 30))}" text-anchor="end">+ ${fh(beyond).replace(/<sup>(.*?)<\/sup>/, '<tspan baseline-shift="super" font-size="9">$1</tspan>')} beyond the edge</text>`;
+  }
+  /* the staircase outline */
+  if (showStairs && M.steps.length && zoomed) {
+    let d = `M${f1(X(0))},${f1(Y(M.steps[0].h))}`;
+    for (let i = 0; i < M.steps.length; i++) { d += ` H${f1(XC(M.steps[i].v))}`; d += ` V${f1(Y(i + 1 < M.steps.length ? M.steps[i + 1].h : 0))}`; }
+    landedS += `<path d="${d}" fill="none" stroke="${ink}" stroke-width="2.4" stroke-linejoin="miter"/>`;
+  } else if (showStairs && M.steps.length) {
+    let d = `M${f1(X(0))},${f1(Y(M.steps[0].h))}`;
+    for (let i = 0; i < M.steps.length; i++) {
+      d += ` H${f1(XC(M.steps[i].v))}`;
+      d += ` V${f1(Y(i + 1 < M.steps.length ? M.steps[i + 1].h : 0))}`;
+    }
+    s += `<path d="${d}" fill="none" stroke="${ink}" stroke-width="2.4" stroke-linejoin="miter"/>`;
+  }
+  /* the rectangle */
+  if (showRect && M.L) {
+    const thr = K === "markov" ? A.aM : K === "cheb" ? A.bC : 1, h = M.tail(thr);
+    s += `<rect x="${f1(X(0))}" y="${f1(Y(h))}" width="${f1(X(thr) - X(0))}" height="${f1(B - Y(h))}" fill="rgba(204,47,34,.18)" stroke="${red}" stroke-width="2.4"/>`;
+    s += `<line x1="${f1(X(0) - 8)}" x2="${f1(X(0))}" y1="${f1(Y(h))}" y2="${f1(Y(h))}" stroke="${red}" stroke-width="1.6"/>`;
+    if (K !== "chern" || Y(h) < B - 14) s += mathAt(K === "cheb" ? "\\Prob{Y\\ge b}" : "\\Prob{X\\ge a}", X(0) - 11, Y(h) + 5, 13.5, "end", red).svg;
+    const xh = X(thr);
+    if (K !== "chern") {
+      s += `<line x1="${f1(xh)}" x2="${f1(xh)}" y1="${B}" y2="${B + 22}" stroke="${red}" stroke-width="1.6"/>`;
+      s += `<path d="M${f1(xh)},${B + 20} l-7,12 h14 z" fill="${red}"/>`;
+      s += mathAt(K === "cheb" ? "b" : "a", xh + 11, B + 38, 15, "start", red).svg;
+    } else s += `<line x1="${f1(xh)}" x2="${f1(xh)}" y1="${B}" y2="${B + 6}" stroke="${red}" stroke-width="2.4"/>`;
+    s += mathAt(K === "markov" ? "a\\cdot\\Prob{X\\ge a}\\;\\le\\;\\E{X}" : K === "cheb" ? "b\\cdot\\Prob{Y\\ge b}\\;\\le\\;\\E{Y}=\\Var{X}" : "1\\cdot\\Prob{X\\ge a}\\;\\le\\;\\E{e^{t(X-a)}}", R1, T - 10, 15, "end", red).svg;
+  }
+  const EVs = K === "chern" ? fP(M.EV, 4) : fnum(M.EV);
+  if (showStairs) s += mathAt("\\text{area} = " + (K === "markov" ? "\\E{X}" : K === "cheb" ? "\\E{Y}" : "\\E{Y}") + " = " + EVs, R1, T - 32, 15, "end", ink).svg;
+  else if (landed > 0 || animIdx >= 0) {
+    let sofar = 0; for (let i = 0; i < landed; i++) sofar += M.layers[i].v * M.layers[i].p;
+    s += mathAt("\\text{so far: }" + (K === "chern" ? fP(sofar, 4) : fnum(sofar)) + "\\text{ of }" + EVs, R1, T - 32, 14, "end", soft).svg;
+  }
+  s += axisMarks + flying;
+  svg.innerHTML = s;
+  aSide();
+  if (K === "chern") renderTPlot();
+}
+
+/* ---------- Chebychev and Chernoff: X's distribution (top left), the map, Y's distribution (bottom right),
+              and Markov's picture for Y (top right, sharing the horizontal y axis with Y's distribution) ---------- */
+function renderAY() {
+  const M = A.M, K = M.kind, svg = el("aSvg"), wrap = el("aWrap");
+  const W = Math.max(440, wrap.clientWidth), H = AL.H;
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const now = performance.now();
+  /* the running animation: either the map (step 0 <-> 1) or one block in flight */
+  let animIdx = -1, fl = 1, mapF = A.step >= 1 ? 1 : 0;
+  if (A.tw) {
+    const s0 = clamp((now - A.tw.t0) / A.tw.dur, 0, 1);
+    if (s0 >= 1) A.tw = null;
+    else {
+      const hi = Math.max(A.tw.from, A.tw.to), f = A.tw.to > A.tw.from ? s0 : 1 - s0;
+      if (hi === 1) mapF = f; else { animIdx = hi - 2; fl = f; }
+      if (!A.raf) A.raf = requestAnimationFrame(() => { A.raf = 0; renderA(); });
+    }
+  }
+  const step = A.step, L = M.L, landed = clamp(step - 1, 0, L), showStairs = step >= aStairs(), showRect = step >= aRect();
+  const hov = A.hover;
+
+  /* geometry */
+  const T = 62, B = H - 58, L0 = 56, gap = 92, R1 = W - 22;
+  const Lw = L0 + (W - L0 - gap - 22) * 0.4, R0 = Lw + gap;
+  const N = M.N, uL = (Lw - L0) / (N + 1), bw = Math.min(uL * 0.72, 54);
+  const xL = v => L0 + (v + 0.5) * uL;
+  const span = B - T, hP = Math.max(70, span * 0.27);
+  const Bx = T + hP, Ty = B - hP, Bs = Ty - 44;               /* X's baseline, Y's top (baseline B), staircase baseline */
+  const maxp = Math.max(...M.pmf), ymaxP = maxp * 1.08;
+  const YX = p => Bx - p / ymaxP * hP, YY = p => B - p / ymaxP * hP;
+  const zoomed = K === "chern" && A.zoom && M.C.zoomTop < 0.8 * M.total;
+  const ymaxR = zoomed ? M.C.zoomTop * 1.06 : Math.max(M.total, 1e-9) * 1.04;
+  const Y = p => Bs - p / ymaxR * (Bs - T);
+  const xmaxR = K === "cheb" ? Math.max(M.vmax, 1e-9) * 1.05 : clamp(M.vmax, 1.3, 4) * 1.04;
+  const uR = (R1 - R0) / xmaxR, X = v => R0 + v * uR;
+  const xEdge = (R1 + 6 - R0) / uR, XC = v => X(Math.min(v, xEdge));
+  const yOf = n => K === "cheb" ? (n - M.mu) * (n - M.mu) : Math.exp(A.t * (n - A.aC));
+  const bwY = clamp(uR * 0.3, 5, Math.min(12, bw));
+  aGeom = { R0, R1, Lw, L0, uL, N, X, uR, B, T, bars: [], blocks: [] };
+  const ink = "var(--wi-ink-strong)", soft = "var(--wi-ink-soft)", red = "var(--c-rect)";
+  const thr = K === "cheb" ? A.bC : 1;                         /* the threshold on the y axis */
+  let s = "";
+
+  /* --- axes and grids --- */
+  const tickTxt = (v, st) => {
+    if (v === 0) return "0";
+    if (st >= 0.01) return fnum(v, 2);
+    let e = Math.floor(Math.log10(v) + 1e-9), m = v / Math.pow(10, e);
+    return fnum(m, 1) + "·10<tspan baseline-shift=\"super\" font-size=\"9\">−" + (-e) + "</tspan>";
+  };
+  const hgrid = (x0, x1, Yf, vmax, nt) => {
+    const st = niceStep(vmax, nt);
+    for (let v = 0; v <= vmax + 1e-12; v += st) {
+      const y = Yf(v);
+      if (v > 0) s += `<line x1="${f1(x0)}" x2="${f1(x1)}" y1="${f1(y)}" y2="${f1(y)}" stroke="var(--wi-border-soft)" stroke-width="0.8"/>`;
+      s += `<line x1="${f1(x0 - 4)}" x2="${f1(x0)}" y1="${f1(y)}" y2="${f1(y)}" stroke="${soft}"/><text class="sv-tick" x="${f1(x0 - 7)}" y="${f1(y + 4)}" text-anchor="end">${tickTxt(v, st)}</text>`;
+    }
+  };
+  hgrid(L0 - 4, Lw + 4, YX, ymaxP, 3);
+  hgrid(X(0), R1, YY, ymaxP, 3);
+  hgrid(X(0), R1, Y, ymaxR, 4);
+  /* the shared y axis: vertical grid lines through the staircase and Y's distribution, labels under Y's axis */
+  const ts = niceStep(xmaxR, Math.max(3, Math.floor((R1 - R0) / 70)));
+  for (let v = 0; v <= xmaxR + 1e-9; v += ts) {
+    if (v > 0) s += `<line x1="${f1(X(v))}" x2="${f1(X(v))}" y1="${T - 4}" y2="${B}" stroke="var(--wi-border-soft)" stroke-width="0.7" stroke-dasharray="2 3"/>`;
+    s += `<line x1="${f1(X(v))}" x2="${f1(X(v))}" y1="${B}" y2="${B + 4}" stroke="${soft}"/><text class="sv-tick" x="${f1(X(v))}" y="${B + 17}" text-anchor="middle">${fnum(v, 2)}</text>`;
+    s += `<line x1="${f1(X(v))}" x2="${f1(X(v))}" y1="${Bs}" y2="${Bs + 4}" stroke="${soft}"/>`;
+  }
+  s += mathAt("y", R1 + 9, B + 17, 14, "start", soft).svg;
+  for (const [x0, x1, yb, yt] of [[L0 - 4, Lw + 4, Bx, T - 6], [X(0), R1 + 6, Bs, T - 6], [X(0), R1 + 6, B, Ty - 6]])
+    s += `<line x1="${f1(x0)}" x2="${f1(x1)}" y1="${f1(yb)}" y2="${f1(yb)}" stroke="${soft}"/><line x1="${f1(x0)}" x2="${f1(x0)}" y1="${f1(yb)}" y2="${f1(yt)}" stroke="${soft}"/>`;
+  s += mathAt("\\Prob{X=n}", L0 - 4, T - 32, 15, "start", ink).svg;
+  s += mathAt("\\Prob{Y\\ge y}", X(0), T - 32, 15, "start", ink).svg;
+  s += mathAt("\\Prob{Y=y}", X(0) + 8, Ty - 10, 14, "start", ink).svg;
+  const kL = Math.max(1, Math.ceil(20 / uL));
+  for (let n = 0; n <= N; n++) if (n % kL === 0) s += `<text class="sv-tick" x="${f1(xL(n))}" y="${Bx + 17}" text-anchor="middle">${n}</text>`;
+  s += mathAt("n", Lw + 8, Bx + 17, 14, "start", soft).svg;
+
+  /* --- thresholds: on X's side (band / a) and on Y's side (y >= b / y >= 1) --- */
+  if (K === "cheb" && showRect && A.bC !== null) {
+    const a = Math.sqrt(A.bC), xa = Math.max(L0 - 4, xL(M.mu - a)), xb = Math.min(Lw + 4, xL(M.mu + a));
+    if (xb > xa) s += `<rect x="${f1(xa)}" y="${T - 6}" width="${f1(xb - xa)}" height="${f1(Bx - T + 6)}" fill="rgba(42,106,99,.10)"/>`;
+    for (const xx of [M.mu - a, M.mu + a]) if (xL(xx) >= L0 - 4 && xL(xx) <= Lw + 4)
+      s += `<line x1="${f1(xL(xx))}" x2="${f1(xL(xx))}" y1="${T - 6}" y2="${Bx}" stroke="${red}" stroke-dasharray="3 3"/>`;
+  }
+  if (K === "cheb") {
+    s += `<line x1="${f1(xL(M.mu))}" x2="${f1(xL(M.mu))}" y1="${T - 10}" y2="${Bx + 4}" stroke="var(--wi-queue)" stroke-width="1.4" stroke-dasharray="5 3"/>`;
+    s += mathAt("\\E{X}", xL(M.mu) + 5, T - 12, 13.5, "start", "var(--wi-queue)").svg;
+  }
+  if (K === "chern") {
+    const xa = L0 + A.aC * uL;
+    s += `<rect x="${f1(xa)}" y="${T - 6}" width="${f1(Lw + 4 - xa)}" height="${f1(Bx - T + 6)}" fill="rgba(204,47,34,.06)"/>`;
+    s += `<line x1="${f1(xa)}" x2="${f1(xa)}" y1="${T - 8}" y2="${Bx}" stroke="${red}" stroke-width="1.4" stroke-dasharray="4 3"/>`;
+    s += `<path d="M${f1(xa)},${T - 6} l-7,-12 h14 z" fill="${red}" class="grab"/>`;
+    s += mathAt("a=" + A.aC, xa + 10, T - 9, 14, "start", red).svg;
+  }
+  const yEvent = K === "chern" || showRect;                    /* is the event Y >= thr marked on Y's side? */
+  if (yEvent && thr !== null && X(thr) < R1 + 6) {
+    s += `<rect x="${f1(X(thr))}" y="${f1(Ty - 6)}" width="${f1(R1 + 6 - X(thr))}" height="${f1(B - Ty + 6)}" fill="rgba(204,47,34,.07)"/>`;
+    s += `<line x1="${f1(X(thr))}" x2="${f1(X(thr))}" y1="${f1(showRect ? T - 6 : Ty - 6)}" y2="${B}" stroke="${red}" stroke-width="1.4" stroke-dasharray="4 3"/>`;
+  }
+
+  /* --- the map: one line per value, from below X's labels to y on Y's axis --- */
+  const yRow = Bx + 33, two = uL < 27, kY = Math.max(1, Math.ceil((two ? 13 : 27) / uL));
+  const lineTop = Bx + (two ? 54 : 42);
+  for (const n of M.support) {
+    const y = yOf(n), x0 = xL(n), x1 = XC(y), u0 = (lineTop - Bx) / (B - Bx);
+    const isH = hov === n;
+    const xs = lerp(x0, x1, u0);
+    const dash = step === 0 && !A.tw ? ` stroke-dasharray="5 4"` : "";
+    /* full strength until the bars have arrived; afterwards faint, except the hovered one */
+    const faintL = step >= 2 && !isH;
+    s += `<line x1="${f1(xs)}" y1="${f1(lineTop)}" x2="${f1(x1)}" y2="${B}" stroke="${isH ? ink : soft}" stroke-width="${isH ? 3.2 : 2.6}" opacity="${isH ? 0.9 : faintL ? 0.12 : 0.35}"${dash}/>`;
+    s += `<line x1="${f1(xs)}" y1="${f1(lineTop)}" x2="${f1(x1)}" y2="${B}" stroke="${M.col[n]}" stroke-width="${isH ? 2 : 1.4}" opacity="${faintL ? 0.35 : 1}"${dash}/>`;
+  }
+  s += mathAt(K === "cheb" ? "n\\;\\mapsto\\;y=(n-\\E{X})^2" : "n\\;\\mapsto\\;y=e^{t(n-a)}", L0 - 4, B + 17, 14, "start", soft).svg;
+  /* the values of Y in a row under X's labels */
+  const yFmt = v => v === 0 ? "0" : v >= 100 ? String(Math.round(v)) : v >= 10 ? v.toFixed(1) : v >= 0.095 ? v.toFixed(2) : v >= 0.00095 ? String(+v.toPrecision(1)) : "≈0";
+  for (const n of M.support) {
+    if (n % kY !== 0 && hov !== n) continue;
+    const v = yOf(n), ev = K === "cheb" ? showRect && v >= A.bC - 1e-9 : n >= A.aC;
+    const lineY = two && Math.round(n / kY) % 2 === 1 ? yRow + 12 : yRow;
+    s += `<text x="${f1(xL(n))}" y="${lineY}" text-anchor="middle" style="font:${hov === n ? "bold " : ""}${uL < 28 ? 10 : 11}px var(--wi-font-body);fill:${ev ? red : ink}">${yFmt(v)}</text>`;
+  }
+  s += mathAt("y", L0 - 9, yRow, 12.5, "end", soft).svg;
+
+  /* --- X's bars --- */
+  for (let n = 0; n <= N; n++) {
+    const p = M.pmf[n]; if (!(p > 0)) continue;
+    const hot = K === "chern" ? n >= A.aC : showRect && (n - M.mu) * (n - M.mu) >= A.bC - 1e-9, isH = hov === n;
+    s += `<rect x="${f1(xL(n) - bw / 2)}" y="${f1(YX(p))}" width="${f1(bw)}" height="${f1(Bx - YX(p))}" fill="${M.col[n]}" stroke="${isH ? ink : hot ? red : soft}" stroke-width="${isH ? 2.6 : hot ? 2 : 1}"/>`;
+    aGeom.bars.push({ n, x0: xL(n) - Math.max(bw, 10) / 2, x1: xL(n) + Math.max(bw, 10) / 2, y0: Math.min(YX(p), Bx - 8), y1: Bx + 4 });
+  }
+  /* --- Y's bars: on their way along the map, or in place --- */
+  if (mapF > 0) {
+    const order = [...M.support].sort((a, b) => M.pmf[b] - M.pmf[a]);   /* small bars on top */
+    for (const n of order) {
+      const p = M.pmf[n], y = yOf(n), g = ease(mapF), isH = hov === n && mapF === 1;
+      const cx = lerp(xL(n), XC(y), g), by = lerp(Bx, B, g) - Math.sin(Math.PI * g) * 18, w = lerp(bw, bwY, g), h = Bx - YX(p);
+      const hot = mapF === 1 && yEvent && thr !== null && y >= thr - 1e-9;
+      s += `<rect x="${f1(cx - w / 2)}" y="${f1(by - h)}" width="${f1(w)}" height="${f1(h)}" fill="${M.col[n]}" stroke="${isH ? ink : hot ? red : soft}" stroke-width="${isH ? 2.4 : hot ? 1.8 : 1}"/>`;
+      if (mapF === 1) {
+        if (y > xEdge) s += `<path d="M${f1(R1 + 8)},${f1(B - h / 2 - 5)} l8,5 l-8,5 z" fill="${M.col[n]}" stroke="${soft}"/>`;
+        aGeom.bars.push({ n, x0: cx - Math.max(w, 8) / 2, x1: cx + Math.max(w, 8) / 2, y0: Math.min(by - h, B - 8), y1: B + 2 });
+      }
+    }
+  }
+
+  /* --- Markov's picture for Y: blocks fly up from Y's bars --- */
+  const arc = Math.min(30, (B - T) * 0.08);
+  let flying = "", landedS = "";
+  for (let i = 0; i < L; i++) {
+    const Ly = M.layers[i];
+    let f;
+    if (i === animIdx) f = fl; else if (i < landed) f = 1; else continue;
+    const g = ease(clamp(f, 0, 1)); if (g <= 0) continue;
+    const h0 = B - YY(Ly.p), h1 = Y(0) - Y(Ly.p);
+    const q = { x: lerp(XC(Ly.v) - bwY / 2, X(0), g), w: lerp(bwY, XC(Ly.v) - X(0), g), y: lerp(YY(Ly.p), Y(Ly.y1), g) - Math.sin(Math.PI * g) * arc, h: lerp(h0, h1, g) };
+    const isH = hov === Ly.n && i !== animIdx;
+    let part = `<rect x="${f1(q.x)}" y="${f1(q.y)}" width="${f1(Math.max(0.5, q.w))}" height="${f1(Math.max(0, q.h))}" fill="${M.col[Ly.n]}" stroke="${isH ? ink : soft}" stroke-width="${isH ? 2.2 : M.L > 40 ? 0.4 : 1}"/>`;
+    if (i !== animIdx && q.h >= 12 && q.w >= 18) part += `<text x="${f1(q.x + q.w - 4)}" y="${f1(q.y + q.h / 2 + 4)}" text-anchor="end" style="font:italic ${isH ? "bold " : ""}11px var(--wi-font-body);fill:var(--wi-ink-strong)">${Ly.n}</text>`;
+    if (i !== animIdx) {
+      const hb = { n: Ly.n, x0: q.x, x1: Math.min(q.x + Math.max(3, q.w), R1 + 6), y0: q.y - (q.h < 4 ? 2 : 0), y1: q.y + Math.max(q.h, 2) };
+      if (zoomed) hb.y0 = Math.max(hb.y0, T - 8);
+      if (hb.y1 > hb.y0) aGeom.blocks.push(hb);
+      landedS += part;
+    } else flying += part;
+  }
+  if (showStairs && M.steps.length) {
+    let d = `M${f1(X(0))},${f1(Y(M.steps[0].h))}`;
+    for (let i = 0; i < M.steps.length; i++) { d += ` H${f1(XC(M.steps[i].v))}`; d += ` V${f1(Y(i + 1 < M.steps.length ? M.steps[i + 1].h : 0))}`; }
+    landedS += `<path d="${d}" fill="none" stroke="${ink}" stroke-width="2.4" stroke-linejoin="miter"/>`;
+  }
+  if (zoomed) {
+    s += `<defs><clipPath id="aRclip"><rect x="${f1(X(0) - 2)}" y="${T - 8}" width="${f1(R1 + 16 - X(0))}" height="${f1(Bs - T + 8)}"/></clipPath></defs><g clip-path="url(#aRclip)">${landedS}</g>`;
+    let up = 0; for (let i = 0; i < landed; i++) { const Ly = M.layers[i]; if (Ly.y1 > ymaxR) up += Math.min(Ly.v, xEdge) * (Ly.y1 - Math.max(Ly.y0, ymaxR)); }
+    s += `<line x1="${f1(X(0) - 6)}" x2="${f1(X(0) + 6)}" y1="${T - 12}" y2="${T - 4}" stroke="${soft}" stroke-width="1.4"/><line x1="${f1(X(0) - 6)}" x2="${f1(X(0) + 6)}" y1="${T - 7}" y2="${T + 1}" stroke="${soft}" stroke-width="1.4"/>`;
+    if (up > 0) s += `<text class="sv-tick" x="${f1(X(0) + 4)}" y="${Bs + 17}">+ ${fh(up).replace(/<sup>(.*?)<\/sup>/, '<tspan baseline-shift="super" font-size="9">$1</tspan>')} in the thin blocks above the window</text>`;
+  } else s += landedS;
+  /* blocks beyond the right edge */
+  let beyond = 0;
+  for (let i = 0; i < landed; i++) { const Ly = M.layers[i]; if (Ly.v > xEdge) beyond += Ly.p * (Ly.v - xEdge); }
+  if (beyond > 0) {
+    const hb = M.tail(xEdge);
+    let d = `M${f1(R1 + 6)},${f1(Y(0))}`, upz = true;
+    for (let y = Y(0); y > Y(hb) + 0.5; y -= 5) { d += ` L${f1(R1 + (upz ? 12 : 6))},${f1(Math.max(Y(hb), y - 5))}`; upz = !upz; }
+    s += `<path d="${d}" fill="none" stroke="${ink}" stroke-width="1.2"/>`;
+    if (showStairs) s += `<text class="sv-tick" x="${f1(R1 + 10)}" y="${f1(Math.min(Y(hb) - 8, Bs - 30))}" text-anchor="end">+ ${fh(beyond).replace(/<sup>(.*?)<\/sup>/, '<tspan baseline-shift="super" font-size="9">$1</tspan>')} beyond the edge</text>`;
+  }
+  /* the rectangle */
+  if (showRect && M.L && thr !== null) {
+    const h = M.tail(thr);
+    s += `<rect x="${f1(X(0))}" y="${f1(Y(h))}" width="${f1(XC(thr) - X(0))}" height="${f1(Bs - Y(h))}" fill="rgba(204,47,34,.18)" stroke="${red}" stroke-width="2.4"/>`;
+    s += `<line x1="${f1(X(0) - 8)}" x2="${f1(X(0))}" y1="${f1(Y(h))}" y2="${f1(Y(h))}" stroke="${red}" stroke-width="1.6"/>`;
+    if (Bs - Y(h) > 14 || K === "cheb") s += mathAt(K === "cheb" ? "\\Prob{Y\\ge b}" : "\\Prob{X\\ge a}", X(0) - 11, Y(h) + 5, 13.5, "end", red).svg;
+    s += mathAt(K === "cheb" ? "b\\cdot\\Prob{Y\\ge b}\\;\\le\\;\\E{Y}=\\Var{X}" : "1\\cdot\\Prob{X\\ge a}\\;\\le\\;\\E{e^{t(X-a)}}", R1, T - 10, 15, "end", red).svg;
+  }
+  if (K === "cheb" && showRect && A.bC !== null) {       /* the handle for b, under Y's axis */
+    const xh = XC(A.bC);
+    s += `<line x1="${f1(xh)}" x2="${f1(xh)}" y1="${B}" y2="${B + 22}" stroke="${red}" stroke-width="1.6"/><path d="M${f1(xh)},${B + 20} l-7,12 h14 z" fill="${red}" class="grab"/>`;
+    s += mathAt("b", xh + 11, B + 38, 15, "start", red).svg;
+  }
+  const EVs = K === "chern" ? fP(M.EV, 4) : fnum(M.EV);
+  if (showStairs) s += mathAt("\\text{area} = \\E{Y} = " + EVs, R1, T - 32, 15, "end", ink).svg;
+  else if (landed > 0 || animIdx >= 0) {
+    let sofar = 0; for (let i = 0; i < landed; i++) sofar += M.layers[i].v * M.layers[i].p;
+    s += mathAt("\\text{so far: }" + (K === "chern" ? fP(sofar, 4) : fnum(sofar)) + "\\text{ of }" + EVs, R1, T - 32, 14, "end", soft).svg;
+  }
+  s += flying;
+  svg.innerHTML = s;
+  aSide();
+  if (K === "chern") renderTPlot();
+}
+
+/* ---------- Chernoff: the bound against t ---------- */
+let tGeom = null;
+function renderTPlot() {
+  const M = A.M, C = M.C; if (!C) return;
+  const svg = el("aTSvg"), W = Math.max(260, el("aTWrap").clientWidth), H = 210;
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const x0 = 52, x1 = W - 16, y0 = 12, y1 = H - 36, tMax = C.tMax;
+  const ts = [], lbs = [], rels = [];
+  for (let i = 0; i <= 200; i++) { const t = tMax * i / 200; ts.push(t); lbs.push(C.lb(t)); if (C.rel) rels.push(C.rel(t)); }
+  let lo = Math.min(...lbs, ...(C.rel ? rels : []), isFinite(C.truthLn) ? C.truthLn : 0) / Math.LN10;
+  lo = Math.max(-60, Math.min(-1, Math.floor(lo - 0.3)));
+  const X = t => x0 + t / tMax * (x1 - x0);
+  const Yl = l => y0 + (Math.max(lo, Math.min(0, l / Math.LN10)) / lo) * (y1 - y0);
+  tGeom = { x0, x1, X, tMax };
+  const soft = "var(--wi-ink-soft)";
+  let s = "";
+  const dst = -lo <= 8 ? 1 : -lo <= 20 ? 2 : -lo <= 40 ? 5 : 10;
+  for (let e = 0; e >= lo; e -= dst) {
+    const y = Yl(e * Math.LN10);
+    s += `<line x1="${x0}" x2="${x1}" y1="${f1(y)}" y2="${f1(y)}" stroke="var(--wi-border-soft)" stroke-width="${e === 0 ? 1 : 0.7}"/>`;
+    s += e === 0 ? `<text class="sv-tick" x="${x0 - 7}" y="${f1(y + 4)}" text-anchor="end">1</text>`
+                 : `<text class="sv-tick" x="${x0 - 7}" y="${f1(y + 4)}" text-anchor="end">10<tspan dy="-6" font-size="9.5">−${-e}</tspan></text>`;
+  }
+  const xs = niceStep(tMax, 4);
+  for (let t = 0; t <= tMax + 1e-9; t += xs) s += `<line x1="${f1(X(t))}" x2="${f1(X(t))}" y1="${y1}" y2="${y1 + 4}" stroke="${soft}"/><text class="sv-tick" x="${f1(X(t))}" y="${y1 + 17}" text-anchor="middle">${fnum(t, 2)}</text>`;
+  s += `<line x1="${x0}" x2="${x1}" y1="${y1}" y2="${y1}" stroke="${soft}"/><line x1="${x0}" x2="${x0}" y1="${y0}" y2="${y1}" stroke="${soft}"/>`;
+  s += mathAt("t", x1, y1 + 32, 14, "end", soft).svg;
+  const path = (arr, attrs) => { let d = ""; arr.forEach((l, i) => { if (isFinite(l)) d += (d ? "L" : "M") + f1(X(ts[i])) + "," + f1(Yl(l)); }); return `<path d="${d}" fill="none" ${attrs}/>`; };
+  if (isFinite(C.truthLn)) {
+    const y = Yl(C.truthLn);
+    s += `<line x1="${x0}" x2="${x1}" y1="${f1(y)}" y2="${f1(y)}" stroke="var(--c-exact)" stroke-width="2"/>`;
+    s += mathAt("\\Prob{X\\ge a}", x1 - 2, y + 16, 13, "end", "var(--c-exact)").svg;
+  }
+  if (C.rel) s += path(rels, `stroke="var(--c-cher)" stroke-width="1.6" stroke-dasharray="6 3"`);
+  s += path(lbs, `stroke="var(--c-cher)" stroke-width="2.4"`);
+  if (C.rel && C.tRel !== null && C.tRel <= tMax) {
+    const y = Yl(C.rel(C.tRel));
+    s += `<circle cx="${f1(X(C.tRel))}" cy="${f1(y)}" r="4" fill="var(--wi-panel)" stroke="var(--c-cher)" stroke-width="1.6"/>`;
+    s += mathAt("\\ln(1+\\delta)", X(C.tRel), y + 20, 12.5, "middle", "var(--c-cher)").svg;
+  }
+  if (C.tStar > 0 && C.tStar <= tMax) {
+    const y = Yl(C.lb(C.tStar));
+    s += `<circle cx="${f1(X(C.tStar))}" cy="${f1(y)}" r="4.5" fill="var(--c-cher)"/>`;
+    s += mathAt("t^*", X(C.tStar) + 8, y - 8, 13.5, "start", "var(--c-cher)").svg;
+  }
+  const xt = X(A.t);
+  s += `<line x1="${f1(xt)}" x2="${f1(xt)}" y1="${y0}" y2="${y1}" stroke="var(--c-rect)" stroke-width="1.6"/>`;
+  s += `<circle cx="${f1(xt)}" cy="${f1(Yl(C.lb(A.t)))}" r="4" fill="var(--c-rect)" stroke="var(--wi-bg)" stroke-width="1.5"/>`;
+  s += `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0 + 20}" fill="transparent" style="cursor:ew-resize"/>`;
+  svg.innerHTML = s;
+}
+
+/* ---------- the readable side: status, sums, rectangle ---------- */
+let aSideKey = "";
+function aSide() {
+  const M = A.M;
+  aLegend();
+  if (M.kind === "chern") { aSideChern(); return; }
+  const step = A.step, L = M.L, key = [A.kind, A.key, JSON.stringify(A.par), step, A.aM, A.bC, M.pmf.length].join("|");
+  if (key === aSideKey && el("aStatus")._shown) return;
+  aSideKey = key;
+  const off = aOff(), bi = step - off, EX = fnum(M.mu), landed = clamp(step - off, 0, L);
+  /* status */
+  let st = "";
+  if (step === 0) {
+    st = M.cheb
+      ? `<p>The distribution of \\(X\\), with \\(\\E{X}=${EX}\\) and \\(\\Var{X}=${fnum(M.vr)}\\). Chebychev draws Markov's picture not for \\(X\\) but for \\(Y=(X-\\E{X})^2\\ge0\\), whose expectation is \\(\\E{Y}=\\Var{X}\\).</p>
+         <p>The lines show where each value \\(n\\) goes: to \\(y=(n-\\E{X})^2\\). Step forward to send the bars along them.</p>`
+      : `<p>The distribution of \\(X\\): one bar per value \\(n\\), of height \\(\\Prob{X=n}\\).</p>
+         <p>In \\(\\E{X}=\\sum_n n\\cdot\\Prob{X=n}=${EX}\\) the bar of \\(n\\) counts \\(n\\) times. Step forward: \\(n\\) copies of each bar are laid out side by side, largest \\(n\\) at the bottom.</p>`;
+  } else if (off && step === 1) {
+    st = `<p>Every bar of \\(X\\) moved to its value \\(y=(n-\\E{X})^2\\), keeping its probability: below the staircase is now the distribution of \\(Y\\). The map folds at \\(\\E{X}\\): values at the same distance on both sides land at (almost) the same \\(y\\), values near \\(\\E{X}\\) land near 0.</p>
+          <p>From here on it is Markov's picture for \\(Y\\): the bar at \\(y\\) becomes a block of width \\(y\\), widest at the bottom.</p>`;
+  } else if (bi <= L) {
+    const Ly = M.layers[bi - 1];
+    st = M.cheb
+      ? `<p>Value \\(n=${Ly.n}\\): width \\((${Ly.n}-${EX})^2=${fnum(Ly.v)}\\), height \\(\\Prob{X=${Ly.n}}=${fP(Ly.p)}\\), area \\(${fnum(Ly.v * Ly.p)}\\).</p>
+         <p>The blocks are stacked by width, widest at the bottom, so the stack never gets wider going up.</p>`
+      : `<p>The bar of \\(n=${Ly.n}\\) contributes \\(${Ly.n}\\cdot\\Prob{X=${Ly.n}}=${Ly.n}\\cdot${fP(Ly.p)}=${fnum(Ly.v * Ly.p)}\\): its ${Ly.n} ${Ly.n === 1 ? "copy goes" : "copies go"} to the columns \\(1${Ly.n > 1 ? (Ly.n > 2 ? ",\\dots," : ",") + Ly.n : ""}\\).</p>
+         <p>Copy \\(j\\) of every bar \\(n\\ge j\\) lands in column \\(j\\).${M.pmf[0] > 0 && step === 1 ? " The value \\(0\\) has no copies: it adds nothing to \\(\\E{X}\\)." : ""}</p>`;
+  } else if (step === aStairs()) {
+    st = M.cheb
+      ? `<p>The outline is the tail function \\(y\\mapsto\\Prob{Y\\ge y}\\): above \\(y\\) lie exactly the blocks of width \\(\\ge y\\). By rows the area is \\(\\sum_n (n-\\E{X})^2\\Prob{X=n}=\\Var{X}\\), so</p>
+         <p style="text-align:center">\\(\\displaystyle\\Var{X}=\\E{Y}=\\int_0^\\infty\\Prob{Y\\ge y}\\,dy\\).</p>`
+      : `<p>By rows the area is \\(\\sum_n n\\cdot\\Prob{X=n}=\\E{X}\\). By columns: column \\(j\\) holds one copy of every bar \\(n\\ge j\\), so it is \\(\\Prob{X\\ge j}\\) high. Same area:</p>
+         <p style="text-align:center">\\(\\displaystyle\\E{X}=\\sum_{n\\ge1}\\Prob{X\\ge n}\\).</p>
+         <p>The sum starts at \\(n=1\\): there is no column for \\(\\Prob{X\\ge0}=1\\). And the staircase never goes up.</p>`;
+  } else if (!M.L) {
+    st = M.cheb ? `<p>\\(X\\) is constant: \\(Y=0\\) and \\(\\Var{X}=0\\). There is no area, and no rectangle.</p>`
+                : `<p>All mass sits at \\(0\\): \\(\\E{X}=0\\). There is no area, and \\(\\Prob{X\\ge a}=0\\) for every \\(a>0\\).</p>`;
+  } else if (!M.cheb) {
+    const a = A.aM, h = M.tail(a), tight = Math.abs(a * h - M.EV) < 1e-9;
+    st = `<p>The rectangle \\([0,a]\\times[0,\\Prob{X\\ge a}]\\) fits under the staircase: every column \\(j\\le a\\) is at least \\(\\Prob{X\\ge a}\\) high, because the staircase never goes up. Hence</p>
+          <p style="text-align:center">\\(\\displaystyle a\\cdot\\Prob{X\\ge a}\\le\\E{X}\\), i.e.&ensp;\\(\\displaystyle\\Prob{X\\ge a}\\le\\frac{\\E{X}}{a}\\).</p>
+          <p>${tight ? "Here the rectangle <i>is</i> the whole area: Markov's inequality is tight. That happens exactly when all mass sits on \\(\\{0,a\\}\\)." :
+            "What the rectangle misses: the area above it (columns before \\(a\\) that are higher) and the columns after \\(a\\). Drag the red edge."}</p>`;
+  } else {
+    const b = A.bC, a = Math.sqrt(b);
+    st = `<p>The same rectangle for \\(Y\\): width \\(b\\), height \\(\\Prob{Y\\ge b}\\), so \\(\\Prob{Y\\ge b}\\le\\E{Y}/b\\). With \\(b=a^2\\):</p>
+          <p style="text-align:center">\\(\\displaystyle\\Prob{|X-\\E{X}|\\ge a}=\\Prob{Y\\ge a^2}\\le\\frac{\\Var{X}}{a^2}\\).</p>
+          <p>On the left, the bars outside \\(\\E{X}\\pm a\\) (here \\(a=${fnum(a)}\\)) are the event: they are the blocks at least \\(b\\) wide. Drag the red edge.</p>`;
+  }
+  setMath(el("aStatus"), st);
+
+  /* sums */
+  const lim = 7, rowsT = [], colsT = [];
+  const shownLayers = M.layers.slice(0, landed);
+  if (!M.cheb) {
+    for (const Ly of shownLayers.slice(0, lim)) rowsT.push(`${Ly.n}\\cdot${fP(Ly.p)}`);
+    for (const j of [...Array(Math.min(lim, Math.round(M.vmax))).keys()].map(j => j + 1)) colsT.push(fP(M.tail(j)));
+  } else {
+    for (const Ly of shownLayers.slice(0, lim)) rowsT.push(`${fnum(Ly.v, 2)}\\cdot${fP(Ly.p)}`);
+    let prev = 0; for (const st2 of M.steps.slice(0, lim)) { colsT.push(`${fnum(st2.v - prev, 2)}\\cdot${fP(st2.h)}`); prev = st2.v; }
+  }
+  const more = (arr, total) => arr.join("+") + (total > arr.length ? "+\\cdots" : "");
+  const rowsSum = shownLayers.reduce((x, Ly) => x + Ly.v * Ly.p, 0);
+  let sm = `<div class="rule">by rows: one row per value \\(n\\)</div>`;
+  if (landed === 0) sm += `<div class="row muted">${M.cheb ? "\\(\\sum_n (n-\\E{X})^2\\cdot\\Prob{X=n}\\)" : "\\(\\sum_n n\\cdot\\Prob{X=n}\\)"} — step forward</div>`;
+  else sm += `<div class="row">\\(${more(rowsT, landed)}\\) ${landed < L ? "<span class='muted'>(so far: " + fnum(rowsSum) + ")</span>" : "\\(=" + fnum(M.EV) + "\\)"}</div>`;
+  sm += `<div class="rule">by columns: ${M.cheb ? "one strip per step of the staircase" : "one column per \\(j\\ge1\\)"}</div>`;
+  if (step < aStairs()) sm += `<div class="row muted">${M.cheb ? "\\(\\int_0^\\infty\\Prob{Y\\ge y}\\,dy\\)" : "\\(\\sum_{j\\ge1}\\Prob{X\\ge j}\\)"} — once the staircase is complete</div>`;
+  else sm += `<div class="row">\\(${more(colsT, M.cheb ? M.steps.length : Math.round(M.vmax))}=${fnum(M.EV)}\\)</div>`;
+  setMath(el("aSums"), sm);
+
+  /* rectangle */
+  el("aRectTitle").textContent = M.cheb ? "Chebychev's inequality" : "Markov's inequality";
+  let rc;
+  if (step < aRect() || !M.L) {
+    rc = `<div class="row muted">${M.cheb ? "\\(\\Prob{|X-\\E{X}|\\ge a}\\le\\Var{X}/a^2\\)" : "\\(\\Prob{X\\ge a}\\le\\E{X}/a\\)"} — in the last step</div>`;
+  } else if (!M.cheb) {
+    const a = A.aM, h = M.tail(a);
+    rc = `<div class="row">\\(a=${a}\\):&emsp;\\(\\Prob{X\\ge ${a}}=${fP(h, 4)}\\)</div>
+          <div class="row red">\\(a\\cdot\\Prob{X\\ge a}=${fnum(a * h, 4)}\\;\\le\\;\\E{X}=${fnum(M.EV, 4)}\\)</div>
+          <div class="row">\\(\\Prob{X\\ge ${a}}=${fP(h, 4)}\\;\\le\\;\\E{X}/a=${fnum(M.EV / a, 4)}\\)</div>`;
+  } else {
+    const b = A.bC, a = Math.sqrt(b), h = M.tail(b);
+    rc = `<div class="row">\\(Y=(X-\\E{X})^2\\), \\(b=a^2=${fnum(b, 4)}\\), \\(a=${fnum(a, 4)}\\)</div>
+          <div class="row">\\(\\Prob{|X-${fnum(M.mu)}|\\ge ${fnum(a, 3)}}=\\Prob{Y\\ge b}=${fP(h, 4)}\\)</div>
+          <div class="row red">\\(b\\cdot\\Prob{Y\\ge b}=${fnum(b * h, 4)}\\;\\le\\;\\Var{X}=${fnum(M.EV, 4)}\\)</div>
+          <div class="row">\\(\\Prob{Y\\ge b}=${fP(h, 4)}\\;\\le\\;\\Var{X}/a^2=${fnum(M.EV / b, 4)}\\)</div>`;
+  }
+  setMath(el("aRect"), rc);
+  el("aMeta").textContent = A_PRESETS[A.key].label + (A.key === "geom" ? " (cut off, renormalized)" : "");
+}
+/* Chernoff's side: numbers change with every move of t, so plain HTML with cached formula snippets */
+function aSideChern() {
+  const M = A.M, C = M.C, step = A.step, L = M.L, a = A.aC, t = A.t, landed = clamp(step - 1, 0, L);
+  const truth = C.truth, bnd = M.EV;
+  let st = "";
+  if (step === 0) {
+    st = `<p>The threshold \\(a=${a}\\), and the event \\(X\\ge a\\): its probability is ${fh(truth)}. Chernoff applies Markov to \\(Y=e^{t(X-a)}\\) for a \\(t>0\\). Then \\(X\\ge a\\) exactly when \\(Y\\ge1\\), so \\(\\Prob{X\\ge a}=\\Prob{Y\\ge 1}\\le\\E{Y}\\).</p>
+          <p>The lines show where each value \\(n\\) goes: to \\(y=e^{t(n-a)}\\). Step forward to send the bars along them.</p>`;
+  } else if (step === 1) {
+    st = `<p>Every bar moved to \\(y=e^{t(n-a)}\\), keeping its probability. Values below \\(a\\) land in \\((0,1)\\), squeezed towards 0 the more, the larger \\(t\\); \\(a\\) itself lands at exactly 1; values above \\(a\\) land beyond 1, spread out exponentially. The event \\(X\\ge a\\) is now \\(Y\\ge1\\) (shaded). Move \\(t\\) to see the map change.</p>
+          <p>From here on it is Markov's picture for \\(Y\\).</p>`;
+  } else if (step - 1 <= L) {
+    const Ly = M.layers[step - 2], n = Ly.n;
+    st = `<p>Value \\(n=${n}\\): a block of width \\(e^{t(${n}-a)}\\) = ${fh(Ly.v)} and height \\(\\Prob{X=${n}}\\) = ${fh(Ly.p)}.</p><p>` +
+         (n < a ? "Below the threshold: narrower than 1, and the larger \\(t\\), the narrower."
+          : n === a ? "At the threshold: width exactly 1, whatever \\(t\\) is."
+          : "Above the threshold: wider than 1, and the larger \\(t\\), the wider.") + " Widest blocks at the bottom.</p>";
+  } else if (step === aStairs()) {
+    st = `<p>The area is \\(\\E{Y}=\\sum_n e^{t(n-a)}\\,\\Prob{X=n}\\) = ${fh(bnd)}.</p>
+          <p>Blocks of values far above \\(a\\) can be much wider than the picture: they run beyond the right edge, and the number there says how much area is out of view.</p>`;
+  } else {
+    let reg;
+    if (C.tStar === 0) reg = "Here \\(a\\le\\E{X}\\): no \\(t>0\\) helps, the bound stays above 1.";
+    else if (t < 0.85 * C.tStar) reg = "For \\(t\\) below \\(t^*\\), the values below \\(a\\) still have wide blocks: most of the waste is <i>above</i> the rectangle. Increase \\(t\\).";
+    else if (t > 1.15 * C.tStar) reg = "For \\(t\\) above \\(t^*\\), the few values above \\(a\\) get very wide blocks: most of the waste is to the <i>right</i> of the rectangle. Decrease \\(t\\).";
+    else reg = "At \\(t\\approx t^*\\) the waste above the rectangle and the waste to its right are balanced: this is the best bound of this form.";
+    st = `<p>The rectangle of width 1 and height \\(\\Prob{Y\\ge 1}=\\Prob{X\\ge a}\\) fits under the staircase. So for every \\(t>0\\)</p>
+          <p style="text-align:center">\\(\\displaystyle\\Prob{X\\ge a}\\le\\E{e^{t(X-a)}}=e^{-ta}\\,\\E{e^{tX}}\\).</p><p>${reg}</p>`;
+  }
+  setHTML(el("aStatus"), mhx(st));
+
+  /* sums: rows and columns */
+  const lim = 5;
+  let sm = `<div class="rule">by rows: one row per value \\(n\\)</div>`;
+  if (landed === 0) sm += `<div class="row muted">\\(\\sum_n e^{t(n-a)}\\cdot\\Prob{X=n}\\) — step forward</div>`;
+  else {
+    const sh = M.layers.slice(0, landed), sofar = sh.reduce((x, Ly) => x + Ly.v * Ly.p, 0);
+    sm += `<div class="row">${sh.slice(0, lim).map(Ly => fh(Ly.v) + "·" + fh(Ly.p)).join(" + ")}${landed > lim ? " + …" : ""} ${landed < L ? "<span class='muted'>(so far: " + fh(sofar) + ")</span>" : "= " + fh(bnd)}</div>`;
+  }
+  sm += `<div class="rule">by columns: one strip per step of the staircase</div>`;
+  if (step < aStairs()) sm += `<div class="row muted">\\(\\int_0^\\infty\\Prob{Y\\ge y}\\,dy\\) — once the area is complete</div>`;
+  else { let prev = 0; const cs = M.steps.slice(0, lim).map(s2 => { const r = fh(s2.v - prev) + "·" + fh(s2.h); prev = s2.v; return r; });
+         sm += `<div class="row">${cs.join(" + ")}${M.steps.length > lim ? " + …" : ""} = ${fh(bnd)}</div>`; }
+  setHTML(el("aSums"), mhx(sm));
+
+  /* the bound */
+  el("aRectTitle").textContent = "The bound";
+  const ratio = l => isFinite(C.truthLn) ? " <span class='muted'>(" + fmtRatioLn(l - C.truthLn).replace("× ", "") + " × the truth)</span>" : "";
+  let rc = `<div class="row">\\(\\Prob{X\\ge ${a}}\\) = ${fh(truth)} <span class="muted">(exact)</span></div>
+            <div class="row red">\\(t={}\\)${fnum(t, 2)}:&ensp;\\(\\E{e^{t(X-a)}}\\) = ${fh(bnd)}${ratio(Math.log(bnd))}</div>`;
+  if (C.tStar > 0) rc += `<div class="row">best: \\(t^*={}\\)${fnum(C.tStar, 3)}:&ensp;${fhLn(C.lb(C.tStar))}${ratio(C.lb(C.tStar))}</div>`;
+  if (C.rel) {
+    rc += `<div class="rule">using \\(\\E{e^{tX}}\\le e^{\\mu(e^t-1)}\\), \\(\\mu=np\\)</div>
+           <div class="row">\\(e^{\\mu(e^t-1)-ta}\\) = ${fhLn(C.rel(t))}</div>`;
+    if (C.tRel !== null) rc += `<div class="row">at \\(t=\\ln(1+\\delta)={}\\)${fnum(C.tRel, 3)}: ${fhLn(C.rel(C.tRel))} <span class="muted">= Chernoff (1)</span></div>`;
+  }
+  setHTML(el("aRect"), mhx(rc));
+  el("aMeta").textContent = A_PRESETS[A.key].label + (A.key === "geom" ? " (cut off, renormalized)" : "");
+}
+function aLegend() {
+  const M = A.M;
+  /* typeset the tooltip formulas ahead of the first hover (mh caches, so this is cheap after the first time) */
+  if (mjReady()) { mh("Y\\cdot\\Prob{X=n}"); mh("n\\cdot\\Prob{X=n}"); }
+  if (M.support.length <= 25 && mjReady()) for (const n of M.support) { mh("n=" + n); mh("\\Prob{X=" + n + "}"); if (M.kind !== "markov") mh(M.kind === "cheb" ? "Y=(" + n + "-\\E{X})^2" : "Y=e^{t(" + n + "-a)}"); }
+  let lg = "";
+  if (M.support.length <= 10) for (const n of M.support) lg += `<span class="item"><span class="sw" style="background:${M.col[n]}"></span>${mh("n=" + n)}</span>`;
+  else lg += `<span class="item"><span class="sw" style="background:${rampFill(0)}"></span>small ${mh("n")}</span><span class="item"><span class="sw" style="background:${rampFill(1)}"></span>large ${mh("n")}</span>`;
+  const line = (col, dash, w) => `<svg width="30" height="10"><line x1="1" x2="29" y1="5" y2="5" stroke="${col}" stroke-width="${w}" stroke-dasharray="${dash}"/></svg>`;
+  if (M.kind !== "markov") lg += `<span class="item">${line("var(--wi-ink-soft)", "", 2)}the map ${mh(M.chern ? "n\\mapsto e^{t(n-a)}" : "n\\mapsto(n-\\E{X})^2")}</span>`;
+  if (A.step >= aRect()) lg += `<span class="item"><span class="sw" style="background:rgba(204,47,34,.18);border-color:var(--c-rect)"></span>${mh(M.kind === "cheb" ? "b\\cdot\\Prob{Y\\ge b}" : M.kind === "chern" ? "\\Prob{X\\ge a}" : "a\\cdot\\Prob{X\\ge a}")}</span>`;
+  if (el("aLegend")._html !== lg) { el("aLegend").innerHTML = lg; el("aLegend")._html = lg; }
+}
+
+/* ---------- pointer: Markov/Chebychev drag the threshold on the right, Chernoff drags a on the left ---------- */
+function initAPointer() {
+  const svg = el("aSvg");
+  let drag = null;
+  const setFrom = e => {
+    if (!aGeom || !A.M.L) return;
+    const r = svg.getBoundingClientRect(), x = e.clientX - r.left, M = A.M;
+    if (drag === "a") {
+      const a = clamp(Math.round((x - aGeom.L0) / aGeom.uL), 1, Math.max(1, aGeom.N));
+      if (a !== A.aC) { A.aC = a; aBuildModel(); aSyncChern(); renderA(); writeHash(); }
+      return;
+    }
+    const t = (x - aGeom.R0) / aGeom.uR;
+    if (M.kind === "markov") A.aM = clamp(Math.round(t), 1, Math.max(1, Math.round(M.vmax)));
+    else { let best = M.vs[0]; for (const v of M.vs) if (Math.abs(v - t) < Math.abs(best - t)) best = v; A.bC = best; }
+    if (A.step !== aRect()) { aStopPlay(); A.step = aRect(); A.tw = null; aSyncTransport(); }
+    renderA(); writeHash();
+  };
+  svg.addEventListener("pointerdown", e => {
+    if (!aGeom) return;
+    const r = svg.getBoundingClientRect(), x = e.clientX - r.left;
+    if (A.kind === "chern") { if (x > aGeom.Lw + 30) return; drag = "a"; aStopSweep(); }
+    else { if (x < aGeom.R0 - 14) return; drag = "thr"; }
+    svg.setPointerCapture(e.pointerId); e.preventDefault(); setFrom(e);
+  });
+  svg.addEventListener("pointermove", e => {
+    if (drag) { setFrom(e); return; }
+    if (!aGeom) return;
+    const r = svg.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    const inBox = b => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1;
+    const hit = aGeom.bars.find(inBox) || [...aGeom.blocks].reverse().find(inBox);
+    const n = hit ? hit.n : null;
+    if (n !== A.hover) { A.hover = n; renderA(); }
+    if (n === null) { tipHide(); return; }
+    const M = A.M, p = M.pmf[n], K = M.kind;
+    const v = K === "markov" ? n : K === "cheb" ? (n - M.mu) * (n - M.mu) : Math.exp(A.t * (n - A.aC));
+    let h = `<div class="tt-h">${mh("n=" + n)}</div><table>`;
+    h += `<tr><td>${mh("\\Prob{X=" + n + "}")}</td><td class="v">${fh(p)}</td></tr>`;
+    if (K === "markov") h += `<tr><td>copies</td><td class="v">${n}</td></tr>`;
+    else h += `<tr><td>${K === "cheb" ? mh("Y=(" + n + "-\\E{X})^2") : mh("Y=e^{t(" + n + "-a)}")}</td><td class="v">${fh(v)}</td></tr>`;
+    h += `<tr><td>area ${K === "markov" ? mh("n\\cdot\\Prob{X=n}") : mh("Y\\cdot\\Prob{X=n}")}</td><td class="v">${fh(v * p)}</td></tr></table>`;
+    tipShow(e, h);
+  });
+  svg.addEventListener("pointerleave", () => { if (A.hover !== null) { A.hover = null; renderA(); } tipHide(); });
+  svg.addEventListener("pointerup", () => { drag = null; });
+  svg.addEventListener("pointercancel", () => { drag = null; });
+  /* the t plot */
+  const ts = el("aTSvg");
+  let td = false;
+  const setT = e => { if (!tGeom) return; const r = ts.getBoundingClientRect(); aSetT((e.clientX - r.left - tGeom.x0) / (tGeom.x1 - tGeom.x0) * tGeom.tMax); };
+  ts.addEventListener("pointerdown", e => { aStopSweep(); td = true; ts.setPointerCapture(e.pointerId); e.preventDefault(); setT(e); });
+  ts.addEventListener("pointermove", e => { if (td) setT(e); });
+  ts.addEventListener("pointerup", () => { td = false; writeHash(); });
+  ts.addEventListener("pointercancel", () => { td = false; });
+}
+
+/* ---------- Chernoff: t ---------- */
+function aSetT(t, quiet) {
+  const C = A.M.C; if (!C) return;
+  A.t = clamp(t, T_MIN, C.tMax);
+  aBuildModel(); aSyncChern(); renderA();
+  if (!quiet) writeHash();
+}
+let SWEEP = null;
+function aStopSweep() { if (SWEEP) { cancelAnimationFrame(SWEEP.raf); SWEEP = null; el("aSweep").textContent = "sweep t"; writeHash(); } }
+function aSweep() {
+  if (SWEEP) { aStopSweep(); return; }
+  const C = A.M.C, t0 = performance.now(), dur = 4500, tEnd = C.tStar > T_MIN ? C.tStar : C.tMax / 2;
+  el("aSweep").textContent = "stop";
+  const frame = now => {
+    const u = clamp((now - t0) / dur, 0, 1);
+    const t = u < 0.65 ? lerp(T_MIN, C.tMax, ease(u / 0.65)) : lerp(C.tMax, tEnd, ease((u - 0.65) / 0.35));
+    aSetT(t, true);
+    if (u < 1 && SWEEP) SWEEP.raf = requestAnimationFrame(frame); else aStopSweep();
+  };
+  SWEEP = { raf: requestAnimationFrame(frame) };
+}
+function aSyncChern() {
+  if (A.kind !== "chern" || !A.M || !A.M.C) return;
+  const C = A.M.C;
+  el("aA").value = A.aC;
+  el("aT").value = Math.round((A.t - T_MIN) / (C.tMax - T_MIN) * 1000);
+  el("aTVal").textContent = "t = " + fnum(A.t, 2);
+  el("aTStar").disabled = !(C.tStar > 0);
+  el("aTRel").classList.toggle("hidden", !(C.rel && C.tRel !== null));
+}
+
+/* ---------- controls of tabs 1–3 ---------- */
+function aParamsUI() {
+  aFillPar();
+  const P = A_PRESETS[A.key], box = el("aParams");
+  box.innerHTML = "";
+  for (const [k, lab, , title] of P.par) {
+    const l = document.createElement("span"); l.className = "pl"; l.textContent = lab; l.title = title;
+    const inp = document.createElement("input"); inp.type = "text"; inp.className = "num"; inp.value = A.par[k]; inp.title = title;
+    inp.addEventListener("change", () => {
+      const old = A.par[k];
+      try { parseNum(inp.value); A.par[k] = inp.value.trim(); aLoad(true); inp.style.borderColor = ""; }
+      catch (e) { A.par[k] = old; inp.style.borderColor = "var(--wi-active)"; }
+    });
+    box.appendChild(l); box.appendChild(inp);
+  }
+  box.classList.toggle("hidden", !P.par.length);
+}
+function aSyncControls() {
+  const sel = el("aDist");
+  sel.innerHTML = "";
+  for (const k of PRESET_LIST[A.kind]) { const o = document.createElement("option"); o.value = k; o.textContent = A_PRESETS[k].label; sel.appendChild(o); }
+  sel.value = A.key;
+  aParamsUI();
+  const ch = A.kind === "chern";
+  el("aChernCtl").classList.toggle("hidden", !ch);
+  el("aTBox").classList.toggle("hidden", !ch);
+  el("aRectHint").textContent = ch ? "" : "drag the red edge";
+  el("aSumsTitle").textContent = "The area, added up two ways";
+  el("aCmp").checked = A.cmp; el("aZoom").checked = A.zoom;
+  setMath(el("aSub"), A_SUB[A.kind]);
+  setMath(el("aExplain"), A_EXPLAIN[A.kind]);
+  el("aStatus")._html = null; el("aSums")._html = null; el("aRect")._html = null; aSideKey = "";
+  aSyncChern();
+}
+/* (re)build after a change of the distribution; keepPhase: stay in the same phase if possible */
+function aLoad(keepPhase) {
+  const ph = A.PH.length && A.M ? phaseOfPos(A.step) : 0, wasRect = A.M && A.step === aRect(), wasStairs = A.M && A.step === aStairs();
+  if (!keepPhase && A.kind === "chern") { A.aC = null; A.t = null; }
+  DIST.ver++;
+  aBuildModel();
+  if (!keepPhase) aDefaultThresholds(); else aSnapThreshold();
+  if (A.kind === "markov" && A.aM === null) aDefaultThresholds();
+  if (A.kind === "cheb" && A.bC === null) aDefaultThresholds();
+  aBuildPhases();
+  A.tw = null; aStopPlay(); aStopSweep();
+  A.step = keepPhase && A.M.L ? (wasRect ? aRect() : wasStairs ? aStairs() : ph === 0 ? 0 : aStairs()) : 0;
+  aSyncChern(); layoutPhases(); renderA(); writeHash();
+}
+
+const A_SUB = {
+  markov: `For \\(X\\in\\N_0\\), every value \\(n\\) counts \\(n\\) times in \\(\\E{X}=\\sum_n n\\cdot\\Prob{X=n}\\).
+    Lay out \\(n\\) copies of the bar of \\(n\\) and stack them: read by rows, the area is \\(\\E{X}\\); read by columns,
+    column \\(j\\) holds one copy of every bar \\(n\\ge j\\), so it is \\(\\Prob{X\\ge j}\\) high.
+    Markov's inequality is then a rectangle that fits under this staircase.`,
+  cheb: `Chebychev's inequality is Markov's inequality for \\(Y=(X-\\E{X})^2\\). First every bar of \\(X\\) is sent to its value of \\(Y\\),
+    which gives the distribution of \\(Y\\); then Markov's picture for \\(Y\\): the bar at \\(y\\) becomes a block of width \\(y\\), the blocks form the staircase
+    \\(y\\mapsto\\Prob{Y\\ge y}\\) with area \\(\\E{Y}=\\Var{X}\\), and a rectangle under it bounds the probability of a deviation of at least \\(a\\) from the mean.`,
+  chern: `The Chernoff bound is Markov's inequality for \\(Y=e^{t(X-a)}\\): value \\(n\\) is sent to \\(y=e^{t(n-a)}\\) and becomes a block of that width,
+    so the threshold \\(a\\) has width exactly 1. The area is the bound \\(\\E{e^{t(X-a)}}\\), the rectangle of width 1 is \\(\\Prob{X\\ge a}\\).
+    The parameter \\(t\\) trades the waste left of the threshold against the waste right of it.`
+};
+const A_EXPLAIN = {
+  markov: `
+<h4>Expectation as an area</h4>
+<p>For \\(X\\in\\N_0\\), write \\(n=\\sum_{j=1}^{n}1\\): then \\(\\E{X}=\\sum_n n\\,\\Prob{X=n}=\\sum_n\\sum_{j\\le n}\\Prob{X=n}=\\sum_{j\\ge1}\\sum_{n\\ge j}\\Prob{X=n}=\\sum_{j\\ge1}\\Prob{X\\ge j}\\).
+The picture is this exchange of summation order: rows are the values \\(n\\), columns the indices \\(j\\).</p>
+<p>The same holds for any \\(X\\ge0\\): \\(\\E{X}=\\int_0^\\infty\\Prob{X\\ge t}\\,dt\\). The Chebychev and Chernoff pictures use exactly this, for variables with non-integer values.</p>
+<h4>Markov from the picture</h4>
+<p>The tail function \\(t\\mapsto\\Prob{X\\ge t}\\) never increases. So on \\([0,a]\\) it is at least \\(\\Prob{X\\ge a}\\), and the rectangle \\(a\\cdot\\Prob{X\\ge a}\\) fits under it. Equality needs both missing pieces to be empty: no mass strictly between \\(0\\) and \\(a\\), none above \\(a\\) (preset <i>two-point</i>).</p>`,
+  cheb: `
+<h4>Chebychev is Markov for \\((X-\\E{X})^2\\)</h4>
+<p>\\(Y=(X-\\E{X})^2\\ge0\\) and \\(\\E{Y}=\\Var{X}\\). Markov for \\(Y\\) at \\(b=a^2\\) gives \\(\\Prob{|X-\\E{X}|\\ge a}\\le\\Var{X}/a^2\\).</p>
+<p>The picture is the one for Markov, for a variable with non-integer values: \\(\\E{Y}=\\int_0^\\infty\\Prob{Y\\ge t}\\,dt\\), the area under the staircase.</p>
+<h4>What squaring does</h4>
+<p>A value at distance \\(2a\\) from the mean gets a block four times as wide as one at distance \\(a\\); values close to the mean get very narrow blocks. Both sides count: the event is \\(|X-\\E{X}|\\ge a\\), not only \\(X\\ge\\E{X}+a\\).</p>`,
+  chern: `
+<h4>Chernoff is Markov for \\(e^{tX}\\)</h4>
+<p>For \\(t>0\\), \\(X\\ge a\\iff e^{tX}\\ge e^{ta}\\), so Markov gives \\(\\Prob{X\\ge a}\\le\\E{e^{tX}}/e^{ta}=\\E{e^{t(X-a)}}\\). Dividing by \\(e^{ta}\\) only rescales the picture so that the threshold has width 1.</p>
+<h4>One idea behind all three bounds</h4>
+<p>Any \\(g\\ge0\\) with \\(g(n)\\ge1\\) for \\(n\\ge a\\) gives \\(\\Prob{X\\ge a}\\le\\E{g(X)}\\), because \\(g\\ge\\mathbf 1[\\,\\cdot\\ge a]\\). Markov uses \\(g(n)=n/a\\), Chebychev \\(\\bigl(\\frac{n-\\mu}{a-\\mu}\\bigr)^2\\), Chernoff \\(e^{t(n-a)}\\). The closer \\(g\\) hugs the step where the mass is, the better the bound. The exponential is almost 0 left of \\(a\\), where nearly all the mass is, and it grows fast right of \\(a\\), where almost none is.</p>
+<h4>Which \\(t\\)</h4>
+<p>The bound \\(\\E{e^{t(X-a)}}\\) is convex in \\(t\\). Its minimum \\(t^*\\) is where the tilted mean equals \\(a\\). For \\(X\\sim\\Bin(n,p)\\) and \\(a=cn\\), the minimum is \\(e^{-n\\,D(c\\,\\|\\,p)}\\) with the relative entropy \\(D(c\\,\\|\\,p)=c\\ln\\frac cp+(1-c)\\ln\\frac{1-c}{1-p}\\).</p>
+<p>The usual proof first estimates \\(\\E{e^{tX}}\\le e^{\\mu(e^t-1)}\\), from \\(1+x\\le e^x\\) for every coin, and then picks the best \\(t\\) for this estimate, \\(t=\\ln(1+\\delta)\\) with \\(a=(1+\\delta)\\mu\\). That gives Chernoff (1). It is weaker than the exact minimum, but it holds for every sum of independent \\(\\{0,1\\}\\)-variables with mean \\(\\mu\\), not only for the binomial.</p>
+<p>Even at \\(t^*\\) a gap to the truth remains: the waste above and to the right of the rectangle. For the binomial it grows like \\(\\sqrt n\\), much slower than the probabilities shrink.</p>`
+};
+/* ==========================================================================
+   TABS 4/5 — the exact tail and the bounds, all as natural logarithms
+   ========================================================================== */
+/* ln P[X ≥ k] for X ~ Bin(n, p), k = 0..n (Float64Array; -Infinity beyond what matters) */
+const LT_CACHE = new Map();
+function logTail(n, p) {
+  const key = n + "|" + p;
+  if (LT_CACHE.has(key)) return LT_CACHE.get(key);
+  const lq = Math.log1p(-p), lr = Math.log(p) - lq;
+  const lp = new Float64Array(n + 1).fill(-Infinity);
+  lp[0] = n * lq;
+  let K = n;
+  for (let k = 0; k < n; k++) {
+    lp[k + 1] = lp[k] + Math.log((n - k) / (k + 1)) + lr;
+    if (k + 1 > n * p && lp[k + 1] < -2500) { K = k + 1; break; }
+  }
+  const T = new Float64Array(n + 2).fill(-Infinity);
+  for (let k = K; k >= 0; k--) T[k] = lse(lp[k], T[k + 1]);
+  for (let k = 0; k <= n; k++) if (T[k] > 0) T[k] = 0;
+  if (LT_CACHE.size > 6) LT_CACHE.delete(LT_CACHE.keys().next().value);
+  LT_CACHE.set(key, T);
+  return T;
+}
+const BOUNDS = [
+  { id: "exact",  name: "exact",        col: "var(--c-exact)",  dash: "",        w: 2.6, tex: "\\Prob{X\\ge x}",                                   uses: "the distribution" },
+  { id: "markov", name: "Markov",       col: "var(--c-markov)", dash: "9 4",     w: 2,   tex: "\\frac{np}{x}",                                     uses: "\\(\\E{X}=np\\)" },
+  { id: "cheb",   name: "Chebychev",    col: "var(--c-cheb)",   dash: "2 3",     w: 2.2, tex: "\\frac{np(1-p)}{(x-np)^2}",                         uses: "\\(\\Var{X}=np(1-p)\\)" },
+  { id: "cher1",  name: "Chernoff (1)", col: "var(--c-cher)",   dash: "",        w: 2,   tex: "\\Bigl(\\frac{e^{\\delta}}{(1+\\delta)^{1+\\delta}}\\Bigr)^{np}", uses: "independence" },
+  { id: "cher2",  name: "Chernoff (2)", col: "var(--c-cher)",   dash: "6 3",     w: 1.6, tex: "e^{-np\\delta^2/3}\\ \\ (\\delta\\le1)",            uses: "independence" },
+  { id: "hoeff",  name: "Hoeffding",    col: "var(--c-hoeff)",  dash: "12 3 2 3", w: 2,  tex: "e^{-2(x-np)^2/n}",                                  uses: "independence" },
+  { id: "pow2",   name: "Chernoff, large", col: "var(--c-pow2)", dash: "3 2",    w: 2.2, tex: "2^{-x}\\ \\ (x\\ge6np)",                            uses: "independence" }
+];
+function boundsLn(n, p, x) {
+  const mu = n * p, d = x - mu, del = x / mu - 1;
+  return {
+    markov: x > 0 ? Math.log(mu / x) : NaN,
+    cheb: d > 0 ? Math.log(n * p * (1 - p) / (d * d)) : NaN,
+    cher1: del > 0 ? mu * (del - (1 + del) * Math.log1p(del)) : NaN,
+    cher2: del > 0 && del <= 1 + 1e-12 ? -mu * del * del / 3 : NaN,
+    hoeff: d > 0 ? -2 * d * d / n : NaN,
+    pow2: x >= 6 * mu - 1e-9 ? -x * Math.LN2 : NaN
+  };
+}
+const exactLn = (n, p, x) => { const T = logTail(n, p), k = Math.ceil(x - 1e-9); return k <= 0 ? 0 : k > n ? -Infinity : T[k]; };
+
+/* ==========================================================================
+   TABS 4/5 — the page part (two instances: R = "Bounds compared", S = "Small p")
+   ========================================================================== */
+const RACE_PRESETS = {
+  race: {
+    table:  { label: "100 fair coins, at least 75 heads", set: { n: 100, p: "1/2", vs: "x", probe: 75, dec: 15 } },
+    coins:  { label: "1000 fair coins", set: { n: 1000, p: "1/2", vs: "x", probe: 600, dec: 30 } },
+    rare:   { label: "Rare successes: n = 1000, p = 0.02", set: { n: 1000, p: "0.02", vs: "x", probe: 40, dec: 15 } },
+    growth: { label: "Growing n, threshold 3n/4", set: { n: 400, p: "1/2", vs: "n", c: "3/4", probe: 100, dec: 30 } }
+  },
+  small: {
+    n1000:  { label: "n = 1000", set: { n: 1000, probe: 6, dec: 15 } },
+    n100:   { label: "n = 100", set: { n: 100, probe: 5, dec: 15 } },
+    n1e6:   { label: "n = 1 000 000", set: { n: 1000000, probe: 9, dec: 20 } }
+  }
+};
+function raceHTML(P, small) {
+  const pre = RACE_PRESETS[small ? "small" : "race"];
+  return `
+  <p class="subtitle hide-p">${small
+    ? "\\(X\\sim\\Bin(n,1/n)\\): the number of balls in one bin when \\(n\\) balls go into \\(n\\) bins, so \\(\\E{X}=1\\). Deviations are now large compared to the mean, and the multiplicative Chernoff bound beats Hoeffding by far: Hoeffding only sees the scale \\(\\sqrt n\\). The dashed lines \\(n^{-1},n^{-2},\\dots\\) are where a union bound over all \\(n\\) bins starts to work."
+    : "\\(X\\sim\\Bin(n,p)\\) and the question how likely \\(X\\ge x\\) is. Each bound uses more about \\(X\\): Markov only \\(\\E{X}\\), Chebychev also \\(\\Var{X}\\), Chernoff and Hoeffding that \\(X\\) is a sum of independent coins. The \\(y\\)-axis is logarithmic; the dashed lines \\(n^{-1},n^{-2},n^{-3}\\) show where &ldquo;with high probability&rdquo; begins."}</p>
+  <div class="controls hide-p">
+    <div class="ctl"><label for="${P}Pre">Example</label><select id="${P}Pre">${Object.entries(pre).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join("")}<option value="">(own values)</option></select></div>
+    <div class="ctl"><span class="pl">n</span><input type="range" class="plain" id="${P}NS" min="0" max="1000" style="width:120px"><input type="text" class="num" id="${P}N"></div>
+    <div class="ctl${small ? " hidden" : ""}"><span class="pl">p</span><input type="range" class="plain" id="${P}PS" min="1" max="99" style="width:100px"><input type="text" class="num" id="${P}P"></div>
+    ${small ? `<div class="ctl"><span class="pl">p = 1/n</span></div>` : `
+    <div class="ctl"><span class="lbl">x-axis</span><span class="seg" id="${P}Vs"><button data-v="x" title="Fixed n, the threshold x on the x-axis">threshold \\(x\\)</button><button data-v="n" title="Threshold x = c·n for a fixed fraction c; n on the x-axis">size \\(n\\)</button></span></div>
+    <div class="ctl" id="${P}CBox"><span class="pl">x = c·n, c</span><input type="text" class="num" id="${P}C"></div>`}
+    <div class="ctl"><label for="${P}Dec">y down to</label><select id="${P}Dec">${[6, 10, 15, 20, 30, 50, 100, 200].map(d => `<option value="${d}">10^−${d}</option>`).join("")}</select></div>
+    ${small ? "" : `<label class="chk" id="${P}FullBox"><input type="checkbox" id="${P}Full"> all \\(x\\) up to \\(n\\)</label>`}
+  </div>
+  <div class="stage" id="${P}Stage">
+    <div class="col-main">
+      <div class="sim-box">
+        <div class="sim-title"><span>Tail probabilities, log scale</span><span class="rhs" id="${P}Meta"></span></div>
+        <div id="${P}Wrap"><svg id="${P}Svg" class="stagesvg"></svg></div>
+        <div class="vhandle hide-p" id="${P}VH" role="separator" aria-orientation="horizontal" tabindex="0"
+             title="Drag to change the height of the drawing (double-click: back to the default)"></div>
+        <div class="legend" id="${P}Legend"></div>
+      </div>
+    </div>
+    <div class="splitter" id="${P}Split" role="separator" aria-orientation="vertical" tabindex="0"
+         title="Drag to share the width between drawing and side panel (double-click: back to the default)"></div>
+    <div class="col-side">
+      <div class="sim-box">
+        <div class="sim-title"><span id="${P}TabTitle">At the red line</span><span class="rhs hide-p">click or drag in the plot</span></div>
+        <div id="${P}Table"></div>
+      </div>
+      <div class="sim-box">
+        <div class="sim-title"><span>What you see</span></div>
+        <div class="status" id="${P}Status"></div>
+      </div>
+      <details class="explain hide-p"><summary>The bounds, their assumptions, their fine print</summary><div class="explain-body" id="${P}Explain"></div></details>
+    </div>
+  </div>`;
+}
+const RACE_EXPLAIN = `
+<h4>What each bound uses</h4>
+<p><b>Markov</b> needs only \\(X\\ge0\\) and \\(\\E{X}\\); <b>Chebychev</b> also \\(\\Var{X}\\) (it is Markov for \\((X-\\E{X})^2\\)); the <b>Chernoff</b> bounds and <b>Hoeffding</b> need that \\(X\\) is a sum of independent \\(\\{0,1\\}\\)-variables (they are Markov for \\(e^{tX}\\)). More assumptions, faster decay: polynomial in the distance for Markov and Chebychev, exponential for the others.</p>
+<h4>The forms plotted</h4>
+<p>With \\(\\mu=np\\) and \\(x=(1+\\delta)\\mu\\): Chernoff (1) is \\(\\bigl(e^\\delta/(1+\\delta)^{1+\\delta}\\bigr)^{\\mu}\\) for all \\(\\delta>0\\); Chernoff (2), \\(e^{-\\mu\\delta^2/3}\\), holds only for \\(\\delta\\in(0,1]\\), so its curve stops at \\(x=2\\mu\\); &ldquo;Chernoff, large&rdquo; is \\(\\Prob{X\\ge R}\\le2^{-R}\\) for \\(R\\ge6\\mu\\).</p>
+<p>Chebychev and Hoeffding bound the two-sided event \\(|X-\\mu|\\ge d\\); the plot uses them for the upper tail \\(X\\ge\\mu+d\\), which is part of it. Hoeffding's two-sided form carries a factor 2, \\(2e^{-2d^2/n}\\); for one side alone, \\(e^{-2d^2/n}\\) holds.</p>
+<h4>With high probability</h4>
+<p>An event fails &ldquo;with high probability&rdquo; only with probability \\(O(n^{-c})\\) for <i>every</i> constant \\(c\\). A bound below \\(n^{-c}\\) at distance \\(d(n)\\) for every \\(c\\) is what the shaded band \\(np\\pm n^{0.501}\\) is about: outside it, Hoeffding gives \\(e^{-2n^{0.002}}\\), smaller than any \\(n^{-c}\\) for large enough \\(n\\) (although not yet for the \\(n\\) shown here).</p>
+<p>A bound can be far from the truth and still be enough: what matters is whether it is below the line you need.</p>`;
+
+function makeRace(P, small) {
+  const S = { P, small, n: small ? 1000 : 100, pStr: "1/2", p: 0.5, vs: "x", cStr: "3/4", c: 0.75, probe: small ? 6 : 75, dec: 15, full: false,
+              show: { exact: true, markov: true, cheb: true, cher1: true, cher2: true, hoeff: true, pow2: !!small },
+              split: 0.62, H: 420, Hdef: 420, preset: small ? "n1000" : "table", geom: null, ser: null, serKey: "" };
+  const box = el(small ? "tabSmall" : "tabRace");
+  box.innerHTML = raceHTML(P, small);
+  const nLo = small ? 1 : 1, nHi = small ? 6 : 4;          /* log10 range of the n slider */
+  S.nToSlider = n => Math.round((Math.log10(n) - nLo) / (nHi - nLo) * 1000);
+  S.sliderToN = u => Math.round(Math.pow(10, nLo + u / 1000 * (nHi - nLo)));
+  S.pOf = () => small ? 1 / S.n : S.p;
+  S.syncUI = () => {
+    el(P + "NS").value = S.nToSlider(S.n); el(P + "N").value = S.n;
+    if (!small) {
+      el(P + "PS").value = Math.round(S.p * 100); el(P + "P").value = S.pStr;
+      el(P + "Vs").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === S.vs));
+      el(P + "C").value = S.cStr; el(P + "CBox").classList.toggle("hidden", S.vs !== "n");
+      el(P + "FullBox").classList.toggle("hidden", S.vs !== "x"); el(P + "Full").checked = S.full;
+    }
+    el(P + "Dec").value = S.dec; el(P + "Pre").value = S.preset || "";
+  };
+  const changed = (keepPreset) => { if (!keepPreset) S.preset = ""; S.clampProbe(); S.syncUI(); renderRace(S); writeHash(); };
+  S.applyPreset = key => {
+    const pr = RACE_PRESETS[small ? "small" : "race"][key]; if (!pr) return;
+    const st = pr.set;
+    S.n = st.n; if (st.p) { S.pStr = st.p; S.p = parseNum(st.p); } S.vs = st.vs || "x";
+    if (st.c) { S.cStr = st.c; S.c = parseNum(st.c); } S.probe = st.probe; S.dec = st.dec; S.full = false; S.preset = key;
+    changed(true);
+  };
+  /* x range in x-mode, n range in n-mode */
+  S.range = () => {
+    const n = S.n, p = S.pOf(), mu = n * p;
+    if (S.vs === "n") { const q = S.qOf(); return { lo: q, hi: Math.max(q, Math.floor(n / q) * q), q }; }
+    if (small) {
+      const T = logTail(n, p), lim = -S.dec * Math.LN10;
+      let k = 1; while (k < n && T[k] > lim) k++;
+      return { lo: 0, hi: Math.min(n, Math.max(10, k + 2)) };
+    }
+    const band = Math.pow(n, 0.501);
+    const lo = Math.max(0, Math.floor(mu - 1.15 * band));
+    if (S.full) return { lo, hi: n };
+    const T = logTail(n, p), lim = -S.dec * Math.LN10;
+    let k = Math.ceil(mu); while (k < n && T[k] > lim) k++;
+    return { lo, hi: Math.min(n, Math.max(Math.ceil(mu + 2.2 * band), Math.ceil(k * 1.04 + 2))) };
+  };
+  S.clampProbe = () => {
+    const r = S.range();
+    S.probe = clamp(Math.round(S.probe), Math.max(1, Math.ceil(r.lo)), r.hi);
+    if (r.q > 1) S.probe = clamp(Math.round(S.probe / r.q) * r.q, r.lo, r.hi);
+  };
+  /* values at one point: x-mode at threshold x; n-mode at size m with x = c·m */
+  /* the step of n in the n-mode: smallest q with c·q an integer (else 1) */
+  S.qOf = () => { for (let q = 1; q <= 200; q++) if (Math.abs(S.c * q - Math.round(S.c * q)) < 1e-9) return q; return 1; };
+  S.valuesAt = t => {
+    const n = S.vs === "n" ? t : S.n, p = S.pOf(), x = S.vs === "n" ? S.c * t : t;
+    const b = boundsLn(n, p, x);
+    b.exact = exactLn(n, p, x);
+    return { n, x, b };
+  };
+
+  /* --- controls --- */
+  el(P + "Pre").onchange = e => { if (e.target.value) S.applyPreset(e.target.value); };
+  el(P + "NS").oninput = e => { S.n = Math.max(small ? 10 : 2, S.sliderToN(+e.target.value)); changed(); };
+  el(P + "N").onchange = e => {
+    try { const v = Math.round(parseNum(e.target.value)); if (v < 2 || v > (small ? 1e6 : 1e4)) throw new Error(); S.n = v; e.target.style.borderColor = ""; changed(); }
+    catch (er) { e.target.style.borderColor = "var(--wi-active)"; }
+  };
+  if (!small) {
+    el(P + "PS").oninput = e => { S.p = +e.target.value / 100; S.pStr = String(S.p); changed(); };
+    el(P + "P").onchange = e => {
+      try { const v = parseNum(e.target.value); if (!(v > 0 && v < 1)) throw new Error(); S.p = v; S.pStr = e.target.value.trim(); e.target.style.borderColor = ""; changed(); }
+      catch (er) { e.target.style.borderColor = "var(--wi-active)"; }
+    };
+    el(P + "Vs").querySelectorAll("button").forEach(b => b.onclick = () => {
+      if (S.vs === b.dataset.v) return;
+      S.vs = b.dataset.v;
+      if (S.vs === "n") { if (!(S.c > S.p && S.c <= 1)) { S.c = Math.min(1, (S.p + 1) / 2); S.cStr = fnum(S.c, 3); } S.probe = Math.round(S.n / 2); }
+      else S.probe = Math.round((S.n * S.p + S.n) / 2);
+      changed();
+    });
+    el(P + "C").onchange = e => {
+      try { const v = parseNum(e.target.value); if (!(v > 0 && v <= 1)) throw new Error(); S.c = v; S.cStr = e.target.value.trim(); e.target.style.borderColor = ""; changed(); }
+      catch (er) { e.target.style.borderColor = "var(--wi-active)"; }
+    };
+    el(P + "Full").onchange = e => { S.full = e.target.checked; changed(true); };
+  }
+  el(P + "Dec").onchange = e => { S.dec = +e.target.value; changed(true); };
+  /* the table: rows with checkboxes */
+  let th = `<table class="bt"><thead><tr><th></th><th>bound</th><th></th><th class="v" id="${P}ValH">value</th><th class="v">vs. exact</th></tr></thead><tbody>`;
+  for (const B of BOUNDS) {
+    if (small && B.id === "cher2") continue;
+    th += `<tr id="${P}row-${B.id}"><td><input type="checkbox" data-b="${B.id}" title="show / hide this curve"></td>
+      <td class="nm"><svg class="lsw" width="30" height="10"><line x1="1" x2="29" y1="5" y2="5" stroke="${B.col}" stroke-width="${B.w + 0.4}" stroke-dasharray="${B.dash}"/></svg> ${B.name}</td>
+      <td class="fm" data-tex="${esc(B.tex)}"></td><td class="v val"></td><td class="v r"></td></tr>`;
+  }
+  th += `</tbody></table><div class="tnote" id="${P}Note"></div>`;
+  el(P + "Table").innerHTML = th;
+  el(P + "Table").querySelectorAll("input[data-b]").forEach(cb => {
+    cb.checked = S.show[cb.dataset.b];
+    cb.onchange = () => { S.show[cb.dataset.b] = cb.checked; renderRace(S); writeHash(); };
+  });
+  setMath(el(P + "Explain"), RACE_EXPLAIN);
+  initRacePointer(S);
+  return S;
+}
+
+/* ---- the series for the n-mode (exact needs one binomial per n) ---- */
+function nSeries(S, lo, hi, npts) {
+  const q = S.qOf(), key = [S.n, S.pOf(), S.c, lo, hi, npts, q].join("|");
+  if (S.serKey === key) return S.ser;
+  const ms = [], cnt = Math.floor((hi - lo) / q) + 1;
+  if (cnt <= npts) for (let m = lo; m <= hi; m += q) ms.push(m);
+  else for (let i = 0; i < npts; i++) { const m = lo + q * Math.round((cnt - 1) * i / (npts - 1)); if (!ms.length || ms[ms.length - 1] !== m) ms.push(m); }
+  const out = ms.map(m => S.valuesAt(m));
+  S.ser = out; S.serKey = key;
+  return out;
+}
+
+function renderRace(S) {
+  if (MODE !== (S.small ? "small" : "race")) return;
+  const P = S.P, svg = el(P + "Svg"), wrap = el(P + "Wrap");
+  const W = Math.max(440, wrap.clientWidth), H = S.H;
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const n = S.n, p = S.pOf(), mu = n * p, dec = S.dec, nmode = S.vs === "n";
+  const r = S.range();
+  const PL = 66, PR = 64, PT = 22, PB = 50;
+  const x0 = PL, x1 = W - PR, y0 = PT, y1 = H - PB;
+  const X = t => x0 + (t - r.lo) / Math.max(1e-9, r.hi - r.lo) * (x1 - x0);
+  const invX = px => r.lo + (px - x0) / (x1 - x0) * (r.hi - r.lo);
+  const Y = l => y0 + (-(l / Math.LN10)) / dec * (y1 - y0);               /* l = natural log of a probability */
+  const yClamp = y => clamp(y, y0, y1 + 60);
+  S.geom = { x0, x1, y0, y1, X, invX, r };
+  const soft = "var(--wi-ink-soft)", faint = "var(--wi-ink-faint)", ink = "var(--wi-ink-strong)";
+  let s = `<defs><clipPath id="${P}clip"><rect x="${x0}" y="${y0 - 3}" width="${x1 - x0}" height="${y1 - y0 + 3}"/></clipPath></defs>`;
+
+  /* y grid: decades */
+  const dstep = dec <= 20 ? 1 : dec <= 30 ? 2 : dec <= 50 ? 5 : dec <= 100 ? 10 : 20;
+  for (let e = 0; e <= dec; e += dstep) {
+    const y = Y(-e * Math.LN10);
+    s += `<line x1="${x0}" x2="${x1}" y1="${f1(y)}" y2="${f1(y)}" stroke="var(--wi-border-soft)" stroke-width="${e === 0 ? 1 : 0.7}"/>`;
+    s += e === 0 ? `<text class="sv-tick" x="${x0 - 8}" y="${f1(y + 4)}" text-anchor="end">1</text>`
+                 : `<text class="sv-tick" x="${x0 - 8}" y="${f1(y + 4)}" text-anchor="end">10<tspan dy="-6" font-size="9.5">−${e}</tspan></text>`;
+  }
+  /* x ticks */
+  const xs = niceStep(r.hi - r.lo, Math.max(3, Math.floor((x1 - x0) / 75)), true);
+  for (let t = Math.ceil(r.lo / xs) * xs; t <= r.hi + 1e-9; t += xs) {
+    s += `<line x1="${f1(X(t))}" x2="${f1(X(t))}" y1="${y1}" y2="${y1 + 5}" stroke="${soft}"/>`;
+    s += `<text class="sv-tick" x="${f1(X(t))}" y="${y1 + 18}" text-anchor="middle">${fnum(t, 2)}</text>`;
+  }
+  s += `<line x1="${x0}" x2="${x1}" y1="${y1}" y2="${y1}" stroke="${soft}"/><line x1="${x0}" x2="${x0}" y1="${y0}" y2="${y1}" stroke="${soft}"/>`;
+  s += mathAt(nmode ? "n" : "x", x1 + 24, y1 + 18, 15, "start", soft).svg;
+
+  /* the band np ± n^0.501 (x-mode, fixed p) */
+  if (!nmode && !S.small) {
+    const band = Math.pow(n, 0.501), a = Math.max(r.lo, mu - band), b = Math.min(r.hi, mu + band);
+    if (b > a) {
+      s += `<rect x="${f1(X(a))}" y="${y0}" width="${f1(X(b) - X(a))}" height="${y1 - y0}" fill="rgba(144,32,21,.07)"/>`;
+      s += mathAt("np\\pm n^{0.501}", (X(a) + X(b)) / 2, y1 - 8, 13, "middle", "var(--wi-accent)").svg;
+    }
+    s += `<line x1="${f1(X(mu))}" x2="${f1(X(mu))}" y1="${y0}" y2="${y1}" stroke="${faint}" stroke-width="1" stroke-dasharray="2 3"/>`;
+  }
+  if (S.small) { s += `<line x1="${f1(X(1))}" x2="${f1(X(1))}" y1="${y0}" y2="${y1}" stroke="${faint}" stroke-dasharray="2 3"/>`; s += mathAt("np=1", X(1) + 5, y1 - 8, 13.5, "start", faint).svg; }
+
+  /* the guides n^{-k} */
+  let guides = "";
+  for (let k = 1; k <= (S.small ? 3 : 3); k++) {
+    if (!nmode) {
+      const l = -k * Math.log(n), y = Y(l);
+      if (y > y1) continue;
+      guides += `<line x1="${x0}" x2="${x1}" y1="${f1(y)}" y2="${f1(y)}" stroke="var(--wi-accent-soft)" stroke-width="1.2" stroke-dasharray="7 5"/>`;
+      guides += mathAt("n^{-" + k + "}", x1 + 6, y + 5, 13.5, "start", "var(--wi-accent)").svg;
+    } else {
+      let d = "", started = false;
+      for (let px = x0; px <= x1; px += 2) { const m = invX(px), y = Y(-k * Math.log(m)); if (y > y1 + 2) break; d += (started ? "L" : "M") + f1(px) + "," + f1(y); started = true; }
+      if (d) guides += `<path d="${d}" fill="none" stroke="var(--wi-accent-soft)" stroke-width="1.2" stroke-dasharray="7 5" clip-path="url(#${P}clip)"/>`;
+      const yEnd = Y(-k * Math.log(r.hi));
+      if (yEnd <= y1) guides += mathAt("n^{-" + k + "}", x1 + 6, yEnd + 5, 13.5, "start", "var(--wi-accent)").svg;
+    }
+  }
+  s += guides;
+
+  /* the curves */
+  const shown = BOUNDS.filter(B => S.show[B.id] && !(S.small && B.id === "cher2"));
+  let curves = "";
+  if (!nmode) {
+    for (const B of shown) {
+      if (B.id === "exact") continue;
+      let d = "", pen = false;
+      for (let px = x0; px <= x1 + 0.01; px += 1.5) {
+        const x = invX(px), l = boundsLn(n, p, x)[B.id];
+        if (!isFinite(l)) { pen = false; continue; }
+        const y = yClamp(Y(Math.min(0, l)));
+        d += (pen ? "L" : "M") + f1(px) + "," + f1(y); pen = true;
+      }
+      if (d) curves += `<path d="${d}" fill="none" stroke="${B.col}" stroke-width="${B.w}" stroke-dasharray="${B.dash}" stroke-linejoin="round"/>`;
+    }
+    if (S.show.exact) {
+      const T = logTail(n, p);
+      let d = "";
+      const k0 = Math.max(1, Math.floor(r.lo) + 1), k1 = Math.min(n, Math.ceil(r.hi));
+      if (r.lo < 1) d += `M${f1(X(r.lo))},${f1(Y(0))}`;
+      for (let k = k0; k <= k1; k++) {
+        const l = T[k];
+        const y = isFinite(l) ? yClamp(Y(l)) : y1 + 60;
+        const xa = X(Math.max(r.lo, k - 1)), xb = X(Math.min(r.hi, k));
+        d += (d ? "L" : "M") + f1(xa) + "," + f1(y) + "L" + f1(xb) + "," + f1(y);
+        if (y > y1 + 50) break;
+      }
+      if (k1 >= n && r.hi > n - 1e-9) d += "L" + f1(X(r.hi)) + "," + f1(y1 + 60);
+      curves += `<path d="${d}" fill="none" stroke="var(--c-exact)" stroke-width="2.6" stroke-linejoin="round"/>`;
+    }
+  } else {
+    const ser = nSeries(S, r.lo, r.hi, Math.min(700, Math.floor((x1 - x0) / 1.2)));
+    for (const B of shown) {
+      let d = "", pen = false;
+      for (const v of ser) {
+        const l = v.b[B.id];
+        if (!isFinite(l)) { pen = false; continue; }
+        d += (pen ? "L" : "M") + f1(X(v.n)) + "," + f1(yClamp(Y(Math.min(0, l)))); pen = true;
+      }
+      if (d) curves += `<path d="${d}" fill="none" stroke="${B.col}" stroke-width="${B.w}" stroke-dasharray="${B.dash}" stroke-linejoin="round"/>`;
+    }
+  }
+  s += `<g clip-path="url(#${P}clip)">${curves}</g>`;
+
+  /* the probe */
+  const pv = S.valuesAt(S.probe), xp = X(S.probe);
+  s += `<line x1="${f1(xp)}" x2="${f1(xp)}" y1="${y0}" y2="${y1}" stroke="var(--c-rect)" stroke-width="1.6"/>`;
+  for (const B of shown) {
+    const l = B.id === "exact" ? pv.b.exact : pv.b[B.id];
+    if (!isFinite(l)) continue;
+    const y = Y(Math.min(0, l)); if (y > y1 + 1) continue;
+    s += `<circle cx="${f1(xp)}" cy="${f1(y)}" r="${B.id === "exact" ? 4.6 : 3.8}" fill="${B.col}" stroke="var(--wi-bg)" stroke-width="1.6"/>`;
+  }
+  const lab = nmode ? `n = ${S.probe}, x = ${fnum(S.c * S.probe, 2)}` : `x = ${S.probe}`;
+  const lw = textW(lab, "13px " + BODYFONT()) + 12, lx = clamp(xp - lw / 2, x0, x1 - lw);
+  s += `<rect x="${f1(lx)}" y="${y1 + 24}" width="${f1(lw)}" height="19" rx="3" fill="var(--c-rect)"/><text x="${f1(lx + lw / 2)}" y="${y1 + 38}" text-anchor="middle" style="font:13px var(--wi-font-body);fill:#fff">${esc(lab)}</text>`;
+  /* hit area */
+  s += `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0 + 46}" fill="transparent" style="cursor:crosshair"/>`;
+  svg.innerHTML = s;
+
+  /* meta, legend, table, status */
+  el(P + "Meta").innerHTML = S.small ? `${mh("\\Prob{X\\ge x}")} for ${mh("X\\sim\\Bin(n,1/n)")}, ${mh("n=" + n)}`
+    : nmode ? `${mh("\\Prob{X\\ge cn}")} for ${mh("X\\sim\\Bin(n,p)")}, ${mh("p=" + S.pStr)}, ${mh("c=" + S.cStr)}`
+    : `${mh("\\Prob{X\\ge x}")} for ${mh("X\\sim\\Bin(n,p)")}, ${mh("n=" + n)}, ${mh("p=" + S.pStr)}`;
+  let lg = "";
+  for (const B of shown) lg += `<span class="item"><svg width="30" height="10"><line x1="1" x2="29" y1="5" y2="5" stroke="${B.col}" stroke-width="${B.w + 0.4}" stroke-dasharray="${B.dash}"/></svg>${B.name}</span>`;
+  lg += `<span class="item"><svg width="30" height="10"><line x1="1" x2="29" y1="5" y2="5" stroke="var(--wi-accent-soft)" stroke-width="1.4" stroke-dasharray="7 5"/></svg>${mh("n^{-1},n^{-2},n^{-3}")}</span>`;
+  el(P + "Legend").innerHTML = lg;
+  raceTable(S, pv);
+  raceStatus(S, pv);
+}
+function raceTable(S, pv) {
+  const P = S.P, ex = pv.b.exact;
+  el(P + "TabTitle").innerHTML = S.vs === "n" ? `At ${mh("n=" + S.probe)}, ${mh("x=cn=" + fnum(pv.x, 2))}` : `At ${mh("x=" + S.probe)}`;
+  let best = null;
+  for (const B of BOUNDS) if (B.id !== "exact" && S.show[B.id] && isFinite(pv.b[B.id]) && (best === null || pv.b[B.id] < pv.b[best])) best = B.id;
+  for (const B of BOUNDS) {
+    const row = el(P + "row-" + B.id); if (!row) continue;
+    const l = pv.b[B.id], tds = row.querySelectorAll("td");
+    const fm = tds[2], fh = mh(fm.dataset.tex); if (fm._h !== fh) { fm.innerHTML = fh; fm._h = fh; }
+    tds[3].innerHTML = isFinite(l) || l === -Infinity ? (l > 1e-12 ? `<span class="triv" title="a bound ≥ 1 says nothing">${fmtLn(l)}</span>` : fmtLn(l)) : `<span class="triv" title="not applicable here">—</span>`;
+    tds[4].innerHTML = B.id === "exact" ? "" : (isFinite(l) && isFinite(ex)) ? fmtRatioLn(l - ex) : "";
+    row.classList.toggle("off", !S.show[B.id]);
+    row.classList.toggle("best", B.id === best);
+  }
+  const mu = pv.n * S.pOf(), del = pv.x / mu - 1;
+  el(P + "Note").innerHTML = `${mh("\\delta=x/np-1=" + fnum(del, 3))}. Bold: the smallest bound shown. A dash: the bound does not apply here; grey: a bound ≥ 1, which says nothing.`;
+}
+function raceStatus(S, pv) {
+  const P = S.P, n = pv.n, p = S.pOf(), ex = pv.b.exact;
+  const below = k => isFinite(ex) || ex === -Infinity ? ex <= -k * Math.log(n) + 1e-12 : false;
+  let st = "";
+  if (S.small) {
+    const T = logTail(n, p);
+    const first = k => { for (let x = 1; x <= Math.min(n, 400); x++) if (T[x] <= -k * Math.log(n)) return x; return null; };
+    const x1 = first(1), x2 = first(2);
+    st += `<p>Exactly, ${mh("\\Prob{X\\ge x}")} drops below ${mh("1/n")} at ${mh("x=" + x1)} and below ${mh("1/n^2")} at ${mh("x=" + x2)}. By a union bound over the ${n.toLocaleString("en")} bins, every bin gets fewer than ${x2} balls with probability at least ${mh("1-1/n")}.</p>`;
+    const hf = pv.b.hoeff, c1 = pv.b.cher1;
+    st += `<p>At ${mh("x=" + S.probe)}: Chernoff (1) gives ${fmtLn(c1)}, Hoeffding only ${fmtLn(hf)}. Hoeffding measures the distance ${mh("x-1")} against ${mh("\\sqrt n")}, the scale of a fair coin; here the variance is about 1.</p>`;
+    st += `<p class="hide-p">A simulation of all ${mh("n")} bins at once: <a href="balls-n-bins.html">balls into bins</a>.</p>`;
+  } else if (S.vs === "x") {
+    const ratio = isFinite(ex) ? null : null;
+    st += `<p>At ${mh("x=" + S.probe)} the truth is ${fmtLn(ex)}${below(3) ? ", below " + mh("n^{-3}") : below(2) ? ", below " + mh("n^{-2}") : below(1) ? ", below " + mh("n^{-1}") : ""}.`;
+    const list = ["markov", "cheb", "cher1", "hoeff"].filter(k => S.show[k] && isFinite(pv.b[k]));
+    const best = list.reduce((a, k) => a === null || pv.b[k] < pv.b[a] ? k : a, null);
+    if (best) st += ` The best bound shown is ${BOUNDS.find(B => B.id === best).name}, ${fmtRatioLn(pv.b[best] - ex).replace("× ", "")} times the truth.`;
+    st += `</p><p>Markov and Chebychev fall polynomially in ${mh("x")}: like ${mh("1/x")} and ${mh("1/(x-np)^2")}. On a log scale they flatten out. The exponential bounds fall like straight lines or parabolas, as the truth does.</p>`;
+  } else {
+    const c = S.c, pp = p;
+    const D = c * Math.log(c / pp) + (c < 1 ? (1 - c) * Math.log((1 - c) / (1 - pp)) : 0);
+    const dl = c / pp - 1;
+    const rC1 = pp * ((1 + dl) * Math.log1p(dl) - dl), rH = 2 * (c - pp) * (c - pp);
+    st += `<p>With ${mh("x=cn")}, every exponential bound is ${mh("e^{-\\rho n}")} for a rate ${mh("\\rho")}; the truth has rate ${mh("\\rho=" + fnum(D, 4))} (relative entropy of ${mh("c")} and ${mh("p")}).</p>
+           <p>Chernoff (1): ${mh("\\rho=" + fnum(rC1, 4))}${dl <= 1 ? ", Chernoff (2): " + mh("\\rho=" + fnum(pp * dl * dl / 3, 4)) : ""}, Hoeffding: ${mh("\\rho=" + fnum(rH, 4))}. Markov stays constant (${mh(fnum(pp / c, 3))}), Chebychev falls like ${mh("1/n")}: neither ever crosses ${mh("n^{-2}")}.</p>`;
+  }
+  el(P + "Status").innerHTML = st;
+}
+function initRacePointer(S) {
+  const svg = el(S.P + "Svg");
+  let drag = false;
+  const tAt = e => { const g = S.geom, rr = svg.getBoundingClientRect(); return g.invX(e.clientX - rr.left); };
+  const set = e => { S.probe = tAt(e); S.clampProbe(); renderRace(S); writeHash(); };
+  svg.addEventListener("pointerdown", e => { if (!S.geom) return; drag = true; svg.setPointerCapture(e.pointerId); e.preventDefault(); set(e); tipHide(); });
+  svg.addEventListener("pointermove", e => {
+    if (!S.geom) return;
+    if (drag) { set(e); return; }
+    const g = S.geom, rr = svg.getBoundingClientRect(), px = e.clientX - rr.left, py = e.clientY - rr.top;
+    if (px < g.x0 || px > g.x1 || py < g.y0 || py > g.y1) { tipHide(); return; }
+    const r = g.r; let t = Math.round(g.invX(px)); t = clamp(t, Math.max(1, Math.ceil(r.lo)), r.hi);
+    if (r.q > 1) t = clamp(Math.round(t / r.q) * r.q, r.lo, r.hi);
+    const v = S.valuesAt(t);
+    let h = `<div class="tt-h">${S.vs === "n" ? "n = " + t + ", x = " + fnum(v.x, 2) : "x = " + t}</div><table>`;
+    for (const B of BOUNDS) if (S.show[B.id] && !(S.small && B.id === "cher2")) { const l = v.b[B.id]; h += `<tr><td>${B.name}</td><td class="v">${isFinite(l) || l === -Infinity ? fmtLn(l) : "—"}</td></tr>`; }
+    tipShow(e, h + "</table>");
+  });
+  svg.addEventListener("pointerleave", tipHide);
+  svg.addEventListener("pointerup", () => { drag = false; });
+  svg.addEventListener("pointercancel", () => { drag = false; });
+}
+
+/* ==========================================================================
+   Tabs, presentation view, splitters, address, text input, start
+   ========================================================================== */
+let MODE = "markov";
+let R = null, SM = null;
+const TABS = [["tabArea", ["markov", "cheb", "chern"]], ["tabRace", ["race"]], ["tabSmall", ["small"]]];
+function render() {
+  if (isArea(MODE)) renderA();
+  else if (MODE === "race") renderRace(R);
+  else renderRace(SM);
+}
+function aEnsure() {
+  /* the distribution was changed in another tab: start this tab over with it */
+  if (A.M && A.distVer !== DIST.ver) { A.M = null; A.step = 0; A.aC = null; A.t = null; A.bC = null; A.tw = null; }
+  if (!A.M) { aBuildModel(); aDefaultThresholds(); aBuildPhases(); }
+}
+function setMode(m) {
+  if (isArea(MODE)) { aStopPlay(); aStopSweep(); A.tw = null; }
+  MODE = m;
+  el("modeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+  for (const [id, ms] of TABS) el(id).classList.toggle("hidden", !ms.includes(m));
+  if (isArea(m)) { A = AS[m]; aEnsure(); aSyncControls(); layoutPhases(); }
+  render(); writeHash();
+}
+function setPresent(on) { document.body.classList.toggle("present", on); requestAnimationFrame(() => { if (isArea(MODE)) layoutPhases(); render(); }); writeHash(); }
+function initSplit(T, splitId, stageId, vhId, gfx) {
+  const sp = el(splitId), st = el(stageId);
+  const set = (f, quiet) => { T.split = clamp(f, 0.35, 0.8); st.style.setProperty("--lf", (100 * T.split).toFixed(2) + "fr"); st.style.setProperty("--rf", (100 * (1 - T.split)).toFixed(2) + "fr"); if (!quiet) gfx(); };
+  set(T.split, true);
+  let drag = false, raf = 0;
+  const moveTo = x => { const r = st.getBoundingClientRect(); cancelAnimationFrame(raf); raf = requestAnimationFrame(() => set((x - r.left) / (r.width || 1))); };
+  sp.addEventListener("pointerdown", e => { drag = true; sp.classList.add("drag"); sp.setPointerCapture(e.pointerId); e.preventDefault(); });
+  sp.addEventListener("pointermove", e => { if (drag) moveTo(e.clientX); });
+  sp.addEventListener("pointerup", () => { drag = false; sp.classList.remove("drag"); });
+  sp.addEventListener("dblclick", () => set(0.62));
+  sp.addEventListener("keydown", e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); e.stopPropagation(); set(T.split + (e.key === "ArrowLeft" ? -0.03 : 0.03)); } });
+  const vh = el(vhId);
+  let vd = null;
+  vh.addEventListener("pointerdown", e => { vd = { y: e.clientY, h: T.H }; vh.classList.add("drag"); vh.setPointerCapture(e.pointerId); e.preventDefault(); });
+  vh.addEventListener("pointermove", e => { if (!vd) return; T.H = clamp(vd.h + e.clientY - vd.y, 260, 1400); gfx(); });
+  vh.addEventListener("pointerup", () => { vd = null; vh.classList.remove("drag"); });
+  vh.addEventListener("dblclick", () => { T.H = T.Hdef; gfx(); });
+  vh.addEventListener("keydown", e => { if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); T.H = clamp(T.H + (e.key === "ArrowDown" ? 30 : -30), 260, 1400); gfx(); } });
+}
+function tipShow(e, html) { const t = el("tip"); t.innerHTML = html; t.style.display = "block"; const w = t.offsetWidth; t.style.left = (e.clientX + 14 + w > innerWidth ? e.clientX - 14 - w : e.clientX + 14) + "px"; t.style.top = (e.clientY + 12) + "px"; }
+function tipHide() { el("tip").style.display = "none"; }
+
+/* ---------- the address ----------
+   #markov&d=bin:8:0.4&a=3&s=7         (d = slide | geom:p | bin:n:p | big | unif:N | two:a:q | pmf:w0,w1,…)
+   #cheb&d=slide&b=2.7225&s=7
+   #chern&d=bin:20:1/2&a=15&t=1.1&cmp&s=24
+   #race&n=100&p=1/2&x=75&y=15         (&vs=n&c=3/4 for the n-axis, &full, &off=markov,cheb)
+   #small&n=1000&x=6
+   &present          (old links with #area[&cheb] still work)                    */
+function distCode() {
+  const P = A_PRESETS[A.key];
+  if (A.key === "custom") return "pmf:" + A.custom.map(v => fnum(v, 6)).join(",");
+  return [A.key, ...P.par.map(([k]) => A.par[k])].join(":");
+}
+function raceCode(S) {
+  const h = [];
+  h.push("n=" + S.n);
+  if (!S.small) h.push("p=" + S.pStr);
+  if (S.vs === "n") h.push("vs=n", "c=" + S.cStr);
+  h.push("x=" + S.probe, "y=" + S.dec);
+  if (S.full) h.push("full");
+  const off = Object.keys(S.show).filter(k => !S.show[k] && !(S.small && k === "cher2"));
+  const on = Object.keys(S.show).filter(k => S.show[k] && k === "pow2" && !S.small);
+  if (off.length) h.push("off=" + off.join(","));
+  if (on.length) h.push("on=" + on.join(","));
+  return h;
+}
+let hashLock = false;
+function writeHash() {
+  if (hashLock || SWEEP) return;
+  const h = [MODE];
+  if (isArea(MODE) && A.M) {
+    h.push("d=" + distCode());
+    if (A.kind === "markov") h.push("a=" + A.aM);
+    else if (A.kind === "cheb") { if (A.bC !== null) h.push("b=" + fnum(A.bC, 6)); }
+    else { h.push("a=" + A.aC, "t=" + fnum(A.t, 3)); if (A.cmp) h.push("cmp"); if (!A.zoom) h.push("full"); }
+    if (A.step) h.push("s=" + A.step);
+  } else if (MODE === "race" && R) h.push(...raceCode(R));
+  else if (MODE === "small" && SM) h.push(...raceCode(SM));
+  if (document.body.classList.contains("present")) h.push("present");
+  try { history.replaceState(null, "", "#" + h.join("&")); } catch (e) { /* sandboxed preview */ }
+}
+function readHash() {
+  const raw = location.hash.replace(/^#/, "");
+  const q = new URLSearchParams(raw);
+  for (const m of ["markov", "cheb", "chern", "race", "small"]) if (q.has(m)) MODE = m;
+  if (q.has("area")) MODE = q.has("cheb") ? "cheb" : "markov";
+  hashLock = true;
+  try {
+    if (isArea(MODE)) {
+      A = AS[MODE];
+      if (q.get("d")) setDistCode(q.get("d"));
+      if (A.kind === "chern") { if (q.get("a")) A.aC = Math.round(+q.get("a")); if (q.get("t")) A.t = +q.get("t"); A.cmp = q.has("cmp"); A.zoom = !q.has("full"); }
+      aBuildModel(); aDefaultThresholds();
+      if (A.kind === "markov" && q.get("a")) A.aM = Math.round(+q.get("a"));
+      if (A.kind === "cheb" && q.get("b")) A.bC = +q.get("b");
+      aSnapThreshold(); aBuildPhases();
+      if (q.get("s")) A.step = clamp(Math.round(+q.get("s")), 0, aN() - 1);
+    }
+    const S = MODE === "race" ? R : MODE === "small" ? SM : null;
+    if (S) {
+      if (q.get("n")) S.n = clamp(Math.round(+q.get("n")), 2, S.small ? 1e6 : 1e4);
+      if (!S.small && q.get("p")) { const v = parseNum(q.get("p")); if (v > 0 && v < 1) { S.p = v; S.pStr = q.get("p"); } }
+      if (!S.small && q.get("vs") === "n") S.vs = "n";
+      if (!S.small && q.get("c")) { const v = parseNum(q.get("c")); if (v > 0 && v <= 1) { S.c = v; S.cStr = q.get("c"); } }
+      if (q.get("y")) S.dec = +q.get("y") || 15;
+      S.full = q.has("full");
+      for (const k of (q.get("off") || "").split(",")) if (k in S.show) S.show[k] = false;
+      for (const k of (q.get("on") || "").split(",")) if (k in S.show) S.show[k] = true;
+      if (q.get("x")) S.probe = +q.get("x");
+      if (["n", "p", "vs", "c", "x", "y", "full", "off", "on"].some(k => q.has(k))) S.preset = "";
+      S.clampProbe(); S.syncUI();
+      el(S.P + "Table").querySelectorAll("input[data-b]").forEach(cb => cb.checked = S.show[cb.dataset.b]);
+    }
+  } catch (e) { /* a broken link: keep the defaults */ if (isArea(MODE)) { A.M = null; } }
+  hashLock = false;
+  return q.has("present");
+}
+function setDistCode(code) {
+  const [key, ...rest] = code.split(":");
+  if (key === "pmf") { A.custom = rest.join(":").split(",").map(parseNum); A.key = "custom"; }
+  else if (A_PRESETS[key] && PRESET_LIST[A.kind].includes(key)) { A.key = key; A.par = {}; A_PRESETS[key].par.forEach(([k], i) => { if (rest[i] !== undefined) { parseNum(rest[i]); A.par[k] = rest[i]; } }); }
+}
+
+/* ---------- text input ---------- */
+function currentText() {
+  if (isArea(MODE)) {
+    const w = A.key === "custom" ? A.custom : A.M.pmf;
+    return "# weights of the values 0, 1, 2, … (normalized automatically)\npmf " + w.map(v => fnum(v, 6)).join(" ") + "\n" +
+           (A.kind === "chern" ? "# threshold\na " + A.aC + "\n" : "");
+  }
+  const S = MODE === "race" ? R : SM;
+  return "# X ~ Bin(n, p), threshold x\nbin " + S.n + " " + (S.small ? "1/n" : S.pStr) + " " + (S.vs === "x" ? S.probe : "") + "\n";
+}
+function loadText(txt) {
+  const lines = txt.split("\n").map(l => l.replace(/#.*/, "").trim()).filter(l => l);
+  if (!lines.length) throw new Error("empty input");
+  let thr = null;
+  const rest = lines.filter(l => { const m = l.match(/^a\s+(\S+)$/); if (m) { thr = Math.round(parseNum(m[1])); return false; } return true; });
+  const tok = rest.join(" ").split(/[\s,;]+/).filter(t => t);
+  if (tok[0] === "bin") {
+    const n = Math.round(parseNum(tok[1] || ""));
+    if (!(n >= 2)) throw new Error("bin n p [x]: n must be at least 2");
+    if (tok[2] === "1/n") {
+      if (n > 1e6) throw new Error("n at most 1 000 000");
+      SM.n = n; if (tok[3]) SM.probe = parseNum(tok[3]); SM.preset = ""; SM.clampProbe(); SM.syncUI(); setMode("small"); return;
+    }
+    if (n > 1e4) throw new Error("n at most 10 000 (for p = 1/n: up to 1 000 000)");
+    const p = parseNum(tok[2] || "");
+    if (!(p > 0 && p < 1)) throw new Error("p must be strictly between 0 and 1");
+    R.n = n; R.p = p; R.pStr = tok[2]; R.vs = "x"; if (tok[3]) R.probe = parseNum(tok[3]); else R.probe = Math.round((n * p + n) / 2);
+    R.preset = ""; R.clampProbe(); R.syncUI(); setMode("race"); return;
+  }
+  const nums = (tok[0] === "pmf" ? tok.slice(1) : tok).map(parseNum);
+  if (!nums.length) throw new Error("pmf: no weights given");
+  if (nums.length > 101) throw new Error("at most 101 values (0 … 100)");
+  if (nums.some(v => v < 0)) throw new Error("weights must be non-negative");
+  if (!(nums.reduce((a, b) => a + b, 0) > 0)) throw new Error("the weights add up to 0");
+  const kind = isArea(MODE) ? MODE : "markov";
+  const T = AS[kind];
+  T.custom = nums; T.key = "custom"; T.par = {};
+  if (MODE !== kind) setMode(kind);
+  aLoad(false);
+  if (kind === "chern" && thr !== null) { A.aC = thr; aBuildModel(); A.t = null; aBuildModel(); aSyncChern(); renderA(); writeHash(); }
+  aSyncControls(); renderA();
+}
+const FORMAT_HINT =
+  "<b>A distribution</b> for the first three tabs: <code>pmf w0 w1 w2 …</code>, the weights of the values 0, 1, 2, … (at most 100), normalized automatically; " +
+  "fractions like <code>1/3</code> are fine. The slide example is <code>pmf 0 .25 .10 .40 .25</code>. For Chernoff, a line <code>a 4</code> sets the threshold." +
+  "<br><br><b>A binomial</b> for the other tabs: <code>bin n p x</code>, e.g. <code>bin 100 1/2 75</code> (the threshold <code>x</code> is optional); " +
+  "<code>bin 1000 1/n 6</code> opens the tab for small p." +
+  "<br><br>The address keeps the state, e.g. <code>#markov&amp;d=two:4:0.4&amp;s=6</code>, <code>#chern&amp;d=bin:20:1/2&amp;a=14&amp;t=0.847</code>, " +
+  "<code>#race&amp;n=100&amp;p=1/2&amp;x=75</code>, <code>#race&amp;n=400&amp;p=1/2&amp;vs=n&amp;c=3/4&amp;x=100</code>, <code>&amp;present</code> for the presentation view.";
+
+function init() {
+  /* tabs 1–3 */
+  el("aDist").onchange = e => { A.key = e.target.value; A.par = {}; aParamsUI(); aLoad(false); };
+  el("aReset").onclick = () => { aStopPlay(); aGo(0); };
+  el("aBack").onclick = () => { aStopPlay(); aGo(A.step - 1, true); };
+  el("aStep").onclick = () => { aStopPlay(); aGo(A.step + 1, true); };
+  el("aPlay").onclick = aTogglePlay;
+  el("aScrub").oninput = e => { aStopPlay(); aGo(xToPos(+e.target.value / 100000 * el("aPhaseBar").clientWidth)); };
+  el("aDelay").oninput = e => { el("aDelayVal").textContent = e.target.value + "ms"; if (A.timer) { aStopPlay(); aTogglePlay(); } };
+  el("aA").onchange = e => {
+    try { const v = Math.round(parseNum(e.target.value)); if (!(v >= 1 && v <= A.M.N)) throw new Error(); A.aC = v; e.target.style.borderColor = ""; aStopSweep(); aBuildModel(); aSyncChern(); renderA(); writeHash(); }
+    catch (er) { e.target.style.borderColor = "var(--wi-active)"; }
+  };
+  el("aT").oninput = e => { aStopSweep(); const C = A.M.C; aSetT(T_MIN + +e.target.value / 1000 * (C.tMax - T_MIN)); };
+  el("aTStar").onclick = () => { aStopSweep(); aSetT(A.M.C.tStar); };
+  el("aTRel").onclick = () => { aStopSweep(); if (A.M.C.tRel !== null) aSetT(A.M.C.tRel); };
+  el("aSweep").onclick = aSweep;
+  el("aCmp").onchange = e => { A.cmp = e.target.checked; renderA(); writeHash(); };
+  el("aZoom").onchange = e => { A.zoom = e.target.checked; renderA(); writeHash(); };
+  initAPointer();
+  initSplit(AL, "aSplit", "stageA", "aVH", renderA);
+  /* tabs 4, 5 (no address writing until the address has been read) */
+  hashLock = true;
+  R = makeRace("r", false); SM = makeRace("s", true);
+  initSplit(R, "rSplit", "rStage", "rVH", () => renderRace(R));
+  initSplit(SM, "sSplit", "sStage", "sVH", () => renderRace(SM));
+  R.applyPreset("table"); SM.applyPreset("n1000");
+  /* global */
+  el("modeSeg").querySelectorAll("button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+  el("presBtn").onclick = () => setPresent(true);
+  el("exitPres").onclick = () => setPresent(false);
+  el("loadBtn").onclick = () => {
+    try { loadText(el("inputText").value); el("parseErr").textContent = ""; }
+    catch (e) { el("parseErr").textContent = e.message; }
+  };
+  el("curBtn").onclick = () => { el("inputText").value = currentText(); };
+  el("formatHint").innerHTML = FORMAT_HINT;
+  document.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("input[type=text], input[type=number], textarea, select")) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "Escape" && document.body.classList.contains("present")) { e.preventDefault(); setPresent(false); return; }
+    if (e.target.closest && e.target.closest(".splitter, .vhandle, input[type=range]")) return;
+    if (isArea(MODE)) {
+      if (e.key === "ArrowRight") { e.preventDefault(); aStopPlay(); aGo(A.step + 1, true); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); aStopPlay(); aGo(A.step - 1, true); }
+      else if (e.key === "Home") { e.preventDefault(); aStopPlay(); aGo(0); }
+      else if (e.key === "End") { e.preventDefault(); aStopPlay(); aGo(aN() - 1); }
+      else if (e.key === " " && !(e.target.closest && e.target.closest("button"))) { e.preventDefault(); aTogglePlay(); }
+    } else {
+      const S = MODE === "race" ? R : SM;
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); S.probe += e.key === "ArrowRight" ? 1 : -1; S.clampProbe(); renderRace(S); writeHash(); }
+    }
+  });
+  let rz = null;
+  window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { if (isArea(MODE)) layoutPhases(); render(); }, 80); });
+  if (window.ResizeObserver) { const ro = new ResizeObserver(() => { if (isArea(MODE)) layoutPhases(); }); ro.observe(el("aPhaseBar")); }
+
+  hashLock = false;
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (isArea(MODE)) layoutPhases(); render(); });
+  const present = readHash();
+  if (present) document.body.classList.add("present");
+  setMode(MODE);
+  el("inputText").value = currentText();
+  const hook = () => {
+    if (!(window.MathJax && MathJax.startup && MathJax.startup.promise)) return;
+    MathJax.startup.promise.then(() => {
+      mjInPlace([...document.querySelectorAll(".subtitle:not(#aSub), .controls")]);
+      for (const id of ["aSub", "aStatus", "aSums", "aRect", "aExplain", "rExplain", "sExplain"]) { const nd = el(id); const w = nd._want; nd._shown = null; nd._queued = false; if (w) setMath(nd, w); }
+      aSideKey = "";
+      for (const id of ["aStatus", "aSums", "aRect"]) el(id)._html = null;
+      render();
+    }).catch(() => {});
+  };
+  if (document.readyState === "complete") hook(); else window.addEventListener("load", hook);
+}
+init();
+</script>
+</body>
+</html>

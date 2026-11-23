@@ -260,6 +260,56 @@
   }
 </style>
 <style>
+  /* ── house layout (shared with the other compression pages) ── */
+  .wi-topbar { display:flex; align-items:baseline; justify-content:space-between; gap:1em; flex-wrap:wrap;
+               margin:0 0 1.1em; padding-bottom:.5em; border-bottom:1px solid var(--wi-border);
+               font-family:var(--wi-font-head); letter-spacing:.03em; }
+  .wi-topbar .wi-home { color:var(--wi-ink-strong); font-size:1.05em; }
+  .ctl > label.chk { font-family:var(--wi-font-body); font-size:.8rem; text-transform:none; letter-spacing:0; color:var(--wi-ink-soft); }
+  /* transport: the step slider over the phase bar */
+  .progress input.scrub { -webkit-appearance:none; appearance:none; display:block; width:100%; height:16px; margin:2px 0 0;
+                background:transparent; cursor:pointer; }
+  input.scrub::-webkit-slider-runnable-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; box-sizing:border-box; width:16px; height:16px;
+                margin-top:-6px; border-radius:50%; background:var(--wi-accent); border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  input.scrub::-moz-range-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-moz-range-thumb { box-sizing:border-box; width:16px; height:16px; border-radius:50%; background:var(--wi-accent);
+                border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  .stepno { padding-top:2px; }
+  .phasebar { display:flex; margin:6px 8px 0; width:auto; height:1.55rem; }
+  .phasebtn { flex:none; padding:0; height:100%; font-size:.68rem; line-height:1.55rem; text-align:center; text-overflow:clip; }
+  .phasebtn .fill { transition:none; }
+  .phasebtn.on, .phasebtn.on:hover:not(:disabled) { background:var(--wi-panel); color:var(--wi-accent); }
+  /* stage: picture | splitter | explanation and code */
+  .stage { display:grid; grid-template-columns:minmax(0, var(--lf, 60fr)) 18px minmax(300px, var(--rf, 40fr)); gap:0; align-items:start; }
+  @media (max-width:980px) { .stage { grid-template-columns:1fr; gap:16px; } .stage > .splitter { display:none !important; } }
+  .splitter { align-self:stretch; min-height:200px; cursor:col-resize; touch-action:none; display:flex; justify-content:center; }
+  .splitter::before { content:""; width:4px; margin:30px 0; border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .splitter:hover::before, .splitter.drag::before, .splitter:focus-visible::before { background:var(--wi-accent-soft); }
+  .splitter:focus-visible { outline:none; }
+  .hsplit { height:14px; margin:2px 0 -4px; cursor:row-resize; touch-action:none; display:flex; align-items:center; }
+  .hsplit::before { content:""; height:4px; flex:1; margin:0 34%; border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .hsplit:hover::before, .hsplit.drag::before, .hsplit:focus-visible::before { background:var(--wi-accent-soft); }
+  .hsplit:focus-visible { outline:none; }
+  .col-main, .col-side { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .col-main > .sim-box + .sim-box, .col-side > .sim-box + .sim-box { margin-top:0; }
+  @media (min-width:981px) { .col-side.sticky { position:sticky; top:10px; } }
+  /* the code panel in the side column */
+  .codebox { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  .codebox > .sim-title { padding:10px 15px 0; }
+  .codescroll { position:relative; max-height:calc(100vh - 300px); min-height:200px; overflow:auto; padding:4px 6px 10px; }
+  .codebox .codenote { padding:6px 15px 12px; border-top:1px solid var(--wi-border-soft); }
+  /* presentation view: only panels are hidden, the window is never touched */
+  .only-p { display:none !important; }
+  body.present .only-p { display:inline-flex !important; }
+  body.present .hide-p { display:none !important; }
+  body.present h1 { font-size:1.9rem; }
+  .exitp { position:fixed; bottom:10px; right:12px; z-index:20; font-size:.75rem; opacity:.5; }
+  .exitp:hover, .exitp:focus-visible { opacity:1; }
+  .seg button.on:hover:not(:disabled), .tabbtn.on:hover { color:var(--wi-panel-2); }
+  .tabbtn.on:hover { color:var(--wi-accent); }
+</style>
+<style>
 /* wild-inter.net: re-assert the site type stack over the page's own styles */
 h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
   font-family: var(--wi-font-head);
@@ -348,15 +398,17 @@ body { font-family: var(--wi-font-body); }
 </head>
 <body>
 
-<div class="wi-topbar">
+<div class="wi-topbar hide-p">
   <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
 </div>
 
 <div class="titlebar">
   <h1>Arithmetic coding &nbsp;·&nbsp; renormalization and fixed precision</h1>
+  <span class="ctl hide-p"><button id="presBtn" title="A clutter-free view for the lecture (Esc to leave)">Presentation view</button></span>
 </div>
+<button id="exitPres" class="only-p exitp" title="Leave the presentation view (Esc)">✕ leave presentation</button>
 
-<p class="subtitle">
+<p class="subtitle hide-p">
   Zooming into an interval needs <i>&Omega;</i>(<i>n</i>) bits of precision — unless the leading bits are
   written out as soon as they are decided, and the interval is <b>doubled</b> to make room again.
   Once [ℓ,&nbsp;ℓ+<i>p</i>) lies in the lower half the code must start with <code>0</code>; in the upper half,
@@ -366,12 +418,12 @@ body { font-family: var(--wi-font-body); }
   <b>fixed-precision integer arithmetic</b>.
 </p>
 
-<div class="mobile-note">
+<div class="mobile-note hide-p">
   <b>Small screen:</b> this is the compact demo — the interval, the history and the output bits.
   The pseudocode with live line highlighting is on the desktop version.
 </div>
 
-<div class="controls">
+<div class="controls hide-p">
   <div class="ctl">
     <label for="presetSel">Example</label>
     <select id="presetSel"></select>
@@ -405,7 +457,7 @@ body { font-family: var(--wi-font-body); }
   </div>
 </div>
 
-<div class="opbar">
+<div class="opbar hide-p">
   <span class="opnote" id="modelNote"></span>
   <span class="opnote" style="margin-left:auto">Arrow keys step; hover a slice or a history row for its numbers.</span>
 </div>
@@ -413,26 +465,26 @@ body { font-family: var(--wi-font-body); }
 <div class="transport">
   <div class="transport-row">
     <span class="ctl" style="gap:6px">
-      <button id="resetBtn" class="icon" title="Back to the first step" aria-label="Back to the first step">&#x21BA;</button>
-      <button id="backBtn" class="icon" title="One step back  (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
-      <button id="stepBtn" class="icon pri" title="One step forward  (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
-      <button id="playBtn" class="icon" title="Play / pause" aria-label="Play">&#x25B6;&#xFE0E;</button>
+      <button id="sReset" class="icon hide-p" title="Back to the first step (Home)" aria-label="Back to the first step">&#x21BA;</button>
+      <button id="sBack" class="icon" title="One step back (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+      <button id="sStep" class="icon pri" title="One step forward (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+      <button id="sPlay" class="icon" title="Play / pause (space)" aria-label="Play">&#x25B6;&#xFE0E;</button>
     </span>
     <span class="progress">
-      <input type="range" id="scrubber" min="0" max="0" value="0">
+      <input type="range" class="scrub" id="scrubber" min="0" max="100000" value="0" step="1" aria-label="Step">
       <div class="phasebar" id="phaseBar"></div>
     </span>
     <span class="stepno" id="stepNo">— / —</span>
-    <span class="ctl" style="gap:6px">
-      <span class="lbl">Speed</span>
-      <input type="range" id="speed" min="60" max="1400" value="480" style="width:88px">
-      <span class="stepno" id="speedVal">480ms</span>
+    <span class="ctl hide-p" style="gap:6px">
+      <span class="lbl">Delay</span>
+      <input type="range" id="sSpeed" min="60" max="2000" value="480" style="width:88px" aria-label="Delay between steps">
+      <span class="stepno" id="sSpeedVal" style="min-width:4.5em">480ms</span>
     </span>
   </div>
 </div>
 
-<div class="stage">
-  <div>
+<div class="stage" id="stageBox">
+  <div class="col-main">
     <div class="sim-box">
       <div class="sim-title"><span>The interval, always inside [0,&nbsp;1)</span><span class="rhs" id="ivMeta"></span></div>
       <div class="svgscroll" id="ivWrap"><svg id="ivSvg" class="stagesvg"></svg></div>
@@ -447,16 +499,10 @@ body { font-family: var(--wi-font-body); }
     <div class="sim-box">
       <div class="sim-title"><span>Every step so far</span><span class="rhs" id="histMeta"></span></div>
       <div class="svgscroll" id="histWrap" style="max-height:340px;overflow-y:auto"><svg id="histSvg" class="stagesvg"></svg></div>
+      <div class="hsplit" id="histSplit" role="separator" aria-orientation="horizontal" tabindex="0"></div>
       <div class="legend">
         <span class="item">a character narrows the interval; a renormalization doubles it back — so <i>p</i> never falls to or below ¼</span>
       </div>
-    </div>
-  </div>
-
-  <div class="col-side">
-    <div class="sim-box">
-      <div class="sim-title"><span>What just happened</span><span class="rhs" id="phaseName"></span></div>
-      <div class="status" id="statusBox"></div>
     </div>
 
     <div class="sim-box">
@@ -474,15 +520,27 @@ body { font-family: var(--wi-font-body); }
       <div id="cmpBox" class="cmp"></div>
     </div>
   </div>
+
+  <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" tabindex="0"
+       title="Drag to share the width between the pictures and the code (double-click: back to the default)"></div>
+
+  <div class="col-side sticky">
+    <div class="sim-box">
+      <div class="sim-title"><span>What just happened</span><span class="rhs" id="phaseName"></span></div>
+      <div class="status" id="statusBox"></div>
+    </div>
+
+    <div class="codebox desk-only">
+      <div class="sim-title"><span>Pseudocode</span><span class="rhs">the line being executed is highlighted</span></div>
+      <div class="codescroll"><div class="codebody" id="codeBody"></div></div>
+      <div class="codenote" id="codeNote"></div>
+    </div>
+
+  </div>
 </div>
 
-<details class="code desk-only" id="codeBox" open style="margin-top:18px">
-  <summary>Pseudocode</summary>
-  <div class="codebody" id="codeBody"></div>
-  <div class="codenote" id="codeNote"></div>
-</details>
 
-<details class="editor">
+<details class="editor hide-p">
   <summary>Input</summary>
   <div class="editor-body">
     <div>
@@ -513,6 +571,310 @@ body { font-family: var(--wi-font-body); }
 
 <div class="tooltip" id="tooltip"></div>
 
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   wild-inter.net animation kit (shared by the compression pages):
+   transport with the step slider over the phase bar, playback with a
+   delay slider, draggable splitters, presentation view, fixed heights.
+
+   WI.transport({ count, index, go, phaseOf, onStop })
+     count()       number of steps          index()  current step
+     go(i, anim)   show step i; anim is true iff it is one step forward
+     phaseOf(i)    null or { key, names:[long, …, short], title }; consecutive
+                   steps with the same key form one segment of the phase bar,
+                   a step with null belongs to the next segment
+   The phase bar: widths ∝ number of steps, at least 30 px (water filling;
+   all equal if that does not fit); the slider maps piecewise-linearly onto
+   exactly these widths, so the thumb always sits over the current phase.
+   ═══════════════════════════════════════════════════════════════════ */
+const WI = (() => {
+  const $ = id => document.getElementById(id);
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const PH_MIN = 30, SCALE = 100000;
+  let MEASURE = null;
+  function textW(s, font){
+    if (!MEASURE) MEASURE = document.createElement('canvas').getContext('2d');
+    MEASURE.font = font; return MEASURE.measureText(s).width;
+  }
+  const isField = t => t && t.closest && t.closest('input[type=text], input[type=number], textarea, select, [contenteditable]');
+  const isSep = t => t && t.getAttribute && t.getAttribute('role') === 'separator';
+
+  function transport(o){
+    let PH = [], PW = [], PX = [], PWT = 1, timer = null;
+    const N = () => Math.max(1, o.count()), I = () => o.index();
+    const go = i => { i = clamp(i, 0, N() - 1); o.go(i, i === I() + 1); };
+
+    function rebuild(){
+      const n = N(), ph = [];
+      let pending = 0;
+      for (let i = 0; i < n; i++) {
+        let p = null; try { p = o.phaseOf ? o.phaseOf(i) : null; } catch (e) { p = null; }
+        if (!p) { pending++; continue; }
+        const last = ph[ph.length - 1];
+        if (last && last.key === p.key) { last.to = i; pending = 0; continue; }
+        ph.push({ key:p.key, names:p.names, title:p.title || p.names[0], cls:p.cls || '', from:i - pending, to:i });
+        pending = 0;
+      }
+      if (!ph.length) ph.push({ key:'all', names:['all steps', 'all'], title:'all steps', cls:'', from:0, to:n - 1 });
+      ph[0].from = 0; ph[ph.length - 1].to = n - 1;
+      for (let k = 1; k < ph.length; k++) ph[k].from = ph[k - 1].to + 1;
+      PH = ph;
+      const bar = $('phaseBar');
+      bar.innerHTML = ph.map((P, i) => `<button class="phasebtn ${P.cls}" data-p="${i}"><span class="fill empty"></span><span class="lab"></span></button>`).join('');
+      bar.querySelectorAll('.phasebtn').forEach(b => b.onclick = () => { stop(); o.go(PH[+b.dataset.p].from, false); });
+      $('stepNo').style.minWidth = (2 * String(n).length + 3) + 'ch';
+      fit(); update();
+    }
+    function fit(){
+      const bar = $('phaseBar'), W = bar.getBoundingClientRect().width, P = PH;
+      if (!W || !P.length) return;
+      const k = P.map(p => p.to - p.from + 1);
+      let w;
+      if (P.length * PH_MIN >= W) w = P.map(() => W / P.length);
+      else {
+        const fixed = new Set();
+        for (;;) {
+          const rest = k.reduce((s, x, i) => fixed.has(i) ? s : s + x, 0), c = (W - fixed.size * PH_MIN) / rest;
+          let more = false;
+          k.forEach((x, i) => { if (!fixed.has(i) && c * x < PH_MIN) { fixed.add(i); more = true; } });
+          if (!more) { w = k.map((x, i) => fixed.has(i) ? PH_MIN : c * x); break; }
+        }
+      }
+      let x = 0;
+      PW = w; PX = w.map(v => { const a = x; x += v; return a; }); PWT = W;
+      bar.querySelectorAll('.phasebtn').forEach((b, i) => {
+        b.style.width = w[i] + 'px';
+        const font = getComputedStyle(b).font, lab = b.querySelector('.lab');
+        const nm = P[i].names, names = nm.concat(nm.length ? [String(nm[nm.length - 1]).charAt(0)] : []);
+        lab.textContent = names.find(s => textW(s, 'bold ' + font) <= w[i] - 5) || '';
+        b.title = P[i].title;
+      });
+      $('scrubber').value = toVal(I());
+    }
+    const phaseIdx = vi => { let lo = 0, hi = PH.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (PH[m].from <= vi) lo = m; else hi = m - 1; } return lo; };
+    function toVal(vi){
+      if (!PH.length || !PW.length) return 0;
+      const p = phaseIdx(vi), P = PH[p], k = P.to - P.from + 1;
+      return Math.round((PX[p] + (vi - P.from + 0.5) / k * PW[p]) / PWT * SCALE);
+    }
+    function fromVal(v){
+      if (!PH.length || !PW.length) return I();
+      const x = v / SCALE * PWT;
+      let p = 0; while (p + 1 < PH.length && PX[p + 1] <= x) p++;
+      const P = PH[p], k = P.to - P.from + 1;
+      return P.from + clamp(Math.floor((x - PX[p]) / PW[p] * k), 0, k - 1);
+    }
+    function update(){
+      const i = I(), n = N();
+      $('stepNo').textContent = `${i + 1} / ${n}`;
+      $('scrubber').value = toVal(i);
+      $('sBack').disabled = $('sReset').disabled = i === 0;
+      $('sStep').disabled = i >= n - 1;
+      if (!PH.length) return;
+      const cur = phaseIdx(i);
+      $('phaseBar').querySelectorAll('.phasebtn').forEach((b, k) => {
+        const P = PH[k], m = P.to - P.from + 1;
+        const f = k < cur ? 1 : k > cur ? 0 : (i - P.from + 1) / m;
+        const fill = b.querySelector('.fill');
+        fill.style.width = (100 * f) + '%';
+        fill.classList.toggle('empty', f === 0);
+        b.classList.toggle('on', k === cur);
+        b.classList.toggle('past', k < cur);
+      });
+      if ($('phaseName')) $('phaseName').textContent = PH[cur] ? PH[cur].title : '';
+    }
+    function delay(){ return +$('sSpeed').value; }
+    function play(){
+      $('sPlay').innerHTML = '&#x23F8;&#xFE0E;'; $('sPlay').setAttribute('aria-label', 'Pause');
+      timer = setInterval(() => { if (I() >= N() - 1) stop(); else go(I() + 1); }, delay());
+    }
+    function stop(){
+      if (timer) { clearInterval(timer); timer = null; if (o.onStop) o.onStop(); }
+      $('sPlay').innerHTML = '&#x25B6;&#xFE0E;'; $('sPlay').setAttribute('aria-label', 'Play');
+    }
+    function toggle(){ if (timer) stop(); else { if (I() >= N() - 1) o.go(0, false); play(); } }
+
+    $('sReset').onclick = () => { stop(); o.go(0, false); };
+    $('sBack').onclick  = () => { stop(); go(I() - 1); };
+    $('sStep').onclick  = () => { stop(); go(I() + 1); };
+    $('sPlay').onclick  = toggle;
+    $('scrubber').oninput = () => { stop(); const v = fromVal(+$('scrubber').value); if (v !== I()) o.go(v, false); else update(); };
+    $('sSpeed').oninput = () => { $('sSpeedVal').textContent = $('sSpeed').value + 'ms'; if (timer) { clearInterval(timer); timer = null; play(); } };
+    $('sSpeedVal').textContent = $('sSpeed').value + 'ms';
+    document.addEventListener('keydown', e => {
+      if (isField(e.target) || isSep(e.target)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (o.keys && o.keys() === false) return;
+      if (e.key === 'ArrowRight') { stop(); go(I() + 1); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft') { stop(); go(I() - 1); e.preventDefault(); }
+      else if (e.key === 'Home') { stop(); o.go(0, false); e.preventDefault(); }
+      else if (e.key === 'End') { stop(); o.go(N() - 1, false); e.preventDefault(); }
+      else if (e.key === ' ' && !(e.target && e.target.tagName === 'BUTTON')) { toggle(); e.preventDefault(); }
+    });
+    let rz = null;
+    window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(fit, 120); });
+    return { rebuild, fit, update, play, stop, toggle, playing: () => !!timer, delay, toVal, fromVal,
+             phases: () => PH };
+  }
+
+  /* ── a vertical splitter: shares the width of a grid between two columns ──
+     handle: the .splitter element; box: the grid; vars: the two CSS fr variables */
+  function vsplit(handle, box, o = {}){
+    const vars = o.vars || ['--lf', '--rf'], S = { f:o.def || 0.6, def:o.def || 0.6 };
+    const lo = o.min || 0.25, hi = o.max || 0.8;
+    let t = null;
+    function set(f, quiet){
+      S.f = clamp(f, lo, hi);
+      box.style.setProperty(vars[0], (100 * S.f).toFixed(2) + 'fr');
+      box.style.setProperty(vars[1], (100 * (1 - S.f)).toFixed(2) + 'fr');
+      if (quiet) return;
+      if (o.onMove) o.onMove(S.f);
+      clearTimeout(t); t = setTimeout(() => { if (o.onChange) o.onChange(S.f); }, 120);
+    }
+    let drag = false, raf = 0;
+    const moveTo = x => {
+      const r = box.getBoundingClientRect(), hr = handle.getBoundingClientRect();
+      const left = r.left, w = r.width - hr.width;   /* the fraction of the space without the handle */
+      cancelAnimationFrame(raf); raf = requestAnimationFrame(() => set((x - left - hr.width / 2) / (w || 1)));
+    };
+    handle.addEventListener('pointerdown', e => { drag = true; handle.classList.add('drag'); handle.setPointerCapture(e.pointerId); e.preventDefault(); });
+    handle.addEventListener('pointermove', e => { if (drag) moveTo(e.clientX); });
+    handle.addEventListener('pointerup', () => { drag = false; handle.classList.remove('drag'); });
+    handle.addEventListener('pointercancel', () => { drag = false; handle.classList.remove('drag'); });
+    handle.addEventListener('dblclick', () => set(S.def));
+    handle.addEventListener('keydown', e => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); set(S.f + (e.key === 'ArrowLeft' ? -0.03 : 0.03)); }
+    });
+    if (!handle.title) handle.title = 'Drag to share the width (double-click: back to the default)';
+    set(S.f, true);
+    return { set, get: () => S.f };
+  }
+
+  /* ── a horizontal bar under a drawing: drag it to change the drawing's height ──
+     onChange(h) gets the new height in px, or null for "back to the natural height" */
+  function hsplit(handle, target, o = {}){
+    let drag = false, y0 = 0, h0 = 0, raf = 0, H = null;
+    const lo = o.min || 120;
+    function set(h){
+      H = h === null ? null : clamp(h, lo, Math.max(lo + 50, (o.max || 2.5) * window.innerHeight));
+      if (o.onChange) o.onChange(H); else target.style.height = H === null ? '' : H.toFixed(0) + 'px';
+    }
+    handle.addEventListener('pointerdown', e => {
+      drag = true; handle.classList.add('drag'); handle.setPointerCapture(e.pointerId); e.preventDefault();
+      y0 = e.clientY; h0 = target.getBoundingClientRect().height;
+    });
+    handle.addEventListener('pointermove', e => {
+      if (!drag) return;
+      const y = e.clientY; cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => set(h0 + y - y0));
+    });
+    handle.addEventListener('pointerup', () => { drag = false; handle.classList.remove('drag'); });
+    handle.addEventListener('pointercancel', () => { drag = false; handle.classList.remove('drag'); });
+    handle.addEventListener('dblclick', () => set(null));
+    handle.addEventListener('keydown', e => {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault(); set(target.getBoundingClientRect().height + (e.key === 'ArrowUp' ? -20 : 20));
+      }
+    });
+    if (!handle.title) handle.title = 'Drag to change the height of the drawing (double-click: back to the default)';
+    return { set, get: () => H };
+  }
+
+  /* ── presentation view: hides panels only, never touches the window ── */
+  function present(o = {}){
+    const set = on => {
+      document.body.classList.toggle('present', on);
+      try {
+        const h = location.hash.replace(/^#/, '').split('&').filter(p => p && p !== 'present');
+        if (on) h.push('present');
+        history.replaceState(null, '', h.length ? '#' + h.join('&') : location.pathname + location.search);
+      } catch (e) { /* file:// */ }
+      requestAnimationFrame(() => { if (o.onChange) o.onChange(on); });
+    };
+    if ($('presBtn')) $('presBtn').onclick = () => set(true);
+    if ($('exitPres')) $('exitPres').onclick = () => set(false);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && document.body.classList.contains('present')) { set(false); e.preventDefault(); }
+    });
+    if (/(^#|&)present(&|$)/.test(location.hash)) document.body.classList.add('present');
+    return { set, on: () => document.body.classList.contains('present') };
+  }
+
+  /* ── fixed heights: every box gets the height of its tallest step ──
+     measure(i) renders step i into the boxes (without animation) */
+  function stabilise(boxes, n, measure, restore){
+    boxes = boxes.filter(Boolean);
+    boxes.forEach(b => { b.style.minHeight = ''; });
+    const mx = boxes.map(() => 0), stride = Math.max(1, Math.ceil(n / 300));
+    const one = i => { try { measure(i); } catch (e) { /* ignore while measuring */ }
+                       boxes.forEach((b, k) => { if (b.offsetParent !== null) mx[k] = Math.max(mx[k], b.offsetHeight); }); };
+    for (let i = 0; i < n; i += stride) one(i);
+    if ((n - 1) % stride !== 0) one(n - 1);
+    boxes.forEach((b, k) => { if (mx[k]) b.style.minHeight = mx[k] + 'px'; });
+    if (restore) restore();
+  }
+
+
+  /* ── code panel: house layout; keywords only where they act as keywords ──
+     sections: [{key, head, lines:[text]}]; procedures (head starts with "procedure")
+     get line numbers. highlight({key:[0-based line indices]}, extra(key,i) → class) */
+  const KW_OPEN = ['procedure', 'for', 'while', 'if', 'return', 'else', 'repeat', 'until'], KW_CLOSE = ['do', 'then'];
+  const escH = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  function hlComment(line){
+    const ci = line.indexOf('//');
+    return ci < 0 ? escH(line) : escH(line.slice(0, ci)) + '<span class="cm">' + escH(line.slice(ci)) + '</span>';
+  }
+  function hlCode(line){
+    const ci = line.indexOf('//');
+    let code = ci >= 0 ? line.slice(0, ci) : line;
+    const comment = ci >= 0 ? line.slice(ci) : '';
+    let head = '', tail = '';
+    const me = /^(\s*)(end\s+[A-Za-z]+|end)\b/.exec(code);
+    const m1 = /^(\s*)([A-Za-z]+)\b/.exec(code);
+    if (me) { head = escH(me[1]) + '<span class="kw">' + me[2] + '</span>'; code = code.slice(me[0].length); }
+    else if (m1 && KW_OPEN.includes(m1[2])) { head = escH(m1[1]) + '<span class="kw">' + m1[2] + '</span>'; code = code.slice(m1[0].length); }
+    const m3 = /\b([A-Za-z]+)(\s*)$/.exec(code);
+    if (m3 && KW_CLOSE.includes(m3[1])) { tail = '<span class="kw">' + m3[1] + '</span>' + escH(m3[2]); code = code.slice(0, m3.index); }
+    return head + escH(code) + tail + (comment ? '<span class="cm">' + escH(comment) + '</span>' : '');
+  }
+  function codePanel(box, sections){
+    const L = {}, S = {};
+    box.innerHTML = '';
+    sections.forEach(sec => {
+      const wrap = document.createElement('div'); wrap.className = 'codesec';
+      const h = document.createElement('div'); h.className = 'sublabel'; h.textContent = sec.head;
+      wrap.appendChild(h);
+      const numbered = sec.numbered !== undefined ? sec.numbered : /^procedure/.test(sec.head);
+      L[sec.key] = sec.lines.map((t, i) => {
+        const d = document.createElement('div'); d.className = 'cline';
+        d.innerHTML = '<span class="ln">' + (numbered ? i + 1 : '') + '</span><span>' + (t === '' ? ' ' : numbered ? hlCode(t) : hlComment(t)) + '</span>';
+        wrap.appendChild(d); return d;
+      });
+      box.appendChild(wrap); S[sec.key] = wrap;
+    });
+    function highlight(map, extra){
+      map = map || {};
+      let first = null;
+      for (const k in L) L[k].forEach(d => { d.className = 'cline'; });
+      const act = new Set();
+      for (const k in map) {
+        if (!L[k]) continue;
+        (map[k] || []).forEach(i => { const d = L[k][i]; if (!d) return;
+          d.classList.add('on'); const x = extra && extra(k, i); if (x) d.classList.add(x);
+          act.add(k); if (!first) first = d; });
+      }
+      for (const k in S) { S[k].classList.toggle('active', act.has(k)); S[k].classList.toggle('idle', act.size > 0 && !act.has(k)); }
+      if (first) {
+        const top = first.offsetTop, bot = top + first.offsetHeight;
+        if (top < box.scrollTop + 20 || bot > box.scrollTop + box.clientHeight - 20) box.scrollTop = Math.max(0, top - box.clientHeight * 0.3);
+      }
+    }
+    return { highlight, lines: L, sections: S };
+  }
+
+  return { transport, vsplit, hsplit, present, stabilise, clamp, codePanel, hlCode, hlComment, esc: escH };
+})();
+</script>
 <script>
 "use strict";
 
@@ -1107,7 +1469,7 @@ function drawInterval() {
     ivView = tgt; paintInterval(tgt); return;
   }
   const from = ivView;
-  const dur = Math.min(460, Math.max(180, (+el("speed").value || 480) * 0.75));
+  const dur = Math.min(460, Math.max(180, (+el("sSpeed").value || 480) * 0.75));
   const t0 = (typeof performance !== "undefined" ? performance.now() : Date.now());
   const ease = u => u < .5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u);
   const frame = () => {
@@ -1462,6 +1824,10 @@ function renderCode() {
     h += "</div>";
   });
   el("codeBody").innerHTML = h;
+  /* keep the highlighted line in view inside the code box */
+  { const box = el("codeBody").parentElement, ln = el("codeBody").querySelector(".cline.on");
+    if (ln) { const top = ln.offsetTop - el("codeBody").offsetTop, bot = top + ln.offsetHeight;
+      if (top < box.scrollTop + 20 || bot > box.scrollTop + box.clientHeight - 20) box.scrollTop = Math.max(0, top - box.clientHeight * 0.3); } }
   el("codeBody").className = "codebody";
   el("codeNote").innerHTML = mode === "half"
     ? "The three rules of the lecture. The loop keeps <b>p &gt; \u00bc</b>: an interval of width at most \u00bc that "
@@ -1477,48 +1843,23 @@ function renderCode() {
 
 /* ---------- transport ------------------------------------------------------ */
 
-function renderPhases() {
-  const bar = el("phaseBar"); bar.textContent = "";
-  phases.forEach(ph => {
-    const len = Math.max(1, ph.to - ph.from);
-    const b = document.createElement("button");
-    b.className = "phasebtn"; b.style.flexGrow = len;
-    const done = cur >= ph.to, on = cur >= ph.from && cur < ph.to;
-    if (on) b.className += " on"; else if (done) b.className += " past";
-    const f = document.createElement("span");
-    f.className = "fill" + (cur <= ph.from ? " empty" : "");
-    f.style.width = (done ? 100 : on ? Math.round(100 * (cur - ph.from) / len) : 0) + "%";
-    b.appendChild(f);
-    const lb = document.createElement("span"); lb.className = "lab"; lb.textContent = ph.name;
-    b.appendChild(lb);
-    b.title = ph.name + " \u2014 steps " + ph.from + "\u2013" + (ph.to - 1);
-    b.addEventListener("click", () => goto(ph.from));
-    bar.appendChild(b);
-  });
-  el("stepNo").textContent = (cur + 1) + " / " + steps.length;
-}
-
 function render() {
   const s = steps[cur];
   el("statusBox").innerHTML = s.msg;
   el("phaseName").textContent = phases[s.phase] ? phases[s.phase].name : "";
   drawInterval(); drawHistory();
-  renderBits(); renderState(); renderCmp(); renderCode(); renderPhases();
-  el("scrubber").max = steps.length - 1;
-  el("scrubber").value = cur;
-  el("backBtn").disabled = cur === 0;
-  el("stepBtn").disabled = cur >= steps.length - 1;
+  renderBits(); renderState(); renderCmp(); renderCode();
+  if (T) T.update();
 }
 
-function goto(k) { cur = Math.max(0, Math.min(steps.length - 1, k)); render(); }
-function stepBy(d) { stop(); goto(cur + d); }
-function stop() { if (timer) { clearInterval(timer); timer = null; el("playBtn").innerHTML = "&#x25B6;&#xFE0E;"; } }
-function play() {
-  if (timer) { stop(); return; }
-  if (cur >= steps.length - 1) cur = 0;
-  el("playBtn").innerHTML = "&#x23F8;&#xFE0E;";
-  timer = setInterval(() => { if (cur >= steps.length - 1) { stop(); return; } goto(cur + 1); }, +el("speed").value);
+function phaseOf(i) {
+  const k = steps[i] ? steps[i].phase : null, ph = phases[k];
+  if (k == null || !ph) return null;
+  return { key: k, names: [ph.name], title: ph.name };
 }
+let T = null;
+function goto(k) { cur = Math.max(0, Math.min(steps.length - 1, k)); render(); }
+function stop() { if (T) T.stop(); }
 
 /* ---------- wiring ---------------------------------------------------------- */
 
@@ -1529,6 +1870,7 @@ function refresh() {
   build();
   cur = 0;
   syncInputs();
+  if (T) T.rebuild();
   render();
 }
 function syncInputs() {
@@ -1592,23 +1934,11 @@ function init() {
   el("inText").addEventListener("keydown", ev => { if (ev.key === "Enter") el("applyBtn").click(); });
   el("loadBtn").addEventListener("click", () => loadSource(el("inputText").value));
 
-  el("resetBtn").addEventListener("click", () => { stop(); goto(0); });
-  el("backBtn").addEventListener("click", () => stepBy(-1));
-  el("stepBtn").addEventListener("click", () => stepBy(1));
-  el("playBtn").addEventListener("click", play);
-  el("scrubber").addEventListener("input", ev => { stop(); goto(+ev.target.value); });
-  el("speed").addEventListener("input", ev => {
-    el("speedVal").textContent = ev.target.value + "ms";
-    if (timer) { stop(); play(); }
-  });
-  document.addEventListener("keydown", ev => {
-    if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
-    if (ev.key === "ArrowRight") { stepBy(1); ev.preventDefault(); }
-    else if (ev.key === "ArrowLeft") { stepBy(-1); ev.preventDefault(); }
-    else if (ev.key === " ") { play(); ev.preventDefault(); }
-    else if (ev.key === "Home") { stop(); goto(0); ev.preventDefault(); }
-    else if (ev.key === "End") { stop(); goto(steps.length - 1); ev.preventDefault(); }
-  });
+  T = WI.transport({ count: () => steps.length, index: () => cur, go: k => goto(k), phaseOf });
+  const relayout = () => { ivView = null; ivLast = -1; drawInterval(); drawHistory(); T.fit(); };
+  WI.vsplit(el("splitter"), el("stageBox"), { def: 0.6, min: 0.35, max: 0.8, onMove: relayout });
+  WI.hsplit(el("histSplit"), el("histWrap"), { min: 100, onChange: h => { el("histWrap").style.maxHeight = (h === null ? 340 : h) + "px"; } });
+  WI.present({ onChange: relayout });
   let rt = null;
   window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { ivView = null; ivLast = -1; drawInterval(); drawHistory(); }, 120); });
 

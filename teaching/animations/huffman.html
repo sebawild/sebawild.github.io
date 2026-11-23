@@ -7,296 +7,382 @@
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Huffman Codes — Animated</title>
+<title>Huffman codes · step by step</title>
 <style>
-:root{
-  --bg:#f5ebd9; --panel:#faf6ed; --panel-border:#d4c5b4; --controls-bg:#ecddc5;
-  --ink:#6b675c; --ink-strong:#46433a; --muted:#8b8779;
-  --btn:#faf6ed; --btn-border:#b9a793; --btn-border-hover:#9c866d;
-  --accent:#cc2f22; --deep:#902015; --pink:#e5c0b4; --pinkline:#6d180f;
-  --leaf-fill:#faf6ed; --leaf-border:#b9a793; --inner:#8b8779;
-  --sel:#cc2f22; --new:#2f6b3a; --dim:#a89880;
-}
-*{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font-family:var(--wi-font-body)"Segoe UI",Roboto,sans-serif;
-     margin:0;padding:20px;display:flex;flex-direction:column;align-items:center;min-height:100vh}
-.container{width:100%;max-width:1600px;display:flex;flex-direction:column}
-h1{font-size:1.5rem;font-weight:500;margin:0 0 4px;letter-spacing:.5px;color:var(--ink-strong);text-transform:uppercase}
-.subtitle{font-size:.9rem;color:var(--muted);margin:0 0 18px;line-height:1.5}
-.subtitle code{background:#ecddc5;padding:1px 6px;border-radius:3px}
+  /* Same token values as /css/animations.css, repeated so the page also works when opened directly. */
+  :root {
+    --wi-bg:#f5ebd9; --wi-panel:#faf6ed; --wi-panel-2:#fcf9f3; --wi-controls:#ecddc5;
+    --wi-border:#b9a793; --wi-border-soft:#d4c5b4; --wi-border-strong:#9c866d;
+    --wi-ink:#46433a; --wi-ink-strong:#38362e; --wi-ink-soft:#6b675c; --wi-ink-faint:#8b8779;
+    --wi-accent:#902015; --wi-accent-dark:#6d180f; --wi-accent-soft:#c28577; --wi-link:#821d13;
+    --wi-active:#cc2f22; --wi-examine:#b07d18; --wi-queue:#2a6a63; --wi-relax:#4a7c3f;
+    --wi-inert:#b6b1a1;
+    --wi-font-body:texgyrepagella, "TeX Gyre Pagella", Palatino, "Palatino Linotype", "Palatino LT STD", "URWPalladioL", "URW Palladio L", serif;
+    --wi-font-head:epigrafica, Optima, "URWClassicoT", "URW Classico", "URW Classico T", sans-serif;
+    --wi-font-mono:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --wi-radius:4px; --wi-radius-lg:5px;
+    --wi-hot:#f6e6df;
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--wi-bg); color:var(--wi-ink); font-family:var(--wi-font-body);
+         font-size:19px; line-height:1.5; margin:0; padding:20px 26px 48px; }
+  h1,h2,h3,.sim-title { font-family:var(--wi-font-head); letter-spacing:.05em; }
+  h1 { font-size:1.55rem; color:var(--wi-accent); margin:0; }
+  a { color:var(--wi-link); text-decoration:none; }
+  a:hover { color:var(--wi-ink); text-shadow:0 0 5px var(--wi-accent-soft); }
+  .wi-topbar { display:flex; align-items:baseline; justify-content:space-between; gap:1em; flex-wrap:wrap;
+               margin:0 0 1.1em; padding-bottom:.5em; border-bottom:1px solid var(--wi-border);
+               font-family:var(--wi-font-head); letter-spacing:.03em; }
+  .wi-topbar .wi-home { color:var(--wi-ink-strong); font-size:1.05em; }
+  .titlebar { display:flex; align-items:center; justify-content:space-between; gap:14px 22px; flex-wrap:wrap; margin:0 0 6px; }
+  .subtitle { font-size:.86rem; color:var(--wi-ink-soft); margin:0 0 14px; max-width:100ch; line-height:1.5; }
+  .subtitle code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; font-size:.85em; font-family:var(--wi-font-mono); }
+  .mono, code { font-family:var(--wi-font-mono); font-size:.86em; }
 
-.card{background:var(--panel);border:1px solid var(--panel-border);border-radius:8px;padding:14px 18px;
-      margin-bottom:14px;width:100%;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.lbl{font-size:.78rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px}
-.sep{width:1px;height:22px;background:#d4c5b4;margin:0 4px}
+  /* --- chrome --- */
+  .controls { display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+              background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+              border-radius:var(--wi-radius-lg); padding:11px 18px; margin-bottom:14px; }
+  .ctl { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .lbl, .ctl > label:not(.chk) { font-family:var(--wi-font-head); font-size:.72rem; text-transform:uppercase;
+                       letter-spacing:.08em; color:var(--wi-ink-strong); }
+  button { font-family:var(--wi-font-head); letter-spacing:.03em; background:var(--wi-panel);
+           color:var(--wi-ink-strong); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:6px 13px; font-size:.85rem; cursor:pointer; line-height:1.35;
+           transition:background .15s,border-color .15s,color .15s; }
+  button:hover:not(:disabled) { background:var(--wi-panel-2); border-color:var(--wi-border-strong); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.pri { background:var(--wi-accent); border-color:var(--wi-accent); color:var(--wi-panel-2); }
+  button.pri:hover:not(:disabled) { background:var(--wi-accent-dark); border-color:var(--wi-accent-dark); color:var(--wi-panel-2); }
+  button.icon { font-family:var(--wi-font-body); font-variant-emoji:text; font-size:1.02rem; line-height:1.1;
+                padding:4px 0; width:2.5em; text-align:center; }
+  select, input[type=text], input[type=number] { font-family:var(--wi-font-body); background:var(--wi-panel);
+           color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius);
+           padding:4px 7px; font-size:.85rem; }
+  select { max-width:22em; }
+  input.str { font-family:var(--wi-font-mono); font-size:.8rem; width:14em; }
+  input.str.wide { width:22em; max-width:100%; }
+  input[type=range] { accent-color:var(--wi-accent); cursor:pointer; vertical-align:middle; }
+  .seg { display:inline-flex; flex-wrap:wrap; border:1px solid var(--wi-border); border-radius:var(--wi-radius); overflow:hidden; }
+  .seg button { border:0; border-radius:0; padding:5px 12px; font-size:.8rem; background:var(--wi-panel); }
+  .seg button + button { border-left:1px solid var(--wi-border); }
+  .seg button.on { background:var(--wi-accent); color:var(--wi-panel-2); }
+  .seg button.on:hover:not(:disabled) { background:var(--wi-accent-dark); color:var(--wi-panel-2); }
+  label.chk { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--wi-ink-soft); cursor:pointer; user-select:none; }
+  label.chk input { accent-color:var(--wi-accent); }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible,
+  [tabindex]:focus-visible { outline:2px solid var(--wi-accent); outline-offset:2px; border-radius:2px; }
+  .hidden { display:none !important; }
+  .flash { font-size:.78rem; color:var(--wi-relax); min-width:1em; }
+  .ctlnote { font-size:.78rem; color:var(--wi-ink-soft); }
 
-button,select{background:var(--btn);color:var(--ink-strong);border:1px solid var(--btn-border);
-  padding:7px 14px;font-size:.85rem;border-radius:5px;cursor:pointer;font-weight:500;font-family:inherit;
-  transition:background .15s,border-color .15s;white-space:nowrap}
-button:hover:not(:disabled),select:hover{background:#fcf9f3;border-color:var(--btn-border-hover)}
-button:disabled{opacity:.4;cursor:not-allowed}
-button.primary{background:#46433a;color:#faf6ed;border-color:#46433a}
-button.primary:hover:not(:disabled){background:#5c5043;border-color:#5c5043}
-button.phase{font-size:.75rem;padding:5px 10px}
-button.phase.on{background:#f7e6e0;border-color:var(--accent);color:var(--accent)}
-button.mode.on{background:#f7e6e0;border-color:var(--accent);color:var(--accent);font-weight:600}
-.cfull{font-family:var(--wi-font-mono);font-size:.8rem;word-break:break-all;
-  line-height:1.8;letter-spacing:.5px;margin-top:4px}
-.cfull .hb{background:#dce6ee;border-bottom:2px solid #2f5f8a;color:#24506f}
-.cfull .bb{background:#f3e4dd;border-bottom:2px solid var(--pinkline);color:var(--deep)}
-.cfull .cur{outline:2px solid var(--accent);border-radius:2px}
-.cfull .todo{opacity:.3}
-.cfull-key{font-size:.72rem;color:var(--muted);margin-top:6px}
-.cfull-key b{font-weight:600}
-input[type=text],textarea{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  background:var(--btn);color:var(--ink-strong);border:1px solid var(--btn-border);border-radius:5px;padding:8px 10px;font-size:.85rem}
-input[type=text]{height:34px}
-input[type=text].wide{flex:1;min-width:260px}
-textarea{width:100%;height:120px;resize:vertical;line-height:1.5}
-input[type=range]{accent-color:var(--accent);cursor:pointer;vertical-align:middle}
-#stepSlider{flex:1;min-width:220px}
-.phasebar{display:flex;height:15px;margin:1px 9px 0;border-radius:3px;overflow:hidden;
-  border:1px solid var(--panel-border)}
-.pseg{flex-grow:1;flex-basis:0;min-width:0;display:flex;align-items:center;justify-content:center;
-  font-size:.58rem;letter-spacing:.2px;color:var(--muted);background:#ecddc5;cursor:pointer;
-  overflow:hidden;white-space:nowrap;border-right:1px solid var(--btn-border);transition:.15s}
-.pseg:last-child{border-right:none}
-.pseg:nth-child(even){background:#e8ddc0}
-.pseg:hover{color:var(--ink-strong)}
-.pseg.on{background:#f7e6e0;color:var(--accent);font-weight:700}
-label.chk{font-size:.78rem;color:var(--muted);display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
-.steplabel{font-size:.78rem;color:var(--muted);min-width:150px;font-variant-numeric:tabular-nums}
+  /* --- transport: buttons, step slider with phase bar --- */
+  .transport { background:var(--wi-controls); border:1px solid var(--wi-border-soft);
+               border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:16px; }
+  .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .progress { flex:1 1 320px; min-width:220px; }
+  /* the step slider: a 16 px thumb, whose centre travels from 8 px to width − 8 px — exactly the span of the phase bar */
+  input.scrub { -webkit-appearance:none; appearance:none; display:block; width:100%; height:16px; margin:2px 0 0;
+                background:transparent; cursor:pointer; }
+  input.scrub::-webkit-slider-runnable-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; box-sizing:border-box; width:16px; height:16px;
+                margin-top:-6px; border-radius:50%; background:var(--wi-accent); border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  input.scrub::-moz-range-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
+  input.scrub::-moz-range-thumb { box-sizing:border-box; width:16px; height:16px; border-radius:50%; background:var(--wi-accent);
+                border:2px solid var(--wi-panel-2); box-shadow:0 0 0 1px var(--wi-accent); }
+  .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint); white-space:nowrap; text-align:right; padding-top:2px; }
+  .phasebar { display:flex; margin:6px 8px 0; height:1.55rem; }
+  .phasebtn { flex:none; position:relative; overflow:hidden; padding:0; min-width:0; height:100%;
+              font-size:.68rem; line-height:1.55rem; font-family:var(--wi-font-head); letter-spacing:.02em; text-align:center;
+              background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-left-width:0;
+              border-radius:0; color:var(--wi-ink-faint); cursor:pointer; white-space:nowrap; }
+  .phasebtn:first-child { border-left-width:1px; border-radius:var(--wi-radius) 0 0 var(--wi-radius); }
+  .phasebtn:last-child { border-radius:0 var(--wi-radius) var(--wi-radius) 0; }
+  .phasebtn .fill { position:absolute; left:0; top:0; bottom:0; background:#eedcd3; border-right:1px solid var(--wi-accent-soft); }
+  .phasebtn .fill.empty { border-right:0; }
+  .phasebtn .lab { position:relative; }
+  .phasebtn.on, .phasebtn.on:hover:not(:disabled) { border-color:var(--wi-accent-soft); color:var(--wi-accent); font-weight:bold; background:var(--wi-panel); }
+  .phasebtn.past { color:var(--wi-ink-soft); }
+  .phasebtn.past .fill { border-right-color:transparent; }
 
-.stage{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(320px,1fr);gap:14px;align-items:start}
-@media(max-width:1050px){.stage{grid-template-columns:1fr}}
-.side{display:flex;flex-direction:column;gap:14px}
-.box{background:var(--panel);border:1px solid var(--panel-border);border-radius:8px;padding:12px 16px;
-     box-shadow:0 2px 8px rgba(0,0,0,.04)}
-.box-title{font-size:.75rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin:0 0 10px}
-.status{background:#ecddc5;border:1px solid var(--panel-border);border-radius:5px;padding:11px 13px;
-        font-size:.9rem;color:var(--ink-strong);min-height:44px;line-height:1.55;
-        display:block;text-align:left;word-spacing:normal}
-.status code{background:#e4d5bb;padding:0 4px;border-radius:3px;
-        font-family:var(--wi-font-mono);font-size:.86em}
-.status b{color:var(--accent)}
-svg#forest{display:block;margin:0 auto;background:transparent;touch-action:none}
-.svg-wrap{background:var(--bg);border-radius:5px;overflow-x:auto;overflow-y:hidden}
+  /* --- stage: picture | splitter | explanation and code --- */
+  .stage { display:grid; grid-template-columns:minmax(0, var(--lf, 60fr)) 18px minmax(300px, var(--rf, 40fr)); gap:0; align-items:start; }
+  @media (max-width:980px) { .stage { grid-template-columns:1fr; gap:16px; } .stage > .splitter { display:none !important; } }
+  .splitter { align-self:stretch; min-height:200px; cursor:col-resize; touch-action:none; display:flex; justify-content:center; }
+  .splitter::before { content:""; width:4px; margin:30px 0; border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .splitter:hover::before, .splitter.drag::before, .splitter:focus-visible::before { background:var(--wi-accent-soft); }
+  .splitter:focus-visible { outline:none; }
+  /* a horizontal bar under a drawing: drag to change the height of the drawing */
+  .hsplit { height:14px; margin:2px 0 -4px; cursor:row-resize; touch-action:none; display:flex; align-items:center; }
+  .hsplit::before { content:""; height:4px; flex:1; margin:0 34%; border-radius:2px; background:var(--wi-border-soft); transition:background .15s; }
+  .hsplit:hover::before, .hsplit.drag::before, .hsplit:focus-visible::before { background:var(--wi-accent-soft); }
+  .hsplit:focus-visible { outline:none; }
+  /* two boxes side by side, with a splitter of their own */
+  .duo { display:grid; grid-template-columns:minmax(0, var(--df, 50fr)) 18px minmax(0, var(--ef, 50fr)); align-items:start; }
+  @media (max-width:760px) { .duo { grid-template-columns:1fr; gap:14px; } .duo > .splitter { display:none !important; } }
+  .duo > .splitter { min-height:80px; }
+  .duo > .splitter::before { margin:16px 0; }
+  .col-main, .col-side { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  @media (min-width:981px) { .col-side.sticky { position:sticky; top:10px; } }
+  .sim-box { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); padding:11px 13px; min-width:0; }
+  .sim-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--wi-ink-faint);
+               margin:0 0 8px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .sim-title .rhs { text-transform:none; letter-spacing:.02em; font-family:var(--wi-font-body); font-size:1.15em; color:var(--wi-ink-soft);
+                    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .status { background:var(--wi-controls); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius);
+            padding:9px 13px; font-size:.9rem; color:var(--wi-ink-strong); line-height:1.55; }
+  .status b { color:var(--wi-accent); }
+  .status code { background:var(--wi-panel-2); padding:0 4px; border-radius:3px; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:8px; font-size:.74rem; color:var(--wi-ink-soft); align-items:center; }
+  svg.stagesvg { display:block; background:var(--wi-bg); border-radius:var(--wi-radius); }
+  .svg-wrap { background:var(--wi-bg); border-radius:var(--wi-radius); overflow-x:auto; overflow-y:hidden; }
 
-/* priority queue */
-.pq{display:flex;flex-wrap:wrap;gap:6px;min-height:38px}
-.pq-chip{display:flex;align-items:center;gap:6px;border:1px solid var(--btn-border);background:var(--btn);
-  border-radius:14px;padding:3px 10px 3px 4px;font-size:.8rem;color:var(--ink-strong);transition:.2s}
-.pq-chip .w{background:#ecddc5;border:1px solid #d4c5b4;border-radius:10px;min-width:24px;text-align:center;
-  padding:1px 5px;font-variant-numeric:tabular-nums;font-weight:700}
-.pq-chip .lab{font-family:var(--wi-font-mono)}
-.pq-chip .mini{display:flex;align-items:center;padding:1px 0}
-.pq-chip.sel{border-color:var(--sel);background:#f7e6e0;box-shadow:0 0 0 2px rgba(196,51,51,.15)}
-.pq-chip.sel .w{background:var(--pink);border-color:var(--pinkline)}
-.pq-chip.fresh{border-color:var(--new);background:#e7f0e4}
-.pq-chip.fresh .w{background:#cfe3c8;border-color:var(--new)}
-.pq-empty{font-size:.82rem;color:var(--dim);font-style:italic}
+  /* code panel: the pseudocode, the lines being executed highlighted */
+  .codebox { background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  .codebox > .sim-title { padding:10px 15px 0; }
+  .codescroll { position:relative; max-height:calc(100vh - 300px); min-height:200px; overflow:auto; padding:0 6px 10px; }
+  .codesec .sublabel { font-family:var(--wi-font-head); font-size:.66rem; letter-spacing:.09em; text-transform:uppercase;
+              color:var(--wi-ink-faint); padding:10px 12px 3px; border-top:1px solid var(--wi-border-soft); margin-top:6px; }
+  .codesec:first-child .sublabel { border-top:0; margin-top:0; padding-top:4px; }
+  .codesec.active .sublabel { color:var(--wi-accent); }
+  .codesec.idle .cline { opacity:.55; }
+  .cline { display:flex; gap:9px; padding:1px 9px; font-family:var(--wi-font-mono); font-size:.74rem; line-height:1.6;
+           color:var(--wi-ink-strong); border-left:3px solid transparent; white-space:pre; }
+  .cline .ln { color:var(--wi-ink-faint); min-width:1.4em; text-align:right; user-select:none; flex:none; }
+  .cline .kw { color:var(--wi-accent); font-weight:bold; }
+  .cline .cm { color:var(--wi-ink-faint); font-style:italic; }
+  .cline.on { background:var(--wi-hot); border-left-color:var(--wi-active); }
+  .cline.on.strong { background:#f1d2c9; font-weight:bold; }
+  .codenote { font-size:.74rem; color:var(--wi-ink-faint); padding:2px 15px 12px; line-height:1.45; }
 
-/* tables */
-table.tbl{border-collapse:collapse;font-size:.82rem;width:100%}
-table.tbl th{font-size:.68rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);
-  text-align:left;font-weight:700;padding:3px 7px;border-bottom:1px solid var(--panel-border)}
-table.tbl td{padding:3px 7px;border-bottom:1px dashed #ecddc5;font-variant-numeric:tabular-nums}
-table.tbl tr:last-child td{border-bottom:none}
-table.tbl td.ch,table.tbl td.cw{font-family:var(--wi-font-mono);color:var(--ink-strong)}
-table.tbl td.cw{letter-spacing:.5px}
-table.tbl tr.hot td{background:#f7e6e0}
-table.tbl tr.hot td.ch{color:var(--accent);font-weight:700}
-.bar{display:inline-block;height:9px;background:var(--pink);border:1px solid var(--pinkline);border-radius:2px;vertical-align:middle}
+  /* input editor, notes */
+  details.editor { margin-top:16px; background:var(--wi-panel); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius-lg); }
+  details.editor > summary { cursor:pointer; padding:11px 16px; font-family:var(--wi-font-head); font-size:.78rem; letter-spacing:.06em; color:var(--wi-ink-soft); }
+  .editor-body { padding:0 16px 16px; }
+  textarea { width:100%; height:150px; font-family:var(--wi-font-mono); font-size:.78rem; background:var(--wi-panel-2);
+             color:var(--wi-ink); border:1px solid var(--wi-border); border-radius:var(--wi-radius); padding:8px; resize:vertical; line-height:1.5; }
+  .hint, .about { font-size:.8rem; color:var(--wi-ink-soft); line-height:1.6; }
+  .about { max-width:110ch; }
+  .about p { margin:0 0 8px; }
+  .about b { color:var(--wi-ink-strong); }
+  .about pre { background:var(--wi-panel-2); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius); padding:8px 12px; font-size:.78rem; overflow-x:auto; margin:6px 0 10px; }
+  .hint code, .about code { background:var(--wi-controls); padding:1px 5px; border-radius:3px; }
+  .err { color:var(--wi-active); font-size:.78rem; min-height:1.2em; margin-top:6px; }
+  .testout { font-family:var(--wi-font-mono); font-size:.74rem; line-height:1.6; white-space:pre-wrap; margin-top:10px; color:var(--wi-ink);
+             max-height:360px; overflow-y:auto; background:var(--wi-panel-2); border:1px solid var(--wi-border-soft); border-radius:var(--wi-radius); padding:12px; }
+  .t-pass { color:var(--wi-relax); font-weight:600; }
+  .t-fail { color:var(--wi-active); font-weight:700; }
+  .t-head { color:var(--wi-ink-strong); font-weight:700; }
 
-/* stats */
-.stats{font-size:.82rem;line-height:1.75}
-.stats .k{color:var(--muted)}
-.stats .v{color:var(--ink-strong);font-weight:600;font-variant-numeric:tabular-nums}
-.stats .note{font-size:.75rem;color:var(--dim);font-style:italic}
-.stats hr{border:none;border-top:1px dashed #ecddc5;margin:7px 0}
+  /* presentation view: only panels are hidden, the window is never touched */
+  .only-p { display:none !important; }
+  body.present .only-p { display:inline-flex !important; }
+  body.present .hide-p { display:none !important; }
+  body.present h1 { font-size:1.9rem; }
+  .exitp { position:fixed; bottom:10px; right:12px; z-index:20; font-size:.75rem; opacity:.5; }
+  .exitp:hover, .exitp:focus-visible { opacity:1; }
+  @media (max-width:760px) {
+    body { padding:16px 12px 40px; font-size:17px; }
+    h1 { font-size:1.3rem; }
+    .controls { gap:8px 12px; padding:10px 12px; }
+    .seg button { padding:5px 9px; font-size:.74rem; }
+    input.str.wide { width:14em; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { animation-duration:.001ms !important; transition-duration:.001ms !important; } }
+  /* ─────────── this page ─────────── */
 
-/* text strips */
-.strip{display:flex;flex-wrap:wrap;gap:3px;font-family:var(--wi-font-mono);line-height:1.1}
-.cell{min-width:22px;padding:4px 3px;text-align:center;border-radius:3px;background:#ecddc5;
-  border:1px solid #d4c5b4;color:var(--ink);font-size:.85rem;transition:.15s}
-.cell.done{opacity:.45}
-.cell.cur{background:#fcf9f3;border:2px solid var(--sel);color:var(--ink-strong);font-weight:700}
-.bitgroup{display:flex;flex-direction:column;align-items:center;gap:2px}
-.bits{font-family:var(--wi-font-mono);font-size:.72rem;color:var(--pinkline);letter-spacing:.5px}
-.bitstream{font-family:var(--wi-font-mono);font-size:.85rem;color:var(--ink-strong);
-  word-break:break-all;line-height:1.7;letter-spacing:1px}
-.bitstream .b{padding:1px 0}
-.bitstream .b.done{opacity:.4}
-.bitstream .b.cur{background:#f7e6e0;color:var(--accent);font-weight:700;border-radius:2px}
-.bitstream .b.fresh{color:var(--accent);font-weight:700}
-.strip-label{font-size:.78rem;color:var(--muted);font-weight:600;margin:0 0 5px}
-.strip-label span{color:var(--ink-strong);font-weight:400}
+  :root {
+    /* the names used by the drawing code, mapped onto the palette */
+    --bg:var(--wi-bg); --panel:var(--wi-panel); --ink:var(--wi-ink); --ink-strong:var(--wi-ink-strong); --muted:var(--wi-ink-faint);
+    --btn:var(--wi-panel); --btn-border:var(--wi-border); --btn-border-hover:var(--wi-border-strong);
+    --accent:var(--wi-active); --deep:var(--wi-accent); --pink:#e5c0b4; --pinkline:var(--wi-accent-dark);
+    --sel:var(--wi-active); --new:var(--wi-relax); --dim:var(--wi-ink-faint);
+    --t-head:#dde6e4; --t-head-line:var(--wi-queue); --t-fresh:#e8f0e2;
+  }
+  #forestWrap { overflow-x:auto; overflow-y:hidden; }
+  svg#forest { display:block; margin:0 auto; touch-action:none; }
+  .drawkey { font-size:.74rem; color:var(--wi-ink-soft); margin-top:8px; }
 
-/* canonical panel */
-.canon-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:22px}
-@media(max-width:900px){.canon-grid{grid-template-columns:1fr}}
-.hdr{display:flex;flex-wrap:wrap;gap:4px;align-items:flex-end}
-.hfield{display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px 5px;border-radius:4px;
-  border:1px solid #d4c5b4;background:#ecddc5;transition:.15s}
-.hfield .hb{font-family:var(--wi-font-mono);font-size:.72rem;letter-spacing:.5px;color:var(--ink-strong)}
-.hfield .hl{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
-.hfield.meta{background:#e7ecf0;border-color:#b9c6cf}
-.hfield.char{background:#faf6ed;border-color:#b9a793}
-.hfield.len{background:#f3e4dd;border-color:#d3a99b}
-.hfield.cur{border-color:var(--sel);box-shadow:0 0 0 2px rgba(196,51,51,.15)}
-.hfield.pending{opacity:.25}
-.lengroup{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;
-  padding:5px 7px 2px;font-weight:700}
-tr.pending td{opacity:.3}
+  /* priority queue */
+  .pq { display:flex; flex-wrap:wrap; gap:6px; min-height:34px; align-content:flex-start; }
+  .pq-chip { display:flex; align-items:center; gap:6px; border:1px solid var(--wi-border); background:var(--wi-panel-2);
+             border-radius:14px; padding:2px 10px 2px 3px; font-size:.8rem; color:var(--wi-ink-strong); transition:.2s; }
+  .pq-chip .w { background:var(--wi-controls); border:1px solid var(--wi-border-soft); border-radius:10px; min-width:24px; text-align:center;
+                padding:0 5px; font-family:var(--wi-font-mono); font-size:.92em; font-weight:700; }
+  .pq-chip .lab { font-family:var(--wi-font-mono); font-size:.92em; }
+  .pq-chip .mini { display:flex; align-items:center; padding:1px 0; }
+  .pq-chip.sel { border-color:var(--wi-active); background:var(--wi-hot); box-shadow:0 0 0 1px var(--wi-active); }
+  .pq-chip.sel .w { background:var(--pink); border-color:var(--wi-accent-dark); }
+  .pq-chip.fresh { border-color:var(--wi-relax); background:var(--t-fresh); }
+  .pq-chip.fresh .w { background:#d3e3c9; border-color:var(--wi-relax); }
+  .pq-empty { font-size:.82rem; color:var(--wi-ink-faint); font-style:italic; }
 
-/* panels */
-details.panel{background:var(--panel);border:1px solid var(--panel-border);border-radius:8px;width:100%;
-  margin-top:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-details.panel>summary{cursor:pointer;padding:13px 18px;font-size:.88rem;font-weight:600;color:var(--ink-strong);
-  list-style:none;user-select:none}
-details.panel>summary::-webkit-details-marker{display:none}
-details.panel>summary::before{content:"▶ ";font-size:.72rem;color:var(--btn-border-hover)}
-details.panel[open]>summary::before{content:"▼ "}
-.panel-body{padding:0 18px 16px}
-.code-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
-.code-section{border:1px solid var(--panel-border);border-radius:6px;overflow:hidden;background:#fbf8f0;
-  transition:box-shadow .25s,border-color .25s}
-.code-section.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(196,51,51,.18)}
-.code-head{font-size:.72rem;font-weight:600;color:var(--muted);padding:6px 10px;background:#f0e7d0;
-  border-bottom:1px solid var(--panel-border)}
-.code-section.active .code-head{color:var(--accent);background:#f7e6e0}
-pre.code{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.74rem;
-  line-height:1.6;color:var(--ink-strong);overflow-x:auto}
-pre.code .ln{display:block;padding:0 10px;white-space:pre;border-left:3px solid transparent}
-pre.code .ln.hot{background:#f6dfd8;border-left-color:var(--accent)}
-.help{font-size:.82rem;line-height:1.6;color:var(--ink)}
-.help code{background:#ecddc5;padding:1px 5px;border-radius:3px}
-.help pre{background:#faf6ed;border:1px solid var(--panel-border);border-radius:5px;padding:9px 12px;
-  font-size:.78rem;overflow-x:auto;margin:8px 0}
-.err{color:var(--accent);font-weight:600;font-size:.8rem;min-height:17px;margin-top:6px}
-#test-out{font-family:var(--wi-font-mono);font-size:.75rem;line-height:1.6;white-space:pre-wrap;
-  margin-top:10px;color:#46433a;max-height:360px;overflow-y:auto;background:#faf6ed;border:1px solid var(--panel-border);
-  border-radius:6px;padding:12px}
-.t-pass{color:#2f6b3a;font-weight:600}
-.t-fail{color:var(--accent);font-weight:700}
-.t-head{color:var(--ink-strong);font-weight:700}
+  /* tables */
+  table.tbl { border-collapse:collapse; font-size:.82rem; width:100%; }
+  table.tbl th { font-family:var(--wi-font-head); font-weight:normal; font-size:.68rem; letter-spacing:.06em; color:var(--wi-ink-faint);
+                 text-align:left; padding:3px 7px; border-bottom:1px solid var(--wi-border-soft); }
+  table.tbl td { padding:2px 7px; border-bottom:1px dashed var(--wi-controls); }
+  table.tbl tr:last-child td { border-bottom:none; }
+  table.tbl td.ch, table.tbl td.cw { font-family:var(--wi-font-mono); font-size:.92em; color:var(--wi-ink-strong); }
+  table.tbl tr.hot td { background:var(--wi-hot); }
+  table.tbl tr.hot td.ch { color:var(--wi-active); font-weight:700; }
+  .bar { display:inline-block; height:9px; background:var(--pink); border:1px solid var(--wi-accent-dark); border-radius:2px; vertical-align:middle; }
+  .tblnote { font-size:.72rem; color:var(--wi-ink-faint); margin-top:6px; }
+
+  /* numbers */
+  .stats { font-size:.84rem; line-height:1.75; }
+  .stats .k { color:var(--wi-ink-soft); }
+  .stats .v { color:var(--wi-ink-strong); font-weight:600; font-family:var(--wi-font-mono); font-size:.92em; }
+  .stats .note { font-size:.76rem; color:var(--wi-ink-faint); font-style:italic; }
+  .stats hr { border:none; border-top:1px dashed var(--wi-border-soft); margin:6px 0; }
+
+  /* text strips */
+  .strip { display:flex; flex-wrap:wrap; gap:3px; font-family:var(--wi-font-mono); line-height:1.1; }
+  .cell { min-width:22px; padding:4px 3px; text-align:center; border-radius:3px; background:var(--wi-controls);
+          border:1px solid var(--wi-border-soft); color:var(--wi-ink); font-size:.85rem; transition:.15s; }
+  .cell.done { opacity:.45; }
+  .cell.cur { background:var(--wi-panel-2); border:2px solid var(--wi-active); color:var(--wi-ink-strong); font-weight:700; }
+  .bitgroup { display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .bits { font-family:var(--wi-font-mono); font-size:.72rem; color:var(--wi-accent-dark); letter-spacing:.5px; }
+  .bitstream { font-family:var(--wi-font-mono); font-size:.85rem; color:var(--wi-ink-strong); word-break:break-all; line-height:1.7; letter-spacing:1px; }
+  .bitstream .b { padding:1px 0; }
+  .bitstream .b.done { opacity:.4; }
+  .bitstream .b.cur { background:var(--wi-hot); color:var(--wi-active); font-weight:700; border-radius:2px; }
+  .bitstream .b.fresh { color:var(--wi-active); font-weight:700; }
+  .strip-label { font-size:.82rem; color:var(--wi-ink-soft); margin:0 0 5px; }
+  .strip-label span { color:var(--wi-ink-strong); }
+  .cfull { font-family:var(--wi-font-mono); font-size:.8rem; word-break:break-all; line-height:1.8; letter-spacing:.5px; margin-top:4px; }
+  .cfull .hb { background:var(--t-head); border-bottom:2px solid var(--t-head-line); color:var(--wi-queue); }
+  .cfull .bb { background:#f3e4dd; border-bottom:2px solid var(--wi-accent-dark); color:var(--wi-accent); }
+  .cfull .cur { outline:2px solid var(--wi-active); border-radius:2px; }
+  .cfull .todo { opacity:.3; }
+  .cfull-key { font-size:.74rem; color:var(--wi-ink-soft); margin-top:6px; }
+
+  /* canonical code and header */
+  .hdr { display:flex; flex-wrap:wrap; gap:4px; align-items:flex-end; }
+  .hfield { display:flex; flex-direction:column; align-items:center; gap:2px; padding:3px 5px; border-radius:4px;
+            border:1px solid var(--wi-border-soft); background:var(--wi-controls); transition:.15s; }
+  .hfield .hb { font-family:var(--wi-font-mono); font-size:.72rem; letter-spacing:.5px; color:var(--wi-ink-strong); }
+  .hfield .hl { font-family:var(--wi-font-head); font-size:.58rem; color:var(--wi-ink-faint); letter-spacing:.06em; }
+  .hfield.meta { background:var(--t-head); border-color:#a9c2bd; }
+  .hfield.char { background:var(--wi-panel); border-color:var(--wi-border); }
+  .hfield.len { background:#f3e4dd; border-color:#d3a99b; }
+  .hfield.cur { border-color:var(--wi-active); box-shadow:0 0 0 1px var(--wi-active); }
+  .hfield.pending { opacity:.25; }
+  .lengroup { font-family:var(--wi-font-head); font-size:.66rem; color:var(--wi-ink-faint); letter-spacing:.08em; padding:5px 7px 2px; }
+  tr.pending td { opacity:.3; }
+  #weightsInput { width:9em; height:6.2em; }
 </style>
 <style>
 /* wild-inter.net: re-assert the site type stack over the page's own styles */
-h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
-  font-family: var(--wi-font-head);
-  letter-spacing: .05em;
-}
+h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption { font-family: var(--wi-font-head); letter-spacing: .05em; }
 h1, h2, h3 { color: var(--wi-accent); }
 body { font-family: var(--wi-font-body); }
 </style>
 </head>
 <body>
-<div class="container">
 
-<h1>Huffman Codes</h1>
-<p class="subtitle">
+<div class="wi-topbar hide-p">
+  <a class="wi-home" href="https://www.wild-inter.net/">wild-inter.net</a>
+</div>
+<div class="titlebar">
+  <h1>Huffman codes</h1>
+  <span class="ctl"><span class="seg" id="dirSeg"><button id="mode-enc" onclick="setDir('enc')" title="build the code from the text, then encode and decode">Encode</button><button id="mode-dec" onclick="setDir('dec')" title="read a code header and decode the body">Decode</button></span></span>
+  <span class="ctl hide-p"><button id="presBtn" title="A clutter-free view for the lecture (Esc to leave)">Presentation view</button></span>
+</div>
+<button id="exitPres" class="only-p exitp" title="Leave the presentation view (Esc)">✕ leave presentation</button>
+<p class="subtitle hide-p">
   Building the Huffman tree from character weights, then encoding and decoding a text with it. The forest is
   drawn in <b>priority-queue order</b>, so the two tries to merge are always the leftmost two; ties follow the
   fixed rule in the code panel, so every input has exactly one Huffman tree. Encoding is a <b>table lookup</b>
-  per character; only decoding walks the trie. The tick box in the step bar adds the optional strand on
+  per character; only decoding walks the trie. The tick box <i>canonical code</i> adds the optional strand on
   <b>canonical codes</b> and on storing the code itself as bits; the decode view uses those throughout.
 </p>
 
-<!-- ─────────── input ─────────── -->
-<div class="card">
-  <div class="row" style="margin-bottom:10px">
-    <span class="lbl">View</span>
-    <button class="mode" id="mode-enc" onclick="setDir('enc')">Encode</button>
-    <button class="mode" id="mode-dec" onclick="setDir('dec')">Decode</button>
-    <span class="lbl" style="text-transform:none;font-weight:400" id="dirNote"></span>
-  </div>
-  <div class="row" style="margin-bottom:10px" id="inputKindRow">
-    <span class="lbl">Input</span>
-    <label class="chk"><input type="radio" name="mode" value="text" checked onchange="onModeChange()"> source text <code>S</code></label>
-    <label class="chk"><input type="radio" name="mode" value="weights" onchange="onModeChange()"> alphabet + weights</label>
-    <div class="sep"></div>
-    <span class="lbl">Preset</span>
+<div class="controls hide-p">
+  <div class="ctl">
+    <label for="presetSel">Example</label>
     <select id="presetSel" onchange="loadPreset(this.value)"></select>
   </div>
-  <div id="textMode">
-    <div class="row">
-      <input type="text" class="wide" id="textInput" spellcheck="false" value="LOSSLESS">
-      <button class="primary" onclick="loadFromInput()">Load</button>
-    </div>
+  <div class="ctl" id="inputKindRow">
+    <span class="lbl">Input</span>
+    <span class="seg" id="kindSeg"><button data-k="text" onclick="setKind('text')" title="the alphabet and the weights are read off the text">source text S</button><button data-k="weights" onclick="setKind('weights')" title="Σ and w are given directly, as on the slide">alphabet + weights</button></span>
   </div>
-  <div id="bitsMode" style="display:none">
-    <div class="row">
-      <input type="text" class="wide" id="bitsInput" spellcheck="false"
-             placeholder="the coded text C: code header followed by the body, as 0s and 1s">
-      <button class="primary" onclick="loadFromInput()">Load</button>
-    </div>
+  <div class="ctl" id="textMode">
+    <label for="textInput">Text S</label>
+    <input type="text" class="str wide" id="textInput" spellcheck="false" value="LOSSLESS">
+    <button class="pri" onclick="loadFromInput()" title="Run with this input (Enter)">Set</button>
   </div>
-  <div id="weightsMode" style="display:none">
+  <div class="ctl" id="bitsMode" style="display:none">
+    <label for="bitsInput">Code C</label>
+    <input type="text" class="str wide" id="bitsInput" spellcheck="false"
+           placeholder="code header followed by the body, as 0s and 1s">
+    <button class="pri" onclick="loadFromInput()" title="Run with this input (Enter)">Set</button>
+  </div>
+  <div class="ctl" id="weightsMode" style="display:none">
     <textarea id="weightsInput" spellcheck="false">E 1
 L 2
 O 1
 S 4</textarea>
-    <div class="row" style="margin-top:8px">
-      <button class="primary" onclick="loadFromInput()">Load</button>
-      <span class="lbl" style="text-transform:none;font-weight:400">one <code>character weight</code> per line — no text, so no encoding phase</span>
-    </div>
+    <button class="pri" onclick="loadFromInput()">Set</button>
+    <span class="ctlnote">one <code>character weight</code> per line;<br>no text, so no encoding phase</span>
   </div>
-  <div class="err" id="inputErr"></div>
-</div>
-
-<!-- ─────────── step navigation ─────────── -->
-<div class="card">
-  <div class="row" style="margin-bottom:9px">
-    <button id="btnFirst" onclick="goto(0)">⏮</button>
-    <button id="btnPrev" onclick="stepBy(-1)">← Prev</button>
-    <button id="btnNext" class="primary" onclick="stepBy(1)">Next →</button>
-    <button id="btnLast" onclick="goto(steps.length-1)">⏭</button>
-    <button id="btnPlay" onclick="togglePlay()">▶ Play</button>
-    <div class="sep"></div>
-    <span style="flex:1;min-width:220px;display:block">
-      <input type="range" id="stepSlider" min="0" max="0" value="0" style="width:100%"
-             oninput="goto(+this.value,false)">
-      <span class="phasebar" id="phaseBar"></span>
-    </span>
-    <span class="steplabel" id="stepLabel"></span>
+  <div class="ctl">
+    <label class="chk"><input type="checkbox" id="canonToggle" onchange="loadFromInput()"> canonical code &amp; code header</label>
   </div>
-  <div class="row">
-    <span class="lbl">Jump to</span>
-    <span class="row" id="phaseBtns" style="gap:6px"></span>
-    <div class="sep"></div>
-    <span class="lbl">Speed</span>
-    <input type="range" id="speedSlider" min="1" max="10" value="6" oninput="setSpeed(this.value)" style="width:110px">
-    <span class="steplabel" id="speedLabel" style="min-width:34px">1×</span>
-    <div class="sep"></div>
-    <label class="chk"><input type="checkbox" id="animToggle" checked> animate motion</label>
-    <div class="sep"></div>
+  <span class="ctlnote" id="dirNote"></span>
+  <div class="ctl">
     <span class="lbl">Drawing</span>
-    <button class="phase on" id="draw-tree"  onclick="setDraw('tree')">tree</button>
-    <button class="phase" id="draw-boxes" onclick="setDraw('boxes')">nested boxes</button>
+    <span class="seg"><button class="on" id="draw-tree" onclick="setDraw('tree')">tree</button><button id="draw-boxes" onclick="setDraw('boxes')" title="a leaf is a box with its character; an inner node holds its 0-subtree followed by its 1-subtree">nested boxes</button></span>
     <label class="chk" id="bitsChk" style="display:none"><input type="checkbox" id="bitsToggle" checked
       onchange="showBits=this.checked;render(false)"> 0/1 in the corners</label>
-    <div class="sep"></div>
-    <label class="chk"><input type="checkbox" id="canonToggle" onchange="loadFromInput()">
-      <b>canonical codes</b> &amp; code header</label>
+  </div>
+  <div class="ctl">
+    <label class="chk" title="moving forward one step animates the tries"><input type="checkbox" id="animToggle" checked> animate</label>
+  </div>
+  <div class="err" id="inputErr" style="flex-basis:100%;margin:0;min-height:0"></div>
+</div>
+
+<div class="transport">
+  <div class="transport-row">
+    <span class="ctl" style="gap:6px">
+      <button id="sReset" class="icon hide-p" title="Back to the first step (Home)" aria-label="Back to the first step">&#x21BA;</button>
+      <button id="sBack" class="icon" title="One step back (←)" aria-label="One step back">&#x23EE;&#xFE0E;</button>
+      <button id="sStep" class="icon pri" title="One step forward (→)" aria-label="One step forward">&#x23ED;&#xFE0E;</button>
+      <button id="sPlay" class="icon" title="Play / pause (space)" aria-label="Play">&#x25B6;&#xFE0E;</button>
+    </span>
+    <span class="progress">
+      <input type="range" class="scrub" id="scrubber" min="0" max="100000" value="0" step="1" aria-label="Step">
+      <div class="phasebar" id="phaseBar"></div>
+    </span>
+    <span class="stepno" id="stepNo">— / —</span>
+    <span class="ctl hide-p" style="gap:6px">
+      <span class="lbl">Delay</span>
+      <input type="range" id="sSpeed" min="60" max="2000" value="700" style="width:88px" aria-label="Delay between steps">
+      <span class="stepno" id="sSpeedVal" style="min-width:4.5em">700ms</span>
+    </span>
   </div>
 </div>
 
-<!-- ─────────── stage ─────────── -->
-<div class="stage">
-  <div>
-    <div class="box">
-      <div class="box-title" id="forestTitle">Forest of tries</div>
-      <div class="svg-wrap"><svg id="forest" xmlns="http://www.w3.org/2000/svg"></svg></div>
-      <div id="drawKey" style="font-size:.75rem;color:var(--dim);margin-top:8px;display:none">
+<div class="stage" id="stageBox">
+  <div class="col-main">
+    <div class="sim-box">
+      <div class="sim-title"><span id="forestTitle">Forest of tries</span><span class="rhs" id="forestMeta"></span></div>
+      <div id="forestWrap" class="svg-wrap"><svg id="forest" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      <div class="hsplit" id="forestSplit" role="separator" aria-orientation="horizontal" tabindex="0"></div>
+      <div id="drawKey" class="drawkey" style="display:none">
         Each box holds its <b>0</b>-subtree immediately followed by its <b>1</b>-subtree, so a codeword is
         read from the outside in. Box heights follow the height of the subtree, so siblings line up.
       </div>
     </div>
 
-    <div class="box" style="margin-top:14px" id="stripBox">
-      <div class="box-title">Source text S &nbsp;·&nbsp; coded text C</div>
+    <div class="sim-box" id="pqBox">
+      <div class="sim-title"><span id="pqTitle">Priority queue (min-oriented, by weight)</span></div>
+      <div class="pq" id="pqView"></div>
+    </div>
+
+    <div class="sim-box" id="stripBox">
+      <div class="sim-title"><span>Source text S &nbsp;·&nbsp; coded text C</span></div>
       <div class="strip-label">S = <span id="sMeta"></span></div>
       <div class="strip" id="sStrip"></div>
       <div class="strip-label" style="margin-top:12px">C = <span id="cMeta"></span></div>
@@ -306,63 +392,60 @@ S 4</textarea>
           complete coded text C = <span id="cFullMeta"></span></div>
         <div class="cfull" id="cFull"></div>
         <div class="cfull-key">
-          <b style="color:#24506f">code header</b> — σ, the field width, and one (character, length) pair
-          per character &nbsp;·&nbsp; <b style="color:#6d180f">body</b> — the canonical codewords of S
+          <b style="color:var(--wi-queue)">code header</b> — σ, the field width, and one (character, length) pair
+          per character &nbsp;·&nbsp; <b style="color:var(--wi-accent)">body</b> — the canonical codewords of S
+        </div>
+      </div>
+    </div>
+
+    <div class="duo" id="tsDuo">
+      <div class="sim-box">
+        <div class="sim-title"><span>Weights w &nbsp;·&nbsp; code E</span></div>
+        <div id="tblView"></div>
+      </div>
+      <div class="splitter" id="duoSplit" role="separator" aria-orientation="vertical" tabindex="0"></div>
+      <div class="sim-box">
+        <div class="sim-title"><span>Numbers</span></div>
+        <div class="stats" id="statsView"></div>
+      </div>
+    </div>
+
+    <div class="sim-box" id="canonBox">
+      <div class="sim-title"><span>Canonical code &nbsp;·&nbsp; storing the code in C</span></div>
+      <div class="duo" id="canonDuo">
+        <div>
+          <div class="strip-label">Codeword lengths &rarr; canonical codewords</div>
+          <div id="canonTbl"></div>
+        </div>
+        <div class="splitter" id="canonSplit" role="separator" aria-orientation="vertical" tabindex="0"></div>
+        <div>
+          <div class="strip-label">Code header — the lengths are all that is stored</div>
+          <div class="hdr" id="hdrFields"></div>
+          <div class="bitstream" id="hdrBits" style="margin-top:10px"></div>
+          <div id="hdrSum" class="stats" style="margin-top:10px"></div>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="side">
-    <div class="box">
-      <div class="box-title">Status</div>
-      <div class="status" id="statusText">Press <b>&nbsp;Next&nbsp;</b> to begin.</div>
-    </div>
+  <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" tabindex="0"
+       title="Drag to share the width between the picture and the code (double-click: back to the default)"></div>
 
-    <div class="box">
-      <div class="box-title" id="pqTitle">Priority queue (min-oriented, by weight)</div>
-      <div class="pq" id="pqView"></div>
+  <div class="col-side sticky">
+    <div class="sim-box">
+      <div class="sim-title"><span>What happens</span><span class="rhs" id="phaseName"></span></div>
+      <div class="status" id="statusText"></div>
     </div>
-
-    <div class="box">
-      <div class="box-title">Weights w &nbsp;·&nbsp; code E</div>
-      <div id="tblView"></div>
-    </div>
-
-    <div class="box">
-      <div class="box-title">Numbers</div>
-      <div class="stats" id="statsView"></div>
+    <div class="codebox">
+      <div class="sim-title"><span>Pseudocode</span><span class="rhs">the lines being executed are highlighted</span></div>
+      <div class="codescroll" id="codeGrid"></div>
     </div>
   </div>
 </div>
 
-<!-- ─────────── canonical code + header ─────────── -->
-<div class="box" style="margin-top:14px" id="canonBox">
-  <div class="box-title">Canonical code &nbsp;·&nbsp; storing the code in C</div>
-  <div class="canon-grid">
-    <div>
-      <div class="strip-label">Codeword lengths &rarr; canonical codewords</div>
-      <div id="canonTbl"></div>
-    </div>
-    <div>
-      <div class="strip-label">Code header — the lengths are all that is stored</div>
-      <div class="hdr" id="hdrFields"></div>
-      <div class="bitstream" id="hdrBits" style="margin-top:10px"></div>
-      <div id="hdrSum" class="stats" style="margin-top:10px"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ─────────── pseudocode ─────────── -->
-<details class="panel" open id="codePanel">
-  <summary>Pseudocode — the active lines are highlighted</summary>
-  <div class="panel-body"><div class="code-grid" id="codeGrid"></div></div>
-</details>
-
-<!-- ─────────── format help ─────────── -->
-<details class="panel">
-  <summary>Input format</summary>
-  <div class="panel-body help">
+<details class="editor hide-p">
+  <summary>About this page — input format and conventions</summary>
+  <div class="editor-body about">
     <p><b>Source text.</b> Anything you type is the source text <code>S</code>; the alphabet
       <code>Σ<sub>S</sub></code> is the set of characters that actually occur in it, and the weights are the
       character frequencies <code>|S|<sub>c</sub></code>. A space is drawn as <code>␣</code>, a newline as
@@ -380,9 +463,9 @@ S 4</pre>
       code but reassigns the codewords so that the lengths alone determine them. That is what lets the header
       store the code as a list of (character, length) pairs rather than a tree. The exact header layout on this
       page — 8 bits for σ−1, 5 bits for the length-field width b, then σ pairs — is one concrete convention;
-      the slide leaves the details open. The tick box in the step bar switches encoding and decoding between the
+      the slide leaves the details open. The tick box <i>canonical code</i> switches encoding and decoding between the
       tree's codewords and the canonical ones; |C| is identical either way, since the lengths are.</p>
-    <p><b>Two drawings of the same trie.</b> The step bar switches between the tree and a
+    <p><b>Two drawings of the same trie.</b> <i>Drawing</i> switches between the tree and a
       <b>nested-box</b> picture: a leaf is a box holding its character, and an inner node is a box holding its
       0-subtree immediately followed by its 1-subtree. A codeword is then read from the outside in, and the
       small digits in the corners spell it out; they can be turned off. Box heights follow the height of the
@@ -399,20 +482,324 @@ S 4</pre>
     <p><b>Degenerate case.</b> With a one-character alphabet the algorithm performs no merge and the code trie is a
       single leaf, whose codeword would be the empty string. This page assigns <code>0</code> instead, so that the
       text is still decodable.</p>
+    <p><b>Layout.</b> The bars between the panels can be dragged: the vertical ones share the width, the one under
+      the drawing sets its height (double-click any of them to go back to the default). <i>Presentation view</i>
+      hides everything but the picture, the transport and the code; Esc leaves it.</p>
   </div>
 </details>
 
-<!-- ─────────── tests ─────────── -->
-<details class="panel">
+<details class="editor hide-p">
   <summary>Self-tests — algorithm vs. the lecture example and a brute-force optimum</summary>
-  <div class="panel-body">
-    <button class="primary" onclick="runTests()">Run all tests</button>
-    <div id="test-out">Not run yet.</div>
+  <div class="editor-body">
+    <button class="pri" onclick="runTests()">Run all tests</button>
+    <div id="test-out" class="testout">Not run yet.</div>
   </div>
 </details>
 
-</div>
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   wild-inter.net animation kit (shared by the compression pages):
+   transport with the step slider over the phase bar, playback with a
+   delay slider, draggable splitters, presentation view, fixed heights.
 
+   WI.transport({ count, index, go, phaseOf, onStop })
+     count()       number of steps          index()  current step
+     go(i, anim)   show step i; anim is true iff it is one step forward
+     phaseOf(i)    null or { key, names:[long, …, short], title }; consecutive
+                   steps with the same key form one segment of the phase bar,
+                   a step with null belongs to the next segment
+   The phase bar: widths ∝ number of steps, at least 30 px (water filling;
+   all equal if that does not fit); the slider maps piecewise-linearly onto
+   exactly these widths, so the thumb always sits over the current phase.
+   ═══════════════════════════════════════════════════════════════════ */
+const WI = (() => {
+  const $ = id => document.getElementById(id);
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const PH_MIN = 30, SCALE = 100000;
+  let MEASURE = null;
+  function textW(s, font){
+    if (!MEASURE) MEASURE = document.createElement('canvas').getContext('2d');
+    MEASURE.font = font; return MEASURE.measureText(s).width;
+  }
+  const isField = t => t && t.closest && t.closest('input[type=text], input[type=number], textarea, select, [contenteditable]');
+  const isSep = t => t && t.getAttribute && t.getAttribute('role') === 'separator';
+
+  function transport(o){
+    let PH = [], PW = [], PX = [], PWT = 1, timer = null;
+    const N = () => Math.max(1, o.count()), I = () => o.index();
+    const go = i => { i = clamp(i, 0, N() - 1); o.go(i, i === I() + 1); };
+
+    function rebuild(){
+      const n = N(), ph = [];
+      let pending = 0;
+      for (let i = 0; i < n; i++) {
+        let p = null; try { p = o.phaseOf ? o.phaseOf(i) : null; } catch (e) { p = null; }
+        if (!p) { pending++; continue; }
+        const last = ph[ph.length - 1];
+        if (last && last.key === p.key) { last.to = i; pending = 0; continue; }
+        ph.push({ key:p.key, names:p.names, title:p.title || p.names[0], cls:p.cls || '', from:i - pending, to:i });
+        pending = 0;
+      }
+      if (!ph.length) ph.push({ key:'all', names:['all steps', 'all'], title:'all steps', cls:'', from:0, to:n - 1 });
+      ph[0].from = 0; ph[ph.length - 1].to = n - 1;
+      for (let k = 1; k < ph.length; k++) ph[k].from = ph[k - 1].to + 1;
+      PH = ph;
+      const bar = $('phaseBar');
+      bar.innerHTML = ph.map((P, i) => `<button class="phasebtn ${P.cls}" data-p="${i}"><span class="fill empty"></span><span class="lab"></span></button>`).join('');
+      bar.querySelectorAll('.phasebtn').forEach(b => b.onclick = () => { stop(); o.go(PH[+b.dataset.p].from, false); });
+      $('stepNo').style.minWidth = (2 * String(n).length + 3) + 'ch';
+      fit(); update();
+    }
+    function fit(){
+      const bar = $('phaseBar'), W = bar.getBoundingClientRect().width, P = PH;
+      if (!W || !P.length) return;
+      const k = P.map(p => p.to - p.from + 1);
+      let w;
+      if (P.length * PH_MIN >= W) w = P.map(() => W / P.length);
+      else {
+        const fixed = new Set();
+        for (;;) {
+          const rest = k.reduce((s, x, i) => fixed.has(i) ? s : s + x, 0), c = (W - fixed.size * PH_MIN) / rest;
+          let more = false;
+          k.forEach((x, i) => { if (!fixed.has(i) && c * x < PH_MIN) { fixed.add(i); more = true; } });
+          if (!more) { w = k.map((x, i) => fixed.has(i) ? PH_MIN : c * x); break; }
+        }
+      }
+      let x = 0;
+      PW = w; PX = w.map(v => { const a = x; x += v; return a; }); PWT = W;
+      bar.querySelectorAll('.phasebtn').forEach((b, i) => {
+        b.style.width = w[i] + 'px';
+        const font = getComputedStyle(b).font, lab = b.querySelector('.lab');
+        const nm = P[i].names, names = nm.concat(nm.length ? [String(nm[nm.length - 1]).charAt(0)] : []);
+        lab.textContent = names.find(s => textW(s, 'bold ' + font) <= w[i] - 5) || '';
+        b.title = P[i].title;
+      });
+      $('scrubber').value = toVal(I());
+    }
+    const phaseIdx = vi => { let lo = 0, hi = PH.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (PH[m].from <= vi) lo = m; else hi = m - 1; } return lo; };
+    function toVal(vi){
+      if (!PH.length || !PW.length) return 0;
+      const p = phaseIdx(vi), P = PH[p], k = P.to - P.from + 1;
+      return Math.round((PX[p] + (vi - P.from + 0.5) / k * PW[p]) / PWT * SCALE);
+    }
+    function fromVal(v){
+      if (!PH.length || !PW.length) return I();
+      const x = v / SCALE * PWT;
+      let p = 0; while (p + 1 < PH.length && PX[p + 1] <= x) p++;
+      const P = PH[p], k = P.to - P.from + 1;
+      return P.from + clamp(Math.floor((x - PX[p]) / PW[p] * k), 0, k - 1);
+    }
+    function update(){
+      const i = I(), n = N();
+      $('stepNo').textContent = `${i + 1} / ${n}`;
+      $('scrubber').value = toVal(i);
+      $('sBack').disabled = $('sReset').disabled = i === 0;
+      $('sStep').disabled = i >= n - 1;
+      if (!PH.length) return;
+      const cur = phaseIdx(i);
+      $('phaseBar').querySelectorAll('.phasebtn').forEach((b, k) => {
+        const P = PH[k], m = P.to - P.from + 1;
+        const f = k < cur ? 1 : k > cur ? 0 : (i - P.from + 1) / m;
+        const fill = b.querySelector('.fill');
+        fill.style.width = (100 * f) + '%';
+        fill.classList.toggle('empty', f === 0);
+        b.classList.toggle('on', k === cur);
+        b.classList.toggle('past', k < cur);
+      });
+      if ($('phaseName')) $('phaseName').textContent = PH[cur] ? PH[cur].title : '';
+    }
+    function delay(){ return +$('sSpeed').value; }
+    function play(){
+      $('sPlay').innerHTML = '&#x23F8;&#xFE0E;'; $('sPlay').setAttribute('aria-label', 'Pause');
+      timer = setInterval(() => { if (I() >= N() - 1) stop(); else go(I() + 1); }, delay());
+    }
+    function stop(){
+      if (timer) { clearInterval(timer); timer = null; if (o.onStop) o.onStop(); }
+      $('sPlay').innerHTML = '&#x25B6;&#xFE0E;'; $('sPlay').setAttribute('aria-label', 'Play');
+    }
+    function toggle(){ if (timer) stop(); else { if (I() >= N() - 1) o.go(0, false); play(); } }
+
+    $('sReset').onclick = () => { stop(); o.go(0, false); };
+    $('sBack').onclick  = () => { stop(); go(I() - 1); };
+    $('sStep').onclick  = () => { stop(); go(I() + 1); };
+    $('sPlay').onclick  = toggle;
+    $('scrubber').oninput = () => { stop(); const v = fromVal(+$('scrubber').value); if (v !== I()) o.go(v, false); else update(); };
+    $('sSpeed').oninput = () => { $('sSpeedVal').textContent = $('sSpeed').value + 'ms'; if (timer) { clearInterval(timer); timer = null; play(); } };
+    $('sSpeedVal').textContent = $('sSpeed').value + 'ms';
+    document.addEventListener('keydown', e => {
+      if (isField(e.target) || isSep(e.target)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (o.keys && o.keys() === false) return;
+      if (e.key === 'ArrowRight') { stop(); go(I() + 1); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft') { stop(); go(I() - 1); e.preventDefault(); }
+      else if (e.key === 'Home') { stop(); o.go(0, false); e.preventDefault(); }
+      else if (e.key === 'End') { stop(); o.go(N() - 1, false); e.preventDefault(); }
+      else if (e.key === ' ' && !(e.target && e.target.tagName === 'BUTTON')) { toggle(); e.preventDefault(); }
+    });
+    let rz = null;
+    window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(fit, 120); });
+    return { rebuild, fit, update, play, stop, toggle, playing: () => !!timer, delay, toVal, fromVal,
+             phases: () => PH };
+  }
+
+  /* ── a vertical splitter: shares the width of a grid between two columns ──
+     handle: the .splitter element; box: the grid; vars: the two CSS fr variables */
+  function vsplit(handle, box, o = {}){
+    const vars = o.vars || ['--lf', '--rf'], S = { f:o.def || 0.6, def:o.def || 0.6 };
+    const lo = o.min || 0.25, hi = o.max || 0.8;
+    let t = null;
+    function set(f, quiet){
+      S.f = clamp(f, lo, hi);
+      box.style.setProperty(vars[0], (100 * S.f).toFixed(2) + 'fr');
+      box.style.setProperty(vars[1], (100 * (1 - S.f)).toFixed(2) + 'fr');
+      if (quiet) return;
+      if (o.onMove) o.onMove(S.f);
+      clearTimeout(t); t = setTimeout(() => { if (o.onChange) o.onChange(S.f); }, 120);
+    }
+    let drag = false, raf = 0;
+    const moveTo = x => {
+      const r = box.getBoundingClientRect(), hr = handle.getBoundingClientRect();
+      const left = r.left, w = r.width - hr.width;   /* the fraction of the space without the handle */
+      cancelAnimationFrame(raf); raf = requestAnimationFrame(() => set((x - left - hr.width / 2) / (w || 1)));
+    };
+    handle.addEventListener('pointerdown', e => { drag = true; handle.classList.add('drag'); handle.setPointerCapture(e.pointerId); e.preventDefault(); });
+    handle.addEventListener('pointermove', e => { if (drag) moveTo(e.clientX); });
+    handle.addEventListener('pointerup', () => { drag = false; handle.classList.remove('drag'); });
+    handle.addEventListener('pointercancel', () => { drag = false; handle.classList.remove('drag'); });
+    handle.addEventListener('dblclick', () => set(S.def));
+    handle.addEventListener('keydown', e => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); set(S.f + (e.key === 'ArrowLeft' ? -0.03 : 0.03)); }
+    });
+    if (!handle.title) handle.title = 'Drag to share the width (double-click: back to the default)';
+    set(S.f, true);
+    return { set, get: () => S.f };
+  }
+
+  /* ── a horizontal bar under a drawing: drag it to change the drawing's height ──
+     onChange(h) gets the new height in px, or null for "back to the natural height" */
+  function hsplit(handle, target, o = {}){
+    let drag = false, y0 = 0, h0 = 0, raf = 0, H = null;
+    const lo = o.min || 120;
+    function set(h){
+      H = h === null ? null : clamp(h, lo, Math.max(lo + 50, (o.max || 2.5) * window.innerHeight));
+      if (o.onChange) o.onChange(H); else target.style.height = H === null ? '' : H.toFixed(0) + 'px';
+    }
+    handle.addEventListener('pointerdown', e => {
+      drag = true; handle.classList.add('drag'); handle.setPointerCapture(e.pointerId); e.preventDefault();
+      y0 = e.clientY; h0 = target.getBoundingClientRect().height;
+    });
+    handle.addEventListener('pointermove', e => {
+      if (!drag) return;
+      const y = e.clientY; cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => set(h0 + y - y0));
+    });
+    handle.addEventListener('pointerup', () => { drag = false; handle.classList.remove('drag'); });
+    handle.addEventListener('pointercancel', () => { drag = false; handle.classList.remove('drag'); });
+    handle.addEventListener('dblclick', () => set(null));
+    handle.addEventListener('keydown', e => {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault(); set(target.getBoundingClientRect().height + (e.key === 'ArrowUp' ? -20 : 20));
+      }
+    });
+    if (!handle.title) handle.title = 'Drag to change the height of the drawing (double-click: back to the default)';
+    return { set, get: () => H };
+  }
+
+  /* ── presentation view: hides panels only, never touches the window ── */
+  function present(o = {}){
+    const set = on => {
+      document.body.classList.toggle('present', on);
+      try {
+        const h = location.hash.replace(/^#/, '').split('&').filter(p => p && p !== 'present');
+        if (on) h.push('present');
+        history.replaceState(null, '', h.length ? '#' + h.join('&') : location.pathname + location.search);
+      } catch (e) { /* file:// */ }
+      requestAnimationFrame(() => { if (o.onChange) o.onChange(on); });
+    };
+    if ($('presBtn')) $('presBtn').onclick = () => set(true);
+    if ($('exitPres')) $('exitPres').onclick = () => set(false);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && document.body.classList.contains('present')) { set(false); e.preventDefault(); }
+    });
+    if (/(^#|&)present(&|$)/.test(location.hash)) document.body.classList.add('present');
+    return { set, on: () => document.body.classList.contains('present') };
+  }
+
+  /* ── fixed heights: every box gets the height of its tallest step ──
+     measure(i) renders step i into the boxes (without animation) */
+  function stabilise(boxes, n, measure, restore){
+    boxes = boxes.filter(Boolean);
+    boxes.forEach(b => { b.style.minHeight = ''; });
+    const mx = boxes.map(() => 0), stride = Math.max(1, Math.ceil(n / 300));
+    const one = i => { try { measure(i); } catch (e) { /* ignore while measuring */ }
+                       boxes.forEach((b, k) => { if (b.offsetParent !== null) mx[k] = Math.max(mx[k], b.offsetHeight); }); };
+    for (let i = 0; i < n; i += stride) one(i);
+    if ((n - 1) % stride !== 0) one(n - 1);
+    boxes.forEach((b, k) => { if (mx[k]) b.style.minHeight = mx[k] + 'px'; });
+    if (restore) restore();
+  }
+
+
+  /* ── code panel: house layout; keywords only where they act as keywords ──
+     sections: [{key, head, lines:[text]}]; procedures (head starts with "procedure")
+     get line numbers. highlight({key:[0-based line indices]}, extra(key,i) → class) */
+  const KW_OPEN = ['procedure', 'for', 'while', 'if', 'return', 'else', 'repeat', 'until'], KW_CLOSE = ['do', 'then'];
+  const escH = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  function hlComment(line){
+    const ci = line.indexOf('//');
+    return ci < 0 ? escH(line) : escH(line.slice(0, ci)) + '<span class="cm">' + escH(line.slice(ci)) + '</span>';
+  }
+  function hlCode(line){
+    const ci = line.indexOf('//');
+    let code = ci >= 0 ? line.slice(0, ci) : line;
+    const comment = ci >= 0 ? line.slice(ci) : '';
+    let head = '', tail = '';
+    const me = /^(\s*)(end\s+[A-Za-z]+|end)\b/.exec(code);
+    const m1 = /^(\s*)([A-Za-z]+)\b/.exec(code);
+    if (me) { head = escH(me[1]) + '<span class="kw">' + me[2] + '</span>'; code = code.slice(me[0].length); }
+    else if (m1 && KW_OPEN.includes(m1[2])) { head = escH(m1[1]) + '<span class="kw">' + m1[2] + '</span>'; code = code.slice(m1[0].length); }
+    const m3 = /\b([A-Za-z]+)(\s*)$/.exec(code);
+    if (m3 && KW_CLOSE.includes(m3[1])) { tail = '<span class="kw">' + m3[1] + '</span>' + escH(m3[2]); code = code.slice(0, m3.index); }
+    return head + escH(code) + tail + (comment ? '<span class="cm">' + escH(comment) + '</span>' : '');
+  }
+  function codePanel(box, sections){
+    const L = {}, S = {};
+    box.innerHTML = '';
+    sections.forEach(sec => {
+      const wrap = document.createElement('div'); wrap.className = 'codesec';
+      const h = document.createElement('div'); h.className = 'sublabel'; h.textContent = sec.head;
+      wrap.appendChild(h);
+      const numbered = sec.numbered !== undefined ? sec.numbered : /^procedure/.test(sec.head);
+      L[sec.key] = sec.lines.map((t, i) => {
+        const d = document.createElement('div'); d.className = 'cline';
+        d.innerHTML = '<span class="ln">' + (numbered ? i + 1 : '') + '</span><span>' + (t === '' ? ' ' : numbered ? hlCode(t) : hlComment(t)) + '</span>';
+        wrap.appendChild(d); return d;
+      });
+      box.appendChild(wrap); S[sec.key] = wrap;
+    });
+    function highlight(map, extra){
+      map = map || {};
+      let first = null;
+      for (const k in L) L[k].forEach(d => { d.className = 'cline'; });
+      const act = new Set();
+      for (const k in map) {
+        if (!L[k]) continue;
+        (map[k] || []).forEach(i => { const d = L[k][i]; if (!d) return;
+          d.classList.add('on'); const x = extra && extra(k, i); if (x) d.classList.add(x);
+          act.add(k); if (!first) first = d; });
+      }
+      for (const k in S) { S[k].classList.toggle('active', act.has(k)); S[k].classList.toggle('idle', act.size > 0 && !act.has(k)); }
+      if (first) {
+        const top = first.offsetTop, bot = top + first.offsetHeight;
+        if (top < box.scrollTop + 20 || bot > box.scrollTop + box.clientHeight - 20) box.scrollTop = Math.max(0, top - box.clientHeight * 0.3);
+      }
+    }
+    return { highlight, lines: L, sections: S };
+  }
+
+  return { transport, vsplit, hsplit, present, stabilise, clamp, codePanel, hlCode, hlComment, esc: escH };
+})();
+</script>
 <script>
 "use strict";
 /* ══════════════════════════════════════════════════════════════════════════
@@ -773,35 +1160,64 @@ let CODE_SECTIONS=codeSections(false);
 const codeLineEls={};
 function buildCodePanel(useCanon){
   CODE_SECTIONS=codeSections(!!useCanon);
-  const grid=document.getElementById('codeGrid');
-  grid.innerHTML='';
+  const box=document.getElementById('codeGrid');
+  box.innerHTML='';
   for(const k in codeLineEls) delete codeLineEls[k];
   for(const sec of CODE_SECTIONS){
-    const box=document.createElement('div');
-    box.className='code-section'; box.id='cs-'+sec.key;
-    const h=document.createElement('div'); h.className='code-head'; h.textContent=sec.head;
-    const pre=document.createElement('pre'); pre.className='code';
+    const wrap=document.createElement('div');
+    wrap.className='codesec'; wrap.id='cs-'+sec.key;
+    const h=document.createElement('div'); h.className='sublabel'; h.textContent=sec.head;
+    wrap.appendChild(h);
+    const numbered=/^procedure/.test(sec.head);
     codeLineEls[sec.key]=[];
-    sec.lines.forEach(l=>{
-      const sp=document.createElement('span'); sp.className='ln'; sp.textContent=l.t;
-      pre.appendChild(sp); codeLineEls[sec.key].push({el:sp,k:l.k});
+    sec.lines.forEach((l,i)=>{
+      const d=document.createElement('div'); d.className='cline';
+      d.innerHTML='<span class="ln">'+(numbered?i+1:'')+'</span><span>'+(numbered?hlCodeLine(l.t):hlComment(l.t))+'</span>';
+      wrap.appendChild(d); codeLineEls[sec.key].push({el:d,k:l.k});
     });
-    box.appendChild(h); box.appendChild(pre); grid.appendChild(box);
+    box.appendChild(wrap);
   }
 }
+/* keywords only where they act as keywords: for/while/if/return/procedure opening a line, do/then closing it */
+const KW_OPEN=['procedure','for','while','if','return','else'], KW_CLOSE=['do','then'];
+function escH(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function hlComment(line){
+  const ci=line.indexOf('//');
+  return ci<0 ? escH(line) : escH(line.slice(0,ci))+'<span class="cm">'+escH(line.slice(ci))+'</span>';
+}
+function hlCodeLine(line){
+  const ci=line.indexOf('//');
+  let code=ci>=0?line.slice(0,ci):line;
+  const comment=ci>=0?line.slice(ci):'';
+  const m1=/^(\s*)([A-Za-z]+)\b/.exec(code), m2=/\b([A-Za-z]+)(\s*)$/.exec(code);
+  let head='', tail='';
+  if(m1&&KW_OPEN.includes(m1[2])){ head=escH(m1[1])+'<span class="kw">'+m1[2]+'</span>'; code=code.slice(m1[0].length); }
+  const m3=/\b([A-Za-z]+)(\s*)$/.exec(code);
+  if(m3&&KW_CLOSE.includes(m3[1])){ tail='<span class="kw">'+m3[1]+'</span>'+escH(m3[2]); code=code.slice(0,m3.index); }
+  return head+escH(code)+tail+(comment?'<span class="cm">'+escH(comment)+'</span>':'');
+}
 function highlightCode(map){
-  for(const sec of CODE_SECTIONS){
-    const b=document.getElementById('cs-'+sec.key);
-    if(b) b.classList.remove('active');
-    (codeLineEls[sec.key]||[]).forEach(o=>o.el.classList.remove('hot'));
-  }
+  let first=null, any=false;
+  for(const sec of CODE_SECTIONS)
+    (codeLineEls[sec.key]||[]).forEach(o=>o.el.classList.remove('on'));
+  const act=new Set();
   for(const k in map){
     const lines=codeLineEls[k];
     if(!lines) continue;                      // section absent in this variant
     const tags=new Set(map[k]);
-    let any=false;
-    lines.forEach(o=>{ if(o.k&&tags.has(o.k)){ o.el.classList.add('hot'); any=true; } });
-    if(any){ const b=document.getElementById('cs-'+k); if(b) b.classList.add('active'); }
+    lines.forEach(o=>{ if(o.k&&tags.has(o.k)){ o.el.classList.add('on'); act.add(k); if(!first) first=o.el; } });
+  }
+  for(const sec of CODE_SECTIONS){
+    const b=document.getElementById('cs-'+sec.key); if(!b) continue;
+    b.classList.toggle('active',act.has(sec.key));
+    b.classList.toggle('idle',act.size>0&&!act.has(sec.key));
+  }
+  /* keep the first highlighted line in view inside the code box */
+  const box=document.getElementById('codeGrid');
+  if(first){
+    const top=first.offsetTop, bot=top+first.offsetHeight;
+    if(top<box.scrollTop+20||bot>box.scrollTop+box.clientHeight-20)
+      box.scrollTop=Math.max(0,top-box.clientHeight*0.3);
   }
 }
 
@@ -1196,7 +1612,7 @@ function escapeXml(s){
 }
 
 /* global viewBox: max over all snapshots, so the frame never jumps */
-let VIEW={w:600,h:300};
+let VIEW={w:600,h:300}, FOREST_H=null;
 function computeViewBox(allSteps){
   let w=0,h=0;
   for(const s of allSteps){
@@ -1213,9 +1629,9 @@ function computeViewBox(allSteps){
   /* A small forest in a wide panel must not be blown up to several times the
      size of the surrounding text; a large one stays at 1:1 and scrolls.      */
   const wrap=svg.parentElement;
-  wrap.style.overflowX='auto';
   const avail=wrap.clientWidth||0;
-  const scale=avail>0 ? Math.min(1.4,Math.max(1,avail/VIEW.w)) : 1;
+  const scale = FOREST_H!==null ? Math.max(0.3,FOREST_H/VIEW.h)
+              : avail>0 ? Math.min(1.4,Math.max(1,avail/VIEW.w)) : 1;
   svg.style.width=(VIEW.w*scale)+'px';
   svg.style.height=(VIEW.h*scale)+'px';
 }
@@ -1226,7 +1642,6 @@ function computeViewBox(allSteps){
 const SVGNS='http://www.w3.org/2000/svg';
 let livePos={};           // id -> geometry currently on screen
 let animHandle=null;
-let speedFactor=1;
 let drawMode='tree';      // 'tree' | 'boxes'
 let showBits=true;        // corner 0/1 digits in the box drawing
 
@@ -1244,7 +1659,7 @@ function renderForest(step, animate){
   for(const id in target) from[id] = livePos[id] || target[id];
 
   if(animHandle){ cancelAnimationFrame(animHandle); animHandle=null; }
-  const dur = animate ? 420/speedFactor : 0;
+  const dur = animate ? Math.min(420, 0.6*T.delay()) : 0;
   const t0=performance.now();
 
   function frame(now){
@@ -1771,7 +2186,6 @@ const PHASE_LABELS={count:'Frequencies',pqinit:'Build tree',select:'Build tree',
 
 function render(animate){
   const step=steps[cur];
-  document.getElementById('statusText').innerHTML=step.msg;
   document.getElementById('forestTitle').textContent=
     (model.dir==='dec') ? (step.phase==='hparse'?'Nothing to draw yet — the code is still in the header'
                                                 :'Canonical code trie, rebuilt from the lengths')
@@ -1783,41 +2197,27 @@ function render(animate){
         ? 'Huffman tree (code trie)' : 'Forest of tries';
   document.getElementById('drawKey').style.display = drawMode==='boxes'?'':'none';
   renderForest(step,animate);
-  const pqBox=document.getElementById('pqTitle').parentElement;
-  const pqLive = model.dir!=='dec' && !['canon','header'].includes(step.phase);
-  pqBox.style.display = pqLive ? '' : 'none';
-  if(pqLive) renderPQ(step);
-  renderTable(step); renderCanon(step); renderStats(step); renderStrips(step);
+  renderPanels(step);
   highlightCode(step.hi||{});
-  document.getElementById('stepSlider').value=cur;
-  document.getElementById('stepLabel').textContent=
-    'step '+(cur+1)+' / '+steps.length+'  ·  '+(PHASE_LABELS[step.phase]||'');
-  document.getElementById('btnPrev').disabled=cur===0;
-  document.getElementById('btnFirst').disabled=cur===0;
-  document.getElementById('btnNext').disabled=cur===steps.length-1;
-  document.getElementById('btnLast').disabled=cur===steps.length-1;
-  updatePhaseButtons();
+  T.update();
+}
+/* everything but the drawing and the code panel (also used to measure the boxes) */
+function renderPanels(step){
+  document.getElementById('statusText').innerHTML=step.msg;
+  const pqBox=document.getElementById('pqBox');
+  pqBox.style.display = model.dir==='dec' ? 'none' : '';
+  const pqLive = model.dir!=='dec' && !['canon','header'].includes(step.phase);
+  if(pqLive) renderPQ(step);
+  else if(model.dir!=='dec'){
+    document.getElementById('pqTitle').textContent='Priority queue';
+    document.getElementById('pqView').innerHTML='<span class="pq-empty">not used any more — the tree is built</span>';
+  }
+  renderTable(step); renderCanon(step); renderStats(step); renderStrips(step);
 }
 function goto(i,animate){
-  if(animate===undefined) animate=document.getElementById('animToggle').checked;
   cur=Math.max(0,Math.min(steps.length-1,i));
-  render(animate&&document.getElementById('animToggle').checked);
+  render(!!animate&&document.getElementById('animToggle').checked);
 }
-function stepBy(d){ stopPlay(); goto(cur+d,true); }
-
-let playTimer=null;
-function togglePlay(){ playTimer?stopPlay():startPlay(); }
-function startPlay(){
-  if(cur>=steps.length-1) cur=0;
-  document.getElementById('btnPlay').textContent='⏸ Pause';
-  const tick=()=>{
-    if(cur>=steps.length-1){ stopPlay(); return; }
-    goto(cur+1,true);
-    playTimer=setTimeout(tick, 620/speedFactor);
-  };
-  playTimer=setTimeout(tick,10);
-}
-function stopPlay(){ if(playTimer){clearTimeout(playTimer);playTimer=null;} document.getElementById('btnPlay').textContent='▶ Play'; }
 function setDraw(m){
   if(drawMode===m) return;
   drawMode=m;
@@ -1827,53 +2227,20 @@ function setDraw(m){
   livePos={};                       /* the two drawings mean different things */
   computeViewBox(steps);
   render(false);
-}
-function setSpeed(v){
-  speedFactor=Math.pow(1.35,v-6);
-  document.getElementById('speedLabel').textContent=fmt(speedFactor,1)+'×';
+  stabilise();
 }
 
-function phaseStarts(){
-  const out=[];
-  const seen=new Set();
-  steps.forEach((s,i)=>{
-    const lab=PHASE_LABELS[s.phase];
-    if(lab&&!seen.has(lab)){ seen.add(lab); out.push({lab,i}); }
-  });
-  return out;
+/* the phase bar: consecutive steps with the same label form one segment */
+const PHASE_SHORT={'Build tree':'Build','Code table':'Code','Code header':'Header','Read header':'Header','Frequencies':'Freq.','Canonical':'Canon.'};
+function phaseOf(i){
+  const lab=PHASE_LABELS[steps[i].phase]; if(!lab) return null;
+  return {key:lab, names:[lab].concat(PHASE_SHORT[lab]?[PHASE_SHORT[lab]]:[]), title:lab};
 }
-function buildPhaseButtons(){
-  const ps=phaseStarts();
-  const v=document.getElementById('phaseBtns'); v.innerHTML='';
-  ps.forEach(p=>{
-    const b=document.createElement('button');
-    b.className='phase'; b.textContent=p.lab; b.dataset.idx=p.i;
-    b.onclick=()=>{ stopPlay(); goto(p.i,false); };
-    v.appendChild(b);
-  });
-  /* the same phases as proportional markings under the slider */
-  const bar=document.getElementById('phaseBar'); bar.innerHTML='';
-  ps.forEach((p,k)=>{
-    const end=(k+1<ps.length)?ps[k+1].i:steps.length;
-    const seg=document.createElement('span');
-    seg.className='pseg';
-    seg.style.flexGrow=String(Math.max(1,end-p.i));
-    seg.textContent=p.lab;
-    seg.title=p.lab+' — steps '+(p.i+1)+'…'+end;
-    seg.onclick=()=>{ stopPlay(); goto(p.i,false); };
-    bar.appendChild(seg);
-  });
-}
-function updatePhaseButtons(){
-  const ps=phaseStarts();
-  const btns=document.getElementById('phaseBtns').children;
-  const segs=document.getElementById('phaseBar').children;
-  for(let k=0;k<ps.length;k++){
-    const start=ps[k].i, end=(k+1<ps.length)?ps[k+1].i:steps.length;
-    const on = cur>=start&&cur<end;
-    if(btns[k]) btns[k].classList.toggle('on',on);
-    if(segs[k]) segs[k].classList.toggle('on',on);
-  }
+/* every box below the drawing gets the height of its tallest step, so nothing jumps */
+function stabilise(){
+  const ids=['statusText','pqView','stripBox','tblView','statsView','canonBox'];
+  WI.stabilise(ids.map(id=>document.getElementById(id)), steps.length,
+               i=>renderPanels(steps[i]), ()=>renderPanels(steps[cur]));
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -1894,6 +2261,13 @@ const PRESETS={
 function initPresets(){
   const sel=document.getElementById('presetSel');
   for(const k in PRESETS){ const o=document.createElement('option'); o.value=k; o.textContent=k; sel.appendChild(o); }
+  const o=document.createElement('option'); o.value='custom'; o.textContent='— your own input —'; o.disabled=true; sel.appendChild(o);
+}
+function syncPresetSel(){
+  if(dir==='dec') return;
+  const v = inputKind==='text' ? document.getElementById('textInput').value : document.getElementById('weightsInput').value.trim();
+  const k = Object.keys(PRESETS).find(k=>PRESETS[k].mode===inputKind && PRESETS[k].v===v);
+  document.getElementById('presetSel').value = k || 'custom';
 }
 function loadPreset(k){
   const p=PRESETS[k]; if(!p) return;
@@ -1909,16 +2283,19 @@ function loadPreset(k){
     if(text) putText(text);
     return;
   }
-  document.querySelector('input[name=mode][value='+p.mode+']').checked=true;
+  inputKind=p.mode;
   onModeChange();
   if(p.mode==='text') document.getElementById('textInput').value=p.v;
   else document.getElementById('weightsInput').value=p.v;
   loadFromInput();
 }
+let inputKind='text';
+function setKind(k){ inputKind=k; onModeChange(); }
 function onModeChange(){
-  const m=document.querySelector('input[name=mode]:checked').value;
+  const m = dir==='dec' ? null : inputKind;
   document.getElementById('textMode').style.display = m==='text'?'':'none';
   document.getElementById('weightsMode').style.display = m==='weights'?'':'none';
+  document.querySelectorAll('#kindSeg button').forEach(b=>b.classList.toggle('on',b.dataset.k===inputKind));
 }
 function parseWeights(src){
   const ents=[]; const seen=new Set();
@@ -1957,7 +2334,7 @@ function setDir(d){
     ct.disabled=false;
     if(was==='dec') ct.checked=canonWasOn;
   }
-  if(d!=='enc') onModeChange();
+  onModeChange();
   if(text===null){ loadPreset(Object.keys(PRESETS)[0]); return; }
   putText(text);
 }
@@ -1969,7 +2346,7 @@ function currentText(fromDir){
       if(!/^[01]+$/.test(bits)) return null;
       return buildDecodeSteps(bits).decoded || null;
     }
-    const m=document.querySelector('input[name=mode]:checked').value;
+    const m=inputKind;
     if(m==='text'){
       const t=document.getElementById('textInput').value;
       return t.length?t:null;
@@ -1988,7 +2365,7 @@ function putText(text){
     document.getElementById('bitsInput').value=
       buildHeader(code,ents).bits+encodeText(text,canonicalCode(code));
   } else {
-    document.querySelector('input[name=mode][value=text]').checked=true;
+    inputKind='text';
     onModeChange();
     document.getElementById('textInput').value=text;
   }
@@ -1997,6 +2374,7 @@ function putText(text){
 
 function loadFromInput(){
   const err=document.getElementById('inputErr'); err.textContent='';
+  syncPresetSel();
   try{
     if(dir==='dec'){
       const bits=document.getElementById('bitsInput').value.replace(/\s+/g,'');
@@ -2005,7 +2383,7 @@ function loadFromInput(){
       startDecode(bits);
       return;
     }
-    const m=document.querySelector('input[name=mode]:checked').value;
+    const m=inputKind;
     let text=null, ents;
     if(m==='text'){
       text=document.getElementById('textInput').value;
@@ -2018,17 +2396,16 @@ function loadFromInput(){
   }catch(e){ err.textContent=e.message; }
 }
 function startDecode(bits){
-  stopPlay(); _nid=0;
+  T.stop(); _nid=0;
   buildCodePanel(true);
   model=buildDecodeSteps(bits);
   steps=model.steps; livePos={};
-  document.getElementById('stepSlider').max=steps.length-1;
-  buildPhaseButtons();
   computeViewBox(steps);
-  cur=0; render(false);
+  cur=0; T.rebuild(); render(false);
+  stabilise();
 }
 function start(text,ents){
-  stopPlay();
+  T.stop();
   _nid=0;
   const useCanon=document.getElementById('canonToggle').checked;
   buildCodePanel(useCanon);
@@ -2036,10 +2413,9 @@ function start(text,ents){
   model.dir='enc';
   steps=model.steps;
   livePos={};
-  document.getElementById('stepSlider').max=steps.length-1;
-  buildPhaseButtons();
   computeViewBox(steps);
-  cur=0; render(false);
+  cur=0; T.rebuild(); render(false);
+  stabilise();
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -2396,18 +2772,24 @@ function runTests(){
 /* ══════════════════════════════════════════════════════════════════════════
    10.  Boot
    ══════════════════════════════════════════════════════════════════════════ */
+const T=WI.transport({
+  count:()=>steps.length, index:()=>cur, go:(i,anim)=>goto(i,anim), phaseOf
+});
 initPresets();
 buildCodePanel(false);
-setSpeed(6);
 document.getElementById('mode-enc').classList.add('on');
+onModeChange();
+['textInput','bitsInput'].forEach(id=>document.getElementById(id).addEventListener('keydown',e=>{ if(e.key==='Enter') loadFromInput(); }));
+const relayout=()=>{ if(model){ computeViewBox(steps); T.fit(); stabilise(); } };
+WI.vsplit(document.getElementById('splitter'), document.getElementById('stageBox'), {def:0.62, min:0.35, max:0.8, onChange:relayout});
+WI.vsplit(document.getElementById('duoSplit'), document.getElementById('tsDuo'), {vars:['--df','--ef'], def:0.55, min:0.25, max:0.75, onChange:relayout});
+WI.vsplit(document.getElementById('canonSplit'), document.getElementById('canonDuo'), {vars:['--df','--ef'], def:0.45, min:0.25, max:0.75, onChange:relayout});
+WI.hsplit(document.getElementById('forestSplit'), document.getElementById('forest'), {min:90,
+  onChange:h=>{ FOREST_H=h; computeViewBox(steps); }});
+WI.present({onChange:relayout});
 loadFromInput();
-window.addEventListener('resize',()=>{ if(model){ computeViewBox(steps); render(false); } });
-document.addEventListener('keydown',e=>{
-  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT') return;
-  if(e.key==='ArrowRight'){e.preventDefault();stepBy(1);}
-  else if(e.key==='ArrowLeft'){e.preventDefault();stepBy(-1);}
-  else if(e.key===' '){e.preventDefault();togglePlay();}
-});
+let rzT=null;
+window.addEventListener('resize',()=>{ clearTimeout(rzT); rzT=setTimeout(relayout,150); });
 </script>
 </body>
 </html>

@@ -96,9 +96,9 @@
   .progress input[type=range] { display:block; width:100%; margin:0; }
   .stepno { font-family:var(--wi-font-mono); font-size:.76rem; color:var(--wi-ink-faint);
             white-space:nowrap; text-align:right; padding-top:4px; }
-  .phasebar { display:flex; margin:5px var(--thumb) 0; width:calc(100% - var(--thumb) - var(--thumb)); }
-  .phasebtn { position:relative; overflow:hidden;
-              flex-grow:1; flex-basis:0; min-width:0; padding:3px 4px; font-size:.68rem; line-height:1.3;
+  .phasebar { position:relative; height:21px; margin:5px var(--thumb) 0; width:calc(100% - var(--thumb) - var(--thumb)); }
+  .phasebtn { position:absolute; top:0; bottom:0; overflow:hidden; box-sizing:border-box;
+              min-width:0; padding:3px 4px; font-size:.68rem; line-height:1.3;
               font-family:var(--wi-font-head); letter-spacing:.03em;
               background:var(--wi-panel); border:1px solid var(--wi-border-soft);
               border-left-width:0; border-radius:0; color:var(--wi-ink-faint); cursor:pointer;
@@ -384,6 +384,7 @@ h1, h2, h3, h4, h5, h6, .sim-title, .wi-caption {
 h1, h2, h3 { color: var(--wi-accent); }
 body { font-family: var(--wi-font-body); }
 </style>
+<script data-goatcounter="https://wild-inter-net.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </head>
 <body>
 
@@ -471,9 +472,15 @@ body { font-family: var(--wi-font-body); }
   </div>
   <!-- DP -->
   <div class="grp" data-tab="dp">
+    <span class="ctl"><span class="lbl">Algorithm</span>
+      <span class="seg" id="dpAlgSeg">
+        <button data-a="plain" class="on" title="the algorithm from the lecture, directly on the given tree decomposition">basic</button>
+        <button data-a="nice" title="first make the decomposition nice; then every entry needs only one or two child entries">optimized: nice decomposition</button>
+      </span></span>
     <span class="ctl"><span class="lbl">Problem</span>
       <span class="seg" id="probSeg">
         <button data-p="mwis" class="on">Independent set</button>
+        <button data-p="vc">Vertex cover</button>
         <button data-p="col3">3-colouring</button>
         <button data-p="domset">Dominating set</button>
       </span></span>
@@ -484,6 +491,7 @@ body { font-family: var(--wi-font-body); }
       </span></span>
     <label class="chk"><input type="checkbox" id="hideInfChk"> hide infeasible entries</label>
     <label class="chk"><input type="checkbox" id="followChk" checked> follow the current node</label>
+    <span class="opnote" id="dpAlgNote"></span>
   </div>
   <!-- cops -->
   <div class="grp" data-tab="cops">
@@ -1021,22 +1029,25 @@ function niceTD(G, td, withEdges) {
   const R = rootTree(td.tadj, 0), nodes = [];
   const mk = (type, bag, ch, orig, extra) => { const o = Object.assign({ id: nodes.length, type, bag, ch, orig }, extra || {}); nodes.push(o); return o.id; };
   /* chain from node x with bag A up to bag B; introduces after forgets */
-  const chain = (x, A, B, orig) => {
+  /* grp: the bag whose expansion creates the node (for the step-by-step construction) */
+  const chain = (x, A, B, orig, grp) => {
     let cur = x, bag = A.slice();
-    for (const v of A) if (!B.includes(v)) { bag = bag.filter(y => y !== v); cur = mk("forget", bag.slice(), [cur], orig, { v }); }
-    for (const v of B) if (!A.includes(v)) { bag = sortU([...bag, v]); cur = mk("intro", bag.slice(), [cur], orig, { v }); }
+    for (const v of A) if (!B.includes(v)) { bag = bag.filter(y => y !== v); cur = mk("forget", bag.slice(), [cur], orig, { v, grp }); }
+    for (const v of B) if (!A.includes(v)) { bag = sortU([...bag, v]); cur = mk("intro", bag.slice(), [cur], orig, { v, grp }); }
     return cur;
   };
+  const rep = [];                     /* rep[t]: the nice node with bag X_t that stands for bag t */
   const build = t => {
     const X = td.bags[t], C = R.children[t];
-    if (!C.length) { const l = mk("leaf", [], [], t); return chain(l, [], X, t); }
-    const tops = C.map(c => chain(build(c), td.bags[c], X, c));
+    if (!C.length) { const l = mk("leaf", [], [], t, { grp: t }); return (rep[t] = chain(l, [], X, t, t)); }
+    const tops = C.map(c => chain(build(c), td.bags[c], X, c, t));
     let acc = tops[0];
-    for (let i = 1; i < tops.length; i++) acc = mk("join", X.slice(), [acc, tops[i]], t);
-    return acc;
+    for (let i = 1; i < tops.length; i++) acc = mk("join", X.slice(), [acc, tops[i]], t, { grp: t });
+    return (rep[t] = acc);
   };
   const top = build(0);
-  const root = chain(top, td.bags[0], [], 0);
+  const root = chain(top, td.bags[0], [], 0, 0);
+  const repOf = new Map(); R.order.forEach(t => repOf.set(rep[t], t));
   const parent = Array(nodes.length).fill(-1);
   nodes.forEach(o => o.ch.forEach(c => parent[c] = o.id));
   if (withEdges) {
@@ -1049,7 +1060,8 @@ function niceTD(G, td, withEdges) {
       /* skip over edge nodes already inserted above x */
       while (parent[x] >= 0 && nodes[parent[x]].type === "edge") x = parent[x];
       const p = parent[x];
-      const e = mk("edge", nodes[x].bag.slice(), [x], nodes[x].orig, { e: [u, v] });
+      const below = repOf.get(x), grp = below === undefined ? nodes[x].grp : Math.max(0, R.parent[below]);
+      const e = mk("edge", nodes[x].bag.slice(), [x], nodes[x].orig, { e: [u, v], grp });
       parent.push(p); parent[x] = e;
       if (p >= 0) nodes[p].ch = nodes[p].ch.map(c => c === x ? e : c);
     }
@@ -1058,7 +1070,7 @@ function niceTD(G, td, withEdges) {
   const post = [];
   const walk = x => { nodes[x].ch.forEach(walk); post.push(x); };
   walk(rootId);
-  return { nodes, root: rootId, parent, post };
+  return { nodes, root: rootId, parent, post, rep };
 }
 
 /* V_t and the forgotten part for every nice node */
@@ -1126,6 +1138,44 @@ const PROBLEMS = {
         const a = T[c1].get(k).val, b = T[c2].get(k).val;
         const wS = X.reduce((s, v, i) => s + (st[i] ? G.w[v] : 0), 0);
         const val = (a === -INF || b === -INF) ? -INF : a + b - wS;
+        return { val, line: "join", src: [[c1, k], [c2, k]], use: [[c1, k], [c2, k]] };
+      }
+      throw new Error("unexpected node");
+    }
+  },
+  vc: {
+    name: "Minimum-weight vertex cover", short: "Vertex cover", q: 2, edges: false,
+    sym: ["·", "∈"], symTitle: ["v ∉ S", "v ∈ S"],
+    better: (a, b) => a < b, worst: INF,
+    fmt: v => v === INF ? "+∞" : String(v),
+    feasible: v => v !== INF,
+    rootName: "c[r, ∅]",
+    entry(G, o, st, T, nodes) {
+      const X = o.bag;
+      if (o.type === "leaf") return { val: 0, line: "leaf" };
+      if (o.type === "intro") {
+        const R = X.filter((_, i) => st[i] === 0);
+        for (let i = 0; i < R.length; i++) for (let j = i + 1; j < R.length; j++)
+          if (G.adj[R[i]].has(R[j])) return { val: INF, line: "intro-uncov", conflict: [R[i], R[j]] };
+        const c = o.ch[0], cb = nodes[c].bag, vi = X.indexOf(o.v);
+        const k = keyOf(cb.map(u => st[X.indexOf(u)]));
+        const cv = T[c].get(k).val;
+        if (st[vi] === 0) return { val: cv, line: "intro-out", src: [[c, k]], use: [[c, k]] };
+        return { val: cv === INF ? INF : cv + G.w[o.v], line: "intro-in", src: [[c, k]], use: [[c, k]] };
+      }
+      if (o.type === "forget") {
+        const c = o.ch[0], cb = nodes[c].bag, wi = cb.indexOf(o.w !== undefined ? o.w : o.v);
+        const base = cb.map(u => u === o.v ? 0 : st[X.indexOf(u)]);
+        const k0 = keyOf(base), k1 = keyOf(base.map((x, i) => i === wi ? 1 : x));
+        const a = T[c].get(k0).val, b = T[c].get(k1).val;
+        const pick = b < a ? k1 : k0;
+        return { val: Math.min(a, b), line: "forget", src: [[c, k0], [c, k1]], use: [[c, pick]] };
+      }
+      if (o.type === "join") {
+        const k = keyOf(st), [c1, c2] = o.ch;
+        const a = T[c1].get(k).val, b = T[c2].get(k).val;
+        const wS = X.reduce((s, v, i) => s + (st[i] ? G.w[v] : 0), 0);
+        const val = (a === INF || b === INF) ? INF : a + b - wS;
         return { val, line: "join", src: [[c1, k], [c2, k]], use: [[c1, k], [c2, k]] };
       }
       throw new Error("unexpected node");
@@ -1229,6 +1279,84 @@ function runDP(G, nice, pk) {
   return T;
 }
 
+/* ---------------------------------------------------------------- DP directly on a rooted tree decomposition
+   Weighted independent set, as in the lecture: T rooted at r = bag 0, c[t, S] for every S ⊆ B_t.
+   Per entry: { st, val, indep, conflict, partial: [w(S), after child 1, …], kids: [{ c, best, bestKey, cand: Map(key -> c′) }] } */
+function runDPPlain(G, td) {
+  const R = rootTree(td.tadj, 0), post = [];
+  const walk = t => { R.children[t].forEach(walk); post.push(t); };
+  walk(0);
+  const T = Array(td.bags.length);
+  for (const t of post) {
+    const B = td.bags[t], M = new Map();
+    for (const st of allStates(B.length, 2)) {
+      const r = { st, kids: [] };
+      const S_ = B.filter((_, i) => st[i]);
+      for (let i = 0; i < S_.length && !r.conflict; i++) for (let j = i + 1; j < S_.length; j++)
+        if (G.adj[S_[i]].has(S_[j])) { r.conflict = [S_[i], S_[j]]; break; }
+      if (r.conflict) { r.indep = false; r.val = -INF; r.partial = [-INF]; }
+      else {
+        r.indep = true;
+        let c = S_.reduce((s, v) => s + G.w[v], 0);
+        r.partial = [c];
+        for (const ch of R.children[t]) {
+          const Bc = td.bags[ch], cand = new Map();
+          let best = -INF, bestKey = null;
+          for (const [k, e] of T[ch]) {
+            let ok = true, wOver = 0;
+            Bc.forEach((v, i) => {
+              const j = B.indexOf(v);
+              if (j < 0) return;
+              if (e.st[i] !== st[j]) ok = false;
+              else if (e.st[i]) wOver += G.w[v];
+            });
+            if (!ok) continue;
+            const adj = e.val === -INF ? -INF : e.val - wOver;
+            cand.set(k, adj);
+            if (adj > best) { best = adj; bestKey = k; }
+          }
+          c = c + best;
+          r.kids.push({ c: ch, best, bestKey, cand });
+          r.partial.push(c);
+        }
+        r.val = c;
+      }
+      M.set(keyOf(st), r);
+    }
+    T[t] = M;
+  }
+  let best = -INF, rootKey = keyOf(td.bags[0].map(() => 0));
+  for (const [k, e] of T[0]) if (e.val > best) { best = e.val; rootKey = k; }
+  /* traceback, top-down from the best root entry */
+  const chosen = new Map(), order = [];
+  const go = (t, k) => {
+    chosen.set(t, k); order.push(t);
+    const r = T[t].get(k);
+    r.kids.forEach(kd => { if (kd.bestKey !== null) go(kd.c, kd.bestKey); });
+  };
+  go(0, rootKey);
+  /* V_t */
+  const Vt = Array(td.bags.length);
+  for (const t of post) { const s = new Set(td.bags[t]); R.children[t].forEach(c => Vt[c].forEach(v => s.add(v))); Vt[t] = s; }
+  return { R, post, T, best, rootKey, tb: { chosen, order }, Vt };
+}
+/* the solution of G_t behind entry (t, key): vertex -> 0/1 */
+function plainWitness(td, D, t, key, kidsRead) {
+  const asg = new Map(), stack = [[t, key]];
+  while (stack.length) {
+    const [y, k] = stack.pop(), r = D.T[y].get(k);
+    if (!r) continue;
+    td.bags[y].forEach((v, i) => { if (!asg.has(v)) asg.set(v, r.st[i]); });
+    if (r.indep) r.kids.forEach((kd, i) => { if (kd.bestKey !== null && (y !== t || kidsRead === undefined || i < kidsRead)) stack.push([kd.c, kd.bestKey]); });
+  }
+  return asg;
+}
+function plainSafeWitness(td, D, t, key, kidsRead) {
+  const r = D.T[t].get(key);
+  if (r.indep) return plainWitness(td, D, t, key, kidsRead);
+  return new Map(td.bags[t].map((v, i) => [v, r.st[i]]));
+}
+
 /* partial solution behind entry (x, key): vertex -> symbol, topmost wins */
 function witness(nice, T, x, key) {
   const asg = new Map(), stack = [[x, key]];
@@ -1266,6 +1394,17 @@ function bruteForce(G, pk) {
       if (!ok) continue;
       for (let v = 0; v < n; v++) if (m >> v & 1) w += G.w[v];
       best = Math.max(best, w);
+    }
+    return best;
+  }
+  if (pk === "vc") {
+    let best = INF;
+    for (let m = 0; m < (1 << n); m++) {
+      let ok = true, w = 0;
+      for (const [u, v] of G.E) if (!(m >> u & 1) && !(m >> v & 1)) { ok = false; break; }
+      if (!ok) continue;
+      for (let v = 0; v < n; v++) if (m >> v & 1) w += G.w[v];
+      best = Math.min(best, w);
     }
     return best;
   }
@@ -2547,7 +2686,7 @@ function drawTree(spec) {
   let moving = false;
   for (const n of T.nodes) {
     target.set(n.id, { x: n.x, y: n.y });
-    const o = prev && prev.get(n.id);
+    const o = prev && (prev.get(n.id) || (spec.from && spec.from.has(n.id) ? prev.get(spec.from.get(n.id)) : null));
     if (o && dur > 0 && (Math.abs(o.x - n.x) > 0.5 || Math.abs(o.y - n.y) > 0.5)) moving = true;
     start.set(n.id, o ? { x: o.x, y: o.y } : { x: n.x, y: n.y });
   }
@@ -2711,7 +2850,9 @@ function renderPhases() {
     const pct = cur > p.to ? 100 : cur < p.from ? 0 : ((cur - p.from + 1) / span) * 100;
     const b = document.createElement("button");
     b.className = "phasebtn" + (cur >= p.from && cur <= p.to ? " on" : (cur > p.to ? " past" : ""));
-    b.style.flexGrow = String(Math.max(1, span));
+    /* aligned with the slider: step k sits at k / (n − 1) of the track */
+    const n1 = Math.max(1, S.steps.length - 1), lo = Math.max(0, (p.from - 0.5) / n1), hi = p.to >= S.steps.length - 1 ? 1 : Math.min(1, (p.to + 0.5) / n1);
+    b.style.left = (100 * lo).toFixed(3) + "%"; b.style.width = (100 * (hi - lo)).toFixed(3) + "%";
     b.innerHTML = '<span class="fill' + (pct === 0 ? " empty" : "") + '" style="width:' + pct.toFixed(2) + '%"></span><span class="lab">' + esc(p.name) + "</span>";
     b.title = p.name + " — steps " + (p.from + 1) + "–" + (p.to + 1);
     b.addEventListener("click", () => { stopPlay(); S.cur = p.from; render(); });
@@ -3688,6 +3829,18 @@ const DP_CODE = {
       { k: "join", t: "join:          c[t, S] = c[t₁, S] + c[t₂, S] − w(S)" },
       { k: "answer", t: "answer:        c[r, ∅]" }] }
   ],
+  vc: [
+    { label: "Table", lines: [
+      { k: "def", t: "c[t, S] = min weight of a vertex cover Ŝ of G<sub>t</sub> with Ŝ ∩ X<sub>t</sub> = S      (+∞ if none)" }] },
+    { label: "Recurrences", lines: [
+      { k: "leaf", t: "leaf:          c[t, ∅] = 0" },
+      { k: "intro-uncov", t: "introduce v:   c[t, S] = +∞                        if S is not a vertex cover of G[X<sub>t</sub>]" },
+      { k: "intro-out", t: "               c[t, S] = c[t′, S]                  if v ∉ S" },
+      { k: "intro-in", t: "               c[t, S] = c[t′, S ∖ {v}] + w(v)     if v ∈ S" },
+      { k: "forget", t: "forget w:      c[t, S] = min{ c[t′, S], c[t′, S ∪ {w}] }" },
+      { k: "join", t: "join:          c[t, S] = c[t₁, S] + c[t₂, S] − w(S)" },
+      { k: "answer", t: "answer:        c[r, ∅]" }] }
+  ],
   col3: [
     { label: "Table", lines: [
       { k: "def", t: "c[t, f] = true  iff  f : X<sub>t</sub> → {1, 2, 3} extends to a proper colouring of G<sub>t</sub>" }] },
@@ -3732,19 +3885,118 @@ const NICE_CODE = [
     { k: "n-gt", t: "V<sub>t</sub> = vertices in bags below t;  G<sub>t</sub> = G[V<sub>t</sub>]" }] }
 ];
 
+const SUBSET = pk => pk === "mwis" || pk === "vc";
+const PLAIN_CODE = [
+  { label: "Table", lines: [
+    { k: "def", t: "for every independent S ⊆ B<sub>t</sub>:   c[t, S] = max{ w(I) : I ⊆ V<sub>t</sub> independent, I ∩ B<sub>t</sub> = S }" },
+    { k: "def", t: "V<sub>t</sub> = vertices in bags of the subtree below t;   G<sub>t</sub> = G[V<sub>t</sub>]" }] },
+  { label: "Algorithm", numbered: true, lines: [
+    { k: "p1", t: K("procedure") + " minWeightIndSetTreeDecomposition(G, w, (T, (B<sub>t</sub>)<sub>t</sub>)):" },
+    { k: "p2", t: "    root T at r" },
+    { k: "p3", t: "    " + K("for each") + " node t of T in postorder traversal" },
+    { k: "p4", t: "        " + K("for each") + " S ⊆ B<sub>t</sub>" },
+    { k: "p5", t: "            " + K("if") + " S independent set in G" },
+    { k: "p6", t: "                c[t, S] := w(S)" },
+    { k: "p7", t: "                " + K("for each") + " child t′ of t" },
+    { k: "p8", t: "                    best := −∞" },
+    { k: "p9", t: "                    " + K("for each") + " S′ ⊆ B<sub>t′</sub> with S′ ∩ B<sub>t</sub> = S ∩ B<sub>t′</sub>" },
+    { k: "p10", t: "                        best := max(best, c[t′, S′] − w(S′ ∩ B<sub>t</sub>))" },
+    { k: "p11", t: "                    c[t, S] := c[t, S] + best" },
+    { k: "p12", t: "            " + K("else") + " c[t, S] := −∞ " + K("end if") },
+    { k: "p13", t: "    " + K("return") + " max<sub>S</sub> c[r, S]" }] },
+  { label: "Traceback (recover an optimal independent set)", numbered: true, lines: [
+    { k: "b1", t: K("procedure") + " traceback(t, S):" },
+    { k: "b2", t: "    I := S" },
+    { k: "b3", t: "    " + K("for each") + " child t′ of t" },
+    { k: "b4", t: "        S′ := argmax{ c[t′, S′] − w(S′ ∩ B<sub>t</sub>) : S′ ⊆ B<sub>t′</sub>, S′ ∩ B<sub>t</sub> = S ∩ B<sub>t′</sub> }" },
+    { k: "b5", t: "        I := I ∪ traceback(t′, S′)" },
+    { k: "b6", t: "    " + K("return") + " I" },
+    { k: "b0", nonum: true, t: "call: traceback(r, S*) for S* with c[r, S*] = max<sub>S</sub> c[r, S]" }] }
+];
+/* the given decomposition, rooted at t0, as drawn in the DP tab */
+function dpPlainTree() {
+  const c = S.cache.dpPlainTrees || (S.cache.dpPlainTrees = {});
+  const k = S.dpLayout + "|" + S.bagStyle + "|" + (S.bagStyle === "mini" ? S.posVersion : 0) + "|" + S.tdVersion + "|" + S.presetKey;
+  if (!c[k]) {
+    const R = rootTree(S.TD.tadj, 0);
+    const nodes = R.order.map(t => ({ id: t, bag: S.TD.bags[t], label: "t" + t })).sort((a, b) => a.id - b.id);
+    c[k] = Object.assign(layoutTD(nodes, R.parent, undefined, S.dpLayout), { fam: "plain" + S.tdVersion + S.presetKey });
+  }
+  return c[k];
+}
+/* The nice decomposition while it is being built: the bags in E are expanded, the others are still drawn as
+   original bags. Ids: the node of bag t keeps the id of the nice node with bag B_t (nice.rep[t]), so the tree
+   morphs smoothly; a bag whose rep is shared with its only child (equal bags) gets a synthetic id.          */
+function niceStage(D, E) {
+  const nice = D.nice, td = S.TD, R = D.R, N = td.bags.length, M = nice.nodes.length;
+  if (!D.owner) {
+    D.owner = new Map();                                   /* rep id -> the deepest bag using it */
+    R.order.forEach(t => D.owner.set(nice.rep[t], t));
+    D.disp = td.bags.map((_, t) => D.owner.get(nice.rep[t]) === t ? nice.rep[t] : M + t);
+    D.repBags = new Map();                                 /* rep id -> bags using it, top first */
+    R.order.forEach(t => { const x = nice.rep[t]; if (!D.repBags.has(x)) D.repBags.set(x, []); D.repBags.get(x).push(t); });
+  }
+  const parent = Array(M + N).fill(-1), nodes = [], byNice = new Map(D.ord.map(n => [n.id, n]));
+  const collapsed = t => ({ id: D.disp[t], bag: td.bags[t], label: "t" + t, bagOf: t });
+  for (const n of D.ord) {
+    const x = n.id, o = nice.nodes[x];
+    if (D.repBags.has(x)) {
+      for (const t of D.repBags.get(x)) {
+        if (E.has(t)) { if (D.disp[t] === x) { nodes.push(byNice.get(x)); parent[x] = nice.parent[x]; } continue; }
+        const p = R.parent[t], d = D.disp[t];
+        nodes.push(collapsed(t));
+        parent[d] = p < 0 ? -1 : E.has(p) ? nice.parent[nice.rep[t]] : D.disp[p];
+        break;                                             /* the bags below t that share the rep are drawn inside it */
+      }
+    } else if (E.has(o.grp)) { nodes.push(n); parent[x] = nice.parent[x]; }
+  }
+  return layoutTD(nodes, parent, { dy: 58, tagW: 34, gap: 14, gapX: 26 }, S.dpLayout);
+}
+/* what expanding bag t creates, in words */
+function expandText(D, t) {
+  const nice = D.nice, td = S.TD, R = D.R, parts = [];
+  const mine = nice.nodes.filter(o => o.grp === t && o.id !== nice.rep[t] && o.type !== "edge");
+  const kids = R.children[t];
+  if (!kids.length) {
+    const ins = mine.filter(o => o.orig === t && o.type === "intro").map(o => o.v);
+    parts.push("a leaf: it starts from an empty leaf node" + (ins.length ? " and introduces " + ins.join(", ") + " one at a time" : ""));
+  }
+  if (kids.length >= 2) parts.push(kids.length + " children, so " + (kids.length - 1) + " join node" + (kids.length > 2 ? "s" : "") + " with copies of its bag");
+  for (const c of kids) {
+    const ch = mine.filter(o => o.orig === c);
+    const f = ch.filter(o => o.type === "forget").map(o => o.v), i = ch.filter(o => o.type === "intro").map(o => o.v);
+    parts.push("the edge to t" + c + " becomes a path: going up from t" + c +
+      (f.length ? ", forget " + f.join(", ") : "") + (i.length ? (f.length ? ", then" : ",") + " introduce " + i.join(", ") : "") + (f.length + i.length ? "" : ": nothing to do"));
+  }
+  if (t === 0) { const f = mine.filter(o => o.orig === 0 && o.type === "forget").map(o => o.v); if (f.length) parts.push("above the root, forget " + f.join(", ") + " down to an empty bag"); }
+  const ed = nice.nodes.filter(o => o.grp === t && o.type === "edge").length;
+  if (ed) parts.push(ed + " introduce-edge node" + (ed > 1 ? "s" : ""));
+  return "<b>t" + t + "</b> = " + vs(td.bags[t]) + ": " + parts.join("; ") + ".";
+}
+
+const isPlainTree = () => !!(S.tree && /^plain/.test(S.tree.fam || ""));
+
+const NICE_NOTE = pk =>
+  "<b>Optimization</b> of the basic algorithm: in a nice decomposition every entry reads one or two child entries instead of all compatible S′, " +
+  "so a node costs " + PROBLEMS[pk].q + "<sup>w</sup> · w<sup>O(1)</sup> instead of 4<sup>w</sup> · w<sup>2</sup>. " +
+  (pk === "col3" ? "3-colouring is written in the same style as the independent-set recurrences; " :
+   pk === "vc" ? "Vertex cover is the mirror image of independent set: S is a vertex cover iff V ∖ S is independent, so the tables are the same up to complement, c<sub>VC</sub>[t, S] = w(V<sub>t</sub>) − c<sub>IS</sub>[t, X<sub>t</sub> ∖ S], and min-weight vertex cover = w(V) − max-weight independent set. " : "") +
+  (PROBLEMS[pk].edges ? "This problem uses a nice decomposition <b>with introduce-edge nodes</b>: an edge only counts once its node has been passed. "
+                      : "Here G<sub>t</sub> is the subgraph induced by V<sub>t</sub>; no introduce-edge nodes are needed. ") +
+  "Hover a table row to see the partial solution it stands for. Recurrences as in Cygan et al., <i>Parameterized Algorithms</i>, Ch. 7, who write X<sub>t</sub> for the bag B<sub>t</sub>.";
 function symHtml(pk, s) {
-  if (pk === "mwis") return s ? '<span class="sym-in">1</span>' : "0";
+  if (SUBSET(pk)) return s ? '<span class="sym-in">1</span>' : "0";
   if (pk === "col3") return '<span class="s' + (s + 1) + '">' + (s + 1) + "</span>";
   return s === 0 ? '<span class="sym-in">1</span>' : s === 1 ? "0" : '<span class="sym-hat"><span class=hat0>0</span></span>';
 }
 function stateText(pk, bag, st) {
-  if (pk === "mwis") return "S = " + setStr(bag.filter((_, i) => st[i]));
+  if (SUBSET(pk)) return "S = " + setStr(bag.filter((_, i) => st[i]));
   if (pk === "col3") return "f = (" + bag.map((v, i) => v + "↦" + (st[i] + 1)).join(", ") + ")";
   return "f = (" + bag.map((v, i) => v + "↦" + PROBLEMS.domset.sym[st[i]]).join(", ") + ")";
 }
 /* fill of a vertex that carries symbol s */
 function symFill(pk, s, forgotten) {
-  if (pk === "mwis") return s === 1 ? { fill: SEP_FILL, stroke: "var(--wi-accent-dark)", inv: true } : null;
+  if (SUBSET(pk)) return s === 1 ? { fill: SEP_FILL, stroke: "var(--wi-accent-dark)", inv: true } : null;
   if (pk === "col3") return { fill: "var(--c" + (s + 1) + ")", stroke: "var(--wi-ink-strong)", inv: true };
   if (s === 0) return { fill: SEP_FILL, stroke: "var(--wi-accent-dark)", inv: true };
   if (s === 1) return { fill: LIGHT_SEL, stroke: "var(--wi-accent)" };
@@ -3756,6 +4008,7 @@ MODES.dp = {
   build() {
     const G = S.G;
     if (!S.valid.ok) return needValid("Dynamic programming");
+    if (S.dpAlg === "plain") return this.buildPlain();
     const pk = S.prob, P = PROBLEMS[pk];
     const key = pk + ":" + S.tdVersion + ":" + S.presetKey;
     if (!S.cache.dp || S.cache.dp.key !== key) {
@@ -3766,18 +4019,22 @@ MODES.dp = {
       /* depth-first order so that children keep their left-to-right order */
       const ord = [], walk = x => { ord.push(nodes[x]); nice.nodes[x].ch.forEach(walk); }; walk(nice.root);
       const total = nice.nodes.reduce((s, o) => s + Math.pow(P.q, o.bag.length), 0);
-      S.cache.dp = { key, nice, T, VE, tb, total, ord, trees: {} };
+      S.cache.dp = { key, nice, T, VE, tb, total, ord, trees: {}, R: rootTree(S.TD.tadj, 0) };
     }
     const D = S.cache.dp, nice = D.nice;
     const tk = c => c + "|" + S.bagStyle + "|" + (S.bagStyle === "mini" ? S.posVersion : 0);
     const mk = c => D.trees[tk(c)] || (D.trees[tk(c)] = Object.assign(layoutTD(D.ord, nice.parent, { dy: 58, tagW: 34, gap: 14, gapX: 26 }, c), { fam: "dp" + key }));
     if (!S.dpChosen) { S.dpLayout = bestLayout(["tidy", "right"], mk); syncLayoutSeg(); }
+    D.mk = mk;
     S.tree = mk(S.dpLayout); S.treeKey = "dp" + S.dpLayout + key;
     const fineOK = D.total <= 6000;
     el("granSeg").querySelector('[data-g="1"]').disabled = !fineOK;
     const fine = S.gran === 1 && fineOK;
     S.steps = []; S.phases = [];
-    mkPhase("Nice TD"); add({ k: "intro" });
+    mkPhase("Make it nice"); add({ k: "intro", sub: 0 });
+    { const NB = S.TD.bags.length, chunk = Math.ceil(NB / 30);
+      for (let j = 0; j < NB; j += chunk) add({ k: "intro", sub: 1, from: j, upto: Math.min(NB, j + chunk) });
+      add({ k: "intro", sub: 2, upto: NB }); }
     let lastOrig = null;
     for (const x of nice.post) {
       const o = nice.nodes[x];
@@ -3796,9 +4053,13 @@ MODES.dp = {
   },
   frame(st) {
     if (st.k === "invalid") return invalidFrame();
+    if (S.dpAlg === "plain") return this.framePlain(st);
+    if (st.k === "intro") return this.introNice(st);
     const G = S.G, pk = S.prob, P = PROBLEMS[pk], D = S.cache.dp, nice = D.nice, T = D.T, n = G.n;
+    S.tree = D.mk(S.dpLayout); S.treeKey = "dp" + S.dpLayout + D.key;
+    el("tTitle").textContent = "Nice tree decomposition";
     const postIdx = new Map(nice.post.map((x, i) => [x, i]));
-    const gs = { vcls: [], vfill: [], ecls: new Map(), rings: [], badge: pk === "mwis" ? G.w.slice() : [] };
+    const gs = { vcls: [], vfill: [], ecls: new Map(), rings: [], badge: SUBSET(pk) ? G.w.slice() : [] };
     const ts = { ncls: new Map(), focus: -1 };
     let txt = "", act = new Set(), x = -1, focusRow = null, rows = null;
     /* which node, and which table row is in focus */
@@ -3870,7 +4131,7 @@ MODES.dp = {
       let f = symFill(pk, s, false);
       if (f && inBag.has(v)) f = Object.assign({}, f, { stroke: "var(--wi-active)", sw: 3 });
       if (f) gs.vfill[v] = f;
-      else if (pk === "mwis" && st.k !== "node") gs.vfill[v] = null;
+      else if (SUBSET(pk) && st.k !== "node") gs.vfill[v] = null;
     }
     if (pk === "domset" && asg && (st.k === "solution")) {
       /* final picture: everything not in D is dominated */
@@ -3883,7 +4144,7 @@ MODES.dp = {
       act.add("n-def"); act.add("n-intro"); act.add("n-forget"); act.add("n-join"); if (P.edges) act.add("n-edge");
       txt = "The decomposition (width " + S.valid.width + ") is turned into a <b>nice</b> one with " + nice.nodes.length +
         " nodes: every node introduces or forgets one vertex, or joins two identical bags" + (P.edges ? ", or introduces one edge" : "") + ". " +
-        "The tables c[t, ·] are filled bottom-up: one entry per " + (pk === "mwis" ? "subset S" : "assignment f") + " of the bag, " +
+        "The tables c[t, ·] are filled bottom-up: one entry per " + (SUBSET(pk) ? "subset S" : "assignment f") + " of the bag, " +
         P.q + "<sup>|X<sub>t</sub>|</sup> ≤ " + P.q + "<sup>" + (S.valid.width + 1) + "</sup> entries.";
     } else if (st.k === "node") {
       act.add(o.type === "leaf" ? "leaf" : o.type === "join" ? "join" : o.type === "forget" ? "forget" : "");
@@ -3925,12 +4186,276 @@ MODES.dp = {
     if (x >= 0 && (st.k === "node" || st.k === "tb" || st.k === "answer")) this.tables(x, st, focusRow, !!S.hoverRow);
     else setInfo("Tables", '<div class="placeholder">Step forward: the first table belongs to a leaf and has a single entry, for the empty set.</div>', "");
     const nb = NICE_CODE.slice(0, 1).concat(P.edges ? [NICE_CODE[1]] : [NICE_CODE[2]]);
-    renderCode(P.name, DP_CODE[pk].concat(st.k === "intro" ? nb : []), act,
-      (pk === "col3" ? "3-colouring is written in the same style as the independent-set recurrences; " : "") +
-      (P.edges ? "This problem uses a nice decomposition <b>with introduce-edge nodes</b>: an edge only counts once its node has been passed. "
-               : "Here G<sub>t</sub> is the subgraph induced by V<sub>t</sub>; no introduce-edge nodes are needed. ") +
-      "Hover a table row to see the partial solution it stands for. Recurrences as in Cygan et al., <i>Parameterized Algorithms</i>, Ch. 7.");
+    renderCode(P.name, DP_CODE[pk].concat(st.k === "intro" ? nb : []), act, NICE_NOTE(pk));
   },
+  /* the optimization, first steps: where the nice decomposition comes from */
+  introNice(st) {
+    const G = S.G, pk = S.prob, P = PROBLEMS[pk], D = S.cache.dp, nice = D.nice, td = S.TD;
+    const gs = { vcls: [], vfill: [], ecls: new Map(), rings: [], badge: SUBSET(pk) ? G.w.slice() : [] };
+    const ts = { ncls: new Map(), boxFill: new Map(), focus: -1, from: new Map() };
+    const act = new Set(["n-def"]);
+    const order = D.R.order, E = new Set(order.slice(0, st.upto || 0)), fresh = order.slice(st.from || 0, st.upto || 0);
+    const key = "stage" + (st.sub === 2 ? "all" : E.size) + "|" + S.dpLayout + "|" + S.bagStyle + "|" + (S.bagStyle === "mini" ? S.posVersion : 0);
+    S.tree = st.sub === 2 ? D.mk(S.dpLayout) : (D.trees[key] || (D.trees[key] = Object.assign(niceStage(D, E), { fam: "dp" + D.key })));
+    S.treeKey = "dp" + S.dpLayout + D.key;
+    el("tTitle").textContent = st.sub === 0 ? "Tree decomposition (root t0)" : "Nice tree decomposition";
+    const ownerOf = x => D.owner.get(x);
+    for (const n of S.tree.nodes) {
+      const t = n.bagOf !== undefined ? n.bagOf : ownerOf(n.id) !== undefined ? ownerOf(n.id) : nice.nodes[n.id].grp;
+      ts.boxFill.set(n.id, pieceFill(t));
+    }
+    for (const t of fresh) {
+      for (const o of nice.nodes) if (o.grp === t && S.tree.byId.has(o.id)) { ts.from.set(o.id, D.disp[t]); ts.ncls.set(o.id, "cur"); }
+      if (S.tree.byId.has(nice.rep[t])) ts.ncls.set(nice.rep[t], "cur");
+    }
+    if (fresh.length) ts.focus = S.tree.byId.has(D.disp[fresh[0]]) ? D.disp[fresh[0]] : nice.rep[fresh[0]];
+    let txt;
+    if (st.sub === 0) {
+      el("tMeta").textContent = td.bags.length + " bags, width " + S.valid.width;
+      txt = "<b>The optimization.</b> The basic algorithm" + (pk === "mwis" ? " (switch above)" : "") + " works on any decomposition, but at every tree edge it compares each entry S " +
+        "of the parent with each entry S′ of the child: up to 2<sup>w+1</sup> · 2<sup>w+1</sup> pairs. A simple way to avoid this is to rebuild the decomposition " +
+        "so that neighbouring bags differ in at most one vertex, a <b>nice</b> tree decomposition. Then every table entry is read off one or two child entries. " +
+        "Here is the given decomposition (width " + S.valid.width + "), rooted at t0; each bag has its own colour. Step forward to expand the bags one by one, from the root down.";
+    } else if (st.sub === 1) {
+      el("tMeta").textContent = S.tree.nodes.length + " nodes so far";
+      act.add("n-intro"); act.add("n-forget"); act.add("n-join"); if (P.edges) act.add("n-edge");
+      txt = "Expanding " + fresh.map(t => expandText(D, t)).join("<br>Expanding ") +
+        '<br><span style="font-size:.84em;color:var(--wi-ink-soft)">New nodes have a red border; each colour marks the bag whose expansion made the node.</span>';
+    } else {
+      el("tMeta").textContent = nice.nodes.length + " nodes, from " + td.bags.length + " bags";
+      act.add("n-intro"); act.add("n-forget"); act.add("n-join"); if (P.edges) act.add("n-edge");
+      txt = "<b>The nice decomposition.</b> In short: root T, then replace " +
+        "<br>• every tree edge between t and its child t′ by a path that first <i>forgets</i> the vertices of B<sub>t′</sub> ∖ B<sub>t</sub> one by one, then <i>introduces</i> those of B<sub>t</sub> ∖ B<sub>t′</sub>; " +
+        "<br>• a node with d ≥ 2 children by d − 1 <i>join</i> nodes, all with copies of its bag; " +
+        "<br>• and let every leaf start from an empty bag, and the root forget everything down to an empty bag." +
+        (P.edges ? "<br>• For dominating set, every edge also gets an <i>introduce-edge</i> node, placed above the topmost node containing both ends. " : "<br>") +
+        "The width stays " + S.valid.width + "; the " + td.bags.length + " bags became " + nice.nodes.length + " nodes, O(w · N) in general. " +
+        "The tables c[t, ·] are now filled bottom-up: one entry per " + (SUBSET(pk) ? "subset S" : "assignment f") + " of the bag, " +
+        P.q + "<sup>|X<sub>t</sub>|</sup> ≤ " + P.q + "<sup>" + (S.valid.width + 1) + "</sup> entries.";
+    }
+    drawGraph(gs); drawTree(ts);
+    setStatus(txt, S.phases[st.ph] ? S.phases[st.ph].name : "");
+    setInfo("Tables", '<div class="placeholder">The tables come once the decomposition is nice: the first belongs to a leaf and has a single entry, for the empty set.</div>', "");
+    const nb = NICE_CODE.slice(0, 1).concat(P.edges ? [NICE_CODE[1]] : [NICE_CODE[2]]);
+    renderCode(P.name, DP_CODE[pk].concat(nb), act, NICE_NOTE(pk));
+  },
+  /* ---------------- the basic algorithm, directly on the given decomposition (lecture pseudocode) ---------------- */
+  buildPlain() {
+    const G = S.G, key = S.tdVersion + ":" + S.presetKey;
+    if (!S.cache.dpp || S.cache.dpp.key !== key) S.cache.dpp = Object.assign(runDPPlain(G, S.TD), { key });
+    const D = S.cache.dpp, td = S.TD;
+    if (!S.dpChosen) { S.dpLayout = bestLayout(["tidy", "right"], l => { const o = S.dpLayout; S.dpLayout = l; const t = dpPlainTree(); S.dpLayout = o; return t; }); syncLayoutSeg(); }
+    S.tree = dpPlainTree(); S.treeKey = "dpplain" + S.dpLayout + key;
+    let total = 0;
+    for (const t of D.post) for (const r of D.T[t].values()) total += 1 + (r.indep ? r.kids.length : 0);
+    const fineOK = total <= 6000;
+    el("granSeg").querySelector('[data-g="1"]').disabled = !fineOK;
+    const fine = S.gran === 1 && fineOK;
+    S.steps = []; S.phases = [];
+    mkPhase("Root"); add({ k: "intro" });
+    for (const t of D.post) {
+      mkPhase("t" + t, true);
+      if (fine) {
+        add({ k: "node", x: t, row: -1 });
+        let j = 0;
+        for (const r of D.T[t].values()) {
+          add({ k: "node", x: t, row: j, ci: -1 });
+          if (r.indep) r.kids.forEach((_, i) => add({ k: "node", x: t, row: j, ci: i }));
+          j++;
+        }
+      } else add({ k: "node", x: t, row: null });
+    }
+    mkPhase("Answer"); add({ k: "answer" });
+    mkPhase("Traceback");
+    D.tb.order.forEach((_, i) => add({ k: "tb", i }));
+    add({ k: "solution" });
+    compactPhases();
+  },
+  framePlain(st) {
+    if (st.k === "invalid") return invalidFrame();
+    const G = S.G, pk = "mwis", P = PROBLEMS.mwis, D = S.cache.dpp, T = D.T, td = S.TD, n = G.n;
+    S.tree = dpPlainTree(); S.treeKey = "dpplain" + S.dpLayout + D.key;
+    el("tTitle").textContent = "Tree decomposition (root t0)";
+    const postIdx = new Map(D.post.map((t, i) => [t, i]));
+    const gs = { vcls: [], vfill: [], ecls: new Map(), rings: [], badge: G.w.slice() };
+    const ts = { ncls: new Map(), focus: -1 };
+    let txt = "", act = new Set(), x = -1, focusRow = null, rows = null;
+    if (st.k === "node") x = st.x;
+    else if (st.k === "answer") x = 0;
+    else if (st.k === "tb") x = D.tb.order[st.i];
+    if (x >= 0) rows = Array.from(T[x].keys());
+    const stepRow = st.k === "node" && st.row !== null && st.row >= 0;
+    if (S.hoverRow && S.hoverRow.x === x) focusRow = S.hoverRow.key;
+    else if (stepRow) focusRow = rows[st.row];
+    else if (st.k === "tb" || st.k === "answer") focusRow = D.tb.chosen.get(x);
+    /* how many children of the focus entry have been read so far */
+    const fr = focusRow !== null ? T[x].get(focusRow) : null;
+    const kidsRead = !fr || !fr.indep ? 0 : (stepRow && focusRow === rows[st.row] && st.ci !== undefined ? st.ci + 1 : fr.kids.length);
+
+    /* ---- the tree ---- */
+    const curPost = x >= 0 ? postIdx.get(x) : -1;
+    for (const t of D.post) {
+      const i = postIdx.get(t);
+      if (st.k === "intro") ts.ncls.set(t, "");
+      else if (st.k === "node") ts.ncls.set(t, i < curPost ? "done" : i === curPost ? "cur" : "dim");
+      else ts.ncls.set(t, "done");
+    }
+    if (st.k === "tb") ts.ncls.set(x, "cur");
+    if (st.k === "answer") ts.ncls.set(0, "cur");
+    if (st.k === "node" && stepRow && st.ci >= 0 && fr && fr.kids[st.ci]) ts.ncls.set(fr.kids[st.ci].c, "done sel");
+    ts.focus = x;
+    const chosenShown = new Map();
+    if (st.k === "tb") D.tb.order.slice(0, st.i + 1).forEach(y => chosenShown.set(y, D.tb.chosen.get(y)));
+    if (st.k === "solution") D.tb.order.forEach(y => chosenShown.set(y, D.tb.chosen.get(y)));
+    if (x >= 0 && focusRow !== null) chosenShown.set(x, focusRow);
+    ts.mfill = (id, v) => {
+      const k = chosenShown.get(id); if (k === undefined) return null;
+      return symFill(pk, Number(k[td.bags[id].indexOf(v)]), false);
+    };
+
+    /* ---- the graph ---- */
+    let asg = null;
+    if (st.k === "solution" || st.k === "answer") asg = plainWitness(td, D, 0, D.rootKey);
+    else if (st.k === "tb") {
+      const full = plainWitness(td, D, 0, D.rootKey), seen = new Set();
+      D.tb.order.slice(0, st.i + 1).forEach(y => td.bags[y].forEach(v => seen.add(v)));
+      asg = new Map([...full].filter(([v]) => seen.has(v)));
+    } else if (x >= 0 && focusRow !== null) asg = plainSafeWitness(td, D, x, focusRow, kidsRead);
+    if (S.hoverRow && S.hoverRow.x !== x && T[S.hoverRow.x]) asg = plainSafeWitness(td, D, S.hoverRow.x, S.hoverRow.key);
+    if (x >= 0 && st.k === "node") {
+      const Vt = D.Vt[x], bag = new Set(td.bags[x]);
+      for (let v = 0; v < n; v++) {
+        if (!Vt.has(v)) gs.vcls[v] = "dim";
+        else if (bag.has(v)) gs.vfill[v] = { fill: LIGHT_CUR, stroke: "var(--wi-active)", sw: 2.6 };
+        else gs.vfill[v] = { fill: "var(--wi-controls)", stroke: "var(--wi-border-strong)" };
+      }
+      G.E.forEach(([u, v], i) => gs.ecls.set(i, Vt.has(u) && Vt.has(v) ? "dp-in" : "faint"));
+      if (fr && fr.conflict) gs.ecls.set(edgeIndex(fr.conflict[0], fr.conflict[1]), "bad");
+    }
+    const inBag = st.k === "node" ? new Set(td.bags[x]) : new Set();
+    if (asg) for (const [v, s] of asg) {
+      let f = symFill(pk, s, false);
+      if (f && inBag.has(v)) f = Object.assign({}, f, { stroke: "var(--wi-active)", sw: 3 });
+      if (f) gs.vfill[v] = f;
+      else if (st.k !== "node") gs.vfill[v] = null;
+    }
+
+    /* ---- status ---- */
+    const B = x >= 0 ? td.bags[x] : null, kids = x >= 0 ? D.R.children[x] : [];
+    const setE = a => a.length ? setStr(a) : "∅", sOf = (bag, stt) => setE(bag.filter((_, i) => stt[i]));
+    if (st.k === "intro") {
+      act.add("p1"); act.add("p2");
+      txt = "This algorithm works directly on the given decomposition (width " + S.valid.width + "). Root T at r = t0; " +
+        "then the nodes are processed in postorder, each one after all its children. For every S ⊆ B<sub>t</sub>, c[t, S] is the largest weight " +
+        "of an independent set of G<sub>t</sub> = G[V<sub>t</sub>] that meets the bag exactly in S; V<sub>t</sub> collects the vertices in the bags below t. " +
+        "That is 2<sup>|B<sub>t</sub>|</sup> ≤ 2<sup>" + (S.valid.width + 1) + "</sup> entries per node.";
+    } else if (st.k === "node") {
+      txt = "Node <b>t" + x + "</b>, B<sub>t</sub> = " + vs(B) + (kids.length ? ", children " + kids.map(c => "t" + c).join(", ") : ", a leaf") + ". ";
+      if (!stepRow && !(S.hoverRow && S.hoverRow.x === x)) {
+        ["p3", "p4", "p5", "p6", "p12"].forEach(k => act.add(k));
+        if (kids.length) ["p7", "p8", "p9", "p10", "p11"].forEach(k => act.add(k));
+        txt += kids.length
+          ? "For every independent S ⊆ B<sub>t</sub>: start with w(S); then, for each child t′, add the best entry c[t′, S′] among the S′ that agree with S on " +
+            "B<sub>t</sub> ∩ B<sub>t′</sub>, minus w(S′ ∩ B<sub>t</sub>), which w(S) has counted already. Sets S with an edge inside get −∞."
+          : "No children: c[t, S] = w(S) for every independent S ⊆ B<sub>t</sub>, and −∞ for the others.";
+        if (st.row === -1) txt += " Now the " + T[x].size + " entries, one at a time.";
+      } else {
+        const r = fr, Sx = sOf(B, r.st), ci = stepRow && focusRow === rows[st.row] ? st.ci : (r.indep ? r.kids.length - 1 : -1);
+        if (!r.indep) {
+          act.add("p4"); act.add("p5"); act.add("p12");
+          txt += "S = " + Sx + ": " + r.conflict[0] + " and " + r.conflict[1] + " are adjacent, so S is not independent: c[t, S] := −∞.";
+        } else if (ci < 0) {
+          act.add("p4"); act.add("p5"); act.add("p6");
+          txt += "S = " + Sx + " is independent: c[t, S] := w(S) = " + r.partial[0] + "." + (kids.length ? "" : " No children, so that is the final value.");
+        } else {
+          ["p7", "p8", "p9", "p10", "p11"].forEach(k => act.add(k));
+          const kd = r.kids[ci], Bc = td.bags[kd.c], I = Bc.filter(v => B.includes(v));
+          const bst = T[kd.c].get(kd.bestKey).st;
+          txt += "S = " + Sx + ", child t′ = <b>t" + kd.c + "</b>: the S′ ⊆ B<sub>t′</sub> that agree with S on B<sub>t</sub> ∩ B<sub>t′</sub> = " + (I.length ? vs(I) : "∅") +
+            ", i.e. S′ ∩ B<sub>t</sub> = S ∩ B<sub>t′</sub> = " + setE(I.filter(v => r.st[B.indexOf(v)])) + ": " + kd.cand.size + " entr" + (kd.cand.size === 1 ? "y" : "ies") + " (gold). " +
+            "best = max of c[t′, S′] − w(S′ ∩ B<sub>t</sub>) = " + P.fmt(kd.best) + ", for S′ = " + sOf(Bc, bst) + " (green). " +
+            "c[t, S] := " + P.fmt(r.partial[ci]) + " + " + P.fmt(kd.best) + " = " + P.fmt(r.partial[ci + 1]) + "." +
+            (ci === r.kids.length - 1 ? "" : " Next child.");
+        }
+      }
+      txt += '<br><span style="font-size:.84em;color:var(--wi-ink-soft)">Grey vertices lie only in bags below t: finished. ' +
+        "Everything they could influence passes through the bag (red).</span>";
+    } else if (st.k === "answer") {
+      act.add("p13"); act.add("b0");
+      txt = "All tables are filled, and V<sub>r</sub> = V(G). The answer is the best entry at the root: max<sub>S</sub> c[r, S] = <b>" + P.fmt(D.best) +
+        "</b>, for S = " + sOf(td.bags[0], T[0].get(D.rootKey).st) + "." + '<span class="ans">' + answerText(pk, D.best) + "</span>";
+    } else if (st.k === "tb") {
+      const r = T[x].get(D.tb.chosen.get(x));
+      act.add("b1"); act.add("b2"); if (st.i === 0) act.add("b0");
+      if (r.kids.length) { act.add("b3"); act.add("b4"); act.add("b5"); }
+      txt = "Traceback, top-down: traceback(t" + x + ", " + sOf(B, r.st) + ") adds S = " + sOf(B, r.st) + " to I" +
+        (r.kids.length ? "; for each child, line 4 picks the compatible S′ that gave best, and recurses: " +
+          r.kids.map(kd => "t" + kd.c + " → " + sOf(td.bags[kd.c], T[kd.c].get(kd.bestKey).st)).join(", ") : "") +
+        ". Decided vertices are coloured in <i>G</i>.";
+    } else if (st.k === "solution") {
+      act.add("b6");
+      txt = "Solution recovered from the tables: the union of the sets S along the traceback." + '<span class="ans">' + answerText(pk, D.best, asg) + "</span>";
+    }
+    drawGraph(gs); drawTree(ts);
+    el("tMeta").textContent = td.bags.length + " bags, width " + S.valid.width;
+    setStatus(txt, S.phases[st.ph] ? S.phases[st.ph].name : "");
+
+    /* ---- tables ---- */
+    if (x >= 0) this.tablesPlain(x, st, focusRow, kidsRead, !!S.hoverRow);
+    else setInfo("Tables", '<div class="placeholder">Step forward: the first table belongs to a leaf of T, the first node in postorder.</div>', "");
+    renderCode("Weighted independent set on a tree decomposition", PLAIN_CODE, act,
+      "Pseudocode from the lecture. It works on any tree decomposition, but line 9 compares every entry S with every entry S′ of the child: " +
+      "O(4<sup>w</sup> · w<sup>2</sup> · N) time for N nodes. The <b>optimized</b> version (switch above) first makes the decomposition <i>nice</i>; " +
+      "then every entry reads just one or two child entries. Hover a table row to see the partial solution it stands for.");
+  },
+  tablesPlain(x, st, focusRow, kidsRead, keepScroll) {
+    const oldTops = keepScroll ? [...document.querySelectorAll("#infoBody .dptab")].map(b => b.scrollTop) : null;
+    const pk = "mwis", P = PROBLEMS.mwis, D = S.cache.dpp, T = D.T, td = S.TD;
+    const hide = el("hideInfChk").checked;
+    const r = focusRow !== null ? T[x].get(focusRow) : null;
+    const stepRow = st.k === "node" && st.row !== null && st.row >= 0;
+    const table = (y, title, isCur, kd) => {
+      const by = td.bags[y], out = [];
+      out.push('<div class="dptab" data-tab="' + y + '"><table><caption>' + title + "</caption><tr>" +
+        by.map(v => "<th>" + v + "</th>").join("") + (by.length ? "" : "<th>∅</th>") + '<th class="val">c</th>' +
+        (kd ? '<th class="val" title="c[t′, S′] − w(S′ ∩ B_t), for the S′ that agree with S">c′</th>' : "") + "</tr>");
+      let shown = 0, idx = -1;
+      for (const [k, e] of T[y]) {
+        idx++;
+        const pending = isCur && stepRow && idx > st.row;
+        if (hide && !P.feasible(e.val) && !pending) continue;
+        if (++shown > 400) { out.push('<tr><td colspan="99">…</td></tr>'); break; }
+        const cls = [];
+        let val = P.fmt(e.val);
+        if (!P.feasible(e.val)) cls.push("inf");
+        if (pending) cls.push("pending");
+        if (isCur && k === focusRow) {
+          cls.push(st.k === "tb" ? "chosen" : "cur");
+          if (stepRow && idx === st.row && e.indep) val = P.fmt(e.partial[st.ci + 1]) + (st.ci + 1 < e.partial.length - 1 ? "…" : "");
+        }
+        if (kd && kd.bestKey === k) cls.push("use"); else if (kd && kd.cand.has(k)) cls.push("src");
+        if (S.pinRow && S.pinRow.x === y && S.pinRow.key === k) cls.push("pinned");
+        out.push('<tr class="' + cls.join(" ") + '" data-x="' + y + '" data-k="' + k + '">' +
+          (by.length ? e.st.map(s => "<td>" + symHtml(pk, s) + "</td>").join("") : "<td></td>") +
+          '<td class="val">' + val + "</td>" + (kd ? '<td class="val">' + (kd.cand.has(k) ? P.fmt(kd.cand.get(k)) : "") + "</td>" : "") + "</tr>");
+      }
+      out.push("</table></div>");
+      return out.join("");
+    };
+    const kids = D.R.children[x];
+    let html = '<div class="dpwrap">' + table(x, "t" + x + " (this node)", true, null);
+    kids.forEach((c, i) => { html += table(c, "child t" + c, false, r && r.indep && i < kidsRead ? r.kids[i] : null); });
+    html += "</div>";
+    html += '<div class="dpnote">Rows: 1 = in S, 0 = not in S. Current entry in red. In a child t′, the gold rows are the S′ that agree with S on B<sub>t</sub> ∩ B<sub>t′</sub>, ' +
+      "with c′ = c[t′, S′] − w(S′ ∩ B<sub>t</sub>); the best of them in green.</div>";
+    setInfo("Tables", html, "c[t, ·]: " + T[x].size + " entries");
+    if (oldTops) { document.querySelectorAll("#infoBody .dptab").forEach((b, i) => b.scrollTop = oldTops[i] || 0); return; }
+    document.querySelectorAll("#infoBody .dptab").forEach(box => {
+      const tr = box.querySelector("tr.cur, tr.chosen, tr.use, tr.src");
+      if (tr) { const top = tr.offsetTop - box.clientHeight / 2; box.scrollTop = Math.max(0, top); }
+    });
+  },
+
   tables(x, st, focusRow, keepScroll) {
     const oldTops = keepScroll ? [...document.querySelectorAll("#infoBody .dptab")].map(b => b.scrollTop) : null;
     const pk = S.prob, P = PROBLEMS[pk], D = S.cache.dp, nice = D.nice, T = D.T, o = nice.nodes[x];
@@ -3964,7 +4489,7 @@ MODES.dp = {
     let html = '<div class="dpwrap">' + table(x, "this node", true);
     o.ch.forEach((c, i) => { html += table(c, o.ch.length > 1 ? "child t" + (i + 1) : "child t′", false); });
     html += "</div>";
-    html += '<div class="dpnote">Rows: ' + (pk === "mwis" ? "1 = in S, 0 = not in S" : pk === "col3" ? "the colour of each bag vertex" : "1 = in D, 0 = dominated, <span class=hat0>0</span> = not necessarily dominated") +
+    html += '<div class="dpnote">Rows: ' + (SUBSET(pk) ? "1 = in S, 0 = not in S" : pk === "col3" ? "the colour of each bag vertex" : "1 = in D, 0 = dominated, <span class=hat0>0</span> = not necessarily dominated") +
       ". Current entry in red; the child entries it reads in gold, the one it takes in green.</div>";
     setInfo("Tables", html, "c[t, ·]: " + T[x].size + " entries");
     /* keep the interesting rows in view without scrolling the page */
@@ -3996,6 +4521,11 @@ function nodeExplain(pk, o) {
     if (o.type === "forget") return o.v + " leaves the bag for good: each entry takes the better of the two child entries, with and without " + o.v + ".";
     if (o.type === "join") return "The two subtrees share only the bag, so their best solutions for the same S combine; w(S) was counted twice.";
   }
+  if (pk === "vc") {
+    if (o.type === "intro") return "Every entry is read from the child; where " + o.v + " ∈ S its weight " + S.G.w[o.v] + " is added, and sets S that leave an edge of the bag uncovered (red edges) get +∞.";
+    if (o.type === "forget") return o.v + " leaves the bag for good: each entry takes the cheaper of the two child entries, with and without " + o.v + ". Edges at " + o.v + " are all in G<sub>t</sub> by now, so both choices are already checked.";
+    if (o.type === "join") return "The two subtrees share only the bag, so their cheapest covers for the same S combine; w(S) was counted twice.";
+  }
   if (pk === "col3") {
     if (o.type === "intro") return "Every entry is read from the child, unless " + o.v + " has the colour of a neighbour in the bag.";
     if (o.type === "forget") return "Some colour for " + o.v + " must work: an OR over three child entries.";
@@ -4015,6 +4545,7 @@ function entryExplain(pk, o, r, T, nice) {
   switch (r.line) {
     case "leaf": return lhs + " = " + val + ".";
     case "intro-dep": return "For " + fs + ": " + r.conflict[0] + " and " + r.conflict[1] + " are adjacent, so S is not independent: " + lhs + " = −∞.";
+    case "intro-uncov": return "For " + fs + ": " + r.conflict[0] + " and " + r.conflict[1] + " are adjacent and both outside S, so the edge is uncovered: " + lhs + " = +∞.";
     case "intro-out": return "For " + fs + ": " + o.v + " ∉ S, so " + lhs + " = c[t′, " + cs(u[0][0], u[0][1]) + "] = " + val + ".";
     case "intro-in": return "For " + fs + ": " + o.v + " ∈ S, so " + lhs + " = c[t′, " + cs(u[0][0], u[0][1]) + "] + w(" + o.v + ") = " + cv(u[0][0], u[0][1]) + " + " + S.G.w[o.v] + " = " + val + ".";
     case "forget": return "For " + fs + ": " + lhs + " = " + (pk === "mwis" ? "max" : pk === "col3" ? "OR" : "min") + "{ " + s.map(([c, k]) => cv(c, k)).join(", ") + " } = " + val + ".";
@@ -4033,8 +4564,9 @@ function entryExplain(pk, o, r, T, nice) {
   return lhs + " = " + val + ".";
 }
 function answerText(pk, v, asg) {
-  const set = asg ? [...asg].filter(([, s]) => (pk === "mwis" ? s === 1 : s === 0)).map(([u]) => u).sort(byNum) : null;
+  const set = asg ? [...asg].filter(([, s]) => (SUBSET(pk) ? s === 1 : s === 0)).map(([u]) => u).sort(byNum) : null;
   if (pk === "mwis") return "Maximum weight of an independent set: " + v + (set ? ", S = " + setStr(set) : "") + ".";
+  if (pk === "vc") return "Minimum weight of a vertex cover: " + v + (set ? ", S = " + setStr(set) : "") + ".";
   if (pk === "col3") return v ? "G is 3-colourable." + (asg ? " The colouring is shown." : "") : "G is not 3-colourable.";
   return "Smallest dominating set: " + v + " vertices" + (set ? ", D = " + setStr(set) : "") + ".";
 }
@@ -4258,10 +4790,12 @@ function renderLegends() {
   } else if (S.tab === "dp") {
     g = it(sw(LIGHT_CUR, "var(--wi-active)"), "in the current bag") + it(sw("var(--wi-controls)", "var(--wi-border-strong)"), "forgotten") +
         it(sw("var(--wi-panel-2)", "var(--wi-border)", ";opacity:.4"), "not yet seen");
-    if (S.prob === "mwis") g += it(sw(SEP_FILL, "var(--wi-accent-dark)"), "in S");
+    if (SUBSET(S.prob)) g += it(sw(SEP_FILL, "var(--wi-accent-dark)"), "in S");
     if (S.prob === "col3") g += it(sw("var(--c1)", "var(--c1)"), "") + it(sw("var(--c2)", "var(--c2)"), "") + it(sw("var(--c3)", "var(--c3)"), "colours");
     if (S.prob === "domset") g += it(sw(SEP_FILL, "var(--wi-accent-dark)"), "1: in D") + it(sw(LIGHT_SEL, "var(--wi-accent)"), "0: dominated") + it(sw("var(--wi-panel-2)", "var(--wi-examine)", ";border-style:dashed"), "<span class=hat0>0</span>");
-    t = '<span class="item"><span class="bagtag intro" style="font-family:var(--wi-font-head);color:var(--wi-relax)">+v</span> introduce</span>' +
+    if (isPlainTree()) t = it(sw(LIGHT_CUR, "var(--wi-active)"), "current node") + it(sw("#efe4d2", "var(--wi-border)"), "table filled") +
+      (S.dpAlg === "plain" ? it(sw("transparent", "var(--wi-accent-dark)", ";border-style:dashed"), "child being read") : "");
+    else t = '<span class="item"><span class="bagtag intro" style="font-family:var(--wi-font-head);color:var(--wi-relax)">+v</span> introduce</span>' +
         '<span class="item"><span style="font-family:var(--wi-font-head);color:var(--wi-examine)">−v</span> forget</span>' +
         '<span class="item"><span style="font-family:var(--wi-font-head);color:var(--wi-queue)">join</span></span>' +
         (PROBLEMS[S.prob].edges ? '<span class="item"><span style="font-family:var(--wi-font-head);color:var(--wi-accent)">u–v</span> introduce edge</span>' : "") +
@@ -4281,7 +4815,7 @@ function switchTab(tab, keepCur) {
   if (S.pin && S.pin.b >= 0) S.pin = null;           /* bag numbers mean something else in another tab */
   document.querySelectorAll("#tabSeg button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
   document.querySelectorAll("#opbar .grp").forEach(g => g.classList.toggle("on", g.dataset.tab === tab));
-  el("tTitle").textContent = tab === "dp" ? "Nice tree decomposition" : tab === "elim" ? "Decomposition from the ordering" : "Tree decomposition";
+  el("tTitle").textContent = tab === "dp" ? (S.dpAlg === "plain" ? "Tree decomposition (root t0)" : "Nice tree decomposition") : tab === "elim" ? "Decomposition from the ordering" : "Tree decomposition";
   syncLayoutSeg();
   MODES[tab].build();
   S.cur = keepCur ? Math.min(S.cur, S.steps.length - 1) : 0;
@@ -4292,6 +4826,11 @@ function switchTab(tab, keepCur) {
   render();
 }
 
+function syncDpAlg() {
+  el("dpAlgSeg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.a === S.dpAlg));
+  el("probSeg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.p === S.prob));
+  el("dpAlgNote").textContent = S.dpAlg === "plain" ? "the basic algorithm is for independent set; the other problems use the optimized one" : "";
+}
 function syncLayoutSeg() {
   const cur = S.tab === "dp" ? S.dpLayout : S.layout;
   el("layoutSeg").querySelectorAll("button").forEach(x => { x.classList.toggle("on", x.dataset.l === cur); x.disabled = S.tab === "dp" && x.dataset.l === "geo"; });
@@ -4418,7 +4957,8 @@ function init() {
     if (!redrawT) { redrawT = true; redraw(); }
   };
   S.hoverE = -1;
-  S.prob = "mwis"; S.gran = 0; S.sepMode = "watch"; S.elimTry = false; S.elimRedo = []; S.hint = ""; S.copMode = "td"; S.edit = false; S.tdVersion = 0;
+  S.prob = "mwis"; S.dpAlg = "plain"; S.gran = 0; S.sepMode = "watch"; S.elimTry = false; S.elimRedo = []; S.hint = ""; S.copMode = "td"; S.edit = false; S.tdVersion = 0;
+  syncDpAlg();
   const sel = el("presetSel");
   sel.innerHTML = PRESETS.map(p => '<option value="' + p.id + '">' + esc(p.name) + "</option>").join("");
   sel.addEventListener("change", () => {
@@ -4511,10 +5051,18 @@ function init() {
     if (S.elimOrder.length !== S.G.n) return;
     S.TD = tdFromOrder(S.G, S.elimOrder, true); tdChanged(false);
   });
+  el("dpAlgSeg").addEventListener("click", ev => {
+    const b = ev.target.closest("button"); if (!b || b.dataset.a === S.dpAlg) return;
+    S.dpAlg = b.dataset.a;
+    if (S.dpAlg === "plain") S.prob = "mwis";
+    syncDpAlg();
+    S.hoverRow = null; S.pinRow = null; MODES.dp.build(); S.cur = 0; render();
+  });
   el("probSeg").addEventListener("click", ev => {
     const b = ev.target.closest("button"); if (!b) return;
     S.prob = b.dataset.p;
-    el("probSeg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    if (S.prob !== "mwis") S.dpAlg = "nice";
+    syncDpAlg();
     S.hoverRow = null; MODES.dp.build(); S.cur = 0; render();
   });
   el("granSeg").addEventListener("click", ev => {
@@ -4724,13 +5272,19 @@ function setPin(p) {
 
 function vertexTip(v) {
   const G = S.G, V = S.tab === "def" && S.edit ? S.defV : S.valid, B = V.where[v] || [];
-  let h = '<span class="tt-h">vertex ' + v + "</span><br>degree " + G.adj[v].size + (S.tab === "dp" && S.prob === "mwis" ? ", weight " + G.w[v] : "") +
+  let h = '<span class="tt-h">vertex ' + v + "</span><br>degree " + G.adj[v].size + (S.tab === "dp" && SUBSET(S.prob) ? ", weight " + G.w[v] : "") +
     "<br>in bags " + (B.length ? B.map(t => "t" + t).join(", ") : "none");
   if (V.pieces[v] && V.pieces[v].length > 1) h += '<br><span class="tt-s">these bags are not connected in T</span>';
   return h;
 }
 function bagTip(t) {
+  if (S.tab === "dp" && isPlainTree()) {
+    const bag = S.TD.bags[t]; if (!bag) return "";
+    return '<span class="tt-h">bag t' + t + "</span><br>B<sub>t</sub> = " + setStr(bag) + "<br>" + Math.pow(2, bag.length) + " table entries";
+  }
   if (S.tab === "dp" && S.cache.dp) {
+    const nd = S.tree && S.tree.byId.get(t);
+    if (nd && nd.bagOf !== undefined) return '<span class="tt-h">bag t' + nd.bagOf + "</span><br>B<sub>t</sub> = " + setStr(nd.bag) + '<br><span class="tt-s">not expanded yet</span>';
     const o = S.cache.dp.nice.nodes[t]; if (!o) return "";
     const P = PROBLEMS[S.prob];
     return '<span class="tt-h">' + typeName(o) + (o.v !== undefined ? " " + o.v : o.e ? " " + o.e.join("–") : "") + "</span><br>X = " + setStr(o.bag) +
@@ -4757,7 +5311,8 @@ function graphEdgeTip(i) {
     if (bag.includes(" " + p + " ") && bag.includes(" " + q + " ")) hit.push(Number(g.dataset.b));
   });
   let where;
-  if (S.tab === "dp") where = hit.length + " node" + (hit.length === 1 ? "" : "s") + " of the nice decomposition";
+  if (S.tab === "dp" && !isPlainTree()) where = hit.length + " node" + (hit.length === 1 ? "" : "s") + " of the nice decomposition";
+  else if (S.tab === "dp") where = hit.length ? hit.map(t => "t" + t).join(", ") : "no bag";
   else if (S.tab === "elim") where = hit.length ? "the bags of " + hit.map(j => S.elimRec[j].v).join(", ") : "no bag yet";
   else if (S.tab === "sep" && (S.tree === S.convTree || (S.steps[S.cur] || {}).k === "try")) where = hit.length ? hit.map(t => "s" + t).join(", ") : "no bag yet";
   else where = hit.length ? hit.map(t => "t" + t).join(", ") : "no bag";

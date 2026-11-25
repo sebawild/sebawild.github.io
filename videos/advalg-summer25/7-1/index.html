@@ -179,6 +179,102 @@
   .tp-text .tp-chapter { font-size: 1.15em; margin-top: 1.5em; }
   .tp-text .tp-chapter a { font-size: 0.7em; opacity: 0.6; font-variant-numeric: tabular-nums; text-decoration: none; }
   .tp-nav { display: flex; justify-content: space-between; gap: 1em; margin-top: 2em; }
+
+  /* draft (video_timelines): a full-width "app" below the title, filling the window:
+     outline | video ║ notes page, transcript pane below; height set by transcript-timeline.js */
+  .tl-app { box-sizing: border-box; width: 100vw; margin-left: calc(50% - 50vw); padding: 0 18px 4px;
+            height: var(--tl-h, calc(100vh - 20px)); min-height: 480px;
+            display: grid; grid-template-columns: auto 10px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 12px; gap: 0 4px; }
+  /* the bottom border: drag to make the whole thing (and so the transcript) taller or shorter */
+  .tl-grip { grid-column: 1 / -1; cursor: row-resize; position: relative; touch-action: none; }
+  .tl-grip::after { content: ""; position: absolute; left: 30%; right: 30%; top: 5px; height: 2px; border-radius: 1px; background: #cfc6b4; }
+  .tl-grip:hover::after, .tl-grip:focus-visible::after, .tl-app.tl-vdragging .tl-grip::after { background: #902015; }
+  .tl-app.tl-vdragging { user-select: none; cursor: row-resize; }
+  .tl-app.tl-vdragging iframe { pointer-events: none; }
+  .tl-toc { overflow-y: auto; min-height: 0; font-size: 0.8em; line-height: 1.35; }
+  .tl-toc details[open] { width: var(--tl-toc, 270px); }
+  .tl-toc summary { cursor: pointer; font-weight: bold; white-space: nowrap; padding: 2px 0 4px; font-size: 1.1em; }
+  .tl-app .tl-list { list-style: none; margin: 0; padding: 0; }
+  .tl-app .tl-list li { display: block; margin: 0; padding: 1px 4px; border-radius: 3px; }
+  .tl-app .tl-list li::before { content: none; }
+  .tl-list li.tl-section { font-variant: small-caps; letter-spacing: 0.03em; margin-top: 0.5em; opacity: 0.75;
+                           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl-list .tl-go { cursor: pointer; display: grid; grid-template-columns: 2.7em minmax(0, 1fr) auto; column-gap: 0.45em; align-items: baseline; }
+  .tl-list .tl-what { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl-list .tl-go:hover .tl-what { text-decoration: underline; }
+  .tl-list .tl-time { font-variant-numeric: tabular-nums; opacity: 0.6; text-align: right; }
+  .tl-list .tl-p { font-size: 0.9em; opacity: 0.6; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .tl-toc:has(details:not([open])) + .tl-split-toc { visibility: hidden; }
+  .tl-list li.tl-animation .tl-what { color: #902015; }
+  .tl-list li.tl-slido .tl-what { color: #1e6b3a; }
+  .tl-list li.tl-other { opacity: 0.6; }
+  .tl-list li.tl-weak .tl-what::after { content: " ?"; opacity: 0.6; }
+  .tl-list li.tl-now { background: rgba(144, 32, 21, 0.16); }
+  .tl-main { display: grid; min-width: 0; min-height: 0;
+             grid-template-columns: var(--tl-split, 64%) 10px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
+             grid-template-areas: "video split side" "pane split side"; }
+  .tl-video { grid-area: video; }
+  .tl-main > .tl-split { grid-area: split; }
+  .tl-side { grid-area: side; overflow-y: auto; }
+  .tl-pane { grid-area: pane; }
+  .tl-video .tp-player { max-width: none; }
+  .tl-split { align-self: stretch; cursor: col-resize; position: relative; }
+  .tl-split::after { content: ""; position: absolute; left: 4px; top: 10%; bottom: 10%; width: 2px; border-radius: 1px; background: #cfc6b4; }
+  .tl-split:hover::after, .tl-split:focus-visible::after, .tl-app.tl-dragging .tl-split::after { background: #902015; }
+  .tl-app.tl-dragging { user-select: none; cursor: col-resize; }
+  .tl-app.tl-dragging iframe { pointer-events: none; }
+  .tl-side { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding-top: 5px; font-size: 0.9em; }
+  /* everything in the side column as wide as the notes page (also against the site's figure/canvas rules) */
+  .tl-app .tl-side > * { width: 100%; max-width: none; margin: 0; box-sizing: border-box; }
+  .tl-app .tl-page { padding: 0; border: 0; }
+  .tl-app .tl-page canvas, .tl-app .tl-btn canvas { max-width: none; margin: 0; padding: 0; }
+  .tl-page canvas { display: block; width: 100%; aspect-ratio: 5 / 3; height: auto; background: #fff; cursor: zoom-in;
+                    border: 1px solid #aeaa9e; border-radius: 3px; box-sizing: border-box; }
+  .tl-page .tl-cap { margin-top: 3px; line-height: 1.3; }
+  .tl-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .tl-btn { display: flex; flex-direction: column; gap: 3px; min-width: 0; font: inherit; font-size: 0.9em; padding: 4px;
+            border: 1px solid #aeaa9e; border-radius: 4px; background: #faf6ed; color: #902015; cursor: pointer; text-align: center; }
+  .tl-btn canvas { display: block; width: 100%; aspect-ratio: 5 / 3; height: auto; background: #fff; border-radius: 2px; }
+  .tl-btn .tl-thumb { position: relative; display: block; }
+  .tl-btn .tl-ph { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
+                   gap: 4px; padding: 6px; border-radius: 2px; background: #efe6d6; color: #6b6257; font-style: italic; white-space: normal; }
+  .tl-btn.tl-nopage .tl-ph { display: flex; }
+  .tl-btn.tl-nopage canvas { visibility: hidden; }
+  .tl-btn .tl-ph-animation { background: rgba(144, 32, 21, 0.12); color: #902015; font-style: normal; }
+  .tl-btn .tl-ph-animation i { font-size: 1.8em; }
+  .tl-btn .tl-ph-slido { background: #dff0e3; color: #1e6b3a; font-style: normal; }
+  .tl-btn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl-btn small { opacity: 0.7; }
+  .tl-btn:hover:not(:disabled) { background: #fff; border-color: #902015; }
+  .tl-btn:disabled { color: #aeaa9e; cursor: default; }
+  .tl-btn:disabled canvas { visibility: hidden; }
+  .tl-vnav { margin: 0 0 0.6em; }
+  .tl-try { display: grid; grid-template-columns: auto 1fr; column-gap: 0.7em; align-items: center; padding: 0.5em 0.8em;
+            border-radius: 4px; text-decoration: none; background: rgba(144, 32, 21, 0.1); border: 1px solid rgba(144, 32, 21, 0.35); }
+  .tl-try[hidden] { display: none; }
+  .tl-try i { grid-row: span 2; font-size: 1.8em; }
+  .tl-try span { font-weight: bold; }
+  .tl-try small { opacity: 0.8; }
+  .tl-try:hover { background: rgba(144, 32, 21, 0.16); }
+  .tl-pane { min-height: 0; overflow-y: auto; margin-top: 10px; padding: 0 12px 0 2px;
+             border-top: 1px solid #d8ccb7; }
+  .tl-panehead { position: sticky; top: 0; z-index: 2; background: #F5EBD9; padding: 4px 0 2px; }
+  .tl-pane .tp-controls { margin: 0; }
+  .tl-pane .tp-disclaimer { margin-top: 0.4em; }
+  .tl-zoom { position: fixed; z-index: 30; cursor: zoom-out; background: #fff; border: 1px solid #aeaa9e; border-radius: 4px;
+             box-shadow: 0 6px 30px rgba(0, 0, 0, 0.25); }
+  .tl-zoom canvas { display: block; }
+  /* below ~1100 px the outline goes above the video, collapsed; phones get the plain page */
+  @media (max-width: 1100px) {
+    .tl-app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) 12px; }
+    .tl-split-toc { display: none; }
+    .tl-toc details[open] { width: auto; max-height: 30vh; overflow-y: auto; }
+  }
+  @media (max-width: 760px) {
+    .tl-app, .tl-main { height: auto; width: auto; margin-left: 0; padding: 0; display: block; }
+    .tl-split, .tl-side, .tl-grip { display: none; }
+    .tl-pane { overflow: visible; }
+  }
   .tp-nav .tp-next { margin-left: auto; text-align: right; }
 </style>
 
@@ -187,7 +283,6 @@
   · <a href="https://youtu.be/BAmMAnMXteM">YouTube</a>
   <br/>2025-06-10, 17:34
 </p>
-
 <div class="tp" data-id="BAmMAnMXteM">
   <div class="tp-bar"><div class="tp-player" id="tp-player">
     <button type="button" class="tp-start" data-t="0" aria-label="Play video">
@@ -200,7 +295,7 @@
     <label><input type="checkbox" class="tp-follow" checked> follow along</label>
   </p></div>
   <p class="tp-disclaimer vo-small"><em>The transcript was generated automatically by YouTube's speech
-  recognition and is offered as is. It may contain errors, in particular in concerning technical terms,
+  recognition and is offered as is. It may contain errors, in particular concerning technical terms,
   names and formulas.</em></p>
   <div class="tp-text" lang="en">
 <p><a class="tp-time" href="#t=2" data-t="2">0:02</a> <span data-t="2">The next unit</span> <span data-t="2">starts the I guess second big part of</span> <span data-t="6">the lecture where we uh give up some of</span> <span data-t="9">the um correctness criterion for our</span> <span data-t="12">algorithms uh and try to get get further</span> <span data-t="16">speed ups by doing so. uh this will keep</span> <span data-t="19">us busy for a while and in the first bit</span> <span data-t="21">we&#39;ll kind of set set the stage mostly</span> <span data-t="24">for the algorithms</span> <span data-t="26">um with a few uh examples and and</span> <span data-t="28">basically as some some terminology</span> <span data-t="32">uh so I I&#39;ll give a little bit of of</span> <span data-t="35">motivation and maybe a a deep dive in</span> <span data-t="38">one specific topic just to make a point</span> <span data-t="41">uh might keep us busy for today and then</span> <span data-t="45">um we&#39;ll revisit a bit of the the</span> <span data-t="47">background</span> <span data-t="54">What&#39;s this about? Well,</span> <span data-t="54">uh if we&#39;re faced with an heart</span> <span data-t="57">optimization problem or an NP heart</span> <span data-t="59">decision problem and all the known</span> <span data-t="62">algorithms that uh we can think of still</span> <span data-t="65">don&#39;t really uh help us in that they&#39;re</span> <span data-t="67">still too slow. The only way for forward</span> <span data-t="70">seems to be to uh make compromises on on</span> <span data-t="74">what we want. Classical algorithms as</span> <span data-t="77">we&#39;ve studied them in fixed parameter</span> <span data-t="80">attractability have to be always and</span> <span data-t="82">exactly correct and really think of a</span> <span data-t="85">exactly makes sense for for optimization</span> <span data-t="88">problems more than for decision</span> <span data-t="90">problems. Uh but really these are these</span> <span data-t="93">are two separate properties and we could</span> <span data-t="95">give up either of them or both. And here</span> <span data-t="99">we&#39;ll give up the first one, namely that</span> <span data-t="101">the algorithms always work or provably</span> <span data-t="104">always work. And uh I guess the opposite</span> <span data-t="108">of that is that they can occasionally</span> <span data-t="110">fail. Now that sounds not too good. So</span> <span data-t="113">we&#39;ll have to make sure that fail is uh</span> <span data-t="117">in a specific</span> <span data-t="119">way. Um for a deterministic algorithm,</span> <span data-t="123">what fail means is that on some inputs</span> <span data-t="126">it doesn&#39;t work. That&#39;s the only thing</span> <span data-t="128">it it could mean because it has to do</span> <span data-t="130">the same steps on the same input each</span> <span data-t="132">time you run</span> <span data-t="134">it. Uh and that&#39;s maybe not so</span> <span data-t="137">satisfying because if your input is one</span> <span data-t="139">of those that your algorithm fails on,</span> <span data-t="141">you&#39;re still out of</span> <span data-t="144">luck. So in a way it&#39;s it&#39;s clear we</span> <span data-t="148">have to do something that even if I give</span> <span data-t="150">you the same input again, the next time</span> <span data-t="152">you run the algorithm, something</span> <span data-t="154">different will happen. And that&#39;s what</span> <span data-t="156">we call non-determinism because the</span> <span data-t="158">algorithm is not deterministic or the</span> <span data-t="161">computation is not fully determined just</span> <span data-t="163">by the algorithm and the</span> <span data-t="165">input. On the other hand, I&#39;ve marketed</span> <span data-t="169">non-determinism when we discussed</span> <span data-t="171">traditional complexity as something</span> <span data-t="173">that&#39;s completely unrealistic and</span> <span data-t="174">useless in practice and just a</span> <span data-t="177">hypothetical thing you can compete with.</span></p>
@@ -221,7 +316,8 @@
 <p class="tp-nav vo-small"><a href="/videos/advalg-summer25/6-7/">← Video 6-7: Lower bounds based on the Exponential Time Hypothesis (ETH) part 2</a><a class="tp-next" href="/videos/advalg-summer25/7-2/">Video 7-2: Randomized selection by rank (deterministic adversary lower bound, Floyd-Rivest algorithm) →</a>
 </p>
 
-<script src="/assets/js/transcript-player.js" defer></script>
+<script src="/assets/js/transcript-player.js?v=1795598920" defer></script>
+<script src="/assets/js/transcript-timeline.js?v=1795598920" defer></script>
 
   </div>
 

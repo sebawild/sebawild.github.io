@@ -5,6 +5,9 @@
  * Nothing is loaded from YouTube until the first click; then the IFrame
  * Player API is used with the youtube-nocookie.com host.
  * #t=123 in the URL marks that point (e.g. links from the search).
+ *
+ * Other scripts can follow the video: the .tp element gets "tp-time" events,
+ * detail {t: seconds, playing: bool} (transcript-timeline.js).
  */
 (function () {
 	'use strict';
@@ -14,6 +17,7 @@
 	var box = document.getElementById('tp-player');
 	var bar = box.closest('.tp-bar') || box;
 	var follow = root.querySelector('.tp-follow');
+	var pane = root.querySelector('.tp-scroll');   // the transcript scrolls in its own pane (timeline layout)
 	var segs = Array.prototype.slice.call(root.querySelectorAll('.tp-text span[data-t]'));
 	var times = segs.map(function (s) { return +s.getAttribute('data-t'); });
 	var player = null, ready = false, pending = 0, current = null, lastUserScroll = 0;
@@ -34,7 +38,13 @@
 		current = el;
 		if (!el) return;
 		el.classList.add('tp-now');
-		if (scroll) {
+		if (scroll && pane) {
+			var pr = pane.getBoundingClientRect(), er = el.getBoundingClientRect(), head = pane.firstElementChild;
+			var ptop = pr.top + (head ? head.offsetHeight : 0) + 8;
+			if (er.top < ptop || er.bottom > pr.bottom - 8) {
+				pane.scrollBy({ top: er.top - ptop - (pr.bottom - ptop) / 3, behavior: 'smooth' });
+			}
+		} else if (scroll) {
 			var r = el.getBoundingClientRect(), top = bar.getBoundingClientRect().bottom + 8;
 			if (r.top < top || r.bottom > window.innerHeight - 8) {
 				window.scrollBy({ top: r.top - top - (window.innerHeight - top) / 3, behavior: 'smooth' });
@@ -42,9 +52,17 @@
 		}
 	}
 
+	function tell(t, playing) {
+		var ev;
+		try { ev = new CustomEvent('tp-time', { detail: { t: t, playing: playing } }); }
+		catch (e) { return; }
+		root.dispatchEvent(ev);
+	}
+
 	function tick() {
 		if (!ready || typeof player.getCurrentTime !== 'function') return;
 		var playing = player.getPlayerState && player.getPlayerState() === 1;
+		tell(player.getCurrentTime(), playing);
 		var userScrolledRecently = Date.now() - lastUserScroll < 4000;
 		mark(indexAt(player.getCurrentTime()), playing && follow && follow.checked && !userScrolledRecently);
 	}
@@ -61,6 +79,7 @@
 	function play(t) {
 		t = Math.max(0, +t || 0);
 		mark(indexAt(t), false);
+		tell(t, false);
 		if (player && ready) { player.seekTo(t, true); player.playVideo(); return; }
 		pending = t;
 		if (player) return;               // still loading; will start at `pending`
@@ -102,9 +121,13 @@
 	var m = location.hash.match(/t=(\d+)/);
 	if (m) {
 		pending = +m[1];
+		setTimeout(function () { tell(pending, false); }, 0);
 		var i = indexAt(pending);
 		mark(i, false);
-		if (i >= 0) {
+		if (i >= 0 && pane) {
+			var pr = pane.getBoundingClientRect(), er = segs[i].getBoundingClientRect();
+			pane.scrollTop += er.top - pr.top - 60;
+		} else if (i >= 0) {
 			var r = segs[i].getBoundingClientRect(), top = bar.getBoundingClientRect().height + 20;
 			window.scrollTo({ top: window.scrollY + r.top - top - 40 });
 		}

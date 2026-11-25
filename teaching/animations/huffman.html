@@ -82,7 +82,7 @@
                border-radius:var(--wi-radius-lg); padding:10px 18px 12px; margin-bottom:16px; }
   .transport-row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
   .progress { flex:1 1 320px; min-width:220px; }
-  /* the step slider: a 16 px thumb, whose centre travels from 8 px to width − 8 px — exactly the span of the phase bar */
+  /* the step slider: a 16 px thumb, whose center travels from 8 px to width − 8 px — exactly the span of the phase bar */
   input.scrub { -webkit-appearance:none; appearance:none; display:block; width:100%; height:16px; margin:2px 0 0;
                 background:transparent; cursor:pointer; }
   input.scrub::-webkit-slider-runnable-track { height:4px; background:var(--wi-border-soft); border-radius:2px; }
@@ -505,7 +505,7 @@ S 4</pre>
       coded text — code header followed by body — and nothing else is needed: the header stores the codeword
       <i>lengths</i>, and the canonical rule rebuilds the codewords from them. Switching to <i>Decode</i>, or
       selecting a preset there, encodes the current example and puts its bits in the box. A weights input has no
-      text; the weights presets carry a short sample message for this, other weights are realised as a text with
+      text; the weights presets carry a short sample message for this, other weights are realized as a text with
       (roughly) those frequencies.</p>
     <p><b>Links.</b> The page understands URL parameters: <code>?tab=huffman</code> or <code>?tab=canonical</code>,
       <code>dir=encode</code> or <code>dir=decode</code>, and optionally the input as <code>text=…</code>,
@@ -2441,10 +2441,29 @@ function phaseOf(i){
   return {key:lab, names:[lab].concat(PHASE_SHORT[lab]?[PHASE_SHORT[lab]]:[]), title:lab};
 }
 /* every box below the drawing gets the height of its tallest step, so nothing jumps */
+/* Measuring every step forces a layout per step (a second or more for 25+ characters).
+   The boxes only grow within a phase, so it suffices to measure, per phase, its first and
+   last two steps, its middle step, the step with the longest explanation and the one with the most queue entries. */
+function stabiliseCandidates(){
+  const out=new Set(), groups={};
+  steps.forEach((s,i)=>{ const k=PHASE_LABELS[s.phase]||s.phase; (groups[k]=groups[k]||[]).push(i); });
+  for(const k in groups){
+    const g=groups[k];
+    out.add(g[0]); out.add(g[g.length-1]); out.add(g[Math.max(0,g.length-2)]); out.add(g[g.length>>1]);
+    let lm=g[0], fm=g[0];
+    for(const i of g){
+      if((steps[i].msg||'').length>(steps[lm].msg||'').length) lm=i;
+      if((steps[i].forest||[]).length>(steps[fm].forest||[]).length) fm=i;
+    }
+    out.add(lm); out.add(fm);
+  }
+  return [...out].sort((a,b)=>a-b);
+}
 function stabilise(){
   const ids=['statusText','pqView','stripBox','tblView','statsView','canonBox'];
-  WI.stabilise(ids.map(id=>document.getElementById(id)), steps.length,
-               i=>renderPanels(steps[i]), ()=>renderPanels(steps[cur]));
+  const cand=stabiliseCandidates();
+  WI.stabilise(ids.map(id=>document.getElementById(id)), cand.length,
+               k=>renderPanels(steps[cand[k]]), ()=>renderPanels(steps[cur]));
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -2550,7 +2569,7 @@ function fieldsSource(){
   const ents=parseWeights(document.getElementById('weightsInput').value);
   return {ents, msg:sampleMessage(ents), text:null};
 }
-/* a weights input has no text; for decoding, use the preset's sample message, or realise the weights */
+/* a weights input has no text; for decoding, use the preset's sample message, or realize the weights */
 function sampleMessage(ents){
   const v=document.getElementById('weightsInput').value.trim();
   const k=Object.keys(PRESETS).find(k=>PRESETS[k].mode==='weights'&&PRESETS[k].v===v&&PRESETS[k].msg);

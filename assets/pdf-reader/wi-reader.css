@@ -1,0 +1,412 @@
+/* ===========================================================================
+   wi-reader.css -- wild-inter.net look for the pdf2htmlEX paper pages
+   (/publications/html/*.pdf.html and /cv.html).
+   Source of truth: assets/pdf-reader/ (see _tools/README-pdf-reader.md);
+   pages link it from here, so an edit changes all of them at once.
+
+   Loaded after base.min.css, fancy.min.css and the per-paper CSS, so it only
+   overrides. The per-paper CSS (glyph positions, fonts) is never touched.
+   The toolbar, help panel and footer are built by wi-reader.js; everything
+   that needs them is gated on html.wi-reader, which that script sets, so a
+   page without the script still looks like plain pdf2htmlEX.
+
+   Tokens come from /css/animations.css (same palette as the site). Every use
+   has a fallback, so the page still works when opened from disk.
+   =========================================================================== */
+
+@import url("/fonts/pagella/stylesheet.css");
+@import url("/fonts/epigrafica/stylesheet.css");
+@import url("/css/animations.css");
+
+:root {
+  --r-bar:   44px;    /* toolbar height                                   */
+  --r-side:  var(--r-side-user, 280px);  /* contents panel width; wi-reader.js sets
+                                            --r-side-user when it is dragged */
+  --r-gap:   16px;    /* space around pages; wi-reader.js reads this      */
+
+  --r-bg:          var(--wi-bg, #F5EBD9);
+  --r-desk:        var(--wi-panel, #faf6ed);  /* around the pages: lighter than parchment,
+                                so parchment pages (the CV) stand out; white ones get
+                                their edge from the outline below (darker option: #e2cfb1) */
+  --r-panel:       var(--wi-panel, #faf6ed);
+  --r-panel-2:     var(--wi-panel-2, #fcf9f3);
+  --r-controls:    var(--wi-controls, #ecddc5);
+  --r-border:      var(--wi-border, #b9a793);
+  --r-border-soft: var(--wi-border-soft, #d4c5b4);
+  --r-ink:         var(--wi-ink, #46433A);
+  --r-ink-strong:  var(--wi-ink-strong, #38362e);
+  --r-ink-faint:   var(--wi-ink-faint, #8b8779);
+  --r-accent:      var(--wi-accent, #902015);
+  --r-accent-dark: var(--wi-accent-dark, #6d180f);
+  --r-accent-soft: var(--wi-accent-soft, #c28577);
+  --r-link:        var(--wi-link, #821d13);
+  --r-body: var(--wi-font-body, texgyrepagella, Palatino, "Palatino Linotype", serif);
+  --r-head: var(--wi-font-head, epigrafica, Optima, "URW Classico", sans-serif);
+}
+@media (max-width: 999.98px) {
+  :root { --r-gap: 8px; --r-side: min(300px, 86vw); }
+}
+
+html, body { background: var(--r-bg); }
+::selection { background: rgba(194, 133, 119, .38); }
+::-moz-selection { background: rgba(194, 133, 119, .38); }
+
+/* --- page area ------------------------------------------------------------ */
+
+@media screen {
+  #page-container {
+    background: var(--r-desk);
+    transition: none;
+    overflow-anchor: none;   /* the viewer positions itself; Chrome's scroll anchoring
+                                fought it when lazily loaded pages are resized */
+  }
+  html.wi-reader #sidebar,
+  html.wi-reader #page-container { top: var(--r-bar); }
+  #page-container:focus { outline: none; }
+
+  .pf {
+    margin: var(--r-gap) auto;
+    box-shadow: 0 0 0 1px rgba(56, 54, 46, .14), 0 2px 8px rgba(56, 54, 46, .20);
+  }
+  /* a page that is still a placeholder */
+  .pf:not(:has(.pc)) { background: var(--r-panel-2); }
+
+  /* links inside the paper: a faint wash on hover, so they are findable */
+  .pf a.l:hover > .d { background: rgba(144, 32, 21, .08); }
+}
+
+/* --- loading indicator (replaces the pdf2htmlEX badge) --------------------- */
+
+.loading-indicator img { display: none; }
+.loading-indicator.active {
+  animation: none !important;
+  width: 40px; height: 40px;
+  margin: -20px 0 0 -20px;
+}
+.loading-indicator.active::before {
+  content: "";
+  display: block;
+  box-sizing: border-box;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 3px solid var(--r-border-soft);
+  border-top-color: var(--r-accent);
+  animation: wi-spin .9s linear infinite;
+}
+@keyframes wi-spin { to { transform: rotate(360deg); } }
+
+/* --- contents panel ------------------------------------------------------- */
+
+@media screen {
+  #sidebar {
+    width: var(--r-side);
+    background: var(--r-bg);   /* parchment: set off from the lighter page area */
+    background-image: none;
+    border-right: 1px solid var(--r-border-soft);
+    box-sizing: border-box;
+  }
+  #sidebar.opened + #page-container { left: var(--r-side); }
+
+  .wi-side-head {
+    font-family: var(--r-head);
+    font-weight: bold;
+    letter-spacing: .08em;
+    font-size: 13px;
+    text-transform: uppercase;
+    color: var(--r-ink-faint);
+    padding: 16px 16px 4px;
+  }
+  #outline {
+    font-family: var(--r-body);
+    font-size: 15px;
+    margin: 0 0 24px;
+    padding: 0 8px 0 10px;
+  }
+  #outline ul { padding: 0; margin: 0; }
+  #outline li { list-style: none; margin: 0; }
+  #outline li > ul { margin-left: 14px; }
+  /* :hover too -- pdf2htmlEX's fancy.min.css makes hovered entries one ellipsized
+     line, which made the panel jump */
+  #outline a,
+  #outline a:visited,
+  #outline a:hover,
+  #outline a:active {
+    display: block;
+    color: var(--r-ink);
+    white-space: normal;
+    overflow: visible;
+    line-height: 1.3;
+    padding: 4px 6px 4px 8px;
+    border-left: 3px solid transparent;
+    border-radius: 0 3px 3px 0;
+    text-shadow: none;
+  }
+  #outline > ul > li > a { color: var(--r-ink-strong); font-weight: bold; margin-top: 4px; }
+  #outline a:hover { color: var(--r-accent); background: var(--r-panel-2); }
+  #outline a.wi-cur {
+    color: var(--r-accent);
+    border-left-color: var(--r-accent);
+    background: var(--r-panel-2);
+  }
+}
+
+/* draggable edge of the contents panel (wide screens only) */
+#wi-split {
+  display: none;
+  position: fixed;
+  top: var(--r-bar);
+  bottom: 0;
+  left: calc(var(--r-side) - 4px);
+  width: 8px;
+  z-index: 35;
+  cursor: col-resize;
+  touch-action: none;
+}
+html.wi-side-open #wi-split { display: block; }
+#wi-split:hover, #wi-split.drag {
+  background: linear-gradient(to right, transparent 3px, var(--r-accent-soft) 3px,
+                              var(--r-accent-soft) 5px, transparent 5px);
+}
+html.wi-dragging, html.wi-dragging * { cursor: col-resize !important; user-select: none !important; }
+@media (max-width: 999.98px) { #wi-split { display: none !important; } }
+
+/* narrow screens: the panel floats over the page instead of pushing it */
+@media screen and (max-width: 999.98px) {
+  html.wi-reader #sidebar {
+    z-index: 30;
+    transform: translateX(-102%);
+    transition: transform .2s ease;
+    box-shadow: 4px 0 18px rgba(56, 54, 46, .25);
+  }
+  html.wi-reader #sidebar.opened { transform: none; }
+  html.wi-reader #sidebar.opened + #page-container { left: 0; }
+}
+
+/* --- toolbar --------------------------------------------------------------- */
+
+#wi-bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--r-bar);
+  box-sizing: border-box;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  background: var(--r-controls);
+  border-bottom: 1px solid var(--r-border);
+  font-family: var(--r-head);
+  font-size: 15px;
+  line-height: 1;
+  color: var(--r-ink-strong);
+}
+#wi-bar .wi-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: bold;
+  letter-spacing: .04em;
+  color: var(--r-accent);
+  margin: 0 6px;
+  text-shadow: none;
+}
+#wi-bar .wi-title:hover { color: var(--r-accent-dark); text-decoration: underline; }
+#wi-bar .wi-grp { display: flex; align-items: center; gap: 2px; flex: none; }
+#wi-bar .wi-sep { width: 1px; height: 22px; background: var(--r-border-soft); margin: 0 4px; flex: none; }
+
+#wi-bar button,
+#wi-bar a.wi-btn {
+  box-sizing: border-box;
+  height: 30px;
+  min-width: 30px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: var(--r-head);
+  font-size: 14px;
+  letter-spacing: .03em;
+  color: var(--r-ink-strong);
+  background: var(--r-panel);
+  border: 1px solid var(--r-border);
+  border-radius: 4px;
+  cursor: pointer;
+  text-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#wi-bar button:hover,
+#wi-bar a.wi-btn:hover { background: var(--r-panel-2); border-color: var(--r-accent-soft); color: var(--r-accent); }
+/* "on" state with its own :hover, so touch screens never show white on white */
+#wi-bar button.on,
+#wi-bar button.on:hover { background: var(--r-accent); border-color: var(--r-accent); color: var(--r-panel-2); }
+#wi-bar button:disabled { opacity: .4; cursor: default; }
+#wi-bar svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6;
+              stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+#wi-bar .wi-page { font-family: var(--r-body); font-size: 15px; white-space: nowrap; }
+#wi-bar .wi-page input {
+  box-sizing: border-box;
+  width: 3.2em; height: 28px;
+  padding: 0 4px;
+  text-align: right;
+  font: inherit;
+  color: var(--r-ink-strong);
+  background: var(--r-panel-2);
+  border: 1px solid var(--r-border);
+  border-radius: 4px;
+}
+#wi-bar .wi-page input:focus { outline: 2px solid var(--r-accent); outline-offset: 0; }
+#wi-bar .wi-zoom {
+  display: inline-block;
+  width: 3.4em;
+  text-align: center;
+  font-family: var(--r-body);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+@media (max-width: 999.98px) { #wi-bar .wi-wide { display: none; } }
+@media (max-width: 560px) {
+  #wi-bar { gap: 4px; padding: 0 6px; }
+  #wi-bar .wi-zoom, #wi-bar .wi-sep { display: none; }
+  #wi-bar .wi-title { margin: 0 2px; font-size: 14px; }
+}
+
+/* --- footer after the last page --------------------------------------------- */
+
+.wi-foot {
+  text-align: center;
+  padding: 14px 16px 48px;
+  font-family: var(--r-head);
+  font-size: 15px;
+  letter-spacing: .03em;
+  color: var(--r-ink-faint);
+  line-height: 1.6;
+}
+.wi-foot .wi-foot-title { font-family: var(--r-body); font-style: italic; color: var(--r-ink); letter-spacing: 0; }
+.wi-foot a { color: var(--r-link); text-shadow: none; }
+.wi-foot a:hover { color: var(--r-accent-dark); text-decoration: underline; }
+.wi-foot .wi-dot { margin: 0 .5em; }
+
+/* --- help panel -------------------------------------------------------------- */
+
+#wi-help {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding: calc(var(--r-bar) + 20px) 12px 20px;
+  background: rgba(56, 54, 46, .35);
+  overflow: auto;
+}
+#wi-help.open { display: flex; }
+#wi-help .wi-card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 600px;
+  background: var(--r-panel);
+  border: 1px solid var(--r-border);
+  border-radius: 6px;
+  box-shadow: 0 8px 30px rgba(56, 54, 46, .3);
+  padding: 18px 22px 20px;
+  font-family: var(--r-body);
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--r-ink);
+}
+#wi-help h2 {
+  margin: 0 0 10px;
+  font-family: var(--r-head);
+  font-size: 20px;
+  letter-spacing: .05em;
+  color: var(--r-accent);
+}
+#wi-help h3 {
+  margin: 16px 0 6px;
+  font-family: var(--r-head);
+  font-size: 13px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--r-ink-faint);
+}
+#wi-help table { border-collapse: collapse; width: 100%; }
+#wi-help td { padding: 3px 0; vertical-align: baseline; }
+#wi-help td:first-child { width: 12.5em; padding-right: 12px; white-space: nowrap; }
+#wi-help kbd {
+  display: inline-block;
+  min-width: 1.1em;
+  padding: 1px 6px;
+  font-family: var(--r-body);
+  font-size: 14px;
+  text-align: center;
+  color: var(--r-ink-strong);
+  background: var(--r-panel-2);
+  border: 1px solid var(--r-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+}
+#wi-help code { font-family: var(--wi-font-mono, monospace); font-size: 13.5px; color: var(--r-ink-strong); }
+#wi-help .wi-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+#wi-help .wi-actions a,
+#wi-help .wi-actions button {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 34px;
+  line-height: 1;
+  font-family: var(--r-head);
+  font-size: 14px;
+  letter-spacing: .03em;
+  padding: 6px 12px;
+  color: var(--r-ink-strong);
+  background: var(--r-panel-2);
+  border: 1px solid var(--r-border);
+  border-radius: 4px;
+  cursor: pointer;
+  text-shadow: none;
+}
+#wi-help .wi-actions a:hover,
+#wi-help .wi-actions button:hover { border-color: var(--r-accent-soft); color: var(--r-accent); }
+#wi-help .wi-close { float: right; margin: -6px -10px 0 0; background: none; border: 0; font-size: 22px;
+                     color: var(--r-ink-faint); cursor: pointer; padding: 4px 8px; }
+#wi-help .wi-close:hover { color: var(--r-accent); }
+@media (max-width: 560px) {
+  #wi-help td:first-child { width: auto; }
+  #wi-help .wi-keys-only { display: none; }
+}
+
+/* --- toast -------------------------------------------------------------------- */
+
+#wi-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 8px 16px;
+  font-family: var(--r-body);
+  font-size: 15px;
+  color: var(--r-panel-2);
+  background: var(--r-ink-strong);
+  border-radius: 5px;
+  box-shadow: 0 4px 14px rgba(56, 54, 46, .3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+}
+#wi-toast.show { opacity: .96; }
+
+/* --- print: only the paper -------------------------------------------------- */
+
+@media print {
+  #wi-bar, #wi-help, #wi-toast, .wi-foot, .wi-side-head { display: none !important; }
+}

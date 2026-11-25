@@ -179,6 +179,102 @@
   .tp-text .tp-chapter { font-size: 1.15em; margin-top: 1.5em; }
   .tp-text .tp-chapter a { font-size: 0.7em; opacity: 0.6; font-variant-numeric: tabular-nums; text-decoration: none; }
   .tp-nav { display: flex; justify-content: space-between; gap: 1em; margin-top: 2em; }
+
+  /* draft (video_timelines): a full-width "app" below the title, filling the window:
+     outline | video ║ notes page, transcript pane below; height set by transcript-timeline.js */
+  .tl-app { box-sizing: border-box; width: 100vw; margin-left: calc(50% - 50vw); padding: 0 18px 4px;
+            height: var(--tl-h, calc(100vh - 20px)); min-height: 480px;
+            display: grid; grid-template-columns: auto 10px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 12px; gap: 0 4px; }
+  /* the bottom border: drag to make the whole thing (and so the transcript) taller or shorter */
+  .tl-grip { grid-column: 1 / -1; cursor: row-resize; position: relative; touch-action: none; }
+  .tl-grip::after { content: ""; position: absolute; left: 30%; right: 30%; top: 5px; height: 2px; border-radius: 1px; background: #cfc6b4; }
+  .tl-grip:hover::after, .tl-grip:focus-visible::after, .tl-app.tl-vdragging .tl-grip::after { background: #902015; }
+  .tl-app.tl-vdragging { user-select: none; cursor: row-resize; }
+  .tl-app.tl-vdragging iframe { pointer-events: none; }
+  .tl-toc { overflow-y: auto; min-height: 0; font-size: 0.8em; line-height: 1.35; }
+  .tl-toc details[open] { width: var(--tl-toc, 270px); }
+  .tl-toc summary { cursor: pointer; font-weight: bold; white-space: nowrap; padding: 2px 0 4px; font-size: 1.1em; }
+  .tl-app .tl-list { list-style: none; margin: 0; padding: 0; }
+  .tl-app .tl-list li { display: block; margin: 0; padding: 1px 4px; border-radius: 3px; }
+  .tl-app .tl-list li::before { content: none; }
+  .tl-list li.tl-section { font-variant: small-caps; letter-spacing: 0.03em; margin-top: 0.5em; opacity: 0.75;
+                           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl-list .tl-go { cursor: pointer; display: grid; grid-template-columns: 2.7em minmax(0, 1fr) auto; column-gap: 0.45em; align-items: baseline; }
+  .tl-list .tl-what { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl-list .tl-go:hover .tl-what { text-decoration: underline; }
+  .tl-list .tl-time { font-variant-numeric: tabular-nums; opacity: 0.6; text-align: right; }
+  .tl-list .tl-p { font-size: 0.9em; opacity: 0.6; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .tl-toc:has(details:not([open])) + .tl-split-toc { visibility: hidden; }
+  .tl-list li.tl-animation .tl-what { color: #902015; }
+  .tl-list li.tl-slido .tl-what { color: #1e6b3a; }
+  .tl-list li.tl-other { opacity: 0.6; }
+  .tl-list li.tl-weak .tl-what::after { content: " ?"; opacity: 0.6; }
+  .tl-list li.tl-now { background: rgba(144, 32, 21, 0.16); }
+  .tl-main { display: grid; min-width: 0; min-height: 0;
+             grid-template-columns: var(--tl-split, 64%) 10px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
+             grid-template-areas: "video split side" "pane split side"; }
+  .tl-video { grid-area: video; }
+  .tl-main > .tl-split { grid-area: split; }
+  .tl-side { grid-area: side; overflow-y: auto; }
+  .tl-pane { grid-area: pane; }
+  .tl-video .tp-player { max-width: none; }
+  .tl-split { align-self: stretch; cursor: col-resize; position: relative; }
+  .tl-split::after { content: ""; position: absolute; left: 4px; top: 10%; bottom: 10%; width: 2px; border-radius: 1px; background: #cfc6b4; }
+  .tl-split:hover::after, .tl-split:focus-visible::after, .tl-app.tl-dragging .tl-split::after { background: #902015; }
+  .tl-app.tl-dragging { user-select: none; cursor: col-resize; }
+  .tl-app.tl-dragging iframe { pointer-events: none; }
+  .tl-side { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding-top: 5px; font-size: 0.9em; }
+  /* everything in the side column as wide as the notes page (also against the site's figure/canvas rules) */
+  .tl-app .tl-side > * { width: 100%; max-width: none; margin: 0; box-sizing: border-box; }
+  .tl-app .tl-page { padding: 0; border: 0; }
+  .tl-app .tl-page canvas, .tl-app .tl-btn canvas { max-width: none; margin: 0; padding: 0; }
+  .tl-page canvas { display: block; width: 100%; aspect-ratio: 5 / 3; height: auto; background: #fff; cursor: zoom-in;
+                    border: 1px solid #aeaa9e; border-radius: 3px; box-sizing: border-box; }
+  .tl-page .tl-cap { margin-top: 3px; line-height: 1.3; }
+  .tl-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .tl-btn { display: flex; flex-direction: column; gap: 3px; min-width: 0; font: inherit; font-size: 0.9em; padding: 4px;
+            border: 1px solid #aeaa9e; border-radius: 4px; background: #faf6ed; color: #902015; cursor: pointer; text-align: center; }
+  .tl-btn canvas { display: block; width: 100%; aspect-ratio: 5 / 3; height: auto; background: #fff; border-radius: 2px; }
+  .tl-btn .tl-thumb { position: relative; display: block; }
+  .tl-btn .tl-ph { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
+                   gap: 4px; padding: 6px; border-radius: 2px; background: #efe6d6; color: #6b6257; font-style: italic; white-space: normal; }
+  .tl-btn.tl-nopage .tl-ph { display: flex; }
+  .tl-btn.tl-nopage canvas { visibility: hidden; }
+  .tl-btn .tl-ph-animation { background: rgba(144, 32, 21, 0.12); color: #902015; font-style: normal; }
+  .tl-btn .tl-ph-animation i { font-size: 1.8em; }
+  .tl-btn .tl-ph-slido { background: #dff0e3; color: #1e6b3a; font-style: normal; }
+  .tl-btn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl-btn small { opacity: 0.7; }
+  .tl-btn:hover:not(:disabled) { background: #fff; border-color: #902015; }
+  .tl-btn:disabled { color: #aeaa9e; cursor: default; }
+  .tl-btn:disabled canvas { visibility: hidden; }
+  .tl-vnav { margin: 0 0 0.6em; }
+  .tl-try { display: grid; grid-template-columns: auto 1fr; column-gap: 0.7em; align-items: center; padding: 0.5em 0.8em;
+            border-radius: 4px; text-decoration: none; background: rgba(144, 32, 21, 0.1); border: 1px solid rgba(144, 32, 21, 0.35); }
+  .tl-try[hidden] { display: none; }
+  .tl-try i { grid-row: span 2; font-size: 1.8em; }
+  .tl-try span { font-weight: bold; }
+  .tl-try small { opacity: 0.8; }
+  .tl-try:hover { background: rgba(144, 32, 21, 0.16); }
+  .tl-pane { min-height: 0; overflow-y: auto; margin-top: 10px; padding: 0 12px 0 2px;
+             border-top: 1px solid #d8ccb7; }
+  .tl-panehead { position: sticky; top: 0; z-index: 2; background: #F5EBD9; padding: 4px 0 2px; }
+  .tl-pane .tp-controls { margin: 0; }
+  .tl-pane .tp-disclaimer { margin-top: 0.4em; }
+  .tl-zoom { position: fixed; z-index: 30; cursor: zoom-out; background: #fff; border: 1px solid #aeaa9e; border-radius: 4px;
+             box-shadow: 0 6px 30px rgba(0, 0, 0, 0.25); }
+  .tl-zoom canvas { display: block; }
+  /* below ~1100 px the outline goes above the video, collapsed; phones get the plain page */
+  @media (max-width: 1100px) {
+    .tl-app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) 12px; }
+    .tl-split-toc { display: none; }
+    .tl-toc details[open] { width: auto; max-height: 30vh; overflow-y: auto; }
+  }
+  @media (max-width: 760px) {
+    .tl-app, .tl-main { height: auto; width: auto; margin-left: 0; padding: 0; display: block; }
+    .tl-split, .tl-side, .tl-grip { display: none; }
+    .tl-pane { overflow: visible; }
+  }
   .tp-nav .tp-next { margin-left: auto; text-align: right; }
 </style>
 
@@ -187,7 +283,6 @@
   · <a href="https://youtu.be/VvhiQKQLugg">YouTube</a>
   <br/>2025-06-10, 29:55
 </p>
-
 <div class="tp" data-id="VvhiQKQLugg">
   <div class="tp-bar"><div class="tp-player" id="tp-player">
     <button type="button" class="tp-start" data-t="0" aria-label="Play video">
@@ -200,7 +295,7 @@
     <label><input type="checkbox" class="tp-follow" checked> follow along</label>
   </p></div>
   <p class="tp-disclaimer vo-small"><em>The transcript was generated automatically by YouTube's speech
-  recognition and is offered as is. It may contain errors, in particular in concerning technical terms,
+  recognition and is offered as is. It may contain errors, in particular concerning technical terms,
   names and formulas.</em></p>
   <div class="tp-text" lang="en">
 <p><a class="tp-time" href="#t=2" data-t="2">0:02</a> <span data-t="2">Uh in the next section I want to show</span> <span data-t="2">you one concrete problem and make the</span> <span data-t="4">point that randomization can indeed be</span> <span data-t="6">more powerful than any deterministic</span> <span data-t="8">algorithm. Um I wanted to show you one</span> <span data-t="11">concrete example of this for one to make</span> <span data-t="15">um to show show a concrete adversary</span> <span data-t="17">because I think this is this is</span> <span data-t="19">insightful for for other problems too.</span> <span data-t="22">uh and also to make drive home that</span> <span data-t="24">point that uh randomization is really</span> <span data-t="26">doing more than just making algorithms a</span> <span data-t="29">bit</span> <span data-t="35">simpler. Um so I&#39;ll try to uh avoid</span> <span data-t="35">detailed discussion of what the</span> <span data-t="36">randomization formally means. Um we&#39;ll</span> <span data-t="39">come back to that. Uh I want I should</span> <span data-t="43">mention that this is not an NP hard</span> <span data-t="45">problem that we&#39;re working with here.</span> <span data-t="47">And so also the randomization is not</span> <span data-t="49">going to decide between</span> <span data-t="52">exponential and polomial or anything</span> <span data-t="54">like this. The difference is smaller but</span> <span data-t="56">we can prove that it exists</span> <span data-t="62">here. And uh the example is the</span> <span data-t="62">selection problem. Selection by rank um</span> <span data-t="66">the thing that quick select solves. So</span> <span data-t="69">uh just to recap is an the input is an</span> <span data-t="72">array of numbers um or arbitrary objects</span> <span data-t="75">that you can do pair-wise comparisons</span> <span data-t="78">on. And uh you&#39;re also given a number k</span> <span data-t="82">and you&#39;re trying to find the element</span> <span data-t="83">that would be in that given position k</span> <span data-t="85">if the array was sorted. That&#39;s um a</span> <span data-t="89">convenient way of saying that you want</span> <span data-t="91">the kith smallest. It&#39;s a bit more</span> <span data-t="94">specific or a bit more precise in case</span> <span data-t="96">there are duplicates in the input. Then</span> <span data-t="99">uh if you say the kith smallest does</span> <span data-t="101">that in count include duplicates and</span> <span data-t="104">what about all the elements that are</span> <span data-t="105">equal to the k smallest? You can avoid</span> <span data-t="108">all that if you just say is an element</span> <span data-t="110">that could be in position k in the</span> <span data-t="112">sorted list. Uh makes discussions here a</span> <span data-t="115">bit</span> <span data-t="116">easier. Uh but for all for all that that</span> <span data-t="119">follows you can assume that the numbers</span> <span data-t="121">are distinct and then it&#39;s really the</span> <span data-t="124">same. Uh special cases that we&#39;ll we&#39;ll</span> <span data-t="129">focus on is is uh where k is n half then</span> <span data-t="133">we&#39;re looking for the median element. So</span> <span data-t="136">the element where half of the input is</span> <span data-t="138">smaller and half of the input is</span> <span data-t="147">larger. What you learned in undergrad is</span> <span data-t="147">this quick select algorithm. Um</span> <span data-t="151">different ways to write it. But here&#39;s</span> <span data-t="153">uh one with a loop. you&#39;re uh</span> <span data-t="157">maintaining</span> <span data-t="159">um a range of the array where you still</span> <span data-t="162">have to work in initially it&#39;s</span> <span data-t="164">everything and as long as that&#39;s not uh</span> <span data-t="167">empty you pick an a random element from</span> <span data-t="170">that range you partition that range</span> <span data-t="173">around that element everything smaller</span> <span data-t="175">to the left everything larger to the</span> <span data-t="177">right and then uh there&#39;s there&#39;s three</span> <span data-t="180">different options sometimes you&#39;re lucky</span> <span data-t="183">and the pivot element you picked is</span> <span data-t="185">exact exactly the one that has rank K or</span> <span data-t="187">is at position K in the end uh then you</span> <span data-t="190">uh will eventually return it. Otherwise</span> <span data-t="194">uh</span> <span data-t="195">if the um splitting position where the</span> <span data-t="199">pivot landed is too far to the right</span> <span data-t="202">then you have to continue searching on</span> <span data-t="204">the left K is still left of that then</span> <span data-t="206">you adjust the upper bound and the other</span> <span data-t="209">one is symmetric.</span></p>
@@ -232,7 +327,8 @@
 <p class="tp-nav vo-small"><a href="/videos/advalg-summer25/7-1/">← Video 7-1: Randomization motivation</a><a class="tp-next" href="/videos/advalg-summer25/7-3/">Video 7-3: Probability theory recap →</a>
 </p>
 
-<script src="/assets/js/transcript-player.js" defer></script>
+<script src="/assets/js/transcript-player.js?v=1795598920" defer></script>
+<script src="/assets/js/transcript-timeline.js?v=1795598920" defer></script>
 
   </div>
 

@@ -17,8 +17,9 @@
  * Data: <script id="tl-data"> {notes_url, entries: [{t, kind, page, title,
  * name, animation}]}, from _data/video-timelines/ (written by
  * _tools/videos.py). Time: "tp-time" events from transcript-player.js.
- * The notes PDF is drawn with pdf.js (draft: from cdnjs; to be vendored),
- * which fetches only the parts of the PDF it needs for the pages shown.
+ * The notes PDF is drawn with the site's PDF.js (/assets/pdfjs/v6, the same
+ * copy as the slide viewer; _tools/vendor-pdfjs.py), loaded on demand, which
+ * fetches only the parts of the PDF it needs for the pages shown.
  */
 (function () {
 	'use strict';
@@ -31,7 +32,7 @@
 	var zoom = $('tl-zoom'), zoomC = zoom && zoom.querySelector('canvas');
 	var toc = root.querySelector('.tl-toc');
 	var items = Array.prototype.slice.call(root.querySelectorAll('.tl-list li[data-from]'));
-	var PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+	var PDFJS = '/assets/pdfjs/v6/';
 	var loading = null, zoomOpen = false, now = 0;
 	var fmt = function (s) { s = Math.floor(s); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); };
 	var store = { get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -177,29 +178,41 @@
 		return null;
 	}
 
-	// ---- the notes page (pdf.js, loaded on demand)
+	// ---- the notes page (PDF.js, loaded on demand; an ES module, hence import())
 	function loadPdf() {
 		if (loading) return loading;
-		loading = new Promise(function (resolve, reject) {
-			var s = document.createElement('script');
-			s.src = PDFJS + 'pdf.min.js';
-			s.onload = function () {
-				var lib = window.pdfjsLib;
-				lib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js';
-				lib.getDocument({ url: tl.notes_url, disableAutoFetch: true, disableStream: true }).promise.then(resolve, reject);
-			};
-			s.onerror = reject;
-			document.head.appendChild(s);
+		loading = import(PDFJS + 'build/pdf.min.mjs').then(function (lib) {
+			// rendering stays on the main thread (no rendererSrc): the canvases
+			// here are resized for every page, which a canvas handed to PDF.js's
+			// renderer worker no longer allows
+			lib.GlobalWorkerOptions.workerSrc = PDFJS + 'build/pdf.worker.min.mjs';
+			return lib.getDocument({
+				url: tl.notes_url, disableAutoFetch: true, disableStream: true,
+				enableScripting: false, isEvalSupported: false,
+				cMapUrl: PDFJS + 'cmaps/', cMapPacked: true, standardFontDataUrl: PDFJS + 'standard_fonts/',
+				wasmUrl: PDFJS + 'wasm/', iccUrl: PDFJS + 'iccs/',
+			}).promise;
 		});
 		return loading;
 	}
+	// One render per canvas at a time (PDF.js refuses two on the same canvas):
+	// a new wish cancels the running one and waits for it to stop.
 	function render(c, n, cssWidth) {
-		return loadPdf().then(function (doc) { return doc.getPage(n); }).then(function (page) {
+		var before = c._tlTask ? (c._tlTask.cancel(), c._tlTask.promise.catch(function () {})) : Promise.resolve();
+		var task = null;
+		return before.then(loadPdf).then(function (doc) { return doc.getPage(n); }).then(function (page) {
 			var w = Math.max(100, cssWidth) * (window.devicePixelRatio || 1);
 			var vp = page.getViewport({ scale: w / page.getViewport({ scale: 1 }).width });
 			c.width = Math.round(vp.width);
 			c.height = Math.round(vp.height);
-			return page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+			task = c._tlTask = page.render({ canvas: c, viewport: vp });
+			return task.promise;
+		}).then(function () {
+			if (c._tlTask === task) c._tlTask = null;
+		}, function (err) {
+			if (task && c._tlTask === task) c._tlTask = null;
+			if (err && err.name === 'RenderingCancelledException') return;
+			throw err;
 		});
 	}
 	// a canvas showing one page at a time; renders the latest wish only

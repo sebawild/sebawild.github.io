@@ -17,12 +17,14 @@
  */
 (function () {
 	'use strict';
+	if (window.__ytLite) return;     // loaded twice on one page (layout + talk include)
+	window.__ytLite = true;
 
 	var EMBED = 'https://www.youtube-nocookie.com/embed/';
 	var THUMBS = '/assets/video-thumbs/';
 
 	function play(box, start) {
-		var params = ['autoplay=1', 'rel=0', 'playsinline=1'];
+		var params = ['autoplay=1', 'rel=0', 'playsinline=1', 'enablejsapi=1'];   // enablejsapi: talk pages pause it (talk-media.js)
 		start = start != null ? start : box.getAttribute('data-start');
 		if (start) params.push('start=' + parseInt(start, 10));
 		var end = box.getAttribute('data-end');

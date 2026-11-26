@@ -1,4 +1,5 @@
-/* talk-media.js -- the "Watch the talk / Browse the slides" tabs on talk pages.
+/* talk-media.js -- the "Talk video / Talk slides" tabs on talk pages (and
+ * of each talk on the stage of paper pages).
  *
  * Markup: _includes/talk-media.html (section.talk-media.has-tabs), on talk
  * pages, publication pages and posts; any number per page.  Without this
@@ -17,6 +18,16 @@
  */
 (function () {
 	'use strict';
+	// Opening the slides is a click on the facade, which slides-lite.js handles;
+	// on a talk page opened with #slides this script runs before slides-lite.js
+	// (both deferred), and the click would follow the link to the PDF. So the
+	// click waits until all deferred scripts have run (DOMContentLoaded).
+	var ready = document.readyState === 'complete';
+	document.addEventListener('DOMContentLoaded', function () { ready = true; });
+	function whenReady(fn) {
+		if (ready) fn();
+		else document.addEventListener('DOMContentLoaded', fn, { once: true });
+	}
 	Array.prototype.forEach.call(document.querySelectorAll('.talk-media.has-tabs'), setup);
 
 	function setup(box) {
@@ -44,10 +55,10 @@
 		});
 		panes.forEach(function (p) { p.hidden = p.getAttribute('data-pane') !== name; });
 		if (name !== 'video') pauseVideo();
-		if (name === 'slides' && opts.open) {
+		if (name === 'slides' && opts.open) whenReady(function () {
 			var lite = box.querySelector('.slides-lite:not(.is-open) > a');
 			if (lite) lite.click();
-		}
+		});
 		if (useHash && opts.hash !== false && !/^#page=/.test(location.hash)) {
 			history.replaceState(history.state, '', location.pathname + location.search + (name === box.getAttribute('data-default') ? '' : '#' + name));
 		}

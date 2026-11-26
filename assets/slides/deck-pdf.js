@@ -167,6 +167,13 @@ export class PdfDeck {
 		return tc.items.map(i => (i.str || '') + (i.hasEOL ? '\n' : '')).join(' ');
 	}
 
+	/** A title read off page p (largest text near the top), or null. */
+	async titleGuess(p, guess) {
+		const pg = await this.page(p);
+		const tc = await pg.getTextContent();
+		return guess(tc.items, pg.getViewport({ scale: 1 }).height);
+	}
+
 	/** Link annotations: [{rect:[x0,y0,x1,y1] in PDF units, url|page}]. */
 	async links(p) {
 		const pg = await this.page(p);

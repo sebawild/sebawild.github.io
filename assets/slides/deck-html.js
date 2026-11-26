@@ -6,24 +6,55 @@
  * Interface used by viewer.js (a subset of PdfDeck's, plus navigation):
  *   count, frames, outline, title, size(p), text(p), show(p, dir), onState(cb), reload()
  * See _tools/talks/DEVNOTES-html-decks.md.
+ *
+ * Markdown decks (`md` given: {markdown, themes, base, title}) load
+ * deck-md.html into a sandboxed frame (opaque origin: messages to and from
+ * it use '*' and origin "null"); the frame asks for the Markdown ('want')
+ * and gets it ('source').  setSource() sends a new version; the deck then
+ * reports its structure again (onStructure).
  */
 const NS = 'wi-deck';
+const SANDBOX = 'allow-scripts allow-popups allow-popups-to-escape-sandbox';
 
 export class HtmlDeck {
 	/** Load `url` into `iframe`; resolves once the deck reported its structure. */
-	static open(url, iframe, { page = 1, mode = 'tab', timeout = 15000 } = {}) {
-		const d = new HtmlDeck(iframe, url);
+	static open(url, iframe, { page = 1, mode = 'tab', timeout = 15000, md = null } = {}) {
+		const d = new HtmlDeck(iframe, url, md);
 		return d._load(page, mode, timeout).then(() => d);
 	}
 
-	constructor(iframe, url) {
+	constructor(iframe, url, md) {
 		this.iframe = iframe;
 		this.url = url;
+		this.md = md || null;
+		this.sandboxed = !!md;
 		this.page = 1;
 		this.cbs = [];
+		this.structureCbs = [];
+		this.errorCbs = [];
 		this.rendererWorker = false;
 		this.keyHandler = null;
 	}
+
+	/** Markdown decks: a new version of the Markdown (it re-renders in place). */
+	setSource(md) {
+		this.md = md;
+		this._sendSource();
+	}
+	_sendSource() {
+		const w = this.iframe.contentWindow;
+		if (!w || !this.md) return;
+		// the theme's fonts, once per theme (the frame cannot load the site's own: open.js loadFonts)
+		if (this.md.fonts && this._fontsFor !== this.md.theme) {
+			w.postMessage({ ns: NS, type: 'fonts', faces: this.md.fonts }, '*');
+			this._fontsFor = this.md.theme;
+		}
+		w.postMessage({ ns: NS, type: 'source', markdown: this.md.markdown, themes: this.md.themes || [], typographer: !!this.md.typographer, base: this.md.base || '', title: this.md.title || '' }, '*');
+	}
+	/** The deck reported a new structure after the first (Markdown re-rendered). */
+	onStructure(cb) { this.structureCbs.push(cb); }
+	/** The deck could not render (after it had loaded once). */
+	onError(cb) { this.errorCbs.push(cb); }
 
 	_load(page, mode, timeout) {
 		this._start = page;
@@ -37,17 +68,29 @@ export class HtmlDeck {
 			};
 			const timer = setTimeout(() => {
 				// no bridge spoke up: maybe reveal.js
-				if (this._tryReveal()) finish(); else finish(new Error('the deck did not report its slides (deck-bridge.js missing?)'));
+				if (!this.sandboxed && this._tryReveal()) finish(); else finish(new Error(this.sandboxed ? 'the Markdown slides did not load in time' : 'the deck did not report its slides (deck-bridge.js missing?)'));
 			}, timeout);
 			this._onMessage = e => {
 				const m = e.data;
-				if (e.source !== this.iframe.contentWindow || e.origin !== location.origin || !m || m.ns !== NS) return;
-				if (m.type === 'ready') { this._structure(m); this.post({ type: 'shell', mode }); finish(); }
+				if (e.source !== this.iframe.contentWindow || e.origin !== (this.sandboxed ? 'null' : location.origin) || !m || m.ns !== NS) return;
+				if (m.type === 'ready') {
+					const again = done;
+					this._structure(m);
+					this.post({ type: 'shell', mode });
+					if (again) for (const cb of this.structureCbs) cb();
+					finish();
+				}
 				else if (m.type === 'state') this._state(m.page);
 				else if (m.type === 'key' && this.keyHandler) this.keyHandler(m);
+				else if (m.type === 'want') { this._fontsFor = null; this._sendSource(); }
+				else if (m.type === 'error') {
+					if (!done) finish(new Error('the Markdown could not be turned into slides: ' + m.message));
+					else for (const cb of this.errorCbs) cb(m.message);
+				}
 			};
 			window.addEventListener('message', this._onMessage);
-			this.iframe.addEventListener('load', () => {
+			if (this.sandboxed) this.iframe.setAttribute('sandbox', SANDBOX);
+			else this.iframe.addEventListener('load', () => {
 				// reveal.js decks have no bridge; give them a moment to initialize
 				setTimeout(() => { if (!done && this._tryReveal()) finish(); }, 600);
 			}, { once: true });
@@ -61,6 +104,7 @@ export class HtmlDeck {
 		this.slides = m.slides || [];
 		this.texts = m.text || [];
 		this.keys = m.keys || [];
+		this.overfull = this.slides.map((s, i) => s.overflow ? i + 1 : 0).filter(Boolean);
 		this.frames = [];
 		this.outline = [];
 		let p = 1, sec = null;
@@ -83,7 +127,7 @@ export class HtmlDeck {
 	post(msg) {
 		const w = this.iframe.contentWindow;
 		if (this.reveal) return this._revealMsg(msg);
-		if (w) w.postMessage(Object.assign({ ns: NS }, msg), location.origin);
+		if (w) w.postMessage(Object.assign({ ns: NS }, msg), this.sandboxed ? '*' : location.origin);
 	}
 
 	/** The deck moved by itself (click inside it, its own keys). */

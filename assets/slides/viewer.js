@@ -11,13 +11,14 @@
  */
 /** Bump with every delivered change: shown in the HUD and __slidesStats(), so a
  *  stale copy in a cache is easy to spot. */
-const VERSION = '2026-11-25.4';
+const VERSION = '2026-11-26.4';
 
 import * as C from './core.js';
 import { SlideCache } from './cache.js';
 import { PdfDeck } from './deck-pdf.js';
 import * as Open from './open.js';
 import { HtmlDeck } from './deck-html.js';
+import { THEMES } from './md.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const h = (tag, attrs = {}, ...kids) => {
@@ -37,6 +38,7 @@ const ICON = {
 	next: '<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>',
 	toc: '<svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9"/></svg>',
 	search: '<svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></svg>',
+	theme: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>',
 	builds: '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="13" height="10" rx="1"/><path d="M8 19h12V9"/></svg>',
 	full: '<svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
 	unfull: '<svg viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>',
@@ -79,15 +81,15 @@ async function boot() {
 	S.maxPx = S.phone ? 2048 : 4096;
 	document.documentElement.classList.add('sv-mode-' + S.mode);
 	if (S.phone) document.documentElement.classList.add('sv-phone');
-	if (!S.opts.t && !S.opts.src && !S.opts.url && !S.opts.local) {
+	if (!S.opts.t && !S.opts.src && !S.opts.url && !S.opts.local && !S.opts.gslides && !S.opts.md) {
 		// /slides/ without parameters: open any PDF
 		document.documentElement.classList.remove('sv-mode-' + S.mode);
 		return Open.startScreen(document.getElementById('sv'), h);
 	}
 	buildShell();
 	S.meta = await loadMeta();
-	if (S.meta.kind === 'url' || S.meta.kind === 'local') Open.installDrop(el.root, () => S.mode);
-	if (S.meta.kind === 'url') Open.rememberUrl(S.meta.source, S.meta.title);
+	if (['url', 'local', 'gslides', 'md'].includes(S.meta.kind)) Open.installDrop(el.root, () => S.mode);
+	if (S.meta.kind === 'url' || S.meta.kind === 'gslides' || (S.meta.kind === 'md' && S.meta.source)) Open.rememberUrl(S.meta.source, S.meta.title);
 	document.title = (S.meta.title || 'Slides') + (S.mode === 'present' ? ' — present' : ' — slides');
 	fillShell();
 	countView();
@@ -107,11 +109,11 @@ async function boot() {
 		// not a talk: a real title from the PDF beats a file name like 1805.04154
 		const info = await deck.doc.getMetadata().then(m => m && m.info, () => null);
 		const t = info && typeof info.Title === 'string' ? info.Title.trim() : '';
-		if (t.split(/\s+/).length >= 2 && t.length < 200) {
+		if ((t.split(/\s+/).length >= 2 || (S.meta.kind === 'gslides' && t)) && t.length < 200) {
 			S.meta.title = t;
 			el.title.textContent = t;
 			document.title = t + (S.mode === 'present' ? ' — present' : ' — slides');
-			if (S.meta.kind === 'url') Open.rememberUrl(S.meta.source, t);
+			if (S.meta.kind === 'url' || S.meta.kind === 'gslides') Open.rememberUrl(S.meta.source, t);
 		}
 	}
 	if (tocM && tocM.pages === deck.count) {
@@ -121,6 +123,7 @@ async function boot() {
 		S.frames = C.framesFromLabels(await deck.labels(), deck.count);
 		const ol = (await deck.outline()).map(o => ({ ...o, title: C.cleanTitle(o.raw) }));
 		S.toc = C.buildToc(ol, S.frames);
+		S.needTitles = ol.length === 0;        // no bookmarks (Google Slides exports, most PDFs): read titles off the pages
 	}
 	S.cache = new SlideCache({
 		count: S.count,
@@ -143,6 +146,24 @@ async function boot() {
 	installResize();
 	if (S.mode === 'present') enterPresent(true);
 	setInterval(tick, 500);
+	if (S.needTitles) setTimeout(deriveTitles, 800);
+}
+
+/** Slide titles for a PDF without bookmarks: the largest text near the top
+ *  of each slide's last page (core.guessTitle), read in the background. */
+async function deriveTitles() {
+	let n = 0;
+	for (const f of S.frames) {
+		if (f.title) continue;
+		try {
+			const t = await S.deck.titleGuess(f.last, C.guessTitle);
+			if (t) { f.title = t; n++; }
+		} catch (e) { /* this page has none */ }
+	}
+	if (!n) return;
+	S.toc = C.buildToc([], S.frames);
+	buildToc();
+	updateChrome();
 }
 
 /** An HTML deck: it runs in an iframe on the stage (deck-html.js); the
@@ -153,7 +174,10 @@ async function bootHtml() {
 	el.frame = h('iframe', { class: 'sv-deckframe', title: S.meta.title || 'Slides', allow: 'fullscreen' });
 	el.sheet.append(el.frame);
 	measure();
-	const deck = await HtmlDeck.open(S.meta.slides.url, el.frame, { page: S.opts.page || 1, mode: S.mode });
+	if (S.meta.kind === 'md') {
+		[S.meta.md.themes, S.meta.md.fonts] = await Promise.all([Open.loadThemes(), Open.loadFonts(S.meta.md.theme)]);
+	}
+	const deck = await HtmlDeck.open(S.meta.slides.url, el.frame, { page: S.opts.page || 1, mode: S.mode, md: S.meta.md || null });
 	S.deck = deck;
 	S.count = deck.count;
 	S.frames = deck.frames.map(f => ({ ...f }));
@@ -180,6 +204,101 @@ async function bootHtml() {
 	if (S.mode === 'present') enterPresent(true);
 	setInterval(tick, 500);
 	if (S.mode !== 'embed' && S.meta.slides.download) setTimeout(loadHtmlThumbs, 1200);
+	if (S.meta.kind === 'md') startMd();
+}
+
+/** Markdown slides: report what did not convert and overfull slides;
+ *  follow the source (re-fetch every 10 s while the page is visible; R at
+ *  once), so a note edited on HackMD shows up while presenting from it. */
+function startMd() {
+	const md = S.meta.md;
+	if (md.unsupported.length) console.info('Markdown slides: not supported (left out):', md.unsupported.join('; '));
+	S.deck.onStructure(restructure);
+	S.deck.onError(m => flash('The edited Markdown does not render: ' + m));
+	reportOverfull();
+	if (!S.meta.mdSource || !S.meta.mdSource.fetch) return;     // a local file: a snapshot
+	const every = (S.opts.live || 10) * 1000;
+	S.mdTimer = setInterval(() => { if (document.visibilityState === 'visible') refetchMd(); }, every);
+}
+
+async function refetchMd(announce) {
+	if (S.mdBusy || !S.meta.mdSource || !S.meta.mdSource.fetch) return;
+	S.mdBusy = true;
+	try {
+		const raw = await Open.fetchMd(S.meta.mdSource);
+		if (raw !== S.meta.md.raw) {
+			const m = Open.mdMeta(S.meta.mdSource, raw, S.opts.theme).md;
+			m.themes = S.meta.md.themes;
+			m.fonts = m.theme === S.meta.md.theme ? S.meta.md.fonts : await Open.loadFonts(m.theme);
+			S.meta.md = m;
+			S.deck.setSource(m);
+			if (m.title !== S.meta.title) setTitle(m.title);
+		} else if (announce) flash('No changes');
+	} catch (e) {
+		if (announce) flash(String(e.message || e));
+	} finally { S.mdBusy = false; }
+}
+
+const THEME_NAMES = { wi: 'Site', black: 'Black', white: 'White' };
+const THEME_HELP = { wi: 'the site’s look', black: 'white on black (HackMD’s default)', white: 'black on white' };
+
+/** The bar's look button: shows the current look; a click (or S) moves on. */
+function updateThemeBtn() {
+	const t = S.meta.md.theme, next = THEMES[(THEMES.indexOf(t) + 1) % THEMES.length];
+	el.b_theme.lastChild.textContent = 'Look: ' + THEME_NAMES[t];
+	el.b_theme.title = 'Look of the slides: ' + THEME_HELP[t] + '. Click or S: ' + THEME_HELP[next];
+	el.b_theme.setAttribute('aria-label', el.b_theme.title);
+}
+
+/** Markdown slides in the next look (overrides the note's; kept in the address as theme=). */
+async function nextTheme() {
+	if (!S.meta || S.meta.kind !== 'md' || !S.deck) return;
+	const t = THEMES[(THEMES.indexOf(S.meta.md.theme) + 1) % THEMES.length];
+	S.opts.theme = t;
+	const m = Open.mdMeta(S.meta.mdSource, S.meta.md.raw, t).md;
+	m.themes = S.meta.md.themes;
+	m.fonts = await Open.loadFonts(t);
+	S.meta.md = m;
+	S.mdQuiet = true;
+	S.deck.setSource(m);
+	history.replaceState({ page: S.page }, '', urlFor(S.page));
+	updateThemeBtn();
+	flash('Look: ' + THEME_HELP[t]);
+}
+
+function setTitle(t) {
+	S.meta.title = t;
+	el.title.textContent = t;
+	document.title = t + (S.mode === 'present' ? ' — present' : ' — slides');
+}
+
+/** The deck reported a new structure (Markdown re-rendered): new frames,
+ *  contents, bar; the deck stays where it was as far as possible. */
+function restructure() {
+	const deck = S.deck;
+	S.count = deck.count;
+	S.frames = deck.frames.map(f => ({ ...f }));
+	S.toc = C.buildToc(deck.outline, S.frames);
+	S.texts = null; S.partialTexts = null; S.textsLoading = null;
+	S.page = Math.max(1, Math.min(S.count, deck.page || S.page));
+	buildProgress();
+	buildToc();
+	if (!el.overview.hidden) { el.overview.hidden = true; openOverview(); }
+	if (!el.searchPanel.hidden && S.query) runSearch();
+	updateChrome();
+	history.replaceState({ page: S.page }, '', urlFor(S.page));
+	if (S.mdQuiet) S.mdQuiet = false; else flash('Slides updated');
+	reportOverfull();
+}
+
+function reportOverfull() {
+	const o = S.deck.overfull || [];
+	const key = o.join(',');
+	if (key === (S.overfullKey || '')) return;
+	S.overfullKey = key;
+	if (!o.length) return;
+	console.warn('Markdown slides: too much on slide' + (o.length > 1 ? 's ' : ' ') + o.join(', ') + ' (shrunk to fit; still overfull)');
+	if (S.mode !== 'present') setTimeout(() => flash('Too much on slide' + (o.length > 1 ? 's ' : ' ') + o.join(', ')), 1800);
 }
 
 /** Thumbnails of an HTML deck for the overview, search and the bar's preview:
@@ -209,7 +328,7 @@ async function loadMeta() {
 		m.thumb = '/talks/' + m.id + '.thumb.webp';
 		return m;
 	}
-	if (o.url || o.local) return Open.externalMeta(o);
+	if (o.url || o.local || o.gslides || o.md) return Open.externalMeta(o);
 	if (o.src && /\.html?$/i.test(o.src.split(/[?#]/)[0])) {
 		// an HTML deck of this site (with deck-bridge.js)
 		let u;
@@ -226,10 +345,12 @@ async function loadMeta() {
 function fail(err) {
 	console.error(err);
 	const box = el.msg || document.body;
-	if (err && (err.kind === 'cors' || err.kind === 'local' || err.kind === 'url')) {
+	if (err && (err.kind === 'cors' || err.kind === 'local' || err.kind === 'url' || err.kind === 'gslides' || err.kind === 'md')) {
 		const m = h('div', { class: 'sv-error' },
 			err.kind === 'cors' ? Open.corsHelp(h, err.url, S.mode) : h('p', {}, String(err.message)),
-			err.kind !== 'cors' ? h('p', {}, ...Open.filePicker(h, S.mode, 'Choose a PDF…')) : null,
+			err.kind === 'gslides' ? h('p', {}, h('a', { href: err.url, target: '_blank', rel: 'noopener' }, 'Open it in Google Slides')) : null,
+			err.kind === 'md' && err.url ? h('p', {}, h('a', { href: err.url, target: '_blank', rel: 'noopener' }, 'Open the Markdown where it lives')) : null,
+			err.kind !== 'cors' && err.kind !== 'gslides' && err.kind !== 'md' ? h('p', {}, ...Open.filePicker(h, S.mode, 'Choose a PDF…')) : null,
 			h('p', {}, h('a', { href: '/slides/' }, 'Open another PDF'), ' · ', h('a', { href: '/talks/' }, 'All talks')));
 		if (el.root) Open.installDrop(el.root, () => S.mode);
 		if (el.root) el.root.classList.add('sv-failed');
@@ -264,10 +385,12 @@ function buildShell() {
 		btn('grid', 'Overview (O)', 'overview'),
 		btn('search', 'Search (/)', 'search'),
 		btn('builds', 'Hide build steps (U)', 'builds', { 'aria-pressed': 'false' }),
+		btn('theme', 'Look of the slides (S)', 'theme'),
 		el.dl = h('a', { class: 'sv-btn sv-btn-download', title: 'Download the PDF', 'aria-label': 'Download the PDF', download: '' }, icon('download'), h('span', { class: 'sv-lbl' }, 'PDF')),
 		btn('present', 'Present (M)', 'mode'),
 		btn('full', 'Full screen (F)', 'fullscreen'),
 		btn('help', 'Keys (?)', 'help'));
+	el.b_theme.hidden = true;            // Markdown slides only (fillShell)
 	el.canvas = h('canvas', { class: 'sv-canvas', 'aria-hidden': 'true' });
 	el.zoomCanvas = h('canvas', { class: 'sv-zoomcanvas', 'aria-hidden': 'true', hidden: true });
 	el.start = h('img', { class: 'sv-startimg', alt: '', hidden: true });
@@ -313,12 +436,22 @@ function fillShell() {
 	const m = S.meta;
 	el.title.textContent = m.title || '';
 	el.title.title = [m.title, m.venue, m.date].filter(Boolean).join(' · ');
-	if (m.kind === 'url' || m.kind === 'local') {
+	if (m.kind === 'url' || m.kind === 'local' || m.kind === 'gslides' || m.kind === 'md') {
 		// not a talk of this site: "back" leads to the start screen
 		el.back.href = '/slides/';
-		el.back.title = 'Open another PDF';
+		el.back.title = 'Open other slides';
 		el.back.lastChild.textContent = 'Open…';
-		el.title.title = m.kind === 'url' ? m.source : m.local.name + ' (on this computer)';
+		el.title.title = m.local ? m.local.name + ' (on this computer)' : m.source;
+		if (m.kind === 'md') { el.b_theme.hidden = false; updateThemeBtn(); }
+		if (m.kind === 'md' && m.source) {
+			const host = m.mdSource.host;
+			el.paper = h('a', { class: 'sv-paperlink', href: m.source, target: '_blank', rel: 'noopener', title: 'The Markdown ' + (host === 'HackMD' ? 'note on HackMD' : 'on ' + host) + ' (edits show up here within seconds; R: at once)' }, host === 'this site' ? 'Markdown' : host);
+			el.title.after(el.paper);
+		}
+		if (m.kind === 'gslides') {
+			el.paper = h('a', { class: 'sv-paperlink', href: m.source, target: '_blank', rel: 'noopener', title: 'The presentation in Google Slides (live; animations and videos only there)' }, 'Google Slides');
+			el.title.after(el.paper);
+		}
 	} else if (m.page) { el.back.href = m.page; el.back.title = 'Back to the talk page'; }
 	else if (m.publications && m.publications.length === 1) { el.back.href = m.publications[0].url; }
 	else el.back.hidden = !document.referrer;
@@ -517,14 +650,21 @@ function go(p, opts = {}) {
 function urlFor(p, mode = S.mode) {
 	const q = new URLSearchParams();
 	if (S.opts.t) q.set('t', S.opts.t);
+	else if (S.meta && S.meta.kind === 'gslides') q.set('gslides', S.meta.gslides);
+	else if (S.meta && S.meta.kind === 'md' && S.meta.source) q.set('md', S.meta.source);
+	else if (S.opts.md) q.set('md', S.opts.md);
 	else if (S.opts.src) q.set('src', S.opts.src);
 	else if (S.opts.url) q.set('url', S.meta && S.meta.source || S.opts.url);
 	else if (S.opts.local) q.set('local', S.opts.local);
+	else if (S.opts.gslides) q.set('gslides', S.meta && S.meta.gslides || S.opts.gslides);
 	if (mode === 'present') q.set('present', '');
 	if (mode === 'embed') q.set('embed', '');
 	if (!S.builds) q.set('builds', '0');
 	if (S.opts.scale) q.set('scale', S.opts.scale);
-	return location.pathname + '?' + q.toString().replace(/=(?=&|$)/g, '') + C.pageHash(p);
+	if (S.opts.theme) q.set('theme', S.opts.theme);
+	if (S.opts.live) q.set('live', S.opts.live);
+	// readable addresses: / : @ need no escaping in a query value
+	return location.pathname + '?' + q.toString().replace(/=(?=&|$)/g, '').replace(/%2F/g, '/').replace(/%3A/g, ':').replace(/%40/g, '@') + C.pageHash(p);
 }
 
 function onCacheChange(what, p) {
@@ -583,8 +723,11 @@ function buildProgress() {
 	el.fill = h('div', { class: 'sv-fill' });
 	track.append(el.buffered, el.fill);
 	bar.append(track);
+	el.track = track;
+	if (bar.dataset.wired) return;       // rebuilt (Markdown slides changed): the listeners are there
+	bar.dataset.wired = '1';
 	const pageAt = x => {
-		const r = track.getBoundingClientRect();
+		const r = el.track.getBoundingClientRect();
 		return Math.max(1, Math.min(S.count, Math.floor((x - r.left) / r.width * S.count) + 1));
 	};
 	let dragging = false;
@@ -985,6 +1128,7 @@ function act(a) {
 		case 'overview': return S.mode === 'embed' ? null : openOverview();
 		case 'toc': togglePanel(el.tocPanel); return;
 		case 'search': return S.mode === 'embed' ? null : openSearch();
+		case 'theme': nextTheme(); return;
 		case 'builds': {
 			S.builds = !S.builds;
 			buildToc();
@@ -1008,7 +1152,9 @@ function act(a) {
 			else hideHint();
 			return;
 		case 'hud': el.hud.hidden = !el.hud.hidden; tick(); return;
-		case 'rerender': if (S.html) { S.deck.reload(); flash('Deck reloaded'); return; } S.cache.clear(); for (const u of S.thumbURL.values()) URL.revokeObjectURL(u); S.thumbURL.clear(); show(S.page); flash('Cache cleared'); return;
+		case 'rerender':
+			if (S.meta.kind === 'md' && S.meta.mdSource && S.meta.mdSource.fetch) { refetchMd(true); return; }
+			if (S.html) { S.deck.reload(); flash('Deck reloaded'); return; } S.cache.clear(); for (const u of S.thumbURL.values()) URL.revokeObjectURL(u); S.thumbURL.clear(); show(S.page); flash('Cache cleared'); return;
 		case 'help': return toggleHelp();
 		case 'escape': return escape();
 	}
@@ -1336,6 +1482,13 @@ function tick() {
 }
 
 function hudText(st) {
+	if (S.html && S.meta.kind === 'md') {
+		const md = S.meta.md, o = S.deck.overfull || [];
+		return [`Markdown slides from ${S.meta.mdSource.host}: ${S.meta.source || S.meta.local && S.meta.local.name}  (theme ${md.theme})`,
+			`position ${S.page} / ${S.count}  (${S.frames.length} slides)   viewer ${VERSION}`,
+			o.length ? `overfull: slide ${o.join(', ')}` : 'no overfull slides',
+			md.unsupported.length ? 'left out: ' + md.unsupported.join('; ') : ''].filter(Boolean).join('\n');
+	}
 	if (S.html) return `HTML deck ${S.meta.slides.url}\nposition ${S.page} / ${S.count}  (${S.frames.length} slides)`;
 	const n = S.stats.nav, l = S.stats.last || {};
 	const mb = x => (x / 1e6).toFixed(1) + ' MB';
@@ -1365,7 +1518,7 @@ function countView() {
 	// /slides/<id>; the embed counts an event (the host page already counted).
 	// Other sites' PDFs and local files count as external / local: no
 	// addresses or file names are sent.
-	const id = S.meta && (S.meta.id || (S.meta.kind === 'url' ? 'external' : S.meta.kind === 'local' ? 'local' : S.opts.src)) || 'unknown';
+	const id = S.meta && (S.meta.id || (S.meta.kind === 'url' ? 'external' : S.meta.kind === 'local' || (S.meta.kind === 'md' && S.meta.local) ? 'local' : S.meta.kind === 'gslides' ? 'gslides' : S.meta.kind === 'md' ? 'md' : S.opts.src)) || 'unknown';
 	const send = () => {
 		if (!window.goatcounter || !window.goatcounter.count) return false;
 		const title = S.meta.id ? S.meta.title : 'Slide viewer: ' + id;

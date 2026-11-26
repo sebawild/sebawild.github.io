@@ -17,6 +17,8 @@ export function parseLocation(search, hash) {
 		local: q.get('local') || null,      // a PDF from this computer, kept in IndexedDB (open.js)
 		md: q.get('md') || null,
 		gslides: q.get('gslides') || null,
+		theme: q.get('theme') || null,      // Markdown slides: wi | black | white (md.js)
+		live: q.has('live') ? Math.max(3, parseFloat(q.get('live')) || 10) : null,   // Markdown slides: re-read every N s
 		mode: q.has('present') ? 'present' : q.has('embed') ? 'embed' : 'tab',
 		builds: q.get('builds') === '0' ? false : true,
 		scale: q.has('scale') ? Math.max(0.5, Math.min(4, parseFloat(q.get('scale')) || 1)) : null,
@@ -56,6 +58,41 @@ export function safeExternal(url) {
 		u.hash = '';
 		return u.href;
 	} catch (e) { return null; }
+}
+
+/** Google Slides: the presentation id from an id or any docs.google.com
+ *  presentation URL (/edit, /view, /present, ?usp=sharing ...); null if none.
+ *  "Published to the web" links (/d/e/2PACX-...) have no export: null. */
+export function gslidesId(s) {
+	if (!s) return null;
+	s = String(s).trim();
+	if (/^[\w-]{25,}$/.test(s)) return s;
+	const m = /^https?:\/\/docs\.google\.com\/presentation\/(?:u\/\d+\/)?d\/([\w-]{25,})(?:[/?#]|$)/.exec(s);
+	return m ? m[1] : null;
+}
+
+/** The live PDF export of a Google Slides presentation (needs sharing set to
+ *  "anyone with the link"); Google allows other pages to read it (CORS). */
+export function gslidesPdf(id) { return 'https://docs.google.com/presentation/d/' + id + '/export/pdf'; }
+
+/** A slide title from a page's text items (PDF.js getTextContent items, PDF
+ *  units, y upwards): the largest text in the top 35% of the page, joined
+ *  along its line.  For PDFs without bookmarks (Google Slides exports). */
+export function guessTitle(items, pageHeight) {
+	const top = pageHeight * 0.65;
+	let best = 0;
+	for (const it of items) {
+		const size = Math.abs(it.transform ? it.transform[3] : 0);
+		if (it.str && it.str.trim() && it.transform[5] >= top && size > best) best = size;
+	}
+	if (!best) return null;
+	const line = items.filter(it => it.str && Math.abs(Math.abs(it.transform[3]) - best) < 0.5 && it.transform[5] >= top);
+	if (!line.length) return null;
+	const y0 = Math.max(...line.map(it => it.transform[5]));
+	const t = line.filter(it => Math.abs(it.transform[5] - y0) < best * 1.6)
+		.sort((a, b) => b.transform[5] - a.transform[5] || a.transform[4] - b.transform[4])
+		.map(it => it.str).join(' ').replace(/\s+/g, ' ').trim();
+	return /[^\W\d_]{2}/u.test(t) ? t.slice(0, 90) : null;
 }
 
 /** A readable name for a PDF from its URL or file name. */
@@ -305,6 +342,7 @@ export const KEYS = [
 	{ keys: ['t'], action: 'toc', help: 'contents', modes: 'etp' },
 	{ keys: ['/', 'Ctrl+f'], action: 'search', help: 'search the slides', modes: 'tp' },
 	{ keys: ['u'], action: 'builds', help: 'hide / show build steps', modes: 'etp' },
+	{ keys: ['s'], action: 'theme', help: 'Markdown slides: next look (the site’s, white on black, black on white)', modes: 'tp' },
 	{ keys: ['+', '='], action: 'zoomIn', help: 'zoom in', modes: 'etp' },
 	{ keys: ['-'], action: 'zoomOut', help: 'zoom out', modes: 'etp' },
 	{ keys: ['0'], action: 'zoomFit', help: 'fit (when no number is being typed)', modes: 'etp' },

@@ -29,8 +29,15 @@
 (function () {
 	'use strict';
 	const NS = 'wi-deck';
-	let framed = false;
-	try { framed = window.parent !== window && window.parent.location.origin === location.origin; } catch (e) { framed = false; }
+	// Framed by a page of the same site -- or sandboxed by it (Markdown decks,
+	// deck-md.html: iframe sandbox="allow-scripts", origin "null"; then the
+	// parent's origin is unknown here and messages go to '*': they only carry
+	// positions and the slides' text, which the parent shows anyway).
+	const inFrame = window.parent !== window;
+	const sandboxed = inFrame && self.origin === 'null';     // (location.origin is still the address's)
+	let framed = sandboxed;
+	try { framed = framed || (inFrame && window.parent.location.origin === location.origin); } catch (e) { /* another site's frame */ }
+	const TARGET = sandboxed ? '*' : location.origin;
 
 	let api = null, info = null, steps = [], starts = [], total = 0;
 	let cur = { slide: 0, step: 0 }, lastSent = 0, replaying = false;
@@ -60,12 +67,12 @@
 		return m ? parseInt(m[1], 10) : 1;
 	}
 	function post(msg) {
-		if (framed) window.parent.postMessage(Object.assign({ ns: NS }, msg), location.origin);
+		if (framed) window.parent.postMessage(Object.assign({ ns: NS }, msg), TARGET);
 	}
 	function sendReady() {
 		post({
 			type: 'ready', title: info.title || document.title, aspect: info.aspect || [16, 9],
-			slides: info.slides.map((s, i) => ({ title: s.title || '', section: s.section || '', steps: steps[i], id: s.id || '' })),
+			slides: info.slides.map((s, i) => ({ title: s.title || '', section: s.section || '', steps: steps[i], id: s.id || '', overflow: !!s.overflow })),
 			text: info.text || info.slides.map(s => s.text || ''),
 			keys: api.keys || [],
 		});
@@ -74,7 +81,7 @@
 		cur = { slide, step };
 		const p = pageOf(slide, step);
 		if (framed) { if (p !== lastSent || !quiet) post({ type: 'state', page: p }); }
-		else history.replaceState(history.state, '', '#page=' + p);
+		else history.replaceState(history.state, '', location.pathname + location.search + '#page=' + p);
 		lastSent = p;
 	}
 	function go(page, dir) {
@@ -96,14 +103,26 @@
 			lastSent = pageOf(start.slide, start.step);
 			if (framed) { sendReady(); post({ type: 'state', page: lastSent }); }
 			else {
-				history.replaceState(history.state, '', '#page=' + lastSent);
+				history.replaceState(history.state, '', location.pathname + location.search + '#page=' + lastSent);
 				count();
 			}
 		},
 		/** The deck moved by itself (its own keys or clicks). */
 		changed(slide, step) { if (api) moved(slide, step, true); },
-		/** The structure changed (slides added, builds changed). */
-		refresh() { if (!api) return; structure(); sendReady(); },
+		/** The structure changed (slides added, builds changed; a Markdown deck
+		 *  re-rendered after its source changed): report it, stay at the same
+		 *  position as far as it still exists. */
+		refresh() {
+			if (!api) return;
+			const p = pageOf(cur.slide, cur.step);     // in the old structure
+			structure();
+			const t = at(Math.min(p, total));
+			api.goto(t.slide, t.step, 1);
+			cur = t;
+			lastSent = pageOf(t.slide, t.step);
+			sendReady();
+			post({ type: 'state', page: lastSent });
+		},
 		pageOf, at,
 		get page() { return pageOf(cur.slide, cur.step); },
 		/** Structure from the DOM: <section class="slide" data-title data-section data-builds>. */
@@ -147,7 +166,7 @@
 		}, true);
 		window.addEventListener('message', e => {
 			const m = e.data;
-			if (!api || e.source !== window.parent || e.origin !== location.origin || !m || m.ns !== NS) return;
+			if (!api || e.source !== window.parent || (!sandboxed && e.origin !== location.origin) || !m || m.ns !== NS) return;
 			const p = pageOf(cur.slide, cur.step);
 			if (m.type === 'goto') { if (m.page !== p) go(m.page, m.dir); }
 			else if (m.type === 'next') { if (api.next) api.next(); else if (p < total) go(p + 1, 1); }
